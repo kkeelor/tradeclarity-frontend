@@ -1,0 +1,15 @@
+# macOS
+.DS_Store
+
+# Node/JS
+node_modules/
+dist/
+build/
+.next/
+.vercel/
+coverage/
+.env
+.env.*
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
