@@ -16,6 +16,8 @@ export default function TradeClarity() {
   const [analytics, setAnalytics] = useState(null)
 
   const fetchBinance = async (endpoint, params = {}) => {
+
+    console.log('Backend URL:', BACKEND_URL);  // ADD THIS LINE
     const response = await fetch(`${BACKEND_URL}/api/binance`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
