@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { TrendingUp, Lock, Loader2, AlertCircle, DollarSign, Target, Clock, Sparkles, Eye, EyeOff, HelpCircle, Calendar, Award, AlertTriangle, ArrowUpRight, ArrowDownRight, Activity } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area } from 'recharts'
 
@@ -15,18 +15,56 @@ export default function TradeClarity() {
   const [progress, setProgress] = useState('')
   const [analytics, setAnalytics] = useState(null)
 
-  const fetchBinance = async (endpoint, params = {}) => {
+  // TEMP: only for a quick console test — do not commit real keys
+  const fetchCoinDCX = async (endpoint, params = {}) => {
+    if (!BACKEND_URL) throw new Error('BACKEND_URL is not set')
     console.log('Backend URL:', BACKEND_URL)
-    const response = await fetch(`${BACKEND_URL}/api/binance`, {
+
+    const COINDCX_API_KEY = 'YOUR_COINDCX_API_KEY'    // TEMP — remove before commit
+    const COINDCX_API_SECRET = 'YOUR_COINDCX_SECRET'  // TEMP — remove before commit
+
+    const res = await fetch(`${BACKEND_URL}/api/coindcx`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        apiKey: COINDCX_API_KEY,
+        apiSecret: COINDCX_API_SECRET,
+        endpoint,
+        params
+      })
+    })
+
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok || !data.success) throw new Error(data.error || `HTTP ${res.status}`)
+    return data.data
+  }
+
+  const fetchBinance = async (endpoint, params = {}) => {
+    if (!BACKEND_URL) throw new Error('BACKEND_URL is not set')
+    console.log('Backend URL:', BACKEND_URL)
+
+    const res = await fetch(`${BACKEND_URL}/api/binance`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ apiKey, apiSecret, endpoint, params })
     })
 
-    const data = await response.json()
-    if (!data.success) throw new Error(data.error || 'API request failed')
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok || !data.success) throw new Error(data.error || `HTTP ${res.status}`)
     return data.data
   }
+
+  // TEMP console test for CoinDCX
+  useEffect(() => {
+    (async () => {
+      try {
+        const trades = await fetchCoinDCX('/exchange/v1/orders/trade_history', { limit: 5 })
+        console.log('✅ CoinDCX Trades:', trades)
+      } catch (err) {
+        console.error('❌ CoinDCX Error:', err.message || err)
+      }
+    })()
+  }, [])
 
   const analyzeData = (allTrades) => {
     const tradesBySymbol = {}
@@ -586,6 +624,60 @@ export default function TradeClarity() {
               'Analyze My Trades'
             )}
           </button>
+
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-6 space-y-4">
+            <h3 className="text-lg font-semibold text-blue-400 flex items-center gap-2">
+              <HelpCircle className="w-5 h-5" />
+              How to Create Binance API Keys
+            </h3>
+            <ol className="space-y-3 text-sm text-slate-300">
+              <li className="flex gap-3">
+                <span className="flex-shrink-0 w-6 h-6 bg-blue-400/20 text-blue-400 rounded-full flex items-center justify-center text-xs font-bold">1</span>
+                <div>
+                  <span className="font-medium">Log into Binance</span>
+                  <p className="text-slate-400 text-xs mt-1">Go to binance.com and sign in to your account</p>
+                </div>
+              </li>
+              <li className="flex gap-3">
+                <span className="flex-shrink-0 w-6 h-6 bg-blue-400/20 text-blue-400 rounded-full flex items-center justify-center text-xs font-bold">2</span>
+                <div>
+                  <span className="font-medium">Navigate to API Management</span>
+                  <p className="text-slate-400 text-xs mt-1">Click your profile → API Management</p>
+                </div>
+              </li>
+              <li className="flex gap-3">
+                <span className="flex-shrink-0 w-6 h-6 bg-blue-400/20 text-blue-400 rounded-full flex items-center justify-center text-xs font-bold">3</span>
+                <div>
+                  <span className="font-medium">Create New API Key</span>
+                  <p className="text-slate-400 text-xs mt-1">Choose "System Generated" and give it a label like "TradeClarity"</p>
+                </div>
+              </li>
+              <li className="flex gap-3">
+                <span className="flex-shrink-0 w-6 h-6 bg-blue-400/20 text-blue-400 rounded-full flex items-center justify-center text-xs font-bold">4</span>
+                <div>
+                  <span className="font-medium">Enable Read-Only Permission</span>
+                  <p className="text-slate-400 text-xs mt-1">
+                    <span className="text-emerald-400">✓</span> Check "Enable Reading" only
+                    <br />
+                    <span className="text-red-400">✗</span> Leave "Enable Spot & Margin Trading" OFF
+                  </p>
+                </div>
+              </li>
+              <li className="flex gap-3">
+                <span className="flex-shrink-0 w-6 h-6 bg-blue-400/20 text-blue-400 rounded-full flex items-center justify-center text-xs font-bold">5</span>
+                <div>
+                  <span className="font-medium">Copy Your Keys</span>
+                  <p className="text-slate-400 text-xs mt-1">Copy the API Key and Secret Key and paste them above</p>
+                </div>
+              </li>
+            </ol>
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-400">
+                <span className="font-semibold">Important:</span> Never enable trading permissions. We only need read access to view your trade history.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

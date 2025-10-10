@@ -20,7 +20,7 @@ export default function LandingPage() {
             onClick={() => router.push('/analyze')}
             className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors border border-slate-700 hover:border-emerald-400/50"
           >
-            Try Now
+            Try Now 
           </button>
         </div>
       </header>
@@ -59,7 +59,7 @@ export default function LandingPage() {
             >
               <span className="flex items-center gap-3">
                 <Sparkles className="w-5 h-5 text-emerald-400" />
-                Try Now
+                Try Now - Binance only
               </span>
             </button>
           </div>
