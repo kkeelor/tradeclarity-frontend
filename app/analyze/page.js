@@ -54,17 +54,37 @@ export default function TradeClarity() {
     return data.data
   }
 
-  // TEMP console test for CoinDCX
-  useEffect(() => {
-    (async () => {
-      try {
-        const trades = await fetchCoinDCX('/exchange/v1/orders/trade_history', { limit: 5 })
-        console.log('✅ CoinDCX Trades:', trades)
-      } catch (err) {
-        console.error('❌ CoinDCX Error:', err.message || err)
+  // TEMP: Test CoinDCX API on mount
+useEffect(() => {
+  const testCoinDCX = async () => {
+    try {
+      const COINDCX_API_KEY = 'd314df7c8b51489735dcd82c143c6b0e5429b9c0cd1ac915'     // Replace with real key
+      const COINDCX_API_SECRET = '43a821596286b13b1e18c4200b470747a1d099e11d18ee5e32f8056aa324c8e7' // Replace with real secret
+
+      const res = await fetch(`${BACKEND_URL}/api/coindcx`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apiKey: COINDCX_API_KEY,
+          apiSecret: COINDCX_API_SECRET,
+          endpoint: '/exchange/v1/orders/trade_history',
+          params: { limit: 5 }
+        })
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        console.log('✅ CoinDCX Trades:', data.data)
+      } else {
+        console.error('❌ CoinDCX Error:', data.error)
       }
-    })()
-  }, [])
+    } catch (err) {
+      console.error('❌ CoinDCX Request Failed:', err.message)
+    }
+  }
+
+  testCoinDCX()
+}, [])
 
   const analyzeData = (allTrades) => {
     const tradesBySymbol = {}
