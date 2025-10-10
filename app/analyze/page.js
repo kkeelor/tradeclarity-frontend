@@ -68,7 +68,7 @@ useEffect(() => {
           apiKey: COINDCX_API_KEY,
           apiSecret: COINDCX_API_SECRET,
           endpoint: '/exchange/v1/orders/trade_history',
-          params: { limit: 5 }
+          params: { limit: 500 }
         })
       })
 
