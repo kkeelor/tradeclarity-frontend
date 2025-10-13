@@ -59,7 +59,7 @@ export default function LandingPage() {
             >
               <span className="flex items-center gap-3">
                 <Sparkles className="w-5 h-5 text-emerald-400" />
-                Try Now - Binance only
+                Try Now
               </span>
             </button>
           </div>
