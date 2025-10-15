@@ -14,6 +14,7 @@ import {
   Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, 
   Pie, Cell, RadarChart, PolarGrid, PolarAngleAxis, Radar
 } from 'recharts'
+import ThemeToggle from '../../components/ThemeToggle'
 
 function Header({ exchangeConfig, currencyMetadata, currency, setCurrency, onDisconnect }) {
   return (
@@ -33,6 +34,7 @@ function Header({ exchangeConfig, currencyMetadata, currency, setCurrency, onDis
           </div>
           
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             {currencyMetadata?.supportsCurrencySwitch && (
               <select
                 value={currency}
@@ -150,8 +152,8 @@ function HeroMetrics({ analytics, currSymbol }) {
           />
           <MetricCard
             label="Total Trades"
-            value={analytics.completedTrades}
-            subtitle={`${analytics.spotTrades} spot • ${analytics.futuresTrades} futures`}
+            value={analytics.totalTrades}  // Will show 410
+            subtitle={`${analytics.spotTrades} spot • ${analytics.futuresTrades} futures`}  // Shows 44 + 366 = 410
             icon={Activity}
           />
           <MetricCard
@@ -263,11 +265,11 @@ function InsightCard({ insight, onClick }) {
 // Psychology Score Visualization
 function PsychologyScore({ score, breakdown }) {
   const getScoreColor = (score) => {
-    if (score >= 80) return { color: 'emerald', label: 'Excellent', emoji: '🏆' }
-    if (score >= 70) return { color: 'cyan', label: 'Good', emoji: '👍' }
-    if (score >= 60) return { color: 'yellow', label: 'Fair', emoji: '⚠️' }
-    if (score >= 50) return { color: 'orange', label: 'Needs Work', emoji: '📈' }
-    return { color: 'red', label: 'Critical', emoji: '🚨' }
+    if (score >= 80) return { color: 'emerald', label: 'Excellent', emoji: '🏆', stroke: '#10b981' }
+    if (score >= 70) return { color: 'cyan', label: 'Good', emoji: '👍', stroke: '#06b6d4' }
+    if (score >= 60) return { color: 'yellow', label: 'Fair', emoji: '⚠️', stroke: '#eab308' }
+    if (score >= 50) return { color: 'orange', label: 'Needs Work', emoji: '📈', stroke: '#f97316' }
+    return { color: 'red', label: 'Critical', emoji: '🚨', stroke: '#ef4444' }
   }
   
   const scoreInfo = getScoreColor(score)

@@ -1,17 +1,19 @@
 // app/analyze/utils/spotAnalyzer.js
 // Handles traditional SPOT trading analysis with position tracking
+// NOTE: In spot trading, each buy AND each sell is counted as a transaction (industry standard)
+// A "completed trade" means a buy+sell pair that results in a win or loss
 
 export const analyzeSpotTrades = (spotTrades) => {
   console.log('\n=== SPOT ANALYZER ===')
-  console.log('Total spot trades:', spotTrades.length)
+  console.log('Total spot transactions:', spotTrades.length)
 
   if (spotTrades.length === 0) {
     return {
       totalPnL: 0,
       totalInvested: 0,
       roi: 0,
-      totalTrades: 0,
-      completedTrades: 0,
+      totalTrades: 0,  // Total transactions (buys + sells)
+      completedTrades: 0,  // Closed positions with W/L
       winningTrades: 0,
       losingTrades: 0,
       winRate: 0,
@@ -82,7 +84,7 @@ export const analyzeSpotTrades = (spotTrades) => {
     let symbolWins = 0
     let symbolLosses = 0
 
-    console.log(`\nAnalyzing SPOT ${symbol}: ${trades.length} trades`)
+    console.log(`\nAnalyzing SPOT ${symbol}: ${trades.length} transactions`)
 
     trades.forEach((trade, index) => {
       const qty = parseFloat(trade.qty)
@@ -113,7 +115,7 @@ export const analyzeSpotTrades = (spotTrades) => {
 
           console.log(`  [${index}] SELL: ${qty} @ ${price} | AvgCost: ${avgCost.toFixed(2)} | PnL: ${pnl.toFixed(2)}`)
 
-          // Track win/loss
+          // Track win/loss - this creates a "completed trade"
           if (pnl > 0) {
             symbolWins++
             winningTrades++
@@ -157,7 +159,7 @@ export const analyzeSpotTrades = (spotTrades) => {
       realized,
       position,
       avgPrice: position > 0 ? totalCost / position : 0,
-      trades: trades.length,
+      trades: trades.length,  // Total transactions for this symbol
       buys,
       sells,
       wins: symbolWins,
@@ -175,19 +177,21 @@ export const analyzeSpotTrades = (spotTrades) => {
   avgLoss = losingTrades > 0 ? avgLoss / losingTrades : 0
   const profitFactor = avgLoss > 0 ? avgWin / avgLoss : 0
 
+  // Completed trades = positions that were closed (resulted in win or loss)
   const completedTrades = winningTrades + losingTrades
 
   console.log('\n=== SPOT ANALYSIS COMPLETE ===')
   console.log('Total P&L:', totalPnL.toFixed(2))
-  console.log('Completed Trades:', completedTrades)
+  console.log('Total Transactions:', spotTrades.length, '(buys + sells)')
+  console.log('Completed Round-Trips:', completedTrades, '(closed positions)')
   console.log('Win Rate:', completedTrades > 0 ? (winningTrades / completedTrades * 100).toFixed(2) + '%' : '0%')
 
   return {
     totalPnL,
     totalInvested,
     roi: totalInvested > 0 ? (totalPnL / totalInvested) * 100 : 0,
-    totalTrades: spotTrades.length,
-    completedTrades,
+    totalTrades: spotTrades.length,  // ALL transactions (buys + sells) - industry standard for spot
+    completedTrades,  // Only closed positions (buy+sell pairs with W/L outcome)
     winningTrades,
     losingTrades,
     winRate: completedTrades > 0 ? (winningTrades / completedTrades) * 100 : 0,

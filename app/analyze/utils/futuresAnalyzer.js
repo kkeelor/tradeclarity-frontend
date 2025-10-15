@@ -1,5 +1,7 @@
 // app/analyze/utils/futuresAnalyzer.js
 // Handles FUTURES trading analysis using income records (realized P&L, commissions, funding fees)
+// NOTE: For futures, totalTrades = count of unique REALIZED_PNL records (each represents a completed trade)
+// This is different from spot where we count each transaction (buy AND sell separately)
 
 export const analyzeFuturesTrades = (futuresData) => {
   console.log('\n=== FUTURES ANALYZER ===')
@@ -44,6 +46,7 @@ export const analyzeFuturesTrades = (futuresData) => {
   let maxConsecutiveLosses = 0
 
   // Track unique trades (not just income records)
+  // Each unique tradeId represents ONE completed futures trade
   const uniqueTradeIds = new Set()
 
   // Group income by symbol
@@ -73,6 +76,7 @@ export const analyzeFuturesTrades = (futuresData) => {
     }
 
     // Track unique trades - only count REALIZED_PNL records for trade count
+    // This is the KEY difference from spot: one REALIZED_PNL = one completed trade
     if (type === 'REALIZED_PNL' && inc.tradeId) {
       uniqueTradeIds.add(inc.tradeId)
       incomeBySymbol[symbol].tradeIds.add(inc.tradeId)
@@ -148,14 +152,18 @@ export const analyzeFuturesTrades = (futuresData) => {
   const symbolAnalytics = {}
   Object.entries(incomeBySymbol).forEach(([symbol, data]) => {
     const netPnL = data.realized + data.commission + data.funding
-    const totalTrades = data.tradeIds.size || data.wins + data.losses
+    
+    // For each symbol, count unique trades
+    const symbolTotalTrades = data.tradeIds.size > 0 
+      ? data.tradeIds.size 
+      : income.filter(i => i.symbol === symbol && i.incomeType === 'REALIZED_PNL').length
     
     symbolAnalytics[symbol] = {
       realized: data.realized,
       commission: data.commission,
       funding: data.funding,
       netPnL,
-      trades: totalTrades,
+      trades: symbolTotalTrades,  // Count of completed trades for this symbol
       wins: data.wins,
       losses: data.losses,
       winRate: data.wins + data.losses > 0 ? (data.wins / (data.wins + data.losses)) * 100 : 0,
@@ -187,8 +195,9 @@ export const analyzeFuturesTrades = (futuresData) => {
 
   const completedTrades = winningTrades + losingTrades
   
-  // Total trades should be the count of unique REALIZED_PNL records
-  // If no tradeIds, fall back to counting REALIZED_PNL records
+  // CRITICAL: Total trades for futures = count of unique REALIZED_PNL records
+  // This represents the number of times we closed a position and realized profit/loss
+  // If no tradeIds are available, fall back to counting REALIZED_PNL records
   const totalTradesCount = uniqueTradeIds.size > 0 
     ? uniqueTradeIds.size 
     : income.filter(i => i.incomeType === 'REALIZED_PNL').length
@@ -199,8 +208,8 @@ export const analyzeFuturesTrades = (futuresData) => {
   console.log('Total Funding Fees:', totalFundingFees.toFixed(2))
   console.log('Net P&L:', netPnL.toFixed(2))
   console.log('Unrealized P&L:', unrealizedPnL.toFixed(2))
-  console.log('Total Trades:', totalTradesCount)
-  console.log('Completed Trades:', completedTrades)
+  console.log('Total Trades (completed futures trades):', totalTradesCount)
+  console.log('Completed Trades (with W/L outcome):', completedTrades)
   console.log('Win Rate:', completedTrades > 0 ? (winningTrades / completedTrades * 100).toFixed(2) + '%' : '0%')
   console.log('Open Positions:', openPositions.length)
 
@@ -211,8 +220,8 @@ export const analyzeFuturesTrades = (futuresData) => {
     totalCommission,
     totalFundingFees,
     netPnL,
-    totalTrades: totalTradesCount,
-    completedTrades,
+    totalTrades: totalTradesCount,  // Count of completed futures trades (unique REALIZED_PNL records)
+    completedTrades,  // Trades with win/loss outcome
     winningTrades,
     losingTrades,
     winRate: completedTrades > 0 ? (winningTrades / completedTrades) * 100 : 0,

@@ -48,7 +48,13 @@ export const analyzeData = (allData) => {
   // Combine metrics
   const totalPnL = spotAnalysis.totalPnL + futuresAnalysis.netPnL
   const totalInvested = spotAnalysis.totalInvested // Futures doesn't track "invested" the same way
+  
+  // CRITICAL: Total trades calculation
+  // Spot: Each buy AND sell is counted as a transaction (industry standard for spot trading)
+  // Futures: Each completed trade (realized P&L record) is one trade
   const totalTrades = spotAnalysis.totalTrades + futuresAnalysis.totalTrades
+  
+  // Completed trades = closed positions that resulted in win or loss
   const completedTrades = spotAnalysis.completedTrades + futuresAnalysis.completedTrades
   const winningTrades = spotAnalysis.winningTrades + futuresAnalysis.winningTrades
   const losingTrades = spotAnalysis.losingTrades + futuresAnalysis.losingTrades
@@ -129,7 +135,7 @@ export const analyzeData = (allData) => {
     large: spotTrades.filter(t => parseFloat(t.qty) * parseFloat(t.price) >= 1000).length
   }
 
-  // Overall stats
+  // Overall stats - weighted averages
   const avgWin = winningTrades > 0 
     ? (spotAnalysis.avgWin * spotAnalysis.winningTrades + futuresAnalysis.avgWin * futuresAnalysis.winningTrades) / winningTrades
     : 0
@@ -163,8 +169,8 @@ export const analyzeData = (allData) => {
 
   console.log('\n=== MASTER ANALYSIS COMPLETE ===')
   console.log('Total P&L:', totalPnL.toFixed(2), `(Spot: ${spotAnalysis.totalPnL.toFixed(2)}, Futures: ${futuresAnalysis.netPnL.toFixed(2)})`)
-  console.log('Total Trades:', totalTrades, `(Spot: ${spotAnalysis.totalTrades}, Futures: ${futuresAnalysis.totalTrades})`)
-  console.log('Completed:', completedTrades, `(${winningTrades}W / ${losingTrades}L)`)
+  console.log('Total Transactions:', totalTrades, `(Spot: ${spotAnalysis.totalTrades}, Futures: ${futuresAnalysis.totalTrades})`)
+  console.log('Completed Trades:', completedTrades, `(${winningTrades}W / ${losingTrades}L)`)
   console.log('Win Rate:', completedTrades > 0 ? (winningTrades / completedTrades * 100).toFixed(2) + '%' : '0%')
   console.log('Psychology Score:', psychology.disciplineScore)
 
@@ -173,8 +179,8 @@ export const analyzeData = (allData) => {
     totalPnL,
     totalInvested,
     roi: totalInvested > 0 ? (totalPnL / totalInvested) * 100 : 0,
-    totalTrades,
-    completedTrades,
+    totalTrades,  // Total transactions (buy + sell for spot, realized PnL count for futures)
+    completedTrades,  // Only closed positions with W/L outcome
     buyTrades: spotTrades.filter(t => t.isBuyer).length,
     sellTrades: spotTrades.filter(t => !t.isBuyer).length,
     winningTrades,
@@ -203,8 +209,8 @@ export const analyzeData = (allData) => {
     
     // Spot-specific metrics
     spotPnL: spotAnalysis.totalPnL,
-    spotTrades: spotAnalysis.totalTrades,
-    spotCompletedTrades: spotAnalysis.completedTrades,
+    spotTrades: spotAnalysis.totalTrades,  // All spot transactions (buys + sells)
+    spotCompletedTrades: spotAnalysis.completedTrades,  // Closed positions only
     spotWins: spotAnalysis.winningTrades,
     spotLosses: spotAnalysis.losingTrades,
     spotWinRate: spotAnalysis.winRate,
@@ -215,7 +221,7 @@ export const analyzeData = (allData) => {
     futuresPnL: futuresAnalysis.netPnL,
     futuresRealizedPnL: futuresAnalysis.realizedPnL,
     futuresUnrealizedPnL: futuresAnalysis.unrealizedPnL,
-    futuresTrades: futuresAnalysis.totalTrades,
+    futuresTrades: futuresAnalysis.totalTrades,  // Completed futures trades
     futuresCompletedTrades: futuresAnalysis.completedTrades,
     futuresWins: futuresAnalysis.winningTrades,
     futuresLosses: futuresAnalysis.losingTrades,

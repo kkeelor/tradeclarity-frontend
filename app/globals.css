@@ -7,6 +7,11 @@
   --foreground: #ffffff;
 }
 
+.light {
+  --background: #ffffff;
+  --foreground: #0f172a;
+}
+
 body {
   color: var(--foreground);
   background: var(--background);
@@ -15,10 +20,336 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+/* Custom animations */
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.05);
+  }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 1s ease-in-out 2;
+}
+
+/* Light mode - Beautiful clean design */
+.light body {
+  background: linear-gradient(to bottom right, #fafafa, #f5f5f5, #ffffff);
+}
+
+/* Main background gradients */
+.light .bg-gradient-to-br.from-slate-950 {
+  background: linear-gradient(to bottom right, #fafafa, #f5f5f5, #ffffff) !important;
+}
+
+/* Cards and surfaces - Clean white with subtle shadows */
+.light .bg-slate-800\/30,
+.light .bg-slate-800\/50 {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(226, 232, 240, 1);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+}
+
+.light .bg-slate-900\/80 {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(226, 232, 240, 1);
+}
+
+.light .bg-slate-900\/40 {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+/* Borders */
+.light .border-slate-700,
+.light .border-slate-700\/50,
+.light .border-slate-800\/50 {
+  border-color: rgba(226, 232, 240, 1);
+}
+
+.light .border-slate-600\/50 {
+  border-color: rgba(203, 213, 225, 1);
+}
+
+/* Solid backgrounds */
+.light .bg-slate-900 {
+  background: #ffffff;
+}
+
+.light .bg-slate-800 {
+  background: #f8fafc;
+}
+
+.light .bg-slate-700 {
+  background: #f1f5f9;
+}
+
+.light .bg-slate-700\/50 {
+  background: rgba(241, 245, 249, 0.5);
+}
+
+.light .bg-slate-700\/30 {
+  background: rgba(248, 250, 252, 0.5);
+}
+
+/* Text colors - High contrast for readability */
+.light .text-white {
+  color: #0f172a;
+}
+
+.light .text-slate-200 {
+  color: #334155;
+}
+
+.light .text-slate-300 {
+  color: #475569;
+}
+
+.light .text-slate-400 {
+  color: #64748b;
+}
+
+.light .text-slate-500 {
+  color: #94a3b8;
+}
+
+/* Hover states */
+.light .hover\:bg-slate-700:hover {
+  background: #f1f5f9;
+}
+
+.light .hover\:bg-slate-800:hover {
+  background: #e2e8f0;
+}
+
+.light .hover\:bg-slate-800\/30:hover {
+  background: rgba(241, 245, 249, 0.8);
+}
+
+.light .hover\:text-white:hover {
+  color: #0f172a;
+}
+
+.light .hover\:border-slate-600\/50:hover {
+  border-color: rgba(148, 163, 184, 0.5);
+}
+
+.light .hover\:border-slate-500\/50:hover {
+  border-color: rgba(100, 116, 139, 0.5);
+}
+
+/* Keep accent colors vibrant and adjust for light mode */
+.light .text-emerald-400,
+.light .text-emerald-500 {
+  color: #059669;
+}
+
+.light .bg-emerald-500 {
+  background: #10b981;
+}
+
+.light .hover\:bg-emerald-400:hover {
+  background: #34d399;
+}
+
+.light .text-cyan-400 {
+  color: #0891b2;
+}
+
+.light .text-purple-400 {
+  color: #9333ea;
+}
+
+.light .text-red-400 {
+  color: #dc2626;
+}
+
+.light .text-yellow-400 {
+  color: #d97706;
+}
+
+.light .text-pink-400 {
+  color: #db2777;
+}
+
+/* Gradient backgrounds for cards */
+.light .bg-gradient-to-br.from-purple-900\/20 {
+  background: linear-gradient(to bottom right, rgba(168, 85, 247, 0.08), rgba(241, 245, 249, 0.08));
+}
+
+.light .from-purple-500\/10 {
+  --tw-gradient-from: rgba(168, 85, 247, 0.1);
+}
+
+.light .to-purple-500\/5 {
+  --tw-gradient-to: rgba(168, 85, 247, 0.05);
+}
+
+.light .from-emerald-500\/10 {
+  --tw-gradient-from: rgba(16, 185, 129, 0.1);
+}
+
+.light .to-emerald-500\/5 {
+  --tw-gradient-to: rgba(16, 185, 129, 0.05);
+}
+
+.light .from-red-500\/10 {
+  --tw-gradient-from: rgba(239, 68, 68, 0.1);
+}
+
+.light .to-red-500\/5 {
+  --tw-gradient-to: rgba(239, 68, 68, 0.05);
+}
+
+.light .from-cyan-500\/10 {
+  --tw-gradient-from: rgba(6, 182, 212, 0.1);
+}
+
+.light .to-cyan-500\/5 {
+  --tw-gradient-to: rgba(6, 182, 212, 0.05);
+}
+
+/* Border colors for colored cards */
+.light .border-purple-700\/30,
+.light .border-purple-500\/30 {
+  border-color: rgba(168, 85, 247, 0.2);
+}
+
+.light .border-emerald-500\/30 {
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+.light .border-red-500\/30 {
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.light .border-cyan-500\/30 {
+  border-color: rgba(6, 182, 212, 0.2);
+}
+
+.light .border-yellow-500\/30 {
+  border-color: rgba(234, 179, 8, 0.2);
+}
+
+/* Colored backgrounds */
+.light .bg-emerald-500\/20 {
+  background: rgba(16, 185, 129, 0.15);
+}
+
+.light .bg-emerald-500\/10 {
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.light .bg-red-500\/20 {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.light .bg-red-500\/10 {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.light .bg-cyan-500\/20 {
+  background: rgba(6, 182, 212, 0.15);
+}
+
+.light .bg-yellow-500\/20 {
+  background: rgba(234, 179, 8, 0.15);
+}
+
+.light .bg-purple-500\/20 {
+  background: rgba(168, 85, 247, 0.15);
+}
+
+.light .bg-purple-500\/10 {
+  background: rgba(168, 85, 247, 0.1);
+}
+
+.light .bg-slate-700\/20 {
+  background: rgba(241, 245, 249, 0.8);
+}
+
+/* Focus states */
+.light .focus\:ring-emerald-500:focus {
+  --tw-ring-color: #10b981;
+}
+
+.light .focus\:ring-offset-slate-900:focus {
+  --tw-ring-offset-color: #ffffff;
+}
+
+.light .focus\:border-emerald-400:focus {
+  border-color: #34d399;
+}
+
+/* Gradients for buttons and CTAs */
+.light .bg-gradient-to-r.from-purple-600 {
+  background: linear-gradient(to right, #9333ea, #c026d3);
+}
+
+.light .bg-gradient-to-r.from-emerald-500 {
+  background: linear-gradient(to right, #10b981, #14b8a6);
+}
+
+/* Chart and graph colors - ensure visibility */
+.light .stroke-emerald-400,
+.light .stroke-emerald-500 {
+  stroke: #059669;
+}
+
+.light .fill-emerald-400,
+.light .fill-emerald-500 {
+  fill: #059669;
+}
+
+/* Demo mode banner */
+.light .bg-gradient-to-r.from-purple-600.to-pink-600 {
+  background: linear-gradient(to right, #9333ea, #c026d3);
+  color: white;
+}
+
+/* SVG and Circle elements for light mode */
+.light circle[stroke="currentColor"] {
+  stroke: #e2e8f0 !important;
+}
+
+.light .text-slate-800 {
+  color: #e2e8f0;
+}
+
+/* Ensure colored circles show properly */
+.light .text-emerald-500 circle,
+.light circle.text-emerald-500 {
+  stroke: #10b981 !important;
+}
+
+.light .text-cyan-500 circle,
+.light circle.text-cyan-500 {
+  stroke: #06b6d4 !important;
+}
+
+.light .text-yellow-500 circle,
+.light circle.text-yellow-500 {
+  stroke: #eab308 !important;
+}
+
+.light .text-orange-500 circle,
+.light circle.text-orange-500 {
+  stroke: #f97316 !important;
+}
+
+.light .text-red-500 circle,
+.light circle.text-red-500 {
+  stroke: #ef4444 !important;
 }

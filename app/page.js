@@ -4,6 +4,7 @@
 import { useState } from 'react'
 import { TrendingUp, Shield, Zap, ArrowRight, Sparkles, Lock, Eye, Brain } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import ThemeToggle from './components/ThemeToggle'
 
 export default function LandingPage() {
   const router = useRouter()
@@ -19,6 +20,7 @@ export default function LandingPage() {
           <span className="text-xl font-bold">TradeClarity</span>
         </div>
         <div className="flex items-center gap-4">
+          <ThemeToggle />
           <button 
             onClick={() => router.push('/analyze?demo=true')}
             className="px-4 py-2 text-slate-300 hover:text-white rounded-lg text-sm font-medium transition-colors"
