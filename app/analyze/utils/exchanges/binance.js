@@ -1,4 +1,4 @@
-// app/analyze/utils/exchanges/binance.js - OPTIMIZED VERSION
+// app/analyze/utils/exchanges/binance.js - FIXED VERSION
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
 
@@ -90,14 +90,14 @@ export const fetchBinanceTrades = async (apiKey, apiSecret, onProgress) => {
       .filter(b => parseFloat(b.free) > 0 || parseFloat(b.locked) > 0)
       .map(b => `${b.asset}USDT`)
       .filter(s => s !== 'USDTUSDT' && s !== 'USDCUSDT' && s !== 'BUSDUSDT')
-      .slice(0, 15) // Limit to 15 for speed
+      .slice(0, 15)
 
     console.log('📋 Spot symbols:', symbolsToQuery.length)
 
-    // Fetch FUTURES account
+    // Fetch FUTURES account and income data
     let futuresAccount = null
     let futuresPositions = []
-    let futuresSymbols = []
+    let futuresIncome = []
     
     try {
       onProgress('Checking futures account...')
@@ -113,69 +113,32 @@ export const fetchBinanceTrades = async (apiKey, apiSecret, onProgress) => {
         
         console.log('📊 Currently open futures positions:', futuresPositions.length)
         
-        // CRITICAL FIX: Get historical traded symbols from income history
+        // CRITICAL: Fetch income history for P&L data
         try {
-          onProgress('Fetching futures trading history...')
+          onProgress('Fetching futures income history...')
           
-          // Try Method 1: Get ALL income types (not just REALIZED_PNL)
-          let income = await fetchBinance(apiKey, apiSecret, '/fapi/v1/income', { 
+          futuresIncome = await fetchBinance(apiKey, apiSecret, '/fapi/v1/income', { 
             limit: 1000
           }, 'futures')
           
-          console.log('📊 Total income records:', income ? income.length : 0)
+          console.log('📊 Total income records:', futuresIncome ? futuresIncome.length : 0)
           
-          if (!income || income.length === 0) {
-            console.warn('⚠️ No income records found. Trying alternative method...')
+          if (futuresIncome && futuresIncome.length > 0) {
+            // Log breakdown by type
+            const incomeTypes = {}
+            futuresIncome.forEach(inc => {
+              incomeTypes[inc.incomeType] = (incomeTypes[inc.incomeType] || 0) + 1
+            })
+            console.log('📊 Income breakdown:', incomeTypes)
             
-            // Method 2: Try getting all orders instead
-            // This endpoint gives you order history across all symbols
-            try {
-              const allOrders = await fetchBinance(apiKey, apiSecret, '/fapi/v1/allOrders', {
-                limit: 500
-              }, 'futures')
-              
-              console.log('📊 Found orders via allOrders:', allOrders.length)
-              
-              // Extract symbols from orders
-              const historicalSymbols = [...new Set(
-                allOrders
-                  .filter(o => o.symbol)
-                  .map(o => o.symbol)
-              )]
-              
-              futuresSymbols = historicalSymbols
-              console.log('📊 Symbols from orders:', futuresSymbols.length)
-              
-            } catch (ordersErr) {
-              console.warn('⚠️ Could not fetch all orders:', ordersErr.message)
-              
-              // Method 3: Last resort - try common trading pairs
-              console.log('📊 Trying common futures symbols as last resort...')
-              futuresSymbols = [
-                'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT',
-                'ADAUSDT', 'DOGEUSDT', 'MATICUSDT', 'DOTUSDT', 'LINKUSDT'
-              ]
-            }
-          } else {
-            // Extract unique symbols from income history
-            const historicalSymbols = [...new Set(
-              income
-                .filter(i => i.symbol && i.symbol !== '') // Remove null/empty symbols
-                .map(i => i.symbol)
-            )]
-            
-            // Combine open positions + historical symbols
-            const openSymbols = futuresPositions.map(p => p.symbol)
-            futuresSymbols = [...new Set([...openSymbols, ...historicalSymbols])]
-            
-            console.log('📊 Historical futures symbols from income:', historicalSymbols.length)
-            console.log('📊 Total unique symbols to query:', futuresSymbols.length)
+            // Log symbols found
+            const symbols = [...new Set(futuresIncome.map(i => i.symbol).filter(Boolean))]
+            console.log('📊 Symbols in income:', symbols)
           }
           
         } catch (incomeErr) {
           console.warn('⚠️ Could not fetch income history:', incomeErr.message)
-          // Fallback to just positions if income endpoint fails
-          futuresSymbols = futuresPositions.map(p => p.symbol)
+          futuresIncome = []
         }
       }
     } catch (err) {
@@ -183,14 +146,17 @@ export const fetchBinanceTrades = async (apiKey, apiSecret, onProgress) => {
       onProgress('Futures not available, using spot only...')
     }
 
-    if (symbolsToQuery.length === 0 && futuresSymbols.length === 0) {
-      throw new Error('No trading pairs found')
+    if (symbolsToQuery.length === 0 && futuresIncome.length === 0) {
+      throw new Error('No trading data found')
     }
 
-    onProgress(`Analyzing ${symbolsToQuery.length} spot + ${futuresSymbols.length} futures pairs...`)
+    onProgress(`Analyzing ${symbolsToQuery.length} spot symbols + futures data...`)
 
-    // Fetch prices (only if we have symbols to query)
-    const allSymbols = [...new Set([...symbolsToQuery, ...futuresSymbols])]
+    // Fetch prices
+    const allSymbols = [...new Set([
+      ...symbolsToQuery,
+      ...futuresIncome.map(i => i.symbol).filter(Boolean)
+    ])]
     const currentPrices = allSymbols.length > 0 ? await fetchCurrentPrices(allSymbols) : {}
     
     const accountBalance = calculateAccountBalance(
@@ -199,7 +165,7 @@ export const fetchBinanceTrades = async (apiKey, apiSecret, onProgress) => {
       currentPrices
     )
 
-    // Fetch SPOT trades (parallel batches for speed)
+    // Fetch SPOT trades
     const allSpotTrades = []
     const spotBatchSize = 5
     
@@ -225,58 +191,20 @@ export const fetchBinanceTrades = async (apiKey, apiSecret, onProgress) => {
       const batchResults = await Promise.all(batchPromises)
       batchResults.forEach(trades => allSpotTrades.push(...trades))
       
-      // Small delay between batches to avoid rate limits
       await new Promise(resolve => setTimeout(resolve, 200))
     }
 
-    // Fetch FUTURES trades (parallel batches)
-    const allFuturesTrades = []
-    
-    if (futuresSymbols.length > 0) {
-      onProgress('Fetching futures trades...')
-      const futuresBatchSize = 5
-      
-      for (let i = 0; i < futuresSymbols.length; i += futuresBatchSize) {
-        const batch = futuresSymbols.slice(i, i + futuresBatchSize)
-        onProgress(`Fetching futures ${i + 1}-${Math.min(i + futuresBatchSize, futuresSymbols.length)}/${futuresSymbols.length}...`)
-        
-        const batchPromises = batch.map(symbol =>
-          fetchBinance(apiKey, apiSecret, '/fapi/v1/userTrades', { symbol, limit: 1000 }, 'futures')
-            .then(trades => {
-              if (trades && trades.length > 0) {
-                trades.forEach(t => {
-                  t.accountType = 'FUTURES'
-                  t.symbol = symbol
-                  t.qty = t.qty || t.baseQty
-                  t.quoteQty = t.quoteQty || (parseFloat(t.qty) * parseFloat(t.price)).toString()
-                  t.isBuyer = t.buyer || t.side === 'BUY'
-                  t.commission = t.commission || '0'
-                  t.commissionAsset = t.commissionAsset || 'USDT'
-                })
-                return trades
-              }
-              return []
-            })
-            .catch(() => [])
-        )
-        
-        const batchResults = await Promise.all(batchPromises)
-        batchResults.forEach(trades => allFuturesTrades.push(...trades))
-        
-        await new Promise(resolve => setTimeout(resolve, 200))
-      }
-    }
+    console.log('✅ Fetch complete:', {
+      spotTrades: allSpotTrades.length,
+      futuresIncome: futuresIncome.length,
+      futuresPositions: futuresPositions.length
+    })
 
-    const allTrades = [...allSpotTrades, ...allFuturesTrades]
-
-    if (allTrades.length === 0) throw new Error('No trades found')
-
-    console.log('✅ Total:', allTrades.length, 'trades')
-    console.log('   - Spot:', allSpotTrades.length)
-    console.log('   - Futures:', allFuturesTrades.length)
-
+    // NEW FORMAT: Return structured data for new analyzers
     return {
-      trades: allTrades,
+      spotTrades: allSpotTrades,
+      futuresIncome: futuresIncome,
+      futuresPositions: futuresPositions,
       metadata: {
         primaryCurrency: 'USD',
         availableCurrencies: ['USD'],
@@ -286,13 +214,11 @@ export const fetchBinanceTrades = async (apiKey, apiSecret, onProgress) => {
         hasFutures: futuresAccount !== null,
         futuresPositions: futuresPositions.length,
         spotTrades: allSpotTrades.length,
-        futuresTrades: allFuturesTrades.length,
-        totalTrades: allTrades.length,
+        futuresIncome: futuresIncome.length,
         canTrade: account.canTrade,
         currentPrices,
         balances: account.balances,
-        futuresBalances: futuresAccount ? futuresAccount.assets : [],
-        futuresPositionsData: futuresPositions
+        futuresBalances: futuresAccount ? futuresAccount.assets : []
       }
     }
   } catch (error) {
@@ -302,6 +228,40 @@ export const fetchBinanceTrades = async (apiKey, apiSecret, onProgress) => {
 }
 
 export const normalizeBinanceTrades = (binanceData) => {
+  // NEW FORMAT: Handle structured data
+  if (binanceData.spotTrades && binanceData.futuresIncome !== undefined) {
+    console.log('✅ Using new structured format')
+    
+    const spotNormalized = binanceData.spotTrades.map(trade => ({
+      symbol: trade.symbol,
+      qty: String(trade.qty),
+      price: String(trade.price),
+      quoteQty: String(trade.quoteQty || parseFloat(trade.qty) * parseFloat(trade.price)),
+      commission: String(trade.commission || 0),
+      commissionAsset: trade.commissionAsset || 'USDT',
+      isBuyer: trade.isBuyer || trade.buyer || trade.side === 'BUY',
+      isMaker: trade.isMaker || false,
+      time: trade.time,
+      orderId: trade.orderId,
+      id: trade.id,
+      accountType: 'SPOT'
+    }))
+    
+    console.log('📊 Normalized data:', {
+      spotTrades: spotNormalized.length,
+      futuresIncome: binanceData.futuresIncome.length,
+      futuresPositions: binanceData.futuresPositions.length
+    })
+    
+    return {
+      spotTrades: spotNormalized,
+      futuresIncome: binanceData.futuresIncome,
+      futuresPositions: binanceData.futuresPositions,
+      metadata: binanceData.metadata
+    }
+  }
+  
+  // LEGACY FORMAT: Handle old array format
   const trades = binanceData.trades || binanceData
   const metadata = binanceData.metadata || {
     primaryCurrency: 'USD',
@@ -321,13 +281,10 @@ export const normalizeBinanceTrades = (binanceData) => {
     time: trade.time,
     orderId: trade.orderId,
     id: trade.id,
-    accountType: trade.accountType || 'SPOT',
-    realizedPnl: trade.realizedPnl || '0'
+    accountType: trade.accountType || 'SPOT'
   }))
   
-  console.log('✅ Normalized:', normalized.length, 'trades')
-  console.log('   - Spot:', normalized.filter(t => t.accountType === 'SPOT').length)
-  console.log('   - Futures:', normalized.filter(t => t.accountType === 'FUTURES').length)
+  console.log('✅ Normalized (legacy):', normalized.length, 'trades')
   
   return {
     trades: normalized,

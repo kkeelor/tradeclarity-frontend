@@ -1,14 +1,15 @@
 // app/analyze/components/LoginForm.js
 
 import { useState } from 'react'
-import { TrendingUp, Lock, Loader2, AlertCircle, Eye, EyeOff, HelpCircle } from 'lucide-react'
+import { TrendingUp, Lock, Loader2, AlertCircle, Eye, EyeOff, HelpCircle, Sparkles } from 'lucide-react'
 
 export default function LoginForm({ 
   exchangeList, 
   exchange, 
   setExchange, 
   currentExchange, 
-  onConnect, 
+  onConnect,
+  onTryDemo,
   status, 
   error, 
   progress 
@@ -88,7 +89,11 @@ export default function LoginForm({
                 className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg focus:outline-none focus:border-emerald-400 transition-colors text-white placeholder-slate-500 pr-12" 
                 disabled={status === 'connecting'} 
               />
-              <button onClick={() => setShowSecret(!showSecret)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors">
+              <button 
+                onClick={() => setShowSecret(!showSecret)} 
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                type="button"
+              >
                 {showSecret ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
@@ -118,20 +123,40 @@ export default function LoginForm({
             </div>
           </div>
 
-          <button 
-            onClick={handleSubmit} 
-            disabled={status === 'connecting' || !apiKey || !apiSecret} 
-            className="w-full px-6 py-4 bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-700 disabled:cursor-not-allowed rounded-lg font-semibold transition-all text-lg"
-          >
-            {status === 'connecting' ? (
-              <span className="flex items-center justify-center gap-2">
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Analyzing...
-              </span>
-            ) : (
-              `Analyze My ${currentExchange.config.displayName} Trades`
-            )}
-          </button>
+          <div className="space-y-3">
+            <button 
+              onClick={handleSubmit} 
+              disabled={status === 'connecting' || !apiKey || !apiSecret} 
+              className="w-full px-6 py-4 bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-700 disabled:cursor-not-allowed rounded-lg font-semibold transition-all text-lg"
+            >
+              {status === 'connecting' ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Analyzing...
+                </span>
+              ) : (
+                `Analyze My ${currentExchange.config.displayName} Trades`
+              )}
+            </button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-700"></div>
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-slate-800/50 px-2 text-slate-400">or</span>
+              </div>
+            </div>
+
+            <button
+              onClick={onTryDemo}
+              disabled={status === 'connecting'}
+              className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed rounded-lg font-semibold transition-all text-lg flex items-center justify-center gap-2 group"
+            >
+              <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+              Try Demo with Sample Data
+            </button>
+          </div>
 
           <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-6 space-y-4">
             <h3 className="text-lg font-semibold text-blue-400 flex items-center gap-2">
