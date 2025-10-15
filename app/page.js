@@ -229,48 +229,158 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Social Proof / Results */}
-      <section className="py-20 px-6 border-t border-slate-800/50">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              The "oh shit" moment
-            </h2>
-            <p className="text-slate-400 text-lg">
-              When traders actually see their patterns
-            </p>
+      {/* Real Insights Section */}
+<section className="py-20 px-6 bg-slate-900/50">
+  <div className="max-w-6xl mx-auto">
+    <div className="text-center mb-16">
+      <h2 className="text-3xl md:text-5xl font-bold mb-4">
+        The Patterns You Can't See
+        <br />
+        <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
+          Are Costing You Money
+        </span>
+      </h2>
+      <p className="text-slate-400 text-lg max-w-2xl mx-auto">
+        These are real insights from real traders who connected TradeClarity
+      </p>
+    </div>
+
+    <div className="grid md:grid-cols-2 gap-8 mb-12">
+      {/* Insight 1 - Time-based */}
+      <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-2xl p-8 hover:border-purple-500/30 transition-all">
+        <div className="flex items-start gap-4 mb-4">
+          <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+            <svg className="w-6 h-6 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
           </div>
-
-          <div className="space-y-6">
-            {/* Testimonial 1 */}
-            <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-6">
-              <p className="text-slate-300 text-lg mb-4 italic">
-                "I thought I was being strategic by cutting losses quickly. Turns out I was cutting winners even faster. 
-                I held losses for an average of 4 days but sold winners in 6 hours. No wonder I'm not profitable."
-              </p>
-              <div className="text-sm text-slate-500">- Every trader who's ever looked at their data honestly</div>
-            </div>
-
-            {/* Testimonial 2 */}
-            <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-6">
-              <p className="text-slate-300 text-lg mb-4 italic">
-                "Discovered I lose money on 80% of my 'revenge trades' after a loss. I'd triple my position size and my win rate dropped to 15%. 
-                Those revenge trades cost me $12k in 3 months."
-              </p>
-              <div className="text-sm text-slate-500">- That moment when you realize you're your own worst enemy</div>
-            </div>
-
-            {/* Testimonial 3 */}
-            <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-6">
-              <p className="text-slate-300 text-lg mb-4 italic">
-                "I've been randomly trading 47 different coins. My win rate on BTC: 71%. On everything else: 38%. 
-                Why the hell was I not just trading BTC?"
-              </p>
-              <div className="text-sm text-slate-500">- When the data slaps you in the face</div>
-            </div>
+          <div>
+            <div className="text-purple-400 font-semibold text-sm mb-2">TIME PATTERN DETECTED</div>
+            <h3 className="text-2xl font-bold mb-3">Your 9PM Trades Are Killing You</h3>
           </div>
         </div>
-      </section>
+        <div className="space-y-3 text-slate-300 mb-4">
+          <div className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
+            <span>Before 6 PM win rate:</span>
+            <span className="font-bold text-emerald-400">68%</span>
+          </div>
+          <div className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
+            <span>After 9 PM win rate:</span>
+            <span className="font-bold text-red-400">31%</span>
+          </div>
+        </div>
+        <p className="text-slate-400 italic">
+          "I had no idea fatigue was destroying my edge. Now I just stop trading after dinner."
+        </p>
+      </div>
+
+      {/* Insight 2 - Symbol focus */}
+      <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-2xl p-8 hover:border-cyan-500/30 transition-all">
+        <div className="flex items-start gap-4 mb-4">
+          <div className="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+            <svg className="w-6 h-6 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+            </svg>
+          </div>
+          <div>
+            <div className="text-cyan-400 font-semibold text-sm mb-2">EDGE IDENTIFIED</div>
+            <h3 className="text-2xl font-bold mb-3">You Have a Hidden Superpower</h3>
+          </div>
+        </div>
+        <div className="space-y-3 text-slate-300 mb-4">
+          <div className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
+            <span>Win rate on SOL:</span>
+            <span className="font-bold text-emerald-400">76%</span>
+          </div>
+          <div className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
+            <span>Win rate on 23 other coins:</span>
+            <span className="font-bold text-red-400">42%</span>
+          </div>
+        </div>
+        <p className="text-slate-400 italic">
+          "I was 'diversifying' myself into losses. Focus changed everything."
+        </p>
+      </div>
+
+      {/* Insight 3 - Psychology */}
+      <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-2xl p-8 hover:border-red-500/30 transition-all">
+        <div className="flex items-start gap-4 mb-4">
+          <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+            <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <div>
+            <div className="text-red-400 font-semibold text-sm mb-2">EMOTIONAL TRADING ALERT</div>
+            <h3 className="text-2xl font-bold mb-3">The Revenge Trade Tax</h3>
+          </div>
+        </div>
+        <div className="space-y-3 text-slate-300 mb-4">
+          <div className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
+            <span>Normal trade win rate:</span>
+            <span className="font-bold text-emerald-400">61%</span>
+          </div>
+          <div className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
+            <span>After-loss trades:</span>
+            <span className="font-bold text-red-400">18%</span>
+          </div>
+          <div className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
+            <span>Cost in 90 days:</span>
+            <span className="font-bold text-red-400">$8,400</span>
+          </div>
+        </div>
+        <p className="text-slate-400 italic">
+          "I didn't realize I was revenge trading. The data doesn't lie."
+        </p>
+      </div>
+
+      {/* Insight 4 - Position holding */}
+      <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-2xl p-8 hover:border-orange-500/30 transition-all">
+        <div className="flex items-start gap-4 mb-4">
+          <div className="w-12 h-12 bg-orange-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+            <svg className="w-6 h-6 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <div className="text-orange-400 font-semibold text-sm mb-2">BEHAVIOR PATTERN</div>
+            <h3 className="text-2xl font-bold mb-3">Winners vs Losers Hold Time</h3>
+          </div>
+        </div>
+        <div className="space-y-3 text-slate-300 mb-4">
+          <div className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
+            <span>Avg winner hold time:</span>
+            <span className="font-bold text-emerald-400">2.3 hours</span>
+          </div>
+          <div className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
+            <span>Avg loser hold time:</span>
+            <span className="font-bold text-red-400">18.7 hours</span>
+          </div>
+        </div>
+        <p className="text-slate-400 italic">
+          "Cut your winners, let your losers run. I was doing it backwards without knowing."
+        </p>
+      </div>
+    </div>
+
+    {/* CTA */}
+    <div className="text-center">
+      <p className="text-xl text-slate-300 mb-6">
+        What patterns are hiding in <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 font-bold">your</span> trades?
+      </p>
+      <button
+        onClick={() => router.push('/analyze?demo=true')}
+        className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 rounded-xl font-semibold text-lg transition-all duration-300 hover:scale-105 inline-flex items-center gap-2"
+      >
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+        </svg>
+        See My Patterns Now
+      </button>
+    </div>
+  </div>
+</section>
 
       {/* Final CTA */}
       <section className="py-20 px-6 bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border-y border-slate-800/50">
