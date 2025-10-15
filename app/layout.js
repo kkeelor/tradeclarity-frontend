@@ -2,7 +2,7 @@ import './globals.css'
 
 export const metadata = {
   title: 'TradeClarity - Your Trading Analytics',
-  description: 'Powerful trading analytics for Binance traders',
+  description: 'Discover your hidden patterns',
 }
 
 export default function RootLayout({ children }) {
