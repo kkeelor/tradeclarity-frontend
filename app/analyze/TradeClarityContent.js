@@ -370,7 +370,7 @@ export default function TradeClarityContent() {
       <>
         {isDemoMode && (
           <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 text-center text-sm font-medium shadow-lg">
-            📊 Demo Mode: Viewing sample futures trading data from Binance
+            📊 Demo Mode: Viewing sample trading data 
           </div>
         )}
         <div className={isDemoMode ? 'pt-10' : ''}>
