@@ -1,6 +1,8 @@
+// app/analyze/page.js
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { analyzeData } from './utils/masterAnalyzer'
 import { EXCHANGES, getExchangeList } from './utils/exchanges'
 import LoginForm from './components/LoginForm'
@@ -8,6 +10,7 @@ import AnalyticsView from './components/AnalyticsView'
 import demoFuturesData from './demo-data/demo-futures-data.json'
 
 export default function TradeClarity() {
+  const searchParams = useSearchParams()
   const [status, setStatus] = useState('idle')
   const [error, setError] = useState('')
   const [progress, setProgress] = useState('')
@@ -31,6 +34,14 @@ export default function TradeClarity() {
     }
     return symbols[curr] || '$'
   }
+
+  // Auto-load demo if coming from landing page with demo=true
+  useEffect(() => {
+    const demo = searchParams.get('demo')
+    if (demo === 'true' && status === 'idle') {
+      handleTryDemo()
+    }
+  }, [searchParams])
 
   const handleTryDemo = () => {
     setStatus('connecting')
