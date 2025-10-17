@@ -382,6 +382,7 @@ export default function TradeClarityContent() {
             currency={currency}
             setCurrency={setCurrency}
             onDisconnect={handleDisconnect}
+            isDemoMode={isDemoMode}
           />
         </div>
       </>

@@ -15,37 +15,28 @@ export default function LandingPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex flex-col">
       {/* Header */}
       <header className="p-6 flex justify-between items-center border-b border-slate-800/50">
-        <div className="flex items-center gap-2">
+        <button 
+          onClick={() => router.push('/')}
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+        >
           <TrendingUp className="w-8 h-8 text-emerald-400" />
           <span className="text-xl font-bold">TradeClarity</span>
-        </div>
+        </button>
         <div className="flex items-center gap-4">
-          <ThemeToggle />
           <button 
             onClick={() => router.push('/analyze?demo=true')}
             className="px-4 py-2 text-slate-300 hover:text-white rounded-lg text-sm font-medium transition-colors"
           >
             View Demo
           </button>
-          <button 
-            onClick={() => router.push('/analyze')}
-            className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 rounded-lg text-sm font-medium transition-colors"
-          >
-            Connect Exchange
-          </button>
         </div>
       </header>
 
       {/* Hero Section */}
-      <main className="flex-1 flex flex-col items-center justify-center px-6 -mt-20">
+      <main className="flex-1 flex flex-col items-center justify-center px-6 py-20">
         <div className="max-w-4xl text-center space-y-8">
           {/* Headline */}
           <div className="space-y-4">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-full text-emerald-400 text-sm font-medium mb-6">
-              <Sparkles className="w-4 h-4" />
-              The market can only go two ways. Why does it always pick the one that ruins you?
-            </div>
-            
             <h1 className="text-5xl md:text-7xl font-bold tracking-tight leading-tight">
               Why do you always
               <br />
@@ -55,7 +46,8 @@ export default function LandingPage() {
             </h1>
             
             <p className="text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
-              You take profit at +2%, then watch it moon to +50%. You "diamond hands" your loser to -80% while it bleeds out. 
+              You take profit at +2%, then watch it moon to +50%. You "diamond hands" your loser to -80% while it bleeds out. Repeatedly. 
+              <br />
               <span className="text-white font-semibold"> There's a pattern. You just can't see it.</span>
             </p>
           </div>
@@ -158,15 +150,26 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* The Kicker */}
-          <div className="mt-12 text-center">
-            <p className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 mb-3">
-              The worst part?
-            </p>
-            <p className="text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed">
-              You <span className="italic">know</span> you're doing it. You just don't know <span className="font-bold text-white">how often</span>, 
-              <span className="font-bold text-white"> how much it's costing you</span>, or <span className="font-bold text-white">how to actually fix it</span>.
-            </p>
+          {/* The Kicker - with the moved statement */}
+          <div className="mt-12 space-y-8">
+            {/* MOVED: The market observation statement */}
+            <div className="text-center">
+              <div className="inline-flex items-center gap-2 px-6 py-3 bg-slate-800/50 border border-slate-700/50 rounded-full text-slate-300 text-sm backdrop-blur-sm">
+                <AlertCircle className="w-4 h-4 text-amber-400" />
+                The market can only go two ways. Why does it always pick the one that ruins you?
+              </div>
+            </div>
+            
+            {/* Original kicker content */}
+            <div className="text-center">
+              <p className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 mb-3">
+                The worst part?
+              </p>
+              <p className="text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed">
+                You <span className="italic">know</span> you're doing it. You just don't know <span className="font-bold text-white">how often</span>, 
+                <span className="font-bold text-white"> how much it's costing you</span>, or <span className="font-bold text-white">how to actually fix it</span>.
+              </p>
+            </div>
           </div>
         </div>
       </section>

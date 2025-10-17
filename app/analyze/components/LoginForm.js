@@ -1,7 +1,202 @@
 // app/analyze/components/LoginForm.js
 
 import { useState } from 'react'
-import { TrendingUp, Lock, Loader2, AlertCircle, Eye, EyeOff, HelpCircle, Sparkles } from 'lucide-react'
+import { TrendingUp, Lock, Loader2, AlertCircle, Eye, EyeOff, HelpCircle, Sparkles, ChevronRight, CheckCircle, Shield, ExternalLink, X, Play, FileText, Clock, BarChart3, Brain, Zap, Target } from 'lucide-react'
+
+// Step Progress Indicator Component
+function StepProgress({ currentStep, totalSteps }) {
+  return (
+    <div className="flex items-center justify-center gap-3 mb-8">
+      {[...Array(totalSteps)].map((_, idx) => (
+        <div key={idx} className="flex items-center">
+          <div className={`flex items-center justify-center w-10 h-10 rounded-full font-bold transition-all ${
+            idx < currentStep 
+              ? 'bg-emerald-500 text-white' 
+              : idx === currentStep
+              ? 'bg-emerald-500 text-white ring-4 ring-emerald-500/30'
+              : 'bg-slate-700 text-slate-400'
+          }`}>
+            {idx < currentStep ? <CheckCircle className="w-5 h-5" /> : idx + 1}
+          </div>
+          {idx < totalSteps - 1 && (
+            <div className={`w-12 h-1 mx-2 rounded transition-all ${
+              idx < currentStep ? 'bg-emerald-500' : 'bg-slate-700'
+            }`} />
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// Help Modal Component
+function HelpModal({ isOpen, onClose, exchange }) {
+  if (!isOpen) return null
+  
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-2xl animate-in" onClick={e => e.stopPropagation()}>
+        <div className="sticky top-0 bg-slate-900 border-b border-slate-700 p-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center">
+              <HelpCircle className="w-5 h-5 text-blue-400" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold">How to Get Your API Keys</h3>
+              <p className="text-sm text-slate-400">{exchange.displayName} Guide</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+        
+        <div className="p-6 space-y-6">
+          <ol className="space-y-4">
+            <li className="flex gap-4">
+              <span className="flex-shrink-0 w-8 h-8 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center text-sm font-bold">1</span>
+              <div className="flex-1">
+                <h4 className="font-semibold text-lg mb-2">Visit {exchange.displayName}</h4>
+                <p className="text-slate-300 mb-3">Go to {exchange.website} and sign in to your account</p>
+                <a 
+                  href={exchange.website.startsWith('http') ? exchange.website : `https://${exchange.website}`}
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm font-medium transition-colors"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Open {exchange.displayName}
+                </a>
+              </div>
+            </li>
+            
+            <li className="flex gap-4">
+              <span className="flex-shrink-0 w-8 h-8 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center text-sm font-bold">2</span>
+              <div className="flex-1">
+                <h4 className="font-semibold text-lg mb-2">Navigate to API Management</h4>
+                <p className="text-slate-300 mb-2">Click your profile icon in the top-right corner</p>
+                <p className="text-slate-300">Select <span className="font-mono bg-slate-800 px-2 py-1 rounded">API Management</span> from the dropdown menu</p>
+              </div>
+            </li>
+            
+            <li className="flex gap-4">
+              <span className="flex-shrink-0 w-8 h-8 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center text-sm font-bold">3</span>
+              <div className="flex-1">
+                <h4 className="font-semibold text-lg mb-2">Create New API Key</h4>
+                <p className="text-slate-300 mb-2">Click <span className="font-mono bg-slate-800 px-2 py-1 rounded">Create API</span> button</p>
+                <p className="text-slate-300">Choose "System Generated" for the API key type</p>
+                <p className="text-slate-300 mt-2">Give it a label like <span className="font-mono bg-slate-800 px-2 py-1 rounded">TradeClarity</span></p>
+              </div>
+            </li>
+            
+            <li className="flex gap-4">
+              <span className="flex-shrink-0 w-8 h-8 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center text-sm font-bold">4</span>
+              <div className="flex-1">
+                <h4 className="font-semibold text-lg mb-2">Set Permissions (CRITICAL)</h4>
+                <div className="space-y-3">
+                  <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-emerald-400 font-semibold mb-2">
+                      <CheckCircle className="w-5 h-5" />
+                      Enable ONLY This Permission
+                    </div>
+                    <ul className="space-y-1 text-sm text-slate-300">
+                      <li className="font-bold">✅ Enable Reading</li>
+                    </ul>
+                    <p className="text-xs text-emerald-400 mt-3 font-semibold">
+                      This is the ONLY checkbox you need! It allows us to read both your spot AND futures trading history.
+                    </p>
+                  </div>
+                  
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-red-400 font-semibold mb-2">
+                      <AlertCircle className="w-5 h-5" />
+                      NEVER Enable These - Leave Unchecked
+                    </div>
+                    <ul className="space-y-1 text-sm text-slate-300">
+                      <li>❌ Enable Spot & Margin Trading</li>
+                      <li>❌ Enable Futures</li>
+                      <li>❌ Permits Universal Transfer</li>
+                      <li>❌ Enable Withdrawals</li>
+                      <li>❌ Enable Margin Loan, Repay & Transfer</li>
+                      <li>❌ Enable Symbol Whitelist</li>
+                    </ul>
+                    <p className="text-xs text-red-400 mt-3 font-semibold">
+                      Critical: All trading and withdrawal permissions must remain OFF. We only need read access!
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </li>
+            
+            <li className="flex gap-4">
+              <span className="flex-shrink-0 w-8 h-8 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center text-sm font-bold">5</span>
+              <div className="flex-1">
+                <h4 className="font-semibold text-lg mb-2">Copy Your Keys</h4>
+                <p className="text-slate-300 mb-2">After creating, you'll see your API Key and Secret Key</p>
+                <p className="text-slate-300">Copy both and paste them into TradeClarity</p>
+                <div className="mt-3 bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-400">
+                    <span className="font-semibold">Important:</span> The Secret Key is only shown once. Make sure to copy it immediately!
+                  </p>
+                </div>
+              </div>
+            </li>
+          </ol>
+          
+          <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 space-y-3">
+            <h4 className="font-semibold flex items-center gap-2">
+              <Shield className="w-5 h-5 text-emerald-400" />
+              Why This Is Safe
+            </h4>
+            <ul className="space-y-2 text-sm text-slate-300">
+              <li className="flex items-start gap-2">
+                <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                <span>Read-only access means we can ONLY view your trade history</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                <span>We cannot place trades, withdraw funds, or modify your account</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                <span>Your keys are encrypted and never stored on our servers</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Preview Results Component
+function ResultsPreview() {
+  const features = [
+    { icon: Brain, label: 'Psychology Score', description: 'Your discipline rating' },
+    { icon: Clock, label: 'Best Trading Hours', description: 'Peak performance times' },
+    { icon: BarChart3, label: 'Win Rate Analysis', description: 'Per symbol breakdown' },
+    { icon: Zap, label: 'Hidden Patterns', description: 'Insights you\'ve missed' }
+  ]
+  
+  return (
+    <div className="bg-gradient-to-br from-purple-900/20 to-slate-800/20 border border-purple-500/30 rounded-xl p-6">
+      <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+        <Sparkles className="w-5 h-5 text-purple-400" />
+        What You'll Discover
+      </h3>
+      <div className="grid grid-cols-2 gap-3">
+        {features.map((feature, idx) => (
+          <div key={idx} className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-3">
+            <feature.icon className="w-5 h-5 text-purple-400 mb-2" />
+            <div className="text-sm font-semibold text-white">{feature.label}</div>
+            <div className="text-xs text-slate-400 mt-1">{feature.description}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export default function LoginForm({ 
   exchangeList, 
@@ -14,205 +209,479 @@ export default function LoginForm({
   error, 
   progress 
 }) {
+  const [step, setStep] = useState(0)
   const [apiKey, setApiKey] = useState('')
   const [apiSecret, setApiSecret] = useState('')
   const [showSecret, setShowSecret] = useState(false)
+  const [showHelpModal, setShowHelpModal] = useState(false)
+  const [apiKeyValid, setApiKeyValid] = useState(null)
+  const [apiSecretValid, setApiSecretValid] = useState(null)
 
   const handleSubmit = () => {
     onConnect(apiKey, apiSecret)
   }
+  
+  // Validate API key format (basic validation)
+  const validateApiKey = (key) => {
+    if (key.length === 0) {
+      setApiKeyValid(null)
+      return
+    }
+    // Basic validation: should be 64 chars for Binance
+    const isValid = key.length >= 60 && /^[A-Za-z0-9]+$/.test(key)
+    setApiKeyValid(isValid)
+  }
+  
+  const validateApiSecret = (secret) => {
+    if (secret.length === 0) {
+      setApiSecretValid(null)
+      return
+    }
+    // Basic validation: should be 64 chars for Binance
+    const isValid = secret.length >= 60 && /^[A-Za-z0-9]+$/.test(secret)
+    setApiSecretValid(isValid)
+  }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center p-6">
-      <div className="max-w-md w-full space-y-6">
-        <div className="text-center space-y-3">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <TrendingUp className="w-10 h-10 text-emerald-400" />
-            <h1 className="text-3xl font-bold">TradeClarity</h1>
+  // Step 0: Hero & Value Prop
+  if (step === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center p-6">
+        <div className="max-w-4xl w-full space-y-8">
+          {/* Logo */}
+          <div className="text-center space-y-3">
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <TrendingUp className="w-10 h-10 text-emerald-400" />
+              <h1 className="text-3xl font-bold">TradeClarity</h1>
+            </div>
           </div>
-          <p className="text-slate-400">Discover your hidden trading patterns</p>
+          
+          {/* Hero Card */}
+          <div className="relative group">
+            <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 via-cyan-500/20 to-purple-500/20 rounded-3xl blur-2xl" />
+            <div className="relative bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-3xl p-8 md:p-12 text-center space-y-6">
+              <h2 className="text-4xl md:text-5xl font-bold leading-tight">
+                You're <span className="text-emerald-400">2 minutes</span> away from<br />discovering your hidden patterns
+              </h2>
+              
+              <p className="text-xl text-slate-300 max-w-2xl mx-auto">
+                Connect your exchange safely and see exactly where you're winning—and what's silently draining your profits.
+              </p>
+              
+              {/* Trust Badges */}
+              <div className="flex flex-wrap items-center justify-center gap-6 pt-4">
+                <div className="flex items-center gap-2 text-sm text-slate-300">
+                  <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+                    <Shield className="w-4 h-4 text-emerald-400" />
+                  </div>
+                  <span>Read-Only Access</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-slate-300">
+                  <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+                    <Lock className="w-4 h-4 text-emerald-400" />
+                  </div>
+                  <span>Bank-Level Security</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-slate-300">
+                  <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+                    <Clock className="w-4 h-4 text-emerald-400" />
+                  </div>
+                  <span>Results in 30 Seconds</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Preview Grid */}
+          <ResultsPreview />
+          
+          {/* CTAs */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button
+              onClick={() => setStep(1)}
+              className="px-8 py-4 bg-emerald-500 hover:bg-emerald-400 rounded-xl font-semibold text-lg transition-all hover:scale-105 flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
+            >
+              Get Started
+              <ChevronRight className="w-5 h-5" />
+            </button>
+            
+            <button
+              onClick={onTryDemo}
+              disabled={status === 'connecting'}
+              className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed rounded-xl font-semibold text-lg transition-all hover:scale-105 flex items-center justify-center gap-2 group shadow-lg shadow-purple-500/20"
+            >
+              <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+              Try Demo First
+            </button>
+          </div>
+          
+          <p className="text-center text-sm text-slate-400">
+            No signup • No credit card • Just brutal honesty about your trading
+          </p>
         </div>
-
-        <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 space-y-4">
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-300">Select Exchange</label>
-            <div className="grid grid-cols-2 gap-3">
+      </div>
+    )
+  }
+  
+  // Step 1: Choose Exchange
+  if (step === 1) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center p-6">
+        <div className="max-w-3xl w-full space-y-6">
+          {/* Header */}
+          <div className="text-center space-y-3">
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <TrendingUp className="w-8 h-8 text-emerald-400" />
+              <h1 className="text-2xl font-bold">TradeClarity</h1>
+            </div>
+          </div>
+          
+          {/* Progress */}
+          <StepProgress currentStep={0} totalSteps={3} />
+          
+          {/* Main Card */}
+          <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-8 space-y-6">
+            <div className="text-center space-y-2">
+              <h2 className="text-3xl font-bold">Which exchange do you trade on?</h2>
+              <p className="text-slate-400">Select your trading platform to get started</p>
+            </div>
+            
+            {/* Exchange Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {exchangeList.map((ex) => (
                 <button
                   key={ex.id}
                   type="button"
-                  onClick={() => setExchange(ex.id)}
-                  className={`px-4 py-3 rounded-lg font-medium transition-all ${
+                  onClick={() => {
+                    setExchange(ex.id)
+                    setStep(2)
+                  }}
+                  className={`group relative p-6 rounded-xl border-2 transition-all hover:scale-105 ${
                     exchange === ex.id
-                      ? 'bg-emerald-500 text-white'
-                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                      ? 'bg-emerald-500/10 border-emerald-500'
+                      : 'bg-slate-700/30 border-slate-700 hover:border-slate-600'
                   }`}
                 >
-                  {ex.icon} {ex.displayName}
+                  <div className="flex items-start gap-4">
+                    <div className="text-4xl">{ex.icon}</div>
+                    <div className="flex-1 text-left">
+                      <div className="font-bold text-xl mb-1">{ex.displayName}</div>
+                      <div className="text-sm text-slate-400 mb-3">
+                        {ex.id === 'binance' && '🌍 World\'s largest crypto exchange'}
+                        {ex.id === 'coindcx' && '🇮🇳 India\'s #1 crypto exchange'}
+                      </div>
+                      {ex.id === 'binance' && (
+                        <div className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded-full text-xs font-medium">
+                          <Sparkles className="w-3 h-3" />
+                          Most Popular
+                        </div>
+                      )}
+                    </div>
+                    <ChevronRight className="w-6 h-6 text-slate-400 group-hover:text-white transition-colors" />
+                  </div>
                 </button>
               ))}
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <label className="block text-sm font-medium text-slate-300">
-                {currentExchange.config.displayName} API Key
-              </label>
-              <div className="group relative">
-                <HelpCircle className="w-4 h-4 text-slate-500 cursor-help" />
-                <div className="absolute left-0 bottom-6 hidden group-hover:block bg-slate-900 border border-slate-700 rounded-lg p-3 text-xs w-64 z-10">
-                  <p className="text-slate-300 mb-2">Create API keys at {currentExchange.config.website}</p>
-                  <p className="text-emerald-400">✓ Enable Read Only</p>
-                  <p className="text-red-400">✗ NO trading permissions</p>
+            
+            {/* Security Badge */}
+            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Shield className="w-5 h-5 text-emerald-400" />
+                </div>
+                <div className="flex-1">
+                  <div className="font-semibold text-emerald-400 mb-1">🔒 Bank-Level Security</div>
+                  <div className="text-sm text-slate-300">Read-Only • No Trading Access • 100% Safe</div>
                 </div>
               </div>
             </div>
-            <input 
-              type="text" 
-              value={apiKey} 
-              onChange={(e) => setApiKey(e.target.value)} 
-              placeholder={`Enter your ${currentExchange.config.displayName} API key`} 
-              className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg focus:outline-none focus:border-emerald-400 transition-colors text-white placeholder-slate-500" 
-              disabled={status === 'connecting'} 
-            />
           </div>
-
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-300">API Secret</label>
-            <div className="relative">
-              <input 
-                type={showSecret ? "text" : "password"} 
-                value={apiSecret} 
-                onChange={(e) => setApiSecret(e.target.value)} 
-                placeholder="Enter your API secret" 
-                className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg focus:outline-none focus:border-emerald-400 transition-colors text-white placeholder-slate-500 pr-12" 
-                disabled={status === 'connecting'} 
-              />
-              <button 
-                onClick={() => setShowSecret(!showSecret)} 
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
-                type="button"
-              >
-                {showSecret ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
-            </div>
-          </div>
-
-          {error && (
-            <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-              <p className="text-red-400 text-sm">{error}</p>
-            </div>
-          )}
-
-          {progress && (
-            <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
-              <Loader2 className="w-5 h-5 text-emerald-400 animate-spin flex-shrink-0" />
-              <p className="text-emerald-400 text-sm">{progress}</p>
-            </div>
-          )}
-
-          <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4 space-y-2 text-xs">
-            <div className="flex items-start gap-2">
-              <Lock className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <p className="text-slate-300 font-medium">Your data is secure</p>
-                <p className="text-slate-400">Keys are encrypted and never stored. We only read your trade history.</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <button 
-              onClick={handleSubmit} 
-              disabled={status === 'connecting' || !apiKey || !apiSecret} 
-              className="w-full px-6 py-4 bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-700 disabled:cursor-not-allowed rounded-lg font-semibold transition-all text-lg"
+          
+          {/* Back & Demo */}
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => setStep(0)}
+              className="text-slate-400 hover:text-white transition-colors text-sm font-medium"
             >
-              {status === 'connecting' ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Analyzing...
-                </span>
-              ) : (
-                `Analyze My ${currentExchange.config.displayName} Trades`
-              )}
+              ← Back
             </button>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-700"></div>
-              </div>
-              <div className="relative flex justify-center text-xs">
-                <span className="bg-slate-800/50 px-2 text-slate-400">or</span>
-              </div>
-            </div>
-
             <button
               onClick={onTryDemo}
-              disabled={status === 'connecting'}
-              className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed rounded-lg font-semibold transition-all text-lg flex items-center justify-center gap-2 group"
+              className="text-purple-400 hover:text-purple-300 transition-colors text-sm font-medium flex items-center gap-1"
             >
-              <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform" />
-              Try Demo with Sample Data
+              <Sparkles className="w-4 h-4" />
+              Try Demo Instead
             </button>
-          </div>
-
-          <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-6 space-y-4">
-            <h3 className="text-lg font-semibold text-blue-400 flex items-center gap-2">
-              <HelpCircle className="w-5 h-5" />
-              How to Create {currentExchange.config.displayName} API Keys
-            </h3>
-            <ol className="space-y-3 text-sm text-slate-300">
-              <li className="flex gap-3">
-                <span className="flex-shrink-0 w-6 h-6 bg-blue-400/20 text-blue-400 rounded-full flex items-center justify-center text-xs font-bold">1</span>
-                <div>
-                  <span className="font-medium">Log into {currentExchange.config.displayName}</span>
-                  <p className="text-slate-400 text-xs mt-1">Go to {currentExchange.config.website} and sign in to your account</p>
-                </div>
-              </li>
-              <li className="flex gap-3">
-                <span className="flex-shrink-0 w-6 h-6 bg-blue-400/20 text-blue-400 rounded-full flex items-center justify-center text-xs font-bold">2</span>
-                <div>
-                  <span className="font-medium">Navigate to API Management</span>
-                  <p className="text-slate-400 text-xs mt-1">Click your profile → API Management</p>
-                </div>
-              </li>
-              <li className="flex gap-3">
-                <span className="flex-shrink-0 w-6 h-6 bg-blue-400/20 text-blue-400 rounded-full flex items-center justify-center text-xs font-bold">3</span>
-                <div>
-                  <span className="font-medium">Create New API Key</span>
-                  <p className="text-slate-400 text-xs mt-1">Choose "System Generated" and give it a label like "TradeClarity"</p>
-                </div>
-              </li>
-              <li className="flex gap-3">
-                <span className="flex-shrink-0 w-6 h-6 bg-blue-400/20 text-blue-400 rounded-full flex items-center justify-center text-xs font-bold">4</span>
-                <div>
-                  <span className="font-medium">Enable Read-Only Permission</span>
-                  <p className="text-slate-400 text-xs mt-1">
-                    <span className="text-emerald-400">✓</span> Check "Enable Reading" only
-                    <br />
-                    <span className="text-red-400">✗</span> Leave "Enable Spot & Margin Trading" OFF
-                  </p>
-                </div>
-              </li>
-              <li className="flex gap-3">
-                <span className="flex-shrink-0 w-6 h-6 bg-blue-400/20 text-blue-400 rounded-full flex items-center justify-center text-xs font-bold">5</span>
-                <div>
-                  <span className="font-medium">Copy Your Keys</span>
-                  <p className="text-slate-400 text-xs mt-1">Copy the API Key and Secret Key and paste them above</p>
-                </div>
-              </li>
-            </ol>
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-400">
-                <span className="font-semibold">Important:</span> Never enable trading permissions. We only need read access to view your trade history.
-              </p>
-            </div>
           </div>
         </div>
       </div>
-    </div>
-  )
+    )
+  }
+  
+  // Step 2: Enter API Keys
+  if (step === 2) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center p-6">
+        <div className="max-w-4xl w-full space-y-6">
+          <HelpModal 
+            isOpen={showHelpModal} 
+            onClose={() => setShowHelpModal(false)} 
+            exchange={currentExchange.config}
+          />
+          
+          {/* Header */}
+          <div className="text-center space-y-3">
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <TrendingUp className="w-8 h-8 text-emerald-400" />
+              <h1 className="text-2xl font-bold">TradeClarity</h1>
+            </div>
+          </div>
+          
+          {/* Progress */}
+          <StepProgress currentStep={1} totalSteps={3} />
+          
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Left: Form */}
+            <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-8 space-y-6">
+              <div className="space-y-2">
+                <h2 className="text-2xl font-bold">Connect {currentExchange.config.icon} {currentExchange.config.displayName}</h2>
+                <p className="text-slate-400">Enter your read-only API credentials</p>
+              </div>
+              
+              {/* API Key Field */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-medium text-slate-300">
+                    API Key
+                  </label>
+                  <button
+                    onClick={() => setShowHelpModal(true)}
+                    className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                  >
+                    <HelpCircle className="w-4 h-4" />
+                    How to get this?
+                  </button>
+                </div>
+                <div className="relative">
+                  <input 
+                    type="text" 
+                    value={apiKey} 
+                    onChange={(e) => {
+                      setApiKey(e.target.value)
+                      validateApiKey(e.target.value)
+                    }}
+                    placeholder={`Paste your ${currentExchange.config.displayName} API key`} 
+                    className={`w-full px-4 py-3 bg-slate-900 border rounded-lg focus:outline-none focus:ring-2 transition-all text-white placeholder-slate-500 pr-10 ${
+                      apiKeyValid === true ? 'border-emerald-500 focus:ring-emerald-500/30' :
+                      apiKeyValid === false ? 'border-red-500 focus:ring-red-500/30' :
+                      'border-slate-700 focus:ring-emerald-500/30'
+                    }`}
+                    disabled={status === 'connecting'} 
+                  />
+                  {apiKeyValid === true && (
+                    <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-400" />
+                  )}
+                  {apiKeyValid === false && (
+                    <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-red-400" />
+                  )}
+                </div>
+                {apiKeyValid === true && (
+                  <div className="text-xs text-emerald-400 flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3" />
+                    Looks good!
+                  </div>
+                )}
+                {apiKeyValid === false && (
+                  <div className="text-xs text-red-400 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    Invalid format. Check your API key.
+                  </div>
+                )}
+              </div>
+
+              {/* API Secret Field */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-medium text-slate-300">API Secret</label>
+                  <button
+                    onClick={() => setShowHelpModal(true)}
+                    className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                  >
+                    <HelpCircle className="w-4 h-4" />
+                    How to get this?
+                  </button>
+                </div>
+                <div className="relative">
+                  <input 
+                    type={showSecret ? "text" : "password"} 
+                    value={apiSecret} 
+                    onChange={(e) => {
+                      setApiSecret(e.target.value)
+                      validateApiSecret(e.target.value)
+                    }}
+                    placeholder="Paste your API secret" 
+                    className={`w-full px-4 py-3 bg-slate-900 border rounded-lg focus:outline-none focus:ring-2 transition-all text-white placeholder-slate-500 pr-20 ${
+                      apiSecretValid === true ? 'border-emerald-500 focus:ring-emerald-500/30' :
+                      apiSecretValid === false ? 'border-red-500 focus:ring-red-500/30' :
+                      'border-slate-700 focus:ring-emerald-500/30'
+                    }`}
+                    disabled={status === 'connecting'} 
+                  />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                    {apiSecretValid === true && <CheckCircle className="w-5 h-5 text-emerald-400" />}
+                    {apiSecretValid === false && <AlertCircle className="w-5 h-5 text-red-400" />}
+                    <button 
+                      onClick={() => setShowSecret(!showSecret)} 
+                      className="text-slate-400 hover:text-white transition-colors"
+                      type="button"
+                    >
+                      {showSecret ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                </div>
+                {apiSecretValid === true && (
+                  <div className="text-xs text-emerald-400 flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3" />
+                    Looks good!
+                  </div>
+                )}
+                {apiSecretValid === false && (
+                  <div className="text-xs text-red-400 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    Invalid format. Check your API secret.
+                  </div>
+                )}
+              </div>
+
+              {error && (
+                <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                  <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-red-400 text-sm">{error}</p>
+                </div>
+              )}
+
+              {progress && (
+                <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+                  <Loader2 className="w-5 h-5 text-emerald-400 animate-spin flex-shrink-0" />
+                  <p className="text-emerald-400 text-sm">{progress}</p>
+                </div>
+              )}
+
+              {/* Security Info */}
+              <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4 space-y-2 text-xs">
+                <div className="flex items-start gap-2">
+                  <Lock className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-slate-300 font-medium">Your data is secure</p>
+                    <p className="text-slate-400">Keys are encrypted and never stored. We only read your trade history.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* CTA */}
+              <button 
+                onClick={handleSubmit} 
+                disabled={status === 'connecting' || !apiKey || !apiSecret || apiKeyValid === false || apiSecretValid === false} 
+                className="w-full px-6 py-4 bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-700 disabled:cursor-not-allowed rounded-lg font-semibold transition-all text-lg flex items-center justify-center gap-2 group"
+              >
+                {status === 'connecting' ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Analyzing Your Trades...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                    Discover My Patterns
+                  </>
+                )}
+              </button>
+            </div>
+            
+            {/* Right: Preview & Instructions */}
+            <div className="space-y-6">
+              {/* What Happens Next */}
+              <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 space-y-4">
+                <h3 className="font-bold text-lg flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-purple-400" />
+                  Almost there! You'll see your first insight in 30 seconds
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <CheckCircle className="w-4 h-4 text-emerald-400" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-sm mb-1">Psychology Score</div>
+                      <div className="text-xs text-slate-400">See your trading discipline rating /100</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-cyan-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Clock className="w-4 h-4 text-cyan-400" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-sm mb-1">Peak Performance Hours</div>
+                      <div className="text-xs text-slate-400">When you trade best (and worst)</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Brain className="w-4 h-4 text-purple-400" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-sm mb-1">Hidden Patterns</div>
+                      <div className="text-xs text-slate-400">Patterns you can't see are costing you money</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-amber-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Target className="w-4 h-4 text-amber-400" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-sm mb-1">Actionable Insights</div>
+                      <div className="text-xs text-slate-400">Specific changes to improve your win rate</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Quick Guide */}
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-2xl p-6 space-y-3">
+                <div className="flex items-center gap-2 text-blue-400 font-semibold">
+                  <FileText className="w-5 h-5" />
+                  Need help finding your API keys?
+                </div>
+                <button
+                  onClick={() => setShowHelpModal(true)}
+                  className="w-full px-4 py-3 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 rounded-lg font-medium transition-all flex items-center justify-center gap-2 group"
+                >
+                  <Play className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                  Watch Step-by-Step Guide
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          {/* Back */}
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => setStep(1)}
+              className="text-slate-400 hover:text-white transition-colors text-sm font-medium"
+            >
+              ← Back
+            </button>
+            <button
+              onClick={onTryDemo}
+              className="text-purple-400 hover:text-purple-300 transition-colors text-sm font-medium flex items-center gap-1"
+            >
+              <Sparkles className="w-4 h-4" />
+              Try Demo Instead
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+  
+  return null
 }
