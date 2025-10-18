@@ -176,20 +176,21 @@ function AccountTypeCard({ type, trades, pnl, winRate, currSymbol, icon }) {
 }
 
 // ============================================
-// PSYCHOLOGY SCORE - SIMPLIFIED
+// PSYCHOLOGY SCORE - WITH ICONS
 // ============================================
 
 function PsychologyScoreCompact({ score, analytics }) {
-  const getScoreColor = (score) => {
-    if (score >= 80) return { color: 'emerald', emoji: '🏆', label: 'Excellent' }
-    if (score >= 70) return { color: 'cyan', emoji: '👍', label: 'Good' }
-    if (score >= 60) return { color: 'yellow', emoji: '⚠️', label: 'Fair' }
-    if (score >= 50) return { color: 'orange', emoji: '📈', label: 'Needs Work' }
-    return { color: 'red', emoji: '🚨', label: 'Critical' }
+  const getScoreInfo = (score) => {
+    if (score >= 80) return { color: 'emerald', icon: Trophy, label: 'Excellent', iconColor: 'text-emerald-400', bgColor: 'bg-emerald-500/20' }
+    if (score >= 70) return { color: 'cyan', icon: CheckCircle, label: 'Good', iconColor: 'text-cyan-400', bgColor: 'bg-cyan-500/20' }
+    if (score >= 60) return { color: 'yellow', icon: AlertCircle, label: 'Fair', iconColor: 'text-yellow-400', bgColor: 'bg-yellow-500/20' }
+    if (score >= 50) return { color: 'orange', icon: TrendingUp, label: 'Needs Work', iconColor: 'text-orange-400', bgColor: 'bg-orange-500/20' }
+    return { color: 'red', icon: AlertTriangle, label: 'Critical', iconColor: 'text-red-400', bgColor: 'bg-red-500/20' }
   }
   
-  const scoreInfo = getScoreColor(score)
+  const scoreInfo = getScoreInfo(score)
   const percentage = (score / 100) * 100
+  const ScoreIcon = scoreInfo.icon
   
   return (
     <div className="bg-gradient-to-br from-purple-900/30 to-slate-800/30 backdrop-blur-sm border border-purple-700/30 rounded-2xl p-6">
@@ -204,18 +205,30 @@ function PsychologyScoreCompact({ score, analytics }) {
           </div>
         </div>
         <div className="text-right">
-          <div className={`text-5xl font-bold text-${scoreInfo.color}-400`}>
+          <div className={`text-5xl font-bold ${
+            scoreInfo.color === 'emerald' ? 'text-emerald-400' :
+            scoreInfo.color === 'cyan' ? 'text-cyan-400' :
+            scoreInfo.color === 'yellow' ? 'text-yellow-400' :
+            scoreInfo.color === 'orange' ? 'text-orange-400' :
+            'text-red-400'
+          }`}>
             {score}
           </div>
           <div className="text-sm text-slate-400">/100</div>
         </div>
       </div>
       
-      {/* Progress Bar */}
+      {/* Progress Bar - Now properly filled */}
       <div className="mb-4">
         <div className="h-3 bg-slate-800/50 rounded-full overflow-hidden">
           <div 
-            className={`h-full bg-gradient-to-r from-${scoreInfo.color}-500 to-${scoreInfo.color}-400 rounded-full transition-all duration-1000`}
+            className={`h-full rounded-full transition-all duration-1000 ease-out ${
+              scoreInfo.color === 'emerald' ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' :
+              scoreInfo.color === 'cyan' ? 'bg-gradient-to-r from-cyan-500 to-cyan-400' :
+              scoreInfo.color === 'yellow' ? 'bg-gradient-to-r from-yellow-500 to-yellow-400' :
+              scoreInfo.color === 'orange' ? 'bg-gradient-to-r from-orange-500 to-orange-400' :
+              'bg-gradient-to-r from-red-500 to-red-400'
+            }`}
             style={{ width: `${percentage}%` }}
           />
         </div>
@@ -223,8 +236,10 @@ function PsychologyScoreCompact({ score, analytics }) {
       
       <div className="flex items-center justify-between text-sm">
         <div className="flex items-center gap-2">
-          <span className="text-2xl">{scoreInfo.emoji}</span>
-          <span className={`font-semibold text-${scoreInfo.color}-400`}>{scoreInfo.label}</span>
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${scoreInfo.bgColor}`}>
+            <ScoreIcon className={`w-4 h-4 ${scoreInfo.iconColor}`} />
+          </div>
+          <span className={`font-semibold ${scoreInfo.iconColor}`}>{scoreInfo.label}</span>
         </div>
         <div className="text-slate-400">
           {score >= 70 ? 'Keep it up!' : score >= 50 ? 'Room for improvement' : 'Focus on discipline'}
@@ -235,7 +250,7 @@ function PsychologyScoreCompact({ score, analytics }) {
 }
 
 // ============================================
-// HIDDEN PATTERNS - SEVERITY-BASED
+// HIDDEN PATTERNS - PROFESSIONAL ICONS
 // ============================================
 
 function PatternDetectionEnhanced({ patterns }) {
@@ -274,67 +289,81 @@ function PatternDetectionEnhanced({ patterns }) {
       {expanded && (
         <div className="space-y-4">
           {/* Critical Patterns - Full Width, Prominent */}
-          {criticalPatterns.map((pattern, i) => (
-            <div key={`critical-${i}`} className="relative group animate-pulse-subtle">
-              <div className="absolute inset-0 bg-red-500/10 rounded-xl blur-xl" />
-              <div className="relative bg-gradient-to-r from-red-500/20 to-orange-500/20 border-2 border-red-500/50 rounded-xl p-6">
-                <div className="flex items-start gap-4">
-                  <div className="text-4xl flex-shrink-0">{pattern.icon}</div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-bold text-lg text-red-400 flex items-center gap-2">
-                        <AlertTriangle className="w-5 h-5" />
-                        {pattern.title}
-                      </h4>
-                      <span className="px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-xs font-bold uppercase">
-                        Critical
-                      </span>
+          {criticalPatterns.map((pattern, i) => {
+            const IconComponent = pattern.icon
+            return (
+              <div key={`critical-${i}`} className="relative group animate-pulse-subtle">
+                <div className="absolute inset-0 bg-red-500/10 rounded-xl blur-xl" />
+                <div className="relative bg-gradient-to-r from-red-500/20 to-orange-500/20 border-2 border-red-500/50 rounded-xl p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <IconComponent className="w-6 h-6 text-red-400" />
                     </div>
-                    <p className="text-slate-300 mb-3">{pattern.description}</p>
-                    {pattern.stats && (
-                      <div className="flex flex-wrap gap-4 text-sm">
-                        {Object.entries(pattern.stats).map(([key, value]) => (
-                          <div key={key} className="bg-slate-800/50 px-3 py-1 rounded-lg">
-                            <span className="text-slate-400">{key}:</span>{' '}
-                            <span className="text-white font-mono font-bold">{value}</span>
-                          </div>
-                        ))}
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-bold text-lg text-red-400 flex items-center gap-2">
+                          <AlertTriangle className="w-5 h-5" />
+                          {pattern.title}
+                        </h4>
+                        <span className="px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-xs font-bold uppercase">
+                          Critical
+                        </span>
                       </div>
-                    )}
+                      <p className="text-slate-300 mb-3">{pattern.description}</p>
+                      {pattern.stats && (
+                        <div className="flex flex-wrap gap-4 text-sm">
+                          {Object.entries(pattern.stats).map(([key, value]) => (
+                            <div key={key} className="bg-slate-800/50 px-3 py-1 rounded-lg">
+                              <span className="text-slate-400">{key}:</span>{' '}
+                              <span className="text-white font-mono font-bold">{value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
           
           {/* Other Patterns - Compact Grid */}
           {otherPatterns.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {otherPatterns.map((pattern, i) => (
-                <div 
-                  key={`other-${i}`}
-                  className={`bg-slate-800/30 border rounded-xl p-4 hover:border-slate-500/50 transition-all ${
-                    pattern.severity === 'medium' ? 'border-yellow-500/30' : 'border-slate-700/50'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="text-2xl flex-shrink-0">{pattern.icon}</div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <h4 className="font-semibold truncate">{pattern.title}</h4>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ml-2 ${
-                          pattern.severity === 'medium' 
-                            ? 'bg-yellow-500/20 text-yellow-400' 
-                            : 'bg-emerald-500/20 text-emerald-400'
-                        }`}>
-                          {pattern.severity}
-                        </span>
+              {otherPatterns.map((pattern, i) => {
+                const IconComponent = pattern.icon
+                return (
+                  <div 
+                    key={`other-${i}`}
+                    className={`bg-slate-800/30 border rounded-xl p-4 hover:border-slate-500/50 transition-all ${
+                      pattern.severity === 'medium' ? 'border-yellow-500/30' : 'border-slate-700/50'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                        pattern.severity === 'medium' ? 'bg-yellow-500/20' : 'bg-emerald-500/20'
+                      }`}>
+                        <IconComponent className={`w-5 h-5 ${
+                          pattern.severity === 'medium' ? 'text-yellow-400' : 'text-emerald-400'
+                        }`} />
                       </div>
-                      <p className="text-xs text-slate-400 line-clamp-2">{pattern.description}</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <h4 className="font-semibold truncate">{pattern.title}</h4>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ml-2 ${
+                            pattern.severity === 'medium' 
+                              ? 'bg-yellow-500/20 text-yellow-400' 
+                              : 'bg-emerald-500/20 text-emerald-400'
+                          }`}>
+                            {pattern.severity}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 line-clamp-2">{pattern.description}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
@@ -344,7 +373,7 @@ function PatternDetectionEnhanced({ patterns }) {
 }
 
 // ============================================
-// KEY INSIGHTS - VARIABLE SIZING
+// KEY INSIGHTS - WITH ICONS
 // ============================================
 
 function InsightCardsEnhanced({ insights, onSelectInsight }) {
@@ -388,11 +417,13 @@ function InsightCardVariable({ insight, onClick, className, featured }) {
   }
   
   const iconStyles = {
-    strength: 'text-emerald-400',
-    weakness: 'text-red-400',
-    recommendation: 'text-cyan-400',
-    pattern: 'text-purple-400'
+    strength: 'text-emerald-400 bg-emerald-500/20',
+    weakness: 'text-red-400 bg-red-500/20',
+    recommendation: 'text-cyan-400 bg-cyan-500/20',
+    pattern: 'text-purple-400 bg-purple-500/20'
   }
+  
+  const IconComponent = insight.icon
   
   return (
     <div 
@@ -402,8 +433,8 @@ function InsightCardVariable({ insight, onClick, className, featured }) {
       }`}
     >
       <div className="flex items-start justify-between mb-3">
-        <div className={`${featured ? 'text-4xl' : 'text-3xl'} ${iconStyles[insight.type]}`}>
-          {insight.icon}
+        <div className={`${featured ? 'w-12 h-12' : 'w-10 h-10'} rounded-xl flex items-center justify-center ${iconStyles[insight.type]}`}>
+          <IconComponent className={`${featured ? 'w-6 h-6' : 'w-5 h-5'}`} />
         </div>
         <div className="flex items-center gap-2">
           {/* Impact Dots */}
@@ -414,7 +445,7 @@ function InsightCardVariable({ insight, onClick, className, featured }) {
                   key={i}
                   className={`w-2 h-2 rounded-full transition-all ${
                     i < insight.impact 
-                      ? iconStyles[insight.type].replace('text-', 'bg-') + ' scale-100'
+                      ? iconStyles[insight.type].split(' ')[0].replace('text-', 'bg-') + ' scale-100'
                       : 'bg-slate-700 scale-75'
                   }`}
                 />
@@ -606,17 +637,19 @@ function ChartCardBig({ title, icon: Icon, children }) {
 function InsightModal({ insight, onClose }) {
   if (!insight) return null
   
+  const IconComponent = insight.icon
+  
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-8 shadow-2xl animate-in" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between mb-6">
           <div className="flex items-center gap-4">
-            <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-3xl ${
+            <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${
               insight.type === 'strength' ? 'bg-emerald-500/20 text-emerald-400' :
               insight.type === 'weakness' ? 'bg-red-500/20 text-red-400' :
               'bg-cyan-500/20 text-cyan-400'
             }`}>
-              {insight.icon}
+              <IconComponent className="w-7 h-7" />
             </div>
             <div>
               <h3 className="text-2xl font-bold">{insight.title}</h3>
@@ -1016,7 +1049,7 @@ function generateEnhancedInsights(analytics, psychology) {
   if (analytics.winRate >= 60) {
     insights.push({
       type: 'strength',
-      icon: '🎯',
+      icon: Target,
       title: 'Excellent Win Rate',
       summary: `You win ${analytics.winRate.toFixed(1)}% of your trades - well above average!`,
       description: `Your ${analytics.winRate.toFixed(1)}% win rate is significantly better than most retail traders (typically 40-50%). This demonstrates strong entry timing and market understanding.`,
@@ -1039,7 +1072,7 @@ function generateEnhancedInsights(analytics, psychology) {
     const weakness = psychology.weaknesses.find(w => w.type === 'holding_losers')
     insights.push({
       type: 'weakness',
-      icon: '⏰',
+      icon: Clock,
       title: 'Cut Losses Faster',
       summary: weakness.message,
       description: 'You tend to hold losing positions longer than winners, hoping they recover. This is a common psychological trap.',
@@ -1056,7 +1089,7 @@ function generateEnhancedInsights(analytics, psychology) {
     const bestData = analytics.symbols[analytics.bestSymbol]
     insights.push({
       type: 'recommendation',
-      icon: '💎',
+      icon: Award,
       title: 'Focus on Your Best Symbol',
       summary: `${analytics.bestSymbol} is your most profitable with ${bestData.winRate.toFixed(0)}% win rate`,
       description: `You've found edge in ${analytics.bestSymbol}. Focus 60-70% of trading here.`,
@@ -1072,7 +1105,7 @@ function generateEnhancedInsights(analytics, psychology) {
   if (analytics.profitFactor >= 1.8) {
     insights.push({
       type: 'strength',
-      icon: '💰',
+      icon: TrendingUp,
       title: 'Strong Profit Factor',
       summary: `Your ${analytics.profitFactor.toFixed(2)}x profit factor shows winners are much bigger than losers`,
       description: 'A profit factor above 1.5 is considered good, and yours exceeds that.',
@@ -1092,7 +1125,7 @@ function detectHiddenPatterns(analytics, psychology) {
   
   if (analytics.maxConsecutiveLosses >= 5) {
     patterns.push({
-      icon: '🎲',
+      icon: AlertTriangle,
       title: 'Streak Trading Risk',
       description: `You've experienced ${analytics.maxConsecutiveLosses} consecutive losses. After 3 losses, decision-making may be compromised.`,
       severity: 'high',
@@ -1106,7 +1139,7 @@ function detectHiddenPatterns(analytics, psychology) {
   const commissionPercent = (analytics.totalCommission / Math.abs(analytics.totalPnL)) * 100
   if (commissionPercent > 15) {
     patterns.push({
-      icon: '💸',
+      icon: DollarSign,
       title: 'High Commission Drag',
       description: `Fees are eating ${commissionPercent.toFixed(1)}% of your profits.`,
       severity: 'medium',
@@ -1120,7 +1153,7 @@ function detectHiddenPatterns(analytics, psychology) {
   if (analytics.hourPerformance && analytics.hourPerformance.length > 0) {
     const bestHours = analytics.hourPerformance.slice(0, 3).map(h => `${h.hour}:00`)
     patterns.push({
-      icon: '⏰',
+      icon: Clock,
       title: 'Your Golden Trading Hours',
       description: `You perform best during ${bestHours.join(', ')}.`,
       severity: 'low',
