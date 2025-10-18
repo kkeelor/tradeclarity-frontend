@@ -46,7 +46,7 @@ export default function LandingPage() {
             </h1>
             
             <p className="text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
-              You take profit at +2%, then watch it moon to +50%. You "diamond hands" your loser to -80% while it bleeds out. Repeatedly. 
+              Ever sell a winner at +5%, only to watch it 10x? Ever hold a loser to -70% because "it'll come back"? You're not alone. 
               <br />
               <span className="text-white font-semibold"> There's a pattern. You just can't see it.</span>
             </p>
