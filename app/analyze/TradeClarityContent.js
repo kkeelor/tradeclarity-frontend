@@ -24,15 +24,15 @@ function DemoLoadingScreen({ progress }) {
   ]
 
   useEffect(() => {
-    // Simulate progress
+    // Simulate progress up to 100% for demo
     const totalDuration = steps.reduce((sum, step) => sum + step.duration, 0)
     let elapsed = 0
-    
+
     const interval = setInterval(() => {
       elapsed += 50
-      const newProgress = Math.min((elapsed / totalDuration) * 100, 95)
+      const newProgress = Math.min((elapsed / totalDuration) * 100, 100)
       setLoadingProgress(newProgress)
-      
+
       // Update current step
       let accumulatedDuration = 0
       for (let i = 0; i < steps.length; i++) {
@@ -42,12 +42,12 @@ function DemoLoadingScreen({ progress }) {
           break
         }
       }
-      
+
       if (elapsed >= totalDuration) {
         clearInterval(interval)
       }
     }, 50)
-    
+
     return () => clearInterval(interval)
   }, [])
 
@@ -131,6 +131,173 @@ function DemoLoadingScreen({ progress }) {
         {/* Additional Info */}
         <div className="text-center text-sm text-slate-400">
           Analyzing sample data from a real Binance Futures account
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Loading screen component for real mode (API connection)
+function RealModeLoadingScreen({ progress }) {
+  const [dots, setDots] = useState('.')
+  const [progressPercent, setProgressPercent] = useState(0)
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDots(prev => prev.length >= 3 ? '.' : prev + '.')
+    }, 500)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Determine current step and progress percentage based on progress message
+  const getCurrentStep = () => {
+    if (!progress) return { icon: TrendingUp, label: 'Initializing', step: 0, percent: 5 }
+
+    const lowerProgress = progress.toLowerCase()
+
+    // Stage 1: Connecting to exchange (0-25%)
+    if (lowerProgress.includes('connecting')) {
+      return { icon: Zap, label: progress, step: 0, percent: 20 }
+    }
+
+    // Stage 2: Fetching data from API (25-50%)
+    if (lowerProgress.includes('fetching') || lowerProgress.includes('loading')) {
+      return { icon: BarChart3, label: progress, step: 1, percent: 45 }
+    }
+
+    // Stage 3: Processing/normalizing data (50-75%)
+    if (lowerProgress.includes('normalizing') || lowerProgress.includes('processing')) {
+      return { icon: Brain, label: progress, step: 2, percent: 70 }
+    }
+
+    // Stage 4: Analyzing trades (75-95%)
+    if (lowerProgress.includes('analyzing') || lowerProgress.includes('calculating')) {
+      return { icon: Sparkles, label: progress, step: 3, percent: 90 }
+    }
+
+    // Stage 5: Complete - preparing dashboard (95-100%)
+    if (lowerProgress.includes('complete') || lowerProgress.includes('preparing')) {
+      return { icon: Sparkles, label: progress, step: 3, percent: 100 }
+    }
+
+    // Default fallback
+    return { icon: Sparkles, label: progress || 'Processing', step: 1, percent: 30 }
+  }
+
+  const currentStep = getCurrentStep()
+  const CurrentIcon = currentStep.icon
+
+  // Smoothly animate progress bar
+  useEffect(() => {
+    const targetPercent = currentStep.percent
+    if (progressPercent < targetPercent) {
+      const interval = setInterval(() => {
+        setProgressPercent(prev => {
+          const next = prev + 1
+          if (next >= targetPercent) {
+            clearInterval(interval)
+            return targetPercent
+          }
+          return next
+        })
+      }, 20)
+      return () => clearInterval(interval)
+    }
+  }, [currentStep.percent])
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center p-6">
+      <div className="max-w-md w-full space-y-8">
+        {/* Logo */}
+        <div className="text-center space-y-3">
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <TrendingUp className="w-10 h-10 text-emerald-400" />
+            <h1 className="text-3xl font-bold">TradeClarity</h1>
+          </div>
+        </div>
+
+        {/* Loading Animation */}
+        <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-8 space-y-6">
+          {/* Current Step Icon */}
+          <div className="flex justify-center">
+            <div className="relative">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 flex items-center justify-center">
+                <CurrentIcon className="w-10 h-10 text-emerald-400 animate-pulse" />
+              </div>
+              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 animate-ping" />
+            </div>
+          </div>
+
+          {/* Progress Message */}
+          <div className="space-y-3">
+            <div className="text-center">
+              <div className="text-slate-300 font-medium text-lg mb-2">
+                {currentStep.label}{dots}
+              </div>
+              <div className="text-sm text-slate-400">
+                {progressPercent < 100
+                  ? 'Fetching your trading data from the exchange'
+                  : 'Loading complete! Preparing dashboard...'}
+              </div>
+            </div>
+
+            {/* Animated Progress Bar with Percentage */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs text-slate-400">
+                <span>Progress</span>
+                <span className="font-mono font-bold">{progressPercent}%</span>
+              </div>
+              <div className="h-2 bg-slate-700/50 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Steps Indicator */}
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              { icon: Zap, label: 'Connect' },
+              { icon: BarChart3, label: 'Fetch' },
+              { icon: Brain, label: 'Analyze' },
+              { icon: Sparkles, label: 'Display' }
+            ].map((step, index) => {
+              const StepIcon = step.icon
+              return (
+                <div
+                  key={index}
+                  className={`flex flex-col items-center gap-1 transition-all duration-300 ${
+                    index <= currentStep.step ? 'opacity-100' : 'opacity-30'
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    index < currentStep.step
+                      ? 'bg-emerald-500/20 text-emerald-400'
+                      : index === currentStep.step
+                      ? 'bg-cyan-500/20 text-cyan-400'
+                      : 'bg-slate-700/50 text-slate-500'
+                  }`}>
+                    <StepIcon className="w-4 h-4" />
+                  </div>
+                  <div className="text-[10px] text-slate-400 text-center leading-tight">
+                    {step.label}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Security Reminder */}
+          <div className="pt-4 text-center text-xs text-slate-400 border-t border-slate-700/50">
+            🔒 Your API keys are encrypted and never stored
+          </div>
+        </div>
+
+        {/* Additional Info */}
+        <div className="text-center text-sm text-slate-400">
+          This may take 10-30 seconds depending on your trade history
         </div>
       </div>
     </div>
@@ -253,22 +420,22 @@ export default function TradeClarityContent() {
     try {
       // Fetch trades using exchange-specific function
       const rawData = await currentExchange.fetchTrades(apiKey, apiSecret, setProgress)
-      
+
       console.log('🔍 RAW DATA:', rawData)
       console.log('🔍 Has futuresIncome?', rawData.futuresIncome?.length || 0)
-      
-      setProgress('Normalizing data...')
-      
+
+      setProgress('Processing and normalizing your trading data...')
+
       // Normalize trades to common format
       const normalizedData = currentExchange.normalizeTrades(rawData)
-      
+
       console.log('🔍 NORMALIZED DATA:', normalizedData)
       console.log('🔍 After normalize - futuresIncome?', normalizedData.futuresIncome?.length || 0)
       console.log('🔍 After normalize - spotTrades?', normalizedData.spotTrades?.length || 0)
-      
+
       // Check if we have the new structured format or legacy format
       const isStructuredFormat = normalizedData.spotTrades !== undefined && normalizedData.futuresIncome !== undefined
-      
+
       if (isStructuredFormat) {
         setProgress(`Analyzing ${normalizedData.spotTrades.length} spot trades + ${normalizedData.futuresIncome.length} futures records...`)
       } else {
@@ -276,24 +443,29 @@ export default function TradeClarityContent() {
         const trades = normalizedData.trades || normalizedData
         setProgress(`Analyzing ${trades.length} trades...`)
       }
-      
+
       // Analyze using master analyzer (handles both formats)
       const analysis = analyzeData(normalizedData)
-      
+
       console.log('🔍 ANALYSIS RESULT:', analysis)
       console.log('🔍 Futures trades count:', analysis.futuresTrades)
       console.log('🔍 Futures P&L:', analysis.futuresPnL)
       console.log('🔍 Spot trades count:', analysis.spotTrades)
       console.log('🔍 Has psychology?', !!analysis.psychology)
-      
+
+      setProgress('Analysis complete! Preparing your dashboard...')
+
       setAnalytics(analysis)
       setCurrencyMetadata(normalizedData.metadata)
-      
+
       // Set initial currency
       if (normalizedData.metadata?.primaryCurrency) {
         setCurrency(normalizedData.metadata.primaryCurrency)
       }
-      
+
+      // Give a brief moment to show 100% completion before transitioning
+      await new Promise(resolve => setTimeout(resolve, 800))
+
       setStatus('connected')
       setProgress('')
     } catch (err) {
@@ -359,9 +531,13 @@ export default function TradeClarityContent() {
   const displayAnalytics = getFilteredAnalytics()
   const currSymbol = getCurrencySymbol(currency)
 
-  // Show loading animation for demo mode
+  // Show appropriate loading screen based on mode
   if (status === 'loading' || status === 'connecting') {
-    return <DemoLoadingScreen progress={progress} />
+    if (isDemoMode) {
+      return <DemoLoadingScreen progress={progress} />
+    } else {
+      return <RealModeLoadingScreen progress={progress} />
+    }
   }
 
   // Render analytics view if connected

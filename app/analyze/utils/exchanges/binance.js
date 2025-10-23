@@ -80,7 +80,57 @@ const fetchCurrentPrices = async (symbols) => {
 
 export const fetchBinanceTrades = async (apiKey, apiSecret, onProgress) => {
   try {
-    console.log('🚀 Starting Binance trade fetch...')
+    console.log('🚀 Starting Binance comprehensive data fetch...')
+    onProgress('Connecting to Binance...')
+
+    // Use the NEW comprehensive endpoint
+    const res = await fetch(`${BACKEND_URL}/api/binance/fetch-all`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey, apiSecret })
+    })
+
+    if (!res.ok) {
+      const error = await res.json()
+      throw new Error(error.error || `HTTP ${res.status}`)
+    }
+
+    const response = await res.json()
+
+    if (!response.success) {
+      throw new Error(response.error || 'Failed to fetch data')
+    }
+
+    const data = response.data
+
+    console.log('✅ Comprehensive fetch complete:', {
+      spotTrades: data.spotTrades?.length || 0,
+      futuresIncome: data.futuresIncome?.length || 0,
+      futuresPositions: data.futuresPositions?.length || 0,
+      metadata: data.metadata
+    })
+
+    // Return the normalized data from backend
+    return {
+      spotTrades: data.spotTrades || [],
+      futuresIncome: data.futuresIncome || [],
+      futuresPositions: data.futuresPositions || [],
+      metadata: data.metadata || {
+        primaryCurrency: 'USD',
+        availableCurrencies: ['USD'],
+        supportsCurrencySwitch: false
+      }
+    }
+  } catch (error) {
+    console.error('🔴 Error:', error.message)
+    throw error
+  }
+}
+
+// OLD IMPLEMENTATION (kept for reference, but not used anymore)
+export const fetchBinanceTradesLegacy = async (apiKey, apiSecret, onProgress) => {
+  try {
+    console.log('🚀 Starting Binance trade fetch (legacy)...')
     onProgress('Connecting to Binance...')
 
     // Fetch SPOT account

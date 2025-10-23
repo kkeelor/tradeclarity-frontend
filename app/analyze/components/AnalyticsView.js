@@ -2,64 +2,97 @@
 'use client'
 
 import { useState } from 'react'
-import { 
-  DollarSign, TrendingUp, Target, Activity, Award, Brain, 
-  CheckCircle, AlertTriangle, Lightbulb, Clock, Calendar, 
+import {
+  DollarSign, TrendingUp, Target, Activity, Award, Brain,
+  CheckCircle, AlertTriangle, Lightbulb, Clock, Calendar,
   Zap, Layers, TrendingDown, Eye, Flame, Trophy, Shield,
   BarChart3, PieChart, LineChart, ArrowUpRight, ArrowDownRight,
-  AlertCircle, Sparkles, ChevronRight, X, ChevronLeft, ChevronDown
+  AlertCircle, Sparkles, ChevronRight, ChevronLeft, ChevronDown
 } from 'lucide-react'
-import { 
-  AreaChart, Area, BarChart, Bar, LineChart as RechartsLineChart, 
-  Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, 
+import {
+  AreaChart, Area, BarChart, Bar, LineChart as RechartsLineChart,
+  Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart,
   Pie, Cell, RadarChart, PolarGrid, PolarAngleAxis, Radar
 } from 'recharts'
 import Header from './Header'
+import {
+  Card,
+  IconBadge,
+  MetricDisplay,
+  SectionHeader,
+  SectionHeaderWithAction,
+  FilterButton,
+  TabButton,
+  Modal,
+  ModalSection,
+  ModalDescription,
+  ModalMetrics,
+  ModalActionSteps,
+  HeroSkeleton,
+  ChartSkeleton,
+  CardGridSkeleton,
+  TableSkeleton,
+  LimitedDataNotice,
+  DataQualityBanner,
+  EmptyState
+} from '../../components'
 
 // ============================================
 // HERO SECTION - REDESIGNED
 // ============================================
 
-function HeroSection({ analytics, currSymbol }) {
+function HeroSection({ analytics, currSymbol, metadata }) {
   const isProfitable = analytics.totalPnL >= 0
   const psychology = analytics.psychology || {}
-  
+  const tradeCount = analytics.totalTrades || 0
+  const symbolCount = Object.keys(analytics.symbols || {}).length
+
   return (
     <div className="space-y-6">
+      {/* Limited Data Notice - Show if user has fewer than 20 trades */}
+      <LimitedDataNotice tradeCount={tradeCount} minRecommended={20} />
+
+      {/* Data Quality Banner - Show if user has good data (50+ trades) */}
+      <DataQualityBanner tradeCount={tradeCount} symbolCount={symbolCount} />
+
       {/* Featured P&L Card - The Star */}
       <div className="relative group">
-        <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 via-cyan-500/20 to-purple-500/20 rounded-3xl blur-2xl group-hover:blur-3xl transition-all" />
-        
-        <div className="relative bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-3xl p-8 md:p-12">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+        <div className={`absolute inset-0 rounded-3xl blur-2xl group-hover:blur-3xl transition-all ${
+          isProfitable
+            ? 'bg-gradient-to-r from-emerald-500/10 to-emerald-500/5'
+            : 'bg-gradient-to-r from-red-500/10 to-red-500/5'
+        }`} />
+
+        <div className="relative bg-slate-900 backdrop-blur-xl border border-slate-700/50 rounded-2xl md:rounded-3xl p-6 md:p-8 lg:p-12">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8">
             {/* Left: Main P&L */}
-            <div className="text-center md:text-left">
-              <div className="flex items-center gap-3 mb-4">
-                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${
+            <div className="text-center md:text-left w-full md:w-auto">
+              <div className="flex items-center justify-center md:justify-start gap-3 mb-4">
+                <div className={`w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center ${
                   isProfitable ? 'bg-emerald-500/20' : 'bg-red-500/20'
                 }`}>
-                  <DollarSign className={`w-8 h-8 ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`} />
+                  <DollarSign className={`w-6 h-6 md:w-8 md:h-8 ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`} />
                 </div>
-                <div>
-                  <div className="text-sm text-slate-400 uppercase tracking-wider font-medium">Total Profit & Loss</div>
-                  <div className="text-xs text-slate-500">All time performance</div>
+                <div className="text-left">
+                  <div className="text-xs md:text-sm text-slate-400 uppercase tracking-wider font-medium">Total Profit & Loss</div>
+                  <div className="text-[10px] md:text-xs text-slate-500">All time performance</div>
                 </div>
               </div>
-              
-              <div className={`text-6xl md:text-7xl font-bold mb-2 ${
+
+              <div className={`text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-2 ${
                 isProfitable ? 'text-emerald-400' : 'text-red-400'
               }`}>
                 {isProfitable ? '+' : ''}{currSymbol}{Math.abs(analytics.totalPnL).toFixed(2)}
               </div>
-              
-              <div className="flex items-center gap-4 text-sm text-slate-400">
+
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 md:gap-4 text-xs md:text-sm text-slate-400">
                 <span className="flex items-center gap-1">
-                  <Activity className="w-4 h-4" />
+                  <Activity className="w-3 h-3 md:w-4 md:h-4" />
                   {analytics.totalTrades} trades
                 </span>
                 <span>•</span>
                 <span className="flex items-center gap-1">
-                  <TrendingUp className="w-4 h-4" />
+                  <TrendingUp className="w-3 h-3 md:w-4 md:h-4" />
                   {analytics.roi?.toFixed(1) || '0.0'}% ROI
                 </span>
               </div>
@@ -98,7 +131,74 @@ function HeroSection({ analytics, currSymbol }) {
           </div>
         </div>
       </div>
-      
+
+      {/* Portfolio Overview - Show if metadata is available */}
+      {metadata && metadata.totalPortfolioValue > 0 && (
+        <Card variant="glass" className="overflow-hidden">
+          <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-700/50">
+            {/* Total Portfolio Value */}
+            <div className="p-6">
+              <div className="flex items-center gap-2 mb-3">
+                <IconBadge icon={Layers} color="purple" size="sm" />
+                <span className="text-xs text-slate-400 uppercase tracking-wider">Portfolio Value</span>
+              </div>
+              <div className="text-3xl font-bold text-purple-400 mb-1">
+                {currSymbol}{metadata.totalPortfolioValue.toFixed(2)}
+              </div>
+              <div className="text-xs text-slate-500">
+                {metadata.accountType === 'MIXED' ? 'Spot + Futures' : metadata.accountType}
+              </div>
+            </div>
+
+            {/* Spot Holdings */}
+            {metadata.totalSpotValue > 0 && (
+              <div className="p-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <IconBadge icon={DollarSign} color="emerald" size="sm" />
+                  <span className="text-xs text-slate-400 uppercase tracking-wider">Spot Holdings</span>
+                </div>
+                <div className="text-3xl font-bold text-emerald-400 mb-1">
+                  {currSymbol}{metadata.totalSpotValue.toFixed(2)}
+                </div>
+                <div className="text-xs text-slate-500">
+                  {metadata.spotHoldings?.length || 0} assets
+                </div>
+              </div>
+            )}
+
+            {/* Futures Balance */}
+            {metadata.totalFuturesValue > 0 && (
+              <div className="p-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <IconBadge icon={Zap} color="cyan" size="sm" />
+                  <span className="text-xs text-slate-400 uppercase tracking-wider">Futures Balance</span>
+                </div>
+                <div className="text-3xl font-bold text-cyan-400 mb-1">
+                  {currSymbol}{metadata.totalFuturesValue.toFixed(2)}
+                </div>
+                <div className="text-xs text-slate-500">
+                  {metadata.futuresPositions || 0} open positions
+                </div>
+              </div>
+            )}
+
+            {/* Trading Period */}
+            {metadata.tradingPeriodDays > 0 && (
+              <div className="p-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <IconBadge icon={Calendar} color="yellow" size="sm" />
+                  <span className="text-xs text-slate-400 uppercase tracking-wider">Trading Period</span>
+                </div>
+                <div className="text-3xl font-bold text-yellow-400 mb-1">
+                  {metadata.tradingPeriodDays}
+                </div>
+                <div className="text-xs text-slate-500">days active</div>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
+
       {/* Account Type Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <AccountTypeCard
@@ -122,40 +222,26 @@ function HeroSection({ analytics, currSymbol }) {
   )
 }
 
-function QuickStat({ label, value, subtitle, icon: Icon, good }) {
-  // Check if value is negative to color it red
-  const isNegative = typeof value === 'string' && (value.includes('-') || (parseFloat(value.replace(/[^0-9.-]/g, '')) < 0))
-  const isPositive = typeof value === 'string' && (value.includes('+') || (parseFloat(value.replace(/[^0-9.-]/g, '')) > 0))
-  
-  // Determine color based on value
-  let valueColor = 'text-white'
-  if (isPositive || good === true) {
-    valueColor = 'text-emerald-400'
-  } else if (isNegative || good === false) {
-    valueColor = 'text-red-400'
-  }
-  
+// QuickStat now uses the reusable MetricDisplay component
+function QuickStat({ label, value, subtitle, icon, good }) {
   return (
-    <div className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/30 rounded-xl p-4 hover:border-slate-600/50 transition-all">
-      <div className="flex items-center gap-2 mb-2">
-        <Icon className={`w-4 h-4 ${good !== undefined && good ? 'text-emerald-400' : 'text-slate-400'}`} />
-        <span className="text-xs text-slate-400 uppercase tracking-wider">{label}</span>
-      </div>
-      <div className={`text-2xl font-bold mb-1 ${valueColor}`}>
-        {value}
-      </div>
-      {subtitle && <div className="text-xs text-slate-500">{subtitle}</div>}
-    </div>
+    <MetricDisplay
+      label={label}
+      value={value}
+      subtitle={subtitle}
+      icon={icon}
+      good={good}
+    />
   )
 }
 
 function AccountTypeCard({ type, trades, pnl, winRate, currSymbol, icon }) {
   if (trades === 0) return null
-  
+
   const isProfitable = pnl >= 0
-  
+
   return (
-    <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6 hover:border-slate-600/50 transition-all">
+    <Card variant="glass" className="hover:border-slate-600/50 transition-all">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="text-3xl">{icon}</div>
@@ -171,7 +257,7 @@ function AccountTypeCard({ type, trades, pnl, winRate, currSymbol, icon }) {
       <div className="flex items-center gap-4 text-sm text-slate-400">
         <span>Win Rate: <span className="text-white font-semibold">{winRate.toFixed(1)}%</span></span>
       </div>
-    </div>
+    </Card>
   )
 }
 
@@ -193,12 +279,10 @@ function PsychologyScoreCompact({ score, analytics }) {
   const ScoreIcon = scoreInfo.icon
   
   return (
-    <div className="bg-gradient-to-br from-purple-900/30 to-slate-800/30 backdrop-blur-sm border border-purple-700/30 rounded-2xl p-6">
+    <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
-            <Brain className="w-6 h-6 text-purple-400" />
-          </div>
+          <IconBadge icon={Brain} color="purple" size="lg" />
           <div>
             <h3 className="text-xl font-bold">Psychology Score</h3>
             <p className="text-sm text-slate-400">Trading discipline rating</p>
@@ -268,23 +352,20 @@ function PatternDetectionEnhanced({ patterns }) {
   return (
     <div className="space-y-4">
       {/* Section Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center">
-            <Eye className="w-5 h-5 text-cyan-400" />
-          </div>
-          <div>
-            <h3 className="text-xl font-bold">Hidden Patterns Detected</h3>
-            <p className="text-sm text-slate-400">{patterns.length} insights from your data</p>
-          </div>
-        </div>
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="text-slate-400 hover:text-white transition-colors"
-        >
-          {expanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-        </button>
-      </div>
+      <SectionHeaderWithAction
+        icon={Eye}
+        title="Hidden Patterns Detected"
+        subtitle={`${patterns.length} insights from your data`}
+        color="cyan"
+        action={
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="text-slate-400 hover:text-white transition-colors"
+          >
+            {expanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+          </button>
+        }
+      />
       
       {expanded && (
         <div className="space-y-4">
@@ -296,9 +377,7 @@ function PatternDetectionEnhanced({ patterns }) {
                 <div className="absolute inset-0 bg-red-500/10 rounded-xl blur-xl" />
                 <div className="relative bg-gradient-to-r from-red-500/20 to-orange-500/20 border-2 border-red-500/50 rounded-xl p-6">
                   <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <IconComponent className="w-6 h-6 text-red-400" />
-                    </div>
+                    <IconBadge icon={IconComponent} color="red" size="lg" />
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="font-bold text-lg text-red-400 flex items-center gap-2">
@@ -333,20 +412,18 @@ function PatternDetectionEnhanced({ patterns }) {
               {otherPatterns.map((pattern, i) => {
                 const IconComponent = pattern.icon
                 return (
-                  <div 
+                  <div
                     key={`other-${i}`}
                     className={`bg-slate-800/30 border rounded-xl p-4 hover:border-slate-500/50 transition-all ${
                       pattern.severity === 'medium' ? 'border-yellow-500/30' : 'border-slate-700/50'
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                        pattern.severity === 'medium' ? 'bg-yellow-500/20' : 'bg-emerald-500/20'
-                      }`}>
-                        <IconComponent className={`w-5 h-5 ${
-                          pattern.severity === 'medium' ? 'text-yellow-400' : 'text-emerald-400'
-                        }`} />
-                      </div>
+                      <IconBadge
+                        icon={IconComponent}
+                        color={pattern.severity === 'medium' ? 'yellow' : 'emerald'}
+                        size="md"
+                      />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
                           <h4 className="font-semibold truncate">{pattern.title}</h4>
@@ -425,17 +502,23 @@ function InsightCardVariable({ insight, onClick, className, featured }) {
   
   const IconComponent = insight.icon
   
+  const iconColor = insight.type === 'strength' ? 'emerald' :
+    insight.type === 'weakness' ? 'red' :
+    insight.type === 'recommendation' ? 'cyan' : 'purple'
+
   return (
-    <div 
+    <div
       onClick={onClick}
       className={`bg-gradient-to-br ${typeStyles[insight.type]} border backdrop-blur-sm rounded-xl cursor-pointer transition-all hover:scale-105 hover:shadow-2xl group ${className} ${
         featured ? 'p-6' : 'p-4'
       }`}
     >
       <div className="flex items-start justify-between mb-3">
-        <div className={`${featured ? 'w-12 h-12' : 'w-10 h-10'} rounded-xl flex items-center justify-center ${iconStyles[insight.type]}`}>
-          <IconComponent className={`${featured ? 'w-6 h-6' : 'w-5 h-5'}`} />
-        </div>
+        <IconBadge
+          icon={IconComponent}
+          color={iconColor}
+          size={featured ? 'lg' : 'md'}
+        />
         <div className="flex items-center gap-2">
           {/* Impact Dots */}
           {insight.impact && (
@@ -491,17 +574,13 @@ function ChartsSection({ analytics, currSymbol }) {
         
         <div className="flex gap-2">
           {['7d', '30d', 'all'].map((range) => (
-            <button
+            <FilterButton
               key={range}
+              active={timeRange === range}
               onClick={() => setTimeRange(range)}
-              className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
-                timeRange === range
-                  ? 'bg-emerald-500 text-white'
-                  : 'bg-slate-800/50 text-slate-400 hover:text-white'
-              }`}
             >
               {range === 'all' ? 'All Time' : `Last ${range.toUpperCase()}`}
-            </button>
+            </FilterButton>
           ))}
         </div>
       </div>
@@ -620,13 +699,13 @@ function ChartsSection({ analytics, currSymbol }) {
 
 function ChartCardBig({ title, icon: Icon, children }) {
   return (
-    <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+    <Card variant="glass" className="rounded-2xl">
       <h3 className="font-semibold mb-6 flex items-center gap-2 text-lg">
         <Icon className="w-5 h-5 text-emerald-400" />
         {title}
       </h3>
       {children}
-    </div>
+    </Card>
   )
 }
 
@@ -636,69 +715,29 @@ function ChartCardBig({ title, icon: Icon, children }) {
 
 function InsightModal({ insight, onClose }) {
   if (!insight) return null
-  
-  const IconComponent = insight.icon
-  
+
+  const iconColor = insight.type === 'strength' ? 'emerald' :
+    insight.type === 'weakness' ? 'red' : 'cyan'
+
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-8 shadow-2xl animate-in" onClick={e => e.stopPropagation()}>
-        <div className="flex items-start justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${
-              insight.type === 'strength' ? 'bg-emerald-500/20 text-emerald-400' :
-              insight.type === 'weakness' ? 'bg-red-500/20 text-red-400' :
-              'bg-cyan-500/20 text-cyan-400'
-            }`}>
-              <IconComponent className="w-7 h-7" />
-            </div>
-            <div>
-              <h3 className="text-2xl font-bold">{insight.title}</h3>
-              <p className="text-sm text-slate-400 mt-1">{insight.category || insight.type}</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-        
-        <div className="space-y-6">
-          <p className="text-slate-300 leading-relaxed text-lg">{insight.description}</p>
-          
-          {insight.data && (
-            <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-5">
-              <div className="text-sm font-semibold text-slate-400 mb-3">Key Metrics</div>
-              <div className="space-y-2">
-                {Object.entries(insight.data).map(([key, value]) => (
-                  <div key={key} className="flex justify-between items-center py-2 border-b border-slate-700/30 last:border-0">
-                    <span className="text-slate-300">{key}</span>
-                    <span className="font-mono font-bold text-lg">{value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          
-          {insight.actionSteps && (
-            <div>
-              <div className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <Lightbulb className="w-5 h-5 text-yellow-400" />
-                Action Steps
-              </div>
-              <ul className="space-y-3">
-                {insight.actionSteps.map((step, i) => (
-                  <li key={i} className="flex items-start gap-3 bg-slate-800/30 p-4 rounded-lg">
-                    <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold text-sm flex-shrink-0">
-                      {i + 1}
-                    </div>
-                    <span className="text-slate-300 leading-relaxed">{step}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title={insight.title}
+      icon={insight.icon}
+      iconColor={iconColor}
+    >
+      <ModalSection>
+        <div className="text-sm text-slate-400 mb-4">{insight.category || insight.type}</div>
+        <ModalDescription>{insight.description}</ModalDescription>
+
+        {insight.data && <ModalMetrics data={insight.data} />}
+
+        {insight.actionSteps && (
+          <ModalActionSteps steps={insight.actionSteps} icon={Lightbulb} />
+        )}
+      </ModalSection>
+    </Modal>
   )
 }
 
@@ -714,15 +753,15 @@ function SymbolsTable({ symbols, filter, currSymbol }) {
 
   if (filteredSymbols.length === 0) {
     return (
-      <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-8 text-center text-slate-400">
+      <Card variant="glass" className="p-8 text-center text-slate-400">
         <Layers className="w-12 h-12 mx-auto mb-3 opacity-50" />
         <p>No {filter?.toLowerCase()} symbols found</p>
-      </div>
+      </Card>
     )
   }
 
   return (
-    <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden">
+    <Card variant="glass" className="overflow-hidden p-0">
       <div className="p-5 border-b border-slate-700/50">
         <h3 className="font-semibold flex items-center gap-2 text-lg">
           <Layers className="w-5 h-5 text-emerald-400" />
@@ -774,7 +813,7 @@ function SymbolsTable({ symbols, filter, currSymbol }) {
           </tbody>
         </table>
       </div>
-    </div>
+    </Card>
   )
 }
 
@@ -814,8 +853,21 @@ function OverviewTab({ analytics, currSymbol }) {
   )
 }
 
-function SpotTab({ analytics, currSymbol }) {
+function SpotTab({ analytics, currSymbol, metadata }) {
   const spotAnalysis = analytics.spotAnalysis || {}
+  const hasSpotData = analytics.spotTrades > 0
+
+  // Show empty state if no spot data
+  if (!hasSpotData) {
+    return (
+      <EmptyState
+        icon={DollarSign}
+        title="No Spot Trading Data"
+        description="You haven't made any spot trades yet. Spot trading involves buying and holding crypto assets directly. Start spot trading to see your portfolio breakdown and performance analytics here."
+        variant="info"
+      />
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -827,8 +879,66 @@ function SpotTab({ analytics, currSymbol }) {
         <QuickStat label="Invested" value={`${currSymbol}${analytics.spotInvested?.toFixed(0) || '0'}`} icon={Activity} />
       </div>
 
+      {/* Current Spot Holdings */}
+      {metadata?.spotHoldings && metadata.spotHoldings.length > 0 && (
+        <Card variant="glass" className="overflow-hidden p-0">
+          <div className="p-5 border-b border-slate-700/50">
+            <h3 className="font-semibold flex items-center gap-2 text-lg">
+              <Layers className="w-5 h-5 text-emerald-400" />
+              Current Spot Holdings
+            </h3>
+            <p className="text-sm text-slate-400 mt-1">Your current asset balances valued at market price</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="text-left text-sm text-slate-400 border-b border-slate-700/50">
+                  <th className="p-4 font-medium">Asset</th>
+                  <th className="p-4 text-right font-medium">Quantity</th>
+                  <th className="p-4 text-right font-medium">Price</th>
+                  <th className="p-4 text-right font-medium">USD Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {metadata.spotHoldings
+                  .sort((a, b) => b.usdValue - a.usdValue)
+                  .map((holding, idx) => (
+                    <tr key={holding.asset} className="border-b border-slate-800/30 hover:bg-slate-700/20 transition-colors">
+                      <td className="p-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-xs font-bold text-emerald-400">
+                            {holding.asset.slice(0, 2)}
+                          </div>
+                          <span className="font-mono font-semibold">{holding.asset}</span>
+                        </div>
+                      </td>
+                      <td className="p-4 text-right font-mono text-slate-300">
+                        {holding.quantity.toFixed(4)}
+                      </td>
+                      <td className="p-4 text-right font-mono text-slate-400">
+                        {currSymbol}{holding.price.toFixed(4)}
+                      </td>
+                      <td className="p-4 text-right font-bold text-lg text-emerald-400">
+                        {currSymbol}{holding.usdValue.toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-slate-800/50 font-bold">
+                  <td className="p-4" colSpan="3">Total Portfolio Value</td>
+                  <td className="p-4 text-right text-xl text-emerald-400">
+                    {currSymbol}{metadata.totalSpotValue.toFixed(2)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </Card>
+      )}
+
       {/* Insights */}
-      <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
+      <Card variant="glass">
         <h3 className="font-semibold mb-4 flex items-center gap-2 text-lg">
           <Brain className="w-5 h-5 text-purple-400" />
           Spot Trading Insights
@@ -853,7 +963,7 @@ function SpotTab({ analytics, currSymbol }) {
             </div>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Symbols */}
       <SymbolsTable symbols={analytics.symbols} filter="SPOT" currSymbol={currSymbol} />
@@ -863,6 +973,19 @@ function SpotTab({ analytics, currSymbol }) {
 
 function FuturesTab({ analytics, currSymbol }) {
   const futuresAnalysis = analytics.futuresAnalysis || {}
+  const hasFuturesData = analytics.futuresTrades > 0
+
+  // Show empty state if no futures data
+  if (!hasFuturesData) {
+    return (
+      <EmptyState
+        icon={Zap}
+        title="No Futures Trading Data"
+        description="You haven't made any futures trades yet. Futures trading involves leveraged positions and can offer higher returns (and risks). Start futures trading to see advanced metrics like funding fees, leverage analysis, and position management here."
+        variant="info"
+      />
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -876,7 +999,7 @@ function FuturesTab({ analytics, currSymbol }) {
 
       {/* Funding & Fees */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
+        <Card variant="glass">
           <h3 className="font-semibold mb-4 flex items-center gap-2">
             <Zap className="w-5 h-5 text-yellow-400" />
             Funding Fees
@@ -887,9 +1010,9 @@ function FuturesTab({ analytics, currSymbol }) {
           <div className="text-sm text-slate-400">
             {(analytics.futuresFundingFees || 0) >= 0 ? 'You earned funding fees' : 'You paid funding fees'}
           </div>
-        </div>
+        </Card>
 
-        <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
+        <Card variant="glass">
           <h3 className="font-semibold mb-4 flex items-center gap-2">
             <DollarSign className="w-5 h-5 text-red-400" />
             Commission
@@ -900,12 +1023,12 @@ function FuturesTab({ analytics, currSymbol }) {
           <div className="text-sm text-slate-400">
             Trading fees paid
           </div>
-        </div>
+        </Card>
       </div>
 
       {/* Open Positions */}
       {analytics.futuresOpenPositions && analytics.futuresOpenPositions.length > 0 && (
-        <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
+        <Card variant="glass">
           <h3 className="font-semibold mb-5 flex items-center gap-2 text-lg">
             <Activity className="w-5 h-5 text-cyan-400" />
             Open Positions ({analytics.futuresOpenPositions.length})
@@ -937,11 +1060,11 @@ function FuturesTab({ analytics, currSymbol }) {
               </div>
             ))}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Futures Insights */}
-      <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
+      <Card variant="glass">
         <h3 className="font-semibold mb-4 flex items-center gap-2 text-lg">
           <Brain className="w-5 h-5 text-purple-400" />
           Futures Trading Insights
@@ -963,10 +1086,332 @@ function FuturesTab({ analytics, currSymbol }) {
             </div>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Symbols */}
       <SymbolsTable symbols={analytics.symbols} filter="FUTURES" currSymbol={currSymbol} />
+    </div>
+  )
+}
+
+// ============================================
+// BEHAVIORAL TAB - DEEP INSIGHTS
+// ============================================
+
+function BehavioralTab({ analytics, currSymbol }) {
+  const behavioral = analytics.behavioral || {}
+
+  if (!behavioral.healthScore) {
+    return (
+      <div className="text-center py-12 text-slate-400">
+        <Brain className="w-16 h-16 mx-auto mb-4 opacity-50" />
+        <p>No behavioral data available</p>
+      </div>
+    )
+  }
+
+  const healthScore = behavioral.healthScore || 0
+  const getScoreColor = (score) => {
+    if (score >= 80) return 'text-emerald-400'
+    if (score >= 60) return 'text-yellow-400'
+    if (score >= 40) return 'text-orange-400'
+    return 'text-red-400'
+  }
+
+  const getScoreBg = (score) => {
+    if (score >= 80) return 'from-emerald-500/20 to-green-500/20'
+    if (score >= 60) return 'from-yellow-500/20 to-orange-500/20'
+    if (score >= 40) return 'from-orange-500/20 to-red-500/20'
+    return 'from-red-500/20 to-rose-500/20'
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Behavioral Health Score - Hero Card */}
+      <div className="relative group">
+        <div className={`absolute inset-0 rounded-3xl blur-2xl group-hover:blur-3xl transition-all ${
+          healthScore >= 80 ? 'bg-emerald-500/10' :
+          healthScore >= 60 ? 'bg-yellow-500/10' :
+          'bg-red-500/10'
+        }`} />
+
+        <div className="relative bg-slate-900 backdrop-blur-xl border border-slate-700/50 rounded-3xl p-8 md:p-12">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+            {/* Left: Health Score */}
+            <div className="text-center md:text-left">
+              <div className="flex items-center gap-3 mb-4">
+                <IconBadge icon={Brain} color="purple" size="xl" />
+                <div>
+                  <div className="text-sm text-slate-400 uppercase tracking-wider font-medium">Behavioral Health Score</div>
+                  <div className="text-xs text-slate-500">AI-powered trading psychology analysis</div>
+                </div>
+              </div>
+
+              <div className={`text-7xl md:text-8xl font-bold mb-2 ${getScoreColor(healthScore)}`}>
+                {healthScore}
+                <span className="text-4xl">/100</span>
+              </div>
+
+              <div className="flex items-center gap-2 text-sm text-slate-400">
+                {healthScore >= 80 && <><CheckCircle className="w-4 h-4 text-emerald-400" /> Excellent discipline</>}
+                {healthScore >= 60 && healthScore < 80 && <><Target className="w-4 h-4 text-yellow-400" /> Room for growth</>}
+                {healthScore >= 40 && healthScore < 60 && <><AlertTriangle className="w-4 h-4 text-orange-400" /> Needs attention</>}
+                {healthScore < 40 && <><AlertCircle className="w-4 h-4 text-red-400" /> Critical issues detected</>}
+              </div>
+            </div>
+
+            {/* Right: Key Metrics */}
+            <div className="grid grid-cols-2 gap-4 w-full md:w-auto">
+              <QuickStat
+                label="Panic Events"
+                value={behavioral.panicPatterns?.count || 0}
+                subtitle={behavioral.panicPatterns?.detected ? 'Detected' : 'None found'}
+                icon={Flame}
+                good={!behavioral.panicPatterns?.detected}
+              />
+              <QuickStat
+                label="Fee Efficiency"
+                value={`${behavioral.feeAnalysis?.efficiency ? Number(behavioral.feeAnalysis.efficiency).toFixed(0) : 0}%`}
+                subtitle={`${currSymbol}${behavioral.feeAnalysis?.potentialSavings ? Math.abs(Number(behavioral.feeAnalysis.potentialSavings)).toFixed(2) : '0.00'} lost`}
+                icon={DollarSign}
+                good={(behavioral.feeAnalysis?.efficiency ? Number(behavioral.feeAnalysis.efficiency) : 0) >= 70}
+              />
+              <QuickStat
+                label="Consistency"
+                value={`${behavioral.consistencyScore ? (Number(behavioral.consistencyScore) * 100).toFixed(0) : 0}%`}
+                subtitle={behavioral.positionSizing?.label || 'N/A'}
+                icon={Target}
+                good={(behavioral.consistencyScore ? Number(behavioral.consistencyScore) : 0) >= 0.7}
+              />
+              <QuickStat
+                label="Emotional State"
+                value={behavioral.emotionalState?.detected ? 'Detected' : 'Stable'}
+                subtitle={behavioral.emotionalState?.count ? `${behavioral.emotionalState.count} events` : 'None'}
+                icon={Brain}
+                good={!behavioral.emotionalState?.detected}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Warnings */}
+      {behavioral.warnings && behavioral.warnings.length > 0 && (
+        <div className="space-y-3">
+          {behavioral.warnings.map((warning, idx) => (
+            <div key={idx} className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border-2 border-red-500/50 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <div className="font-bold text-red-400 mb-1">{warning.title}</div>
+                  <div className="text-sm text-slate-300">{warning.message}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Trading Style Analysis */}
+      {behavioral.tradingStyle && (
+        <Card variant="glass">
+          <SectionHeader icon={Activity} title="Trading Style Analysis" subtitle="How you execute trades" color="blue" />
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+            <div className="space-y-2">
+              <div className="text-sm text-slate-400">Pattern</div>
+              <div className="text-2xl font-bold text-cyan-400">{behavioral.tradingStyle.pattern || 'N/A'}</div>
+              <div className="text-xs text-slate-500">
+                {behavioral.tradingStyle.buyVsSellRatio ? Number(behavioral.tradingStyle.buyVsSellRatio).toFixed(2) : '0.00'} buy/sell ratio
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-sm text-slate-400">Execution</div>
+              <div className="text-2xl font-bold text-purple-400">
+                {behavioral.tradingStyle.makerPercent ? Number(behavioral.tradingStyle.makerPercent).toFixed(1) : '0.0'}% Maker
+              </div>
+              <div className="text-xs text-slate-500">
+                {behavioral.tradingStyle.takerPercent ? Number(behavioral.tradingStyle.takerPercent).toFixed(1) : '0.0'}% Taker (higher fees)
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-sm text-slate-400">Discipline</div>
+              <div className={`text-2xl font-bold ${(behavioral.tradingStyle.rapidFirePercent || 0) > 50 ? 'text-red-400' : 'text-emerald-400'}`}>
+                {behavioral.tradingStyle.rapidFirePercent ? Number(behavioral.tradingStyle.rapidFirePercent).toFixed(1) : '0.0'}%
+              </div>
+              <div className="text-xs text-slate-500">Rapid-fire trades</div>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Panic Selling Events */}
+      {behavioral.panicPatterns?.detected && behavioral.panicPatterns.events && (
+        <Card variant="glass">
+          <SectionHeader
+            icon={Flame}
+            title="Panic Selling Detected"
+            subtitle={`${behavioral.panicPatterns.events.length} rapid-fire sell events`}
+            color="red"
+          />
+
+          <div className="mt-6 space-y-3">
+            {behavioral.panicPatterns.events.slice(0, 5).map((event, idx) => (
+              <div key={idx} className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-mono font-bold text-red-400">{event.symbol}</div>
+                    <div className="text-xs text-slate-400 mt-1">
+                      {new Date(event.timestamp).toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm text-slate-300">
+                      <span className="text-red-400 font-bold">
+                        {event.timeGap ? Number(event.timeGap).toFixed(1) : '0.0'} min
+                      </span> apart
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      {currSymbol}{event.value ? Number(event.value).toFixed(2) : '0.00'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Fee Hemorrhage */}
+      {behavioral.feeAnalysis && (
+        <Card variant="glass">
+          <SectionHeader
+            icon={DollarSign}
+            title="Fee Hemorrhage Analysis"
+            subtitle="Money lost to trading fees"
+            color="orange"
+          />
+
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6">
+              <div className="text-sm text-slate-400 mb-2">Total Fees Paid</div>
+              <div className="text-4xl font-bold text-red-400">
+                -{currSymbol}{behavioral.feeAnalysis.totalFees ? Number(behavioral.feeAnalysis.totalFees).toFixed(2) : '0.00'}
+              </div>
+              <div className="text-xs text-slate-500 mt-2">
+                {behavioral.feeAnalysis.makerFees ? Number(behavioral.feeAnalysis.makerFees).toFixed(2) : '0.00'} maker + {behavioral.feeAnalysis.takerFees ? Number(behavioral.feeAnalysis.takerFees).toFixed(2) : '0.00'} taker
+              </div>
+            </div>
+
+            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-6">
+              <div className="text-sm text-slate-400 mb-2">Could Have Saved</div>
+              <div className="text-4xl font-bold text-yellow-400">
+                {currSymbol}{behavioral.feeAnalysis.potentialSavings ? Math.abs(Number(behavioral.feeAnalysis.potentialSavings)).toFixed(2) : '0.00'}
+              </div>
+              <div className="text-xs text-slate-500 mt-2">
+                By using limit orders (maker) instead of market orders (taker)
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Actionable Insights */}
+      {behavioral.insights && behavioral.insights.length > 0 && (
+        <Card variant="glass">
+          <SectionHeader
+            icon={Lightbulb}
+            title="Actionable Insights"
+            subtitle="Steps to improve your trading"
+            color="yellow"
+          />
+
+          <div className="mt-6 space-y-4">
+            {behavioral.insights.map((insight, idx) => {
+              const IconComponent = insight.icon || Lightbulb
+              const colorMap = {
+                critical: { bg: 'bg-red-500/10', border: 'border-red-500/30', text: 'text-red-400' },
+                warning: { bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', text: 'text-yellow-400' },
+                info: { bg: 'bg-blue-500/10', border: 'border-blue-500/30', text: 'text-blue-400' },
+                success: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-400' }
+              }
+              const colors = colorMap[insight.severity] || colorMap.info
+
+              return (
+                <div key={idx} className={`${colors.bg} border ${colors.border} rounded-xl p-5`}>
+                  <div className="flex items-start gap-4">
+                    <div className={`w-10 h-10 rounded-lg ${colors.bg} flex items-center justify-center flex-shrink-0`}>
+                      <IconComponent className={`w-5 h-5 ${colors.text}`} />
+                    </div>
+                    <div className="flex-1">
+                      <div className={`font-bold ${colors.text} mb-1`}>{insight.title}</div>
+                      <div className="text-sm text-slate-300 mb-3">{insight.message}</div>
+
+                      {insight.actionSteps && insight.actionSteps.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Action Steps:</div>
+                          {insight.actionSteps.map((step, sIdx) => (
+                            <div key={sIdx} className="flex items-start gap-2 text-sm text-slate-300">
+                              <ChevronRight className="w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5" />
+                              <span>{step}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      )}
+
+      {/* Position Sizing Consistency */}
+      {behavioral.positionSizing && (
+        <Card variant="glass">
+          <SectionHeader
+            icon={Target}
+            title="Position Sizing Consistency"
+            subtitle="How consistent are your trade sizes?"
+            color="purple"
+          />
+
+          <div className="mt-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <div className="text-sm text-slate-400">Consistency Rating</div>
+                <div className="text-3xl font-bold text-purple-400 mt-1">{behavioral.positionSizing.label || 'N/A'}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-slate-400">Score</div>
+                <div className={`text-3xl font-bold mt-1 ${
+                  (behavioral.positionSizing.score || 0) >= 0.8 ? 'text-emerald-400' :
+                  (behavioral.positionSizing.score || 0) >= 0.5 ? 'text-yellow-400' : 'text-red-400'
+                }`}>
+                  {behavioral.positionSizing.score ? (Number(behavioral.positionSizing.score) * 100).toFixed(0) : 0}%
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-slate-700/30 rounded-lg p-4 text-sm text-slate-300">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <span className="text-slate-400">Average Size:</span> {currSymbol}{behavioral.positionSizing.avgSize ? Number(behavioral.positionSizing.avgSize).toFixed(2) : '0.00'}
+                </div>
+                <div>
+                  <span className="text-slate-400">Coefficient of Variation:</span> {behavioral.positionSizing.coefficientOfVariation ? Number(behavioral.positionSizing.coefficientOfVariation).toFixed(2) : '0.00'}
+                </div>
+              </div>
+              <div className="mt-3 text-xs text-slate-400">
+                💡 Lower variation = more consistent position sizing = better risk management
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
     </div>
   )
 }
@@ -986,18 +1431,20 @@ export default function AnalyticsView({
   isDemoMode = false 
 }) {
   const [activeTab, setActiveTab] = useState('overview')
-  
+
   const hasFutures = analytics.futuresTrades > 0
   const hasSpot = analytics.spotTrades > 0
+  const hasBehavioral = analytics.behavioral && analytics.behavioral.healthScore
 
   const tabs = [
     { id: 'overview', label: '📊 Overview', show: true },
+    { id: 'behavioral', label: '🧠 Behavioral', show: hasBehavioral },
     { id: 'spot', label: '💰 Spot', show: hasSpot },
     { id: 'futures', label: '⚡ Futures', show: hasFutures }
   ].filter(tab => tab.show)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
+    <div className="min-h-screen bg-slate-950 text-white">
       <Header 
         exchangeConfig={exchangeConfig}
         currencyMetadata={currencyMetadata}
@@ -1009,31 +1456,29 @@ export default function AnalyticsView({
 
       <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8 space-y-8">
         {/* Hero Section */}
-        <HeroSection analytics={analytics} currSymbol={currSymbol} />
+        <HeroSection analytics={analytics} currSymbol={currSymbol} metadata={currencyMetadata} />
 
         {/* Tabs */}
-        <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl overflow-hidden">
+        <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-xl md:rounded-2xl overflow-hidden">
           {/* Tab Headers */}
-          <div className="flex border-b border-slate-700/50">
+          <div className="flex overflow-x-auto border-b border-slate-700/50 scrollbar-hide">
             {tabs.map(tab => (
-              <button
+              <TabButton
                 key={tab.id}
+                active={activeTab === tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 px-6 py-4 text-base font-semibold transition-all ${
-                  activeTab === tab.id
-                    ? 'bg-slate-700/50 text-white border-b-2 border-emerald-500'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
-                }`}
+                className="text-xs md:text-base whitespace-nowrap"
               >
                 {tab.label}
-              </button>
+              </TabButton>
             ))}
           </div>
 
           {/* Tab Content */}
-          <div className="p-6 md:p-8">
+          <div className="p-4 md:p-6 lg:p-8">
             {activeTab === 'overview' && <OverviewTab analytics={analytics} currSymbol={currSymbol} />}
-            {activeTab === 'spot' && <SpotTab analytics={analytics} currSymbol={currSymbol} />}
+            {activeTab === 'behavioral' && <BehavioralTab analytics={analytics} currSymbol={currSymbol} />}
+            {activeTab === 'spot' && <SpotTab analytics={analytics} currSymbol={currSymbol} metadata={currencyMetadata} />}
             {activeTab === 'futures' && <FuturesTab analytics={analytics} currSymbol={currSymbol} />}
           </div>
         </div>

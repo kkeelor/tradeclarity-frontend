@@ -148,14 +148,34 @@ export const analyzeSpotTrades = (spotTrades) => {
           // Reduce position
           position -= qty
           totalCost = position > 0 ? (totalCost / (position + qty)) * position : 0
+        } else {
+          // SELL with no position = External deposit was sold
+          // Don't count this in P&L, but track it separately
+          const saleValue = value - commission
+
+          console.log(`  [${index}] SELL (EXTERNAL): ${qty} @ ${price} | Sale Value: ${saleValue.toFixed(2)} | ⚠️ No cost basis (external deposit)`)
+
+          // Track as external sale (informational only, not in P&L)
+          if (!symbolAnalytics[symbol]) symbolAnalytics[symbol] = {}
+          if (!symbolAnalytics[symbol].externalSales) {
+            symbolAnalytics[symbol].externalSales = {
+              count: 0,
+              totalValue: 0,
+              quantity: 0
+            }
+          }
+          symbolAnalytics[symbol].externalSales.count++
+          symbolAnalytics[symbol].externalSales.totalValue += saleValue
+          symbolAnalytics[symbol].externalSales.quantity += qty
         }
 
         sells++
       }
     })
 
-    // Store symbol analytics
+    // Store symbol analytics (preserve any existing data like externalSales)
     symbolAnalytics[symbol] = {
+      ...(symbolAnalytics[symbol] || {}),
       realized,
       position,
       avgPrice: position > 0 ? totalCost / position : 0,

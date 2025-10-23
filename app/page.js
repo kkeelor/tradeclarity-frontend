@@ -4,6 +4,7 @@
 import { useState } from 'react'
 import { TrendingUp, Shield, Zap, ArrowRight, Sparkles, Lock, Eye, Brain, TrendingDown, Target, AlertCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui'
 import ThemeToggle from './components/ThemeToggle'
 
 export default function LandingPage() {
@@ -14,30 +15,32 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex flex-col">
       {/* Header */}
-      <header className="p-6 flex justify-between items-center border-b border-slate-800/50">
-        <button 
+      <header className="p-4 md:p-6 flex justify-between items-center border-b border-slate-800/50">
+        <button
           onClick={() => router.push('/')}
           className="flex items-center gap-2 hover:opacity-80 transition-opacity"
         >
-          <TrendingUp className="w-8 h-8 text-emerald-400" />
-          <span className="text-xl font-bold">TradeClarity</span>
+          <TrendingUp className="w-6 h-6 md:w-8 md:h-8 text-gold" />
+          <span className="text-lg md:text-xl font-bold bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">TradeClarity</span>
         </button>
-        <div className="flex items-center gap-4">
-          <button 
+        <div className="flex items-center gap-2 md:gap-4">
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => router.push('/analyze?demo=true')}
-            className="px-4 py-2 text-slate-300 hover:text-white rounded-lg text-sm font-medium transition-colors"
+            className="text-xs md:text-sm"
           >
             View Demo
-          </button>
+          </Button>
         </div>
       </header>
 
       {/* Hero Section */}
-      <main className="flex-1 flex flex-col items-center justify-center px-6 py-20">
-        <div className="max-w-4xl text-center space-y-8">
+      <main className="flex-1 flex flex-col items-center justify-center px-4 md:px-6 py-12 md:py-20">
+        <div className="max-w-4xl text-center space-y-6 md:space-y-8">
           {/* Headline */}
-          <div className="space-y-4">
-            <h1 className="text-5xl md:text-7xl font-bold tracking-tight leading-tight">
+          <div className="space-y-3 md:space-y-4">
+            <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold tracking-tight leading-tight">
               Why do you always
               <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-orange-400">
@@ -45,55 +48,54 @@ export default function LandingPage() {
               </span>
             </h1>
             
-            <p className="text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
-              Ever sell a winner at +5%, only to watch it 10x? Ever hold a loser to -70% because "it'll come back"? You're not alone. 
+            <p className="text-base md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed px-4">
+              Ever sell a winner at +5%, only to watch it 10x? Ever hold a loser to -70% because "it'll come back"? You're not alone.
               <br />
-              <span className="text-white font-semibold"> There's a pattern. You just can't see it.</span>
+              <span className="text-white font-semibold"> There's a pattern. You just can't see it, yet.</span>
             </p>
           </div>
 
           {/* CTA Buttons */}
           <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
             {/* Primary CTA - Try Demo */}
-            <button
+            <Button
+              variant="primary"
+              size="xl"
               onClick={() => router.push('/analyze?demo=true')}
               onMouseEnter={() => setIsPrimaryHovered(true)}
               onMouseLeave={() => setIsPrimaryHovered(false)}
-              className="group relative px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 rounded-xl font-semibold text-lg transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/50"
+              className="hover:scale-105"
             >
-              <span className="flex items-center gap-3">
-                <Sparkles className={`w-5 h-5 transition-transform duration-300 ${isPrimaryHovered ? 'rotate-12' : ''}`} />
-                See The Demo
-                <ArrowRight className={`w-5 h-5 transition-transform duration-300 ${isPrimaryHovered ? 'translate-x-1' : ''}`} />
-              </span>
-            </button>
+              <Sparkles className={`w-5 h-5 transition-transform duration-300 ${isPrimaryHovered ? 'rotate-12' : ''}`} />
+              See The Demo
+              <ArrowRight className={`w-5 h-5 transition-transform duration-300 ${isPrimaryHovered ? 'translate-x-1' : ''}`} />
+            </Button>
 
             {/* Secondary CTA - Connect Exchange */}
-            <button
+            <Button
+              variant="outline"
+              size="xl"
               onClick={() => router.push('/analyze')}
               onMouseEnter={() => setIsSecondaryHovered(true)}
               onMouseLeave={() => setIsSecondaryHovered(false)}
-              className="group px-8 py-4 bg-slate-800 hover:bg-slate-700 border-2 border-slate-700 hover:border-emerald-500/50 rounded-xl font-semibold text-lg transition-all duration-300"
             >
-              <span className="flex items-center gap-3">
-                <Lock className="w-5 h-5" />
-                Analyze My Trades
-              </span>
-            </button>
+              <Lock className="w-5 h-5" />
+              Analyze My Trades
+            </Button>
           </div>
 
           {/* Trust Indicators */}
           <div className="pt-8 flex flex-wrap items-center justify-center gap-8 text-sm text-slate-400">
             <div className="flex items-center gap-2">
-              <Shield className="w-4 h-4 text-emerald-400" />
+              <Shield className="w-4 h-4 text-gold" />
               <span>Read-only access</span>
             </div>
             <div className="flex items-center gap-2">
-              <Lock className="w-4 h-4 text-emerald-400" />
+              <Lock className="w-4 h-4 text-gold" />
               <span>Keys never stored</span>
             </div>
             <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-emerald-400" />
+              <Zap className="w-4 h-4 text-gold" />
               <span>Analysis in seconds</span>
             </div>
           </div>
@@ -101,13 +103,13 @@ export default function LandingPage() {
       </main>
 
       {/* Pain Points Section */}
-      <section className="py-20 px-6 border-t border-slate-800/50">
+      <section className="py-12 md:py-20 px-4 md:px-6 border-t border-slate-800/50">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+          <div className="text-center mb-8 md:mb-12">
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-3 md:mb-4">
               Sound familiar?
             </h2>
-            <p className="text-slate-400 text-lg">
+            <p className="text-slate-400 text-base md:text-lg px-4">
               Every trader has these moments. But most never realize the pattern.
             </p>
           </div>
@@ -118,7 +120,7 @@ export default function LandingPage() {
               <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center mb-4">
                 <TrendingDown className="w-6 h-6 text-red-400" />
               </div>
-              <h3 className="text-xl font-bold mb-2 text-red-400">The Stop Loss Hunter</h3>
+              <h3 className="text-xl font-bold mb-2 text-loss">The Stop Loss Hunter</h3>
               <p className="text-slate-300 text-sm">
                 You set a stop loss. Gets hit. Then the price immediately reverses and goes exactly where you predicted. 
                 <span className="text-white font-semibold"> Every. Single. Time.</span>
@@ -175,13 +177,13 @@ export default function LandingPage() {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 px-6 bg-gradient-to-b from-transparent to-slate-900/50">
+      <section className="py-12 md:py-20 px-4 md:px-6 bg-gradient-to-b from-transparent to-slate-900/50">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+          <div className="text-center mb-8 md:mb-12">
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-3 md:mb-4">
               What you'll actually discover
             </h2>
-            <p className="text-slate-400 text-lg">
+            <p className="text-slate-400 text-base md:text-lg px-4">
               Not generic "trade with the trend" BS. Real insights about <span className="text-white font-semibold">YOUR</span> trading.
             </p>
           </div>
@@ -233,24 +235,24 @@ export default function LandingPage() {
       </section>
 
       {/* Real Insights Section */}
-<section className="py-20 px-6 bg-slate-900/50">
+<section className="py-12 md:py-20 px-4 md:px-6 bg-slate-900/50">
   <div className="max-w-6xl mx-auto">
-    <div className="text-center mb-16">
-      <h2 className="text-3xl md:text-5xl font-bold mb-4">
+    <div className="text-center mb-10 md:mb-16">
+      <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-3 md:mb-4 px-4">
         The Patterns You Can't See
         <br />
         <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
           Are Costing You Money
         </span>
       </h2>
-      <p className="text-slate-400 text-lg max-w-2xl mx-auto">
+      <p className="text-slate-400 text-base md:text-lg max-w-2xl mx-auto px-4">
         These are real insights from real traders who connected TradeClarity
       </p>
     </div>
 
-    <div className="grid md:grid-cols-2 gap-8 mb-12">
+    <div className="grid md:grid-cols-2 gap-6 md:gap-8 mb-8 md:mb-12">
       {/* Insight 1 - Time-based */}
-      <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-2xl p-8 hover:border-purple-500/30 transition-all">
+      <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-2xl p-6 md:p-8 hover:border-purple-500/30 transition-all">
         <div className="flex items-start gap-4 mb-4">
           <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
             <svg className="w-6 h-6 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -265,11 +267,11 @@ export default function LandingPage() {
         <div className="space-y-3 text-slate-300 mb-4">
           <div className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
             <span>Before 6 PM win rate:</span>
-            <span className="font-bold text-emerald-400">68%</span>
+            <span className="font-bold text-profit">68%</span>
           </div>
           <div className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
             <span>After 9 PM win rate:</span>
-            <span className="font-bold text-red-400">31%</span>
+            <span className="font-bold text-loss">31%</span>
           </div>
         </div>
         <p className="text-slate-400 italic">
@@ -278,7 +280,7 @@ export default function LandingPage() {
       </div>
 
       {/* Insight 2 - Symbol focus */}
-      <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-2xl p-8 hover:border-cyan-500/30 transition-all">
+      <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-2xl p-6 md:p-8 hover:border-cyan-500/30 transition-all">
         <div className="flex items-start gap-4 mb-4">
           <div className="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
             <svg className="w-6 h-6 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -293,11 +295,11 @@ export default function LandingPage() {
         <div className="space-y-3 text-slate-300 mb-4">
           <div className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
             <span>Win rate on SOL:</span>
-            <span className="font-bold text-emerald-400">76%</span>
+            <span className="font-bold text-profit">76%</span>
           </div>
           <div className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
             <span>Win rate on 23 other coins:</span>
-            <span className="font-bold text-red-400">42%</span>
+            <span className="font-bold text-loss">42%</span>
           </div>
         </div>
         <p className="text-slate-400 italic">
@@ -306,7 +308,7 @@ export default function LandingPage() {
       </div>
 
       {/* Insight 3 - Psychology */}
-      <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-2xl p-8 hover:border-red-500/30 transition-all">
+      <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-2xl p-6 md:p-8 hover:border-red-500/30 transition-all">
         <div className="flex items-start gap-4 mb-4">
           <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
             <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -321,15 +323,15 @@ export default function LandingPage() {
         <div className="space-y-3 text-slate-300 mb-4">
           <div className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
             <span>Normal trade win rate:</span>
-            <span className="font-bold text-emerald-400">61%</span>
+            <span className="font-bold text-profit">61%</span>
           </div>
           <div className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
             <span>After-loss trades:</span>
-            <span className="font-bold text-red-400">18%</span>
+            <span className="font-bold text-loss">18%</span>
           </div>
           <div className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
             <span>Cost in 90 days:</span>
-            <span className="font-bold text-red-400">$8,400</span>
+            <span className="font-bold text-loss">$8,400</span>
           </div>
         </div>
         <p className="text-slate-400 italic">
@@ -338,7 +340,7 @@ export default function LandingPage() {
       </div>
 
       {/* Insight 4 - Position holding */}
-      <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-2xl p-8 hover:border-orange-500/30 transition-all">
+      <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-2xl p-6 md:p-8 hover:border-orange-500/30 transition-all">
         <div className="flex items-start gap-4 mb-4">
           <div className="w-12 h-12 bg-orange-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
             <svg className="w-6 h-6 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -353,11 +355,11 @@ export default function LandingPage() {
         <div className="space-y-3 text-slate-300 mb-4">
           <div className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
             <span>Avg winner hold time:</span>
-            <span className="font-bold text-emerald-400">2.3 hours</span>
+            <span className="font-bold text-profit">2.3 hours</span>
           </div>
           <div className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
             <span>Avg loser hold time:</span>
-            <span className="font-bold text-red-400">18.7 hours</span>
+            <span className="font-bold text-loss">18.7 hours</span>
           </div>
         </div>
         <p className="text-slate-400 italic">
@@ -371,47 +373,50 @@ export default function LandingPage() {
       <p className="text-xl text-slate-300 mb-6">
         What patterns are hiding in <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 font-bold">your</span> trades?
       </p>
-      <button
+      <Button
+        variant="primary"
+        size="lg"
         onClick={() => router.push('/analyze?demo=true')}
-        className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 rounded-xl font-semibold text-lg transition-all duration-300 hover:scale-105 inline-flex items-center gap-2"
+        className="hover:scale-105"
       >
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-        </svg>
+        <Eye className="w-5 h-5" />
         See My Patterns Now
-      </button>
+      </Button>
     </div>
   </div>
 </section>
 
       {/* Final CTA */}
-      <section className="py-20 px-6 bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border-y border-slate-800/50">
-        <div className="max-w-4xl mx-auto text-center space-y-6">
-          <h2 className="text-3xl md:text-5xl font-bold leading-tight">
+      <section className="py-12 md:py-20 px-4 md:px-6 bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border-y border-slate-800/50">
+        <div className="max-w-4xl mx-auto text-center space-y-4 md:space-y-6">
+          <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold leading-tight px-4">
             Ready to see what you've been
             <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
               missing this whole time?
             </span>
           </h2>
-          <p className="text-xl text-slate-300 max-w-2xl mx-auto">
+          <p className="text-base md:text-xl text-slate-300 max-w-2xl mx-auto px-4">
             Takes 30 seconds to connect. The insights will stick with you forever.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-            <button
+            <Button
+              variant="primary"
+              size="lg"
               onClick={() => router.push('/analyze?demo=true')}
-              className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 rounded-xl font-semibold text-lg transition-all duration-300 hover:scale-105 flex items-center gap-2 hover:shadow-2xl hover:shadow-purple-500/30"
+              className="hover:scale-105"
             >
               <Sparkles className="w-5 h-5" />
               Try The Demo First
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
               onClick={() => router.push('/analyze')}
-              className="px-8 py-4 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-semibold text-lg transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-emerald-500/30"
+              className="hover:scale-105 hover:border-gold"
             >
               Connect My Exchange
-            </button>
+            </Button>
           </div>
           <p className="text-sm text-slate-500 pt-4">
             No credit card. No signup. Just brutal honesty about your trading.
@@ -420,7 +425,7 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="py-8 px-6 text-center text-slate-500 text-sm space-y-2">
+      <footer className="py-6 md:py-8 px-4 md:px-6 text-center text-slate-500 text-xs md:text-sm space-y-2">
         <p className="font-medium">Built for traders who are tired of guessing</p>
         <p>© 2025 TradeClarity. Your data stays yours. Always.</p>
       </footer>

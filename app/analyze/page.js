@@ -3,22 +3,12 @@
 
 import { Suspense } from 'react'
 import TradeClarityContent from './TradeClarityContent'
+import { FullPageSkeleton } from '../components/LoadingSkeletons'
 
 export default function TradeClarity() {
   return (
-    <Suspense fallback={<LoadingFallback />}>
+    <Suspense fallback={<FullPageSkeleton />}>
       <TradeClarityContent />
     </Suspense>
-  )
-}
-
-function LoadingFallback() {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
-      <div className="text-white text-center">
-        <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <p>Loading...</p>
-      </div>
-    </div>
   )
 }

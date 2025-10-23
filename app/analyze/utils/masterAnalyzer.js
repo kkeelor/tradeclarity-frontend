@@ -4,6 +4,7 @@
 import { analyzeSpotTrades } from './spotAnalyzer'
 import { analyzeFuturesTrades } from './futuresAnalyzer'
 import { analyzeTradingPsychology } from './psychologyAnalyzer'
+import { analyzeBehavior } from './behavioralAnalyzer'
 
 export const analyzeData = (allData) => {
   console.log('\n=== MASTER ANALYZER ===')
@@ -167,12 +168,16 @@ export const analyzeData = (allData) => {
   // Analyze trading psychology
   const psychology = analyzeTradingPsychology(allTradesForPsychology, spotAnalysis, futuresAnalysis)
 
+  // Analyze deep behavioral patterns
+  const behavioral = analyzeBehavior(spotTrades, futuresData.income)
+
   console.log('\n=== MASTER ANALYSIS COMPLETE ===')
   console.log('Total P&L:', totalPnL.toFixed(2), `(Spot: ${spotAnalysis.totalPnL.toFixed(2)}, Futures: ${futuresAnalysis.netPnL.toFixed(2)})`)
   console.log('Total Transactions:', totalTrades, `(Spot: ${spotAnalysis.totalTrades}, Futures: ${futuresAnalysis.totalTrades})`)
   console.log('Completed Trades:', completedTrades, `(${winningTrades}W / ${losingTrades}L)`)
   console.log('Win Rate:', completedTrades > 0 ? (winningTrades / completedTrades * 100).toFixed(2) + '%' : '0%')
   console.log('Psychology Score:', psychology.disciplineScore)
+  console.log('Behavioral Health Score:', behavioral.healthScore)
 
   return {
     // Overall metrics
@@ -235,7 +240,10 @@ export const analyzeData = (allData) => {
     
     // Psychology analysis
     psychology,
-    
+
+    // Behavioral analysis (deep insights)
+    behavioral,
+
     // Detailed analysis objects (for drill-down views)
     spotAnalysis,
     futuresAnalysis
