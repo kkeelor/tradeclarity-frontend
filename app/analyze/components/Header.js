@@ -27,9 +27,11 @@ export default function Header({
             <span className="text-lg font-bold">TradeClarity</span>
           </button>
           
-          <span className="text-xs text-slate-400 ml-2">
-            {exchangeConfig.icon} {exchangeConfig.displayName}
-          </span>
+          {exchangeConfig && (
+            <span className="text-xs text-slate-400 ml-2">
+              {exchangeConfig.icon} {exchangeConfig.displayName}
+            </span>
+          )}
           {currencyMetadata?.supportsCurrencySwitch && (
             <span className="text-xs text-cyan-400 ml-2">• {currency}</span>
           )}

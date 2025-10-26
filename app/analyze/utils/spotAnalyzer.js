@@ -44,20 +44,21 @@ export const analyzeSpotTrades = (spotTrades) => {
     }
     tradesBySymbol[trade.symbol].push(trade)
 
-    // Track by day
+    // Track by day (use UTC for consistency across timezones)
     const date = new Date(trade.time)
-    const day = date.toLocaleDateString('en-US', { weekday: 'short' })
+    const day = date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })
     if (!tradesByDay[day]) {
       tradesByDay[day] = { wins: 0, losses: 0, pnl: 0, count: 0 }
     }
 
-    // Track by hour
-    const hour = date.getHours()
+    // Track by hour (use UTC)
+    const hour = date.getUTCHours()
     tradesByHour[hour].trades++
   })
 
   let totalPnL = 0
-  let totalInvested = 0
+  let totalInvested = 0 // Will track max capital at risk, not cumulative buys
+  let maxCapitalAtRisk = 0 // Track peak capital deployed
   let winningTrades = 0
   let losingTrades = 0
   let totalCommission = 0
@@ -94,17 +95,19 @@ export const analyzeSpotTrades = (spotTrades) => {
       totalCommission += commission
 
       const date = new Date(trade.time)
-      const monthKey = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+      const monthKey = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })
       if (!monthlyPnL[monthKey]) monthlyPnL[monthKey] = 0
 
       if (trade.isBuyer) {
         // BUY: Accumulate position
         position += qty
         totalCost += value
-        totalInvested += value
         buys++
 
-        console.log(`  [${index}] BUY: ${qty} @ ${price} (Position: ${position.toFixed(4)})`)
+        // Track max capital at risk (peak capital deployed in open positions)
+        maxCapitalAtRisk = Math.max(maxCapitalAtRisk, totalCost)
+
+        console.log(`  [${index}] BUY: ${qty} @ ${price} (Position: ${position.toFixed(4)}, Cost: ${totalCost.toFixed(2)})`)
       } else {
         // SELL: Realize profit/loss
         if (position > 0) {
@@ -125,10 +128,10 @@ export const analyzeSpotTrades = (spotTrades) => {
             consecutiveLosses = 0
             maxConsecutiveWins = Math.max(maxConsecutiveWins, consecutiveWins)
 
-            const day = date.toLocaleDateString('en-US', { weekday: 'short' })
+            const day = date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })
             tradesByDay[day].wins++
             tradesByDay[day].count++
-          } else {
+          } else if (pnl < 0) {
             symbolLosses++
             losingTrades++
             avgLoss += Math.abs(pnl)
@@ -137,17 +140,24 @@ export const analyzeSpotTrades = (spotTrades) => {
             consecutiveWins = 0
             maxConsecutiveLosses = Math.max(maxConsecutiveLosses, consecutiveLosses)
 
-            const day = date.toLocaleDateString('en-US', { weekday: 'short' })
+            const day = date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })
             tradesByDay[day].losses++
             tradesByDay[day].count++
+          } else {
+            // Breakeven trade (pnl === 0)
+            // Reset consecutive streaks on breakeven
+            consecutiveWins = 0
+            consecutiveLosses = 0
+            // Don't count as win or loss in statistics
           }
 
-          tradesByDay[date.toLocaleDateString('en-US', { weekday: 'short' })].pnl += pnl
-          tradesByHour[date.getHours()].pnl += pnl
+          tradesByDay[date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })].pnl += pnl
+          tradesByHour[date.getUTCHours()].pnl += pnl
 
-          // Reduce position
+          // Reduce position and adjust cost basis
           position -= qty
-          totalCost = position > 0 ? (totalCost / (position + qty)) * position : 0
+          // Remaining cost = position * avgCost (clearer than the confusing formula)
+          totalCost = position > 0 ? position * avgCost : 0
         } else {
           // SELL with no position = External deposit was sold
           // Don't count this in P&L, but track it separately
@@ -192,23 +202,33 @@ export const analyzeSpotTrades = (spotTrades) => {
     console.log(`${symbol} Summary: Realized: ${realized.toFixed(2)}, Wins: ${symbolWins}, Losses: ${symbolLosses}`)
   })
 
+  // Use max capital at risk for totalInvested (not cumulative buys)
+  totalInvested = maxCapitalAtRisk
+
   // Calculate averages
   avgWin = winningTrades > 0 ? avgWin / winningTrades : 0
   avgLoss = losingTrades > 0 ? avgLoss / losingTrades : 0
-  const profitFactor = avgLoss > 0 ? avgWin / avgLoss : 0
+
+  // Calculate profit factor: Gross Profit / Gross Loss
+  // NOT avgWin / avgLoss (that's different when win/loss counts differ)
+  const totalGrossProfit = winningTrades > 0 ? avgWin * winningTrades : 0
+  const totalGrossLoss = losingTrades > 0 ? avgLoss * losingTrades : 0
+  const profitFactor = totalGrossLoss > 0 ? totalGrossProfit / totalGrossLoss : 0
 
   // Completed trades = positions that were closed (resulted in win or loss)
   const completedTrades = winningTrades + losingTrades
 
   console.log('\n=== SPOT ANALYSIS COMPLETE ===')
   console.log('Total P&L:', totalPnL.toFixed(2))
+  console.log('Max Capital At Risk:', totalInvested.toFixed(2))
   console.log('Total Transactions:', spotTrades.length, '(buys + sells)')
   console.log('Completed Round-Trips:', completedTrades, '(closed positions)')
   console.log('Win Rate:', completedTrades > 0 ? (winningTrades / completedTrades * 100).toFixed(2) + '%' : '0%')
+  console.log('ROI:', totalInvested > 0 ? (totalPnL / totalInvested * 100).toFixed(2) + '%' : 'N/A')
 
   return {
     totalPnL,
-    totalInvested,
+    totalInvested, // Now represents max capital at risk
     roi: totalInvested > 0 ? (totalPnL / totalInvested) * 100 : 0,
     totalTrades: spotTrades.length,  // ALL transactions (buys + sells) - industry standard for spot
     completedTrades,  // Only closed positions (buy+sell pairs with W/L outcome)

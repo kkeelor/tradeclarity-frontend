@@ -3,13 +3,17 @@
 
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useAuth } from '@/lib/AuthContext' // NEW: Auth context
+import AuthScreen from './components/AuthScreen' // NEW: Auth screen
 import { analyzeData } from './utils/masterAnalyzer'
 import { EXCHANGES, getExchangeList } from './utils/exchanges'
 import LoginForm from './components/LoginForm'
+import Dashboard from './components/Dashboard'
+import CSVUploadFlow from './components/CSVUploadFlow'
 import AnalyticsView from './components/AnalyticsView'
 import demoFuturesData from './demo-data/demo-futures-data.json'
 import demoSpotData from './demo-data/demo-spot-data.json'
-import { TrendingUp, Sparkles, BarChart3, Brain, Zap } from 'lucide-react'
+import { TrendingUp, Sparkles, BarChart3, Brain, Zap, Lightbulb } from 'lucide-react'
 
 // Loading screen component for demo mode
 function DemoLoadingScreen({ progress }) {
@@ -24,7 +28,6 @@ function DemoLoadingScreen({ progress }) {
   ]
 
   useEffect(() => {
-    // Simulate progress up to 100% for demo
     const totalDuration = steps.reduce((sum, step) => sum + step.duration, 0)
     let elapsed = 0
 
@@ -33,7 +36,6 @@ function DemoLoadingScreen({ progress }) {
       const newProgress = Math.min((elapsed / totalDuration) * 100, 100)
       setLoadingProgress(newProgress)
 
-      // Update current step
       let accumulatedDuration = 0
       for (let i = 0; i < steps.length; i++) {
         accumulatedDuration += steps[i].duration
@@ -56,7 +58,6 @@ function DemoLoadingScreen({ progress }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center p-6">
       <div className="max-w-md w-full space-y-8">
-        {/* Logo */}
         <div className="text-center space-y-3">
           <div className="flex items-center justify-center gap-2 mb-6">
             <TrendingUp className="w-10 h-10 text-emerald-400" />
@@ -68,9 +69,7 @@ function DemoLoadingScreen({ progress }) {
           </div>
         </div>
 
-        {/* Loading Animation */}
         <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-8 space-y-6">
-          {/* Current Step Icon */}
           <div className="flex justify-center">
             <div className="relative">
               <div className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 flex items-center justify-center">
@@ -80,7 +79,6 @@ function DemoLoadingScreen({ progress }) {
             </div>
           </div>
 
-          {/* Progress Bar */}
           <div className="space-y-3">
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-300 font-medium">{steps[currentStep].label}</span>
@@ -94,7 +92,6 @@ function DemoLoadingScreen({ progress }) {
             </div>
           </div>
 
-          {/* Steps Indicator */}
           <div className="grid grid-cols-4 gap-2">
             {steps.map((step, index) => {
               const StepIcon = step.icon
@@ -122,13 +119,12 @@ function DemoLoadingScreen({ progress }) {
             })}
           </div>
 
-          {/* Fun fact */}
-          <div className="pt-4 text-center text-xs text-slate-400 border-t border-slate-700/50">
-            💡 Did you know? 80% of traders lose money due to poor psychology, not bad strategy.
+          <div className="pt-4 text-center text-xs text-slate-400 border-t border-slate-700/50 flex items-center justify-center gap-1.5">
+            <Lightbulb className="w-3.5 h-3.5 text-yellow-400 flex-shrink-0" />
+            <span>Did you know? 80% of traders lose money due to poor psychology, not bad strategy.</span>
           </div>
         </div>
 
-        {/* Additional Info */}
         <div className="text-center text-sm text-slate-400">
           Analyzing sample data from a real Binance Futures account
         </div>
@@ -149,45 +145,37 @@ function RealModeLoadingScreen({ progress }) {
     return () => clearInterval(interval)
   }, [])
 
-  // Determine current step and progress percentage based on progress message
   const getCurrentStep = () => {
     if (!progress) return { icon: TrendingUp, label: 'Initializing', step: 0, percent: 5 }
 
     const lowerProgress = progress.toLowerCase()
 
-    // Stage 1: Connecting to exchange (0-25%)
     if (lowerProgress.includes('connecting')) {
       return { icon: Zap, label: progress, step: 0, percent: 20 }
     }
 
-    // Stage 2: Fetching data from API (25-50%)
     if (lowerProgress.includes('fetching') || lowerProgress.includes('loading')) {
       return { icon: BarChart3, label: progress, step: 1, percent: 45 }
     }
 
-    // Stage 3: Processing/normalizing data (50-75%)
     if (lowerProgress.includes('normalizing') || lowerProgress.includes('processing')) {
       return { icon: Brain, label: progress, step: 2, percent: 70 }
     }
 
-    // Stage 4: Analyzing trades (75-95%)
     if (lowerProgress.includes('analyzing') || lowerProgress.includes('calculating')) {
       return { icon: Sparkles, label: progress, step: 3, percent: 90 }
     }
 
-    // Stage 5: Complete - preparing dashboard (95-100%)
     if (lowerProgress.includes('complete') || lowerProgress.includes('preparing')) {
       return { icon: Sparkles, label: progress, step: 3, percent: 100 }
     }
 
-    // Default fallback
     return { icon: Sparkles, label: progress || 'Processing', step: 1, percent: 30 }
   }
 
   const currentStep = getCurrentStep()
   const CurrentIcon = currentStep.icon
 
-  // Smoothly animate progress bar
   useEffect(() => {
     const targetPercent = currentStep.percent
     if (progressPercent < targetPercent) {
@@ -205,10 +193,16 @@ function RealModeLoadingScreen({ progress }) {
     }
   }, [currentStep.percent])
 
+  const steps = [
+    { icon: Zap, label: 'Connecting' },
+    { icon: BarChart3, label: 'Fetching' },
+    { icon: Brain, label: 'Processing' },
+    { icon: Sparkles, label: 'Analyzing' }
+  ]
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center p-6">
       <div className="max-w-md w-full space-y-8">
-        {/* Logo */}
         <div className="text-center space-y-3">
           <div className="flex items-center justify-center gap-2 mb-6">
             <TrendingUp className="w-10 h-10 text-emerald-400" />
@@ -216,9 +210,7 @@ function RealModeLoadingScreen({ progress }) {
           </div>
         </div>
 
-        {/* Loading Animation */}
         <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-8 space-y-6">
-          {/* Current Step Icon */}
           <div className="flex justify-center">
             <div className="relative">
               <div className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 flex items-center justify-center">
@@ -228,7 +220,6 @@ function RealModeLoadingScreen({ progress }) {
             </div>
           </div>
 
-          {/* Progress Message */}
           <div className="space-y-3">
             <div className="text-center">
               <div className="text-slate-300 font-medium text-lg mb-2">
@@ -241,40 +232,33 @@ function RealModeLoadingScreen({ progress }) {
               </div>
             </div>
 
-            {/* Animated Progress Bar with Percentage */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs text-slate-400">
                 <span>Progress</span>
                 <span className="font-mono font-bold">{progressPercent}%</span>
               </div>
               <div className="h-2 bg-slate-700/50 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-full transition-all duration-300 ease-out"
+                <div 
+                  className="h-full bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-full transition-all duration-200 ease-out"
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
             </div>
           </div>
 
-          {/* Steps Indicator */}
           <div className="grid grid-cols-4 gap-2">
-            {[
-              { icon: Zap, label: 'Connect' },
-              { icon: BarChart3, label: 'Fetch' },
-              { icon: Brain, label: 'Analyze' },
-              { icon: Sparkles, label: 'Display' }
-            ].map((step, index) => {
+            {steps.map((step, index) => {
               const StepIcon = step.icon
               return (
-                <div
+                <div 
                   key={index}
                   className={`flex flex-col items-center gap-1 transition-all duration-300 ${
                     index <= currentStep.step ? 'opacity-100' : 'opacity-30'
                   }`}
                 >
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                    index < currentStep.step
-                      ? 'bg-emerald-500/20 text-emerald-400'
+                    index < currentStep.step 
+                      ? 'bg-emerald-500/20 text-emerald-400' 
                       : index === currentStep.step
                       ? 'bg-cyan-500/20 text-cyan-400'
                       : 'bg-slate-700/50 text-slate-500'
@@ -289,13 +273,11 @@ function RealModeLoadingScreen({ progress }) {
             })}
           </div>
 
-          {/* Security Reminder */}
           <div className="pt-4 text-center text-xs text-slate-400 border-t border-slate-700/50">
             🔒 Your API keys are encrypted and never stored
           </div>
         </div>
 
-        {/* Additional Info */}
         <div className="text-center text-sm text-slate-400">
           This may take 10-30 seconds depending on your trade history
         </div>
@@ -305,6 +287,7 @@ function RealModeLoadingScreen({ progress }) {
 }
 
 export default function TradeClarityContent() {
+  const { user, loading: authLoading } = useAuth() // NEW: Get auth state
   const searchParams = useSearchParams()
   const [status, setStatus] = useState('idle')
   const [error, setError] = useState('')
@@ -314,11 +297,51 @@ export default function TradeClarityContent() {
   const [currency, setCurrency] = useState('USD')
   const [currencyMetadata, setCurrencyMetadata] = useState(null)
   const [isDemoMode, setIsDemoMode] = useState(false)
+  const [showAPIConnection, setShowAPIConnection] = useState(false)
+  const [showCSVUpload, setShowCSVUpload] = useState(false)
+  const [pendingTradeStorage, setPendingTradeStorage] = useState(null) // For background DB storage
+  const [cachedData, setCachedData] = useState(null) // Cache for fetched data
+  const [currentConnectionId, setCurrentConnectionId] = useState(null) // Track which exchange is shown
 
   const exchangeList = getExchangeList()
   const currentExchange = EXCHANGES[exchange]
 
-  // Currency symbol mapping
+  // Background effect: Store trades to database after analytics loads
+  useEffect(() => {
+    if (pendingTradeStorage && status === 'connected' && !isDemoMode) {
+      const { spotTrades, futuresIncome, userId, exchange: exchangeName, connectionId } = pendingTradeStorage
+
+      console.log('📥 [Background] Storing trades to database...', {
+        spotTrades: spotTrades?.length || 0,
+        futuresIncome: futuresIncome?.length || 0
+      })
+
+      // Call storage endpoint in background (fire and forget)
+      fetch('/api/trades/store', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          spotTrades,
+          futuresIncome,
+          userId,
+          exchange: exchangeName,
+          connectionId
+        })
+      })
+        .then(res => res.json())
+        .then(data => {
+          console.log('✅ [Background] Trades stored:', data)
+        })
+        .catch(err => {
+          console.error('❌ [Background] Failed to store trades:', err)
+          // Don't show error to user, this is background operation
+        })
+
+      // Clear pending storage after triggering
+      setPendingTradeStorage(null)
+    }
+  }, [pendingTradeStorage, status, isDemoMode])
+
   const getCurrencySymbol = (curr) => {
     const symbols = {
       'USD': '$',
@@ -330,253 +353,330 @@ export default function TradeClarityContent() {
     return symbols[curr] || '$'
   }
 
-  // Auto-load demo if coming from landing page with demo=true
   useEffect(() => {
     const demo = searchParams.get('demo')
     if (demo === 'true' && status === 'idle') {
-      // Set to loading state immediately to prevent form flash
       setStatus('loading')
       handleTryDemo()
     }
   }, [searchParams])
 
   const handleTryDemo = () => {
-  setStatus('connecting')
-  setProgress('Loading demo data...')
-  setIsDemoMode(true)
-
-  try {
-    setTimeout(() => {
-      console.log('📊 Loading demo data...')
-      
-      // Import the spot data
-      const spotData = require('./demo-data/demo-spot-data.json')
-      
-      console.log('Demo spot trades:', spotData.length)
-      console.log('Demo futures income:', demoFuturesData.income.length)
-      
-      // Normalize spot data
-      const normalizedSpotTrades = spotData.map(trade => ({
-        symbol: trade.symbol,
-        qty: String(trade.qty),
-        price: String(trade.price),
-        quoteQty: String(parseFloat(trade.qty) * parseFloat(trade.price)),
-        commission: String(trade.commission || 0),
-        commissionAsset: trade.commissionAsset || 'USDT',
-        isBuyer: trade.isBuyer,
-        isMaker: false,
-        time: trade.time,
-        orderId: trade.orderId,
-        id: trade.id,
-        accountType: 'SPOT'
-      }))
-      
-      const demoData = {
-        spotTrades: normalizedSpotTrades,
-        futuresIncome: demoFuturesData.income,
-        futuresPositions: demoFuturesData.positions,
-        metadata: {
-          primaryCurrency: 'USD',
-          availableCurrencies: ['USD'],
-          supportsCurrencySwitch: false,
-          accountType: 'MIXED',
-          hasFutures: true,
-          futuresPositions: demoFuturesData.positions.length,
-          spotTrades: normalizedSpotTrades.length,
-          futuresIncome: demoFuturesData.income.length
-        }
-      }
-
-      setProgress('Analyzing demo data...')
-      const analysis = analyzeData(demoData)
-      
-      console.log('✅ Demo analysis complete:', analysis)
-      console.log('Spot trades:', analysis.spotTrades)
-      console.log('Futures trades:', analysis.futuresTrades)
-      
-      setAnalytics(analysis)
-      setCurrencyMetadata(demoData.metadata)
-      setStatus('connected')
-      setProgress('')
-    }, 2700)
-  } catch (err) {
-    console.error('❌ Error loading demo:', err)
-    setError('Failed to load demo data: ' + err.message)
-    setStatus('error')
-    setProgress('')
-  }
-}
-
-  const handleConnect = async (apiKey, apiSecret) => {
-    if (!apiKey || !apiSecret) {
-      setError('Please enter both API key and secret')
-      return
-    }
-
     setStatus('connecting')
-    setError('')
-    setIsDemoMode(false)
+    setProgress('Loading demo data...')
+    setIsDemoMode(true)
 
     try {
-      // Fetch trades using exchange-specific function
-      const rawData = await currentExchange.fetchTrades(apiKey, apiSecret, setProgress)
+      setTimeout(() => {
+        console.log('📊 Loading demo data...')
+        
+        const spotData = require('./demo-data/demo-spot-data.json')
+        
+        console.log('Demo spot trades:', spotData.length)
+        console.log('Demo futures income:', demoFuturesData.income.length)
+        
+        const normalizedSpotTrades = spotData.map(trade => ({
+          symbol: trade.symbol,
+          qty: String(trade.qty),
+          price: String(trade.price),
+          quoteQty: String(parseFloat(trade.qty) * parseFloat(trade.price)),
+          commission: String(trade.commission || 0),
+          commissionAsset: trade.commissionAsset || 'USDT',
+          isBuyer: trade.isBuyer,
+          isMaker: false,
+          time: trade.time,
+          orderId: trade.orderId,
+          id: trade.id,
+          accountType: 'SPOT'
+        }))
+        
+        const demoData = {
+          spotTrades: normalizedSpotTrades,
+          futuresIncome: demoFuturesData.income,
+          futuresPositions: demoFuturesData.positions,
+          metadata: {
+            primaryCurrency: 'USD',
+            availableCurrencies: ['USD'],
+            supportsCurrencySwitch: false,
+            accountType: 'MIXED',
+            hasFutures: true,
+            futuresPositions: demoFuturesData.positions.length,
+            spotTrades: normalizedSpotTrades.length,
+            futuresIncome: demoFuturesData.income.length
+          }
+        }
 
-      console.log('🔍 RAW DATA:', rawData)
-      console.log('🔍 Has futuresIncome?', rawData.futuresIncome?.length || 0)
+        setProgress('Analyzing demo data...')
+        const analysis = analyzeData(demoData)
+        
+        console.log('✅ Demo analysis complete:', analysis)
+        console.log('Spot trades:', analysis.spotTrades)
+        console.log('Futures trades:', analysis.futuresTrades)
+        
+        setAnalytics(analysis)
+        setCurrencyMetadata(demoData.metadata)
+        setStatus('connected')
+      }, 1000)
+    } catch (err) {
+      console.error('Demo loading error:', err)
+      setError('Failed to load demo data')
+      setStatus('error')
+    }
+  }
 
-      setProgress('Processing and normalizing your trading data...')
+  const handleViewAnalytics = async (connectionId = null, exchangeName = null) => {
+    setStatus('connecting')
+    setError('')
+    setProgress('Loading your saved trading data...')
 
-      // Normalize trades to common format
-      const normalizedData = currentExchange.normalizeTrades(rawData)
+    try {
+      // Check cache: only re-fetch if switching to different exchange/connection
+      const cacheKey = connectionId || exchangeName || 'all'
+      if (cachedData && currentConnectionId === cacheKey) {
+        console.log('✅ Using cached data for:', cacheKey)
+        setProgress('Analyzing your trading data...')
 
-      console.log('🔍 NORMALIZED DATA:', normalizedData)
-      console.log('🔍 After normalize - futuresIncome?', normalizedData.futuresIncome?.length || 0)
-      console.log('🔍 After normalize - spotTrades?', normalizedData.spotTrades?.length || 0)
-
-      // Check if we have the new structured format or legacy format
-      const isStructuredFormat = normalizedData.spotTrades !== undefined && normalizedData.futuresIncome !== undefined
-
-      if (isStructuredFormat) {
-        setProgress(`Analyzing ${normalizedData.spotTrades.length} spot trades + ${normalizedData.futuresIncome.length} futures records...`)
-      } else {
-        // Legacy format
-        const trades = normalizedData.trades || normalizedData
-        setProgress(`Analyzing ${trades.length} trades...`)
+        const analysis = analyzeData(cachedData)
+        setAnalytics(analysis)
+        setCurrencyMetadata(cachedData.metadata)
+        setCurrency(cachedData.metadata?.primaryCurrency || 'USD')
+        setStatus('connected')
+        return
       }
 
-      // Analyze using master analyzer (handles both formats)
-      const analysis = analyzeData(normalizedData)
+      // Build URL with optional filters
+      let url = '/api/trades/fetch'
+      const params = new URLSearchParams()
 
-      console.log('🔍 ANALYSIS RESULT:', analysis)
-      console.log('🔍 Futures trades count:', analysis.futuresTrades)
-      console.log('🔍 Futures P&L:', analysis.futuresPnL)
-      console.log('🔍 Spot trades count:', analysis.spotTrades)
-      console.log('🔍 Has psychology?', !!analysis.psychology)
+      if (connectionId) {
+        params.append('connectionId', connectionId)
+      } else if (exchangeName) {
+        params.append('exchange', exchangeName)
+      }
+      // If neither provided, fetch ALL trades
 
-      setProgress('Analysis complete! Preparing your dashboard...')
+      if (params.toString()) {
+        url += '?' + params.toString()
+      }
+
+      console.log(`📡 Fetching trades from DB: ${url}`)
+
+      // Fetch saved trades from database
+      const response = await fetch(url)
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch saved trades')
+      }
+
+      const data = await response.json()
+
+      if (!data.success) {
+        throw new Error('No trading data available')
+      }
+
+      console.log('✅ Saved trades loaded:', {
+        spotTrades: data.spotTrades?.length || 0,
+        futuresIncome: data.futuresIncome?.length || 0,
+        exchange: exchangeName || 'all',
+        cached: false
+      })
+
+      // Cache the data
+      setCachedData(data)
+      setCurrentConnectionId(cacheKey)
+
+      setProgress('Analyzing your trading data...')
+
+      const analysis = analyzeData(data)
+
+      console.log('📊 Analysis complete:', analysis)
 
       setAnalytics(analysis)
-      setCurrencyMetadata(normalizedData.metadata)
+      setCurrencyMetadata(data.metadata)
+      setCurrency(data.metadata?.primaryCurrency || 'USD')
+      setStatus('connected')
+    } catch (err) {
+      console.error('View analytics error:', err)
+      setError(err.message || 'Failed to load analytics')
+      setStatus('error')
+    }
+  }
 
-      // Set initial currency
-      if (normalizedData.metadata?.primaryCurrency) {
-        setCurrency(normalizedData.metadata.primaryCurrency)
+  const handleConnect = async (apiKey, apiSecret, preFetchedData = null) => {
+    setStatus('connecting')
+    setError('')
+    setProgress('Connecting to exchange...')
+
+    try {
+      let data
+
+      // If data was already fetched (from new flow), use it
+      if (preFetchedData) {
+        console.log('✅ Using pre-fetched data:', {
+          spotTrades: preFetchedData.spotTrades?.length || 0,
+          futuresIncome: preFetchedData.futuresIncome?.length || 0,
+          metadata: preFetchedData.metadata
+        })
+        data = preFetchedData
+      } else {
+        // Legacy flow: fetch from backend directly
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+        const endpoint = `${backendUrl}/api/${exchange}/comprehensive`
+
+        console.log(`📡 Connecting to: ${endpoint}`)
+
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ apiKey, apiSecret })
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`)
+        }
+
+        data = await response.json()
+
+        console.log('✅ Data received from backend:', {
+          spotTrades: data.spotTrades?.length || 0,
+          futuresIncome: data.futuresIncome?.length || 0,
+          metadata: data.metadata
+        })
       }
 
-      // Give a brief moment to show 100% completion before transitioning
-      await new Promise(resolve => setTimeout(resolve, 800))
+      setProgress('Analyzing your trading data...')
+
+      const analysis = analyzeData(data)
+
+      console.log('📊 Analysis complete:', analysis)
+
+      setAnalytics(analysis)
+      setCurrencyMetadata(data.metadata)
+      setCurrency(data.metadata?.primaryCurrency || 'USD')
+
+      // Trigger background storage if we have fetched data (not demo mode)
+      if (preFetchedData && preFetchedData.userId && preFetchedData.connectionId) {
+        setPendingTradeStorage({
+          spotTrades: preFetchedData.spotTrades || [],
+          futuresIncome: preFetchedData.futuresIncome || [],
+          userId: preFetchedData.userId,
+          exchange: preFetchedData.exchange,
+          connectionId: preFetchedData.connectionId
+        })
+      }
 
       setStatus('connected')
-      setProgress('')
     } catch (err) {
-      console.error('❌ Error in handleConnect:', err)
-      setError(err.message)
+      console.error('Connection error:', err)
+      setError(err.message || 'Failed to connect to exchange. Please check your API credentials.')
       setStatus('error')
-      setProgress('')
     }
   }
 
-  const handleDisconnect = () => {
-    setStatus('idle')
-    setAnalytics(null)
-    setCurrency('USD')
-    setCurrencyMetadata(null)
-    setIsDemoMode(false)
-  }
-
-  // Filter analytics by currency for CoinDCX
-  const getFilteredAnalytics = () => {
-    if (!analytics || !currencyMetadata?.supportsCurrencySwitch) {
-      return analytics
-    }
-
-    // Filter symbols that match the selected currency
-    const filteredSymbols = {}
-    const currencySuffix = currency === 'INR' ? 'INR' : 'USDT'
-    
-    Object.entries(analytics.symbols).forEach(([symbol, data]) => {
-      if (symbol.endsWith(currencySuffix)) {
-        filteredSymbols[symbol] = data
-      }
-    })
-
-    // Recalculate totals for filtered symbols
-    let totalPnL = 0
-    let winningTrades = 0
-    let losingTrades = 0
-
-    Object.values(filteredSymbols).forEach(symbolData => {
-      totalPnL += symbolData.realized || symbolData.netPnL || 0
-      winningTrades += symbolData.wins
-      losingTrades += symbolData.losses
-    })
-
-    const bestSymbol = Object.keys(filteredSymbols).reduce((best, symbol) => 
-      (filteredSymbols[symbol].realized || filteredSymbols[symbol].netPnL || 0) > 
-      (filteredSymbols[best]?.realized || filteredSymbols[best]?.netPnL || -Infinity) ? symbol : best, 
-      Object.keys(filteredSymbols)[0]
-    )
-
-    return {
-      ...analytics,
-      symbols: filteredSymbols,
-      totalPnL,
-      winningTrades,
-      losingTrades,
-      winRate: winningTrades + losingTrades > 0 ? (winningTrades / (winningTrades + losingTrades)) * 100 : 0,
-      bestSymbol
-    }
-  }
-
-  const displayAnalytics = getFilteredAnalytics()
-  const currSymbol = getCurrencySymbol(currency)
-
-  // Show appropriate loading screen based on mode
-  if (status === 'loading' || status === 'connecting') {
-    if (isDemoMode) {
-      return <DemoLoadingScreen progress={progress} />
-    } else {
-      return <RealModeLoadingScreen progress={progress} />
-    }
-  }
-
-  // Render analytics view if connected
-  if (status === 'connected' && displayAnalytics) {
+  // NEW: Show loading while checking authentication
+  if (authLoading) {
     return (
-      <>
-        {isDemoMode && (
-          <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 text-center text-sm font-medium shadow-lg">
-            📊 Demo Mode: Viewing sample trading data 
-          </div>
-        )}
-        <div className={isDemoMode ? 'pt-10' : ''}>
-          <AnalyticsView
-            analytics={displayAnalytics}
-            currSymbol={currSymbol}
-            exchangeConfig={currentExchange.config}
-            currencyMetadata={currencyMetadata}
-            currency={currency}
-            setCurrency={setCurrency}
-            onDisconnect={handleDisconnect}
-            isDemoMode={isDemoMode}
-          />
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+          <span className="text-slate-300">Loading...</span>
         </div>
-      </>
+      </div>
     )
   }
 
-  // Render login form by default
-  return (
-    <LoginForm
-      exchangeList={exchangeList}
-      exchange={exchange}
-      setExchange={setExchange}
-      currentExchange={currentExchange}
-      onConnect={handleConnect}
-      onTryDemo={handleTryDemo}
-      status={status}
-      error={error}
-      progress={progress}
-    />
-  )
+  // NEW: Show auth screen if not authenticated
+  if (!user) {
+    return <AuthScreen onAuthSuccess={() => {
+      console.log('User authenticated successfully')
+    }} />
+  }
+
+  // Rest of component - show dashboard, connection forms, or analytics
+  if (status === 'idle' || status === 'error') {
+    // Show API connection form if user selected API method
+    if (showAPIConnection) {
+      return (
+        <LoginForm
+          exchangeList={exchangeList}
+          exchange={exchange}
+          setExchange={setExchange}
+          currentExchange={currentExchange}
+          onConnect={handleConnect}
+          onTryDemo={handleTryDemo}
+          status={status}
+          error={error}
+          progress={progress}
+        />
+      )
+    }
+
+    // Show CSV upload form if user selected CSV method
+    if (showCSVUpload) {
+      return (
+        <CSVUploadFlow
+          onBack={() => setShowCSVUpload(false)}
+        />
+      )
+    }
+
+    // Otherwise show dashboard
+    return (
+      <Dashboard
+        onConnectExchange={() => setShowAPIConnection(true)}
+        onTryDemo={handleTryDemo}
+        onConnectWithCSV={() => setShowCSVUpload(true)}
+        onViewAnalytics={handleViewAnalytics}
+      />
+    )
+  }
+
+  if (status === 'connecting' || status === 'loading') {
+    return isDemoMode ? (
+      <DemoLoadingScreen progress={progress} />
+    ) : (
+      <RealModeLoadingScreen progress={progress} />
+    )
+  }
+
+  if (status === 'connected' && analytics) {
+    return (
+      <AnalyticsView
+        analytics={analytics}
+        currency={currency}
+        currencySymbol={getCurrencySymbol(currency)}
+        currencyMetadata={currencyMetadata}
+        onCurrencyChange={setCurrency}
+        isDemoMode={isDemoMode}
+        exchangeConfig={currentExchange}
+        onDisconnect={() => {
+          // Reset to dashboard view
+          setStatus('idle')
+          setAnalytics(null)
+          setIsDemoMode(false)
+          setShowAPIConnection(false)
+          setShowCSVUpload(false)
+          setCachedData(null)
+          setCurrentConnectionId(null)
+        }}
+        onUploadClick={() => {
+          // Navigate to CSV upload
+          setStatus('idle')
+          setAnalytics(null)
+          setShowAPIConnection(false)
+          setShowCSVUpload(true)
+        }}
+        onViewAllExchanges={() => {
+          // View combined analytics for all exchanges
+          handleViewAnalytics()
+        }}
+        setCurrency={setCurrency}
+      />
+    )
+  }
+
+  return null
 }

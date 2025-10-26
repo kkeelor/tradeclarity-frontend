@@ -1,0 +1,110 @@
+'use client'
+
+import { Home, Upload, Sparkles, LogOut, TrendingUp } from 'lucide-react'
+
+export default function Sidebar({
+  activePage = 'dashboard',
+  onDashboardClick,
+  onUploadClick,
+  onMyPatternsClick,
+  onSignOutClick,
+  isMyPatternsDisabled = false
+}) {
+  const handleSignOut = async () => {
+    console.log('🔴 Sign out button clicked')
+
+    // Set a timeout to force reload if signOut takes too long
+    const timeoutId = setTimeout(() => {
+      console.log('🔴 SignOut timeout - forcing reload anyway')
+      window.location.href = '/analyze'
+    }, 3000)
+
+    try {
+      console.log('🔴 Calling server-side sign out API...')
+      const response = await fetch('/api/auth/signout', {
+        method: 'POST',
+      })
+
+      console.log('🔴 API response status:', response.status)
+      const data = await response.json()
+      console.log('🔴 API response data:', data)
+
+      clearTimeout(timeoutId)
+
+      if (!response.ok) {
+        console.error('🔴 Sign out error:', data.error)
+      } else {
+        console.log('🔴 Sign out successful!')
+      }
+
+      // Force a page reload to clear all state
+      console.log('🔴 Reloading page...')
+      window.location.href = '/analyze'
+    } catch (error) {
+      console.error('🔴 Sign out catch error:', error)
+      clearTimeout(timeoutId)
+      // Still reload even on error
+      window.location.href = '/analyze'
+    }
+  }
+
+  return (
+    <aside className="w-64 border-r border-slate-800 bg-slate-900/50 backdrop-blur-sm flex flex-col">
+      <div className="p-6 border-b border-slate-800">
+        <div className="flex items-center gap-2">
+          <TrendingUp className="w-6 h-6 text-emerald-400" />
+          <span className="text-lg font-bold">TradeClarity</span>
+        </div>
+      </div>
+
+      <nav className="flex-1 p-4 space-y-2">
+        <button
+          onClick={onDashboardClick}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+            activePage === 'dashboard'
+              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+              : 'text-slate-300 hover:bg-slate-800/50'
+          }`}
+        >
+          <Home className="w-5 h-5" />
+          <span>Dashboard</span>
+        </button>
+
+        <button
+          onClick={onUploadClick}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+            activePage === 'upload'
+              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+              : 'text-slate-300 hover:bg-slate-800/50'
+          }`}
+        >
+          <Upload className="w-5 h-5" />
+          <span>Upload Files</span>
+        </button>
+
+        <button
+          onClick={onMyPatternsClick}
+          disabled={isMyPatternsDisabled}
+          className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+            activePage === 'patterns'
+              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+              : 'text-slate-300 hover:bg-slate-800/50'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <Sparkles className="w-5 h-5" />
+            <span>My Patterns</span>
+          </div>
+        </button>
+
+        <button
+          onClick={onSignOutClick || handleSignOut}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800/50 hover:text-red-400 transition-all"
+        >
+          <LogOut className="w-5 h-5" />
+          <span>Sign Out</span>
+        </button>
+      </nav>
+    </aside>
+  )
+}

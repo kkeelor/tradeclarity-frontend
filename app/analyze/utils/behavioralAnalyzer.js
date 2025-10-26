@@ -1,14 +1,17 @@
 // app/analyze/utils/behavioralAnalyzer.js
 // Deep behavioral analysis - reveals hidden trading patterns and psychology
 
+import { parseSymbolQuoteCurrency } from './currencyFormatter'
+
 /**
  * Analyzes trading behavior and psychology to provide actionable insights
  * that most traders never see
  */
-export const analyzeBehavior = (spotTrades, futuresIncome) => {
+export const analyzeBehavior = (spotTrades, futuresIncome, metadata = {}) => {
   console.log('\n=== BEHAVIORAL ANALYZER ===')
   console.log('Analyzing', spotTrades.length, 'spot trades')
   console.log('Analyzing', futuresIncome.length, 'futures income records')
+  console.log('Currency:', metadata.primaryCurrency || 'USD')
 
   const allTrades = [...spotTrades].sort((a, b) => a.time - b.time)
 
@@ -135,33 +138,71 @@ function analyzeTradeStyle(trades) {
   else if (rapidTrades > trades.length * 0.5) tradingPattern = 'rapid'
   else if (avgGap > 24) tradingPattern = 'casual'
 
+  const rapidFirePercent = trades.length > 0 ? (rapidTrades / trades.length) * 100 : 0
+
   return {
     buyToSellRatio,
+    buyVsSellRatio: buyToSellRatio, // UI expects this
     buys,
     sells,
     makerPercentage,
+    makerPercent: makerPercentage, // UI expects this
     takerPercentage: 100 - makerPercentage,
+    takerPercent: 100 - makerPercentage, // UI expects this
     pattern: tradingPattern,
     avgGapHours: avgGap,
     maxGapHours: maxGap,
     rapidTradeCount: rapidTrades,
+    rapidFirePercent, // UI expects this
     isOvertrading: rapidTrades > trades.length * 0.3
   }
 }
 
 /**
  * Analyze fee efficiency
+ * NOTE: Keeps commission amounts in their native currency
  */
 function analyzeFeeEfficiency(trades) {
-  const totalCommission = trades.reduce((sum, t) => sum + parseFloat(t.commission || 0), 0)
-
   const makerTrades = trades.filter(t => t.isMaker)
   const takerTrades = trades.filter(t => !t.isMaker)
 
-  // Estimate what fees WOULD have been if all were maker orders (50% less)
-  const estimatedMakerSavings = totalCommission * 0.5 * (takerTrades.length / Math.max(trades.length, 1))
+  // Helper function to get commission in quote currency
+  const getCommissionValue = (trade) => {
+    const commission = parseFloat(trade.commission || 0)
+    const commissionAsset = trade.commissionAsset || 'USDT'
 
-  // Commission by asset
+    // Parse the quote currency from the symbol (e.g., BTCUSDT → USDT, BTCINR → INR)
+    const quoteCurrency = parseSymbolQuoteCurrency(trade.symbol)
+
+    // If commission is already in quote currency, return as-is
+    if (commissionAsset === quoteCurrency) {
+      return commission
+    }
+
+    // If commission is in a fiat/stablecoin currency (USDT, USD, USDC, INR), return as-is
+    if (['USDT', 'USD', 'USDC', 'INR'].includes(commissionAsset)) {
+      return commission
+    }
+
+    // If commission is in crypto (like BTC, ETH), convert using trade price
+    // For buy orders: commission is in base asset (e.g., BTC)
+    if (trade.isBuyer && !['USDT', 'USD', 'USDC', 'INR'].includes(commissionAsset)) {
+      // Commission is in crypto, convert to quote currency using trade price
+      return commission * parseFloat(trade.price)
+    }
+
+    // Default: return as-is
+    return commission
+  }
+
+  const makerFees = makerTrades.reduce((sum, t) => sum + getCommissionValue(t), 0)
+  const takerFees = takerTrades.reduce((sum, t) => sum + getCommissionValue(t), 0)
+  const totalFees = makerFees + takerFees
+
+  // Estimate what fees WOULD have been if all taker trades were maker orders (50% less)
+  const potentialSavings = takerFees * 0.5
+
+  // Commission by asset (keep original for display)
   const commissionByAsset = {}
   trades.forEach(t => {
     const asset = t.commissionAsset || 'USDT'
@@ -169,15 +210,20 @@ function analyzeFeeEfficiency(trades) {
   })
 
   const totalTradeVolume = trades.reduce((sum, t) => sum + parseFloat(t.quoteQty || 0), 0)
-  const feePercentage = (totalCommission / Math.max(totalTradeVolume, 1)) * 100
+  const feePercentage = (totalFees / Math.max(totalTradeVolume, 1)) * 100
+
+  // Efficiency as percentage (100% = all maker, 0% = all taker)
+  const efficiencyPercent = trades.length > 0 ? (makerTrades.length / trades.length) * 100 : 0
 
   return {
-    totalCommission,
-    estimatedMakerSavings,
+    totalFees,        // Now in USDT equivalent
+    makerFees,        // Now in USDT equivalent
+    takerFees,        // Now in USDT equivalent
+    potentialSavings, // Now in USDT equivalent
     commissionByAsset,
     feePercentage,
-    efficiency: estimatedMakerSavings > totalCommission * 0.2 ? 'poor' : 'good',
-    savingsOpportunity: estimatedMakerSavings
+    efficiency: efficiencyPercent,
+    savingsOpportunity: potentialSavings
   }
 }
 
@@ -197,15 +243,24 @@ function analyzePositionSizing(trades) {
 
   const coefficientOfVariation = avgSize > 0 ? (stdDev / avgSize) : 0
   const consistencyScore = Math.max(0, 100 - (coefficientOfVariation * 100))
+  const score = consistencyScore / 100 // Normalize to 0-1
 
   const largestTrade = Math.max(...tradeSizes)
   const smallestTrade = Math.min(...tradeSizes)
+
+  // Generate label based on score
+  let label = 'Erratic'
+  if (score >= 0.8) label = 'Highly Consistent'
+  else if (score >= 0.6) label = 'Consistent'
+  else if (score >= 0.4) label = 'Moderate'
 
   return {
     avgSize,
     stdDev,
     coefficientOfVariation,
     consistencyScore,
+    score, // UI expects this (0-1 range)
+    label, // UI expects this
     largestTrade,
     smallestTrade,
     isConsistent: coefficientOfVariation < 0.5,
@@ -268,13 +323,17 @@ function detectEmotionalTrading(trades) {
   }
 
   const emotionalScore = Math.min(((revengeTrading + chasing) / Math.max(trades.length, 1)) * 100, 100)
+  const isEmotional = emotionalScore > 20
+  const totalEmotionalEvents = revengeTrading + chasing + impulsive
 
   return {
     revengeTrading,
     chasing,
     impulsive,
     emotionalScore,
-    isEmotional: emotionalScore > 20,
+    isEmotional,
+    detected: isEmotional, // UI expects this
+    count: totalEmotionalEvents, // UI expects this
     severity: emotionalScore > 40 ? 'high' : emotionalScore > 20 ? 'medium' : 'low'
   }
 }
@@ -313,8 +372,12 @@ function calculateBehavioralHealthScore(analysis) {
   score -= analysis.panicPatterns.score * 0.3
 
   // Deduct for poor fee efficiency (up to -20 points)
-  if (analysis.feeAnalysis.efficiency === 'poor') {
+  // Efficiency is a percentage (0-100), penalize if < 40%
+  const feeEfficiency = analysis.feeAnalysis.efficiency || 0
+  if (feeEfficiency < 40) {
     score -= 20
+  } else if (feeEfficiency < 60) {
+    score -= 10
   }
 
   // Deduct for taker addiction (up to -15 points)
@@ -494,11 +557,41 @@ function getEmptyBehavioralAnalysis() {
   return {
     healthScore: 50,
     panicPatterns: { detected: false, count: 0, events: [], severity: 'low', score: 0 },
-    tradingStyle: { buyToSellRatio: 0, pattern: 'unknown', makerPercentage: 0, takerPercentage: 0 },
-    feeAnalysis: { totalCommission: 0, estimatedMakerSavings: 0, commissionByAsset: {}, efficiency: 'good', feePercentage: 0 },
-    positionSizing: { avgSize: 0, consistencyScore: 100, isConsistent: true },
+    tradingStyle: {
+      buyToSellRatio: 0,
+      buyVsSellRatio: 0,
+      pattern: 'unknown',
+      makerPercentage: 0,
+      makerPercent: 0,
+      takerPercentage: 0,
+      takerPercent: 0,
+      rapidFirePercent: 0
+    },
+    feeAnalysis: {
+      totalFees: 0,
+      makerFees: 0,
+      takerFees: 0,
+      potentialSavings: 0,
+      commissionByAsset: {},
+      efficiency: 0,
+      feePercentage: 0
+    },
+    positionSizing: {
+      avgSize: 0,
+      consistencyScore: 100,
+      score: 1,
+      label: 'Highly Consistent',
+      isConsistent: true
+    },
     timingPatterns: { mostActiveHour: 0, isNightTrader: false, nightTradePercentage: 0 },
-    emotionalState: { revengeTrading: 0, chasing: 0, emotionalScore: 0, isEmotional: false },
+    emotionalState: {
+      revengeTrading: 0,
+      chasing: 0,
+      emotionalScore: 0,
+      isEmotional: false,
+      detected: false,
+      count: 0
+    },
     consistencyScore: 50,
     insights: [],
     warnings: []

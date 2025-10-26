@@ -170,158 +170,117 @@ function HelpModal({ isOpen, onClose, exchange }) {
   )
 }
 
-// Preview Results Component
-function ResultsPreview() {
-  const features = [
-    { icon: Brain, label: 'Psychology Score', description: 'Your discipline rating' },
-    { icon: Clock, label: 'Best Trading Hours', description: 'Peak performance times' },
-    { icon: BarChart3, label: 'Win Rate Analysis', description: 'Per symbol breakdown' },
-    { icon: Zap, label: 'Hidden Patterns', description: 'Insights you\'ve missed' }
-  ]
-  
-  return (
-    <div className="bg-gradient-to-br from-purple-900/20 to-slate-800/20 border border-purple-500/30 rounded-xl p-6">
-      <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-        <Sparkles className="w-5 h-5 text-purple-400" />
-        What You'll Discover
-      </h3>
-      <div className="grid grid-cols-2 gap-3">
-        {features.map((feature, idx) => (
-          <div key={idx} className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-3">
-            <feature.icon className="w-5 h-5 text-purple-400 mb-2" />
-            <div className="text-sm font-semibold text-white">{feature.label}</div>
-            <div className="text-xs text-slate-400 mt-1">{feature.description}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-export default function LoginForm({ 
-  exchangeList, 
-  exchange, 
-  setExchange, 
-  currentExchange, 
+export default function LoginForm({
+  exchangeList,
+  exchange,
+  setExchange,
+  currentExchange,
   onConnect,
   onTryDemo,
-  status, 
-  error, 
-  progress 
+  status,
+  error,
+  progress
 }) {
-  const [step, setStep] = useState(0)
+  const [step, setStep] = useState(1) // Start at step 1 (Choose Exchange) instead of 0
   const [apiKey, setApiKey] = useState('')
   const [apiSecret, setApiSecret] = useState('')
   const [showSecret, setShowSecret] = useState(false)
   const [showHelpModal, setShowHelpModal] = useState(false)
   const [apiKeyValid, setApiKeyValid] = useState(null)
   const [apiSecretValid, setApiSecretValid] = useState(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
 
-  const handleSubmit = () => {
-    onConnect(apiKey, apiSecret)
+  const handleSubmit = async () => {
+    setIsSubmitting(true)
+    setSubmitError('')
+
+    try {
+      // Call the new API endpoint to save credentials and fetch data
+      const response = await fetch('/api/exchange/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          exchange,
+          apiKey,
+          apiSecret
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to connect exchange')
+      }
+
+      console.log('✅ Exchange connected successfully:', data)
+
+      // Log normalized trades data for debugging
+      if (data.data?.normalizedSamples) {
+        console.log('📊 NORMALIZED TRADES (samples before DB insert):', data.data.normalizedSamples)
+      }
+
+      // Call the parent's onConnect with the pre-fetched data
+      if (data.data) {
+        // New flow: pass the fetched data
+        onConnect(apiKey, apiSecret, data.data)
+      } else {
+        // Fallback: let parent fetch data
+        onConnect(apiKey, apiSecret)
+      }
+    } catch (err) {
+      console.error('Connection error:', err)
+      setSubmitError(err.message || 'Failed to connect to exchange. Please check your API credentials.')
+      setIsSubmitting(false)
+    }
   }
   
-  // Validate API key format (basic validation)
+  // Validate API key format (exchange-specific validation)
   const validateApiKey = (key) => {
     if (key.length === 0) {
       setApiKeyValid(null)
       return
     }
-    // Basic validation: should be 64 chars for Binance
-    const isValid = key.length >= 60 && /^[A-Za-z0-9]+$/.test(key)
+
+    let isValid = false
+
+    if (exchange === 'binance') {
+      // Binance: 64 chars, alphanumeric
+      isValid = key.length >= 60 && /^[A-Za-z0-9]+$/.test(key)
+    } else if (exchange === 'coindcx') {
+      // CoinDCX: Variable length, alphanumeric with hyphens
+      // Format: typically UUID-like or hex string
+      isValid = key.length >= 20 && /^[A-Za-z0-9\-]+$/.test(key)
+    } else {
+      // Default: just check if not empty and reasonable length
+      isValid = key.length >= 20
+    }
+
     setApiKeyValid(isValid)
   }
-  
+
   const validateApiSecret = (secret) => {
     if (secret.length === 0) {
       setApiSecretValid(null)
       return
     }
-    // Basic validation: should be 64 chars for Binance
-    const isValid = secret.length >= 60 && /^[A-Za-z0-9]+$/.test(secret)
+
+    let isValid = false
+
+    if (exchange === 'binance') {
+      // Binance: 64 chars, alphanumeric
+      isValid = secret.length >= 60 && /^[A-Za-z0-9]+$/.test(secret)
+    } else if (exchange === 'coindcx') {
+      // CoinDCX: Variable length, alphanumeric with hyphens
+      isValid = secret.length >= 20 && /^[A-Za-z0-9\-]+$/.test(secret)
+    } else {
+      // Default: just check if not empty and reasonable length
+      isValid = secret.length >= 20
+    }
+
     setApiSecretValid(isValid)
   }
 
-  // Step 0: Hero & Value Prop
-  if (step === 0) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center p-6">
-        <div className="max-w-4xl w-full space-y-8">
-          {/* Logo */}
-          <div className="text-center space-y-3">
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <TrendingUp className="w-10 h-10 text-emerald-400" />
-              <h1 className="text-3xl font-bold">TradeClarity</h1>
-            </div>
-          </div>
-          
-          {/* Hero Card */}
-          <div className="relative group">
-            <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 via-cyan-500/20 to-purple-500/20 rounded-3xl blur-2xl" />
-            <div className="relative bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-3xl p-8 md:p-12 text-center space-y-6">
-              <h2 className="text-4xl md:text-5xl font-bold leading-tight">
-                You're <span className="text-emerald-400">2 minutes</span> away from<br />discovering your hidden patterns
-              </h2>
-              
-              <p className="text-xl text-slate-300 max-w-2xl mx-auto">
-                Connect your exchange safely and see exactly where you're winning—and what's silently draining your profits.
-              </p>
-              
-              {/* Trust Badges */}
-              <div className="flex flex-wrap items-center justify-center gap-6 pt-4">
-                <div className="flex items-center gap-2 text-sm text-slate-300">
-                  <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center">
-                    <Shield className="w-4 h-4 text-emerald-400" />
-                  </div>
-                  <span>Read-Only Access</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-slate-300">
-                  <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center">
-                    <Lock className="w-4 h-4 text-emerald-400" />
-                  </div>
-                  <span>Bank-Level Security</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-slate-300">
-                  <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center">
-                    <Clock className="w-4 h-4 text-emerald-400" />
-                  </div>
-                  <span>Results in 30 Seconds</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Preview Grid */}
-          <ResultsPreview />
-          
-          {/* CTAs */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button
-              onClick={() => setStep(1)}
-              className="px-8 py-4 bg-emerald-500 hover:bg-emerald-400 rounded-xl font-semibold text-lg transition-all hover:scale-105 flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
-            >
-              Get Started
-              <ChevronRight className="w-5 h-5" />
-            </button>
-            
-            <button
-              onClick={onTryDemo}
-              disabled={status === 'connecting'}
-              className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed rounded-xl font-semibold text-lg transition-all hover:scale-105 flex items-center justify-center gap-2 group shadow-lg shadow-purple-500/20"
-            >
-              <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform" />
-              Try Demo First
-            </button>
-          </div>
-          
-          <p className="text-center text-sm text-slate-400">
-            No signup • No credit card • Just brutal honesty about your trading
-          </p>
-        </div>
-      </div>
-    )
-  }
-  
   // Step 1: Choose Exchange
   if (step === 1) {
     return (
@@ -336,8 +295,8 @@ export default function LoginForm({
           </div>
           
           {/* Progress */}
-          <StepProgress currentStep={0} totalSteps={3} />
-          
+          <StepProgress currentStep={0} totalSteps={2} />
+
           {/* Main Card */}
           <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-8 space-y-6">
             <div className="text-center space-y-2">
@@ -396,14 +355,8 @@ export default function LoginForm({
             </div>
           </div>
           
-          {/* Back & Demo */}
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => setStep(0)}
-              className="text-slate-400 hover:text-white transition-colors text-sm font-medium"
-            >
-              ← Back
-            </button>
+          {/* Demo Link */}
+          <div className="flex items-center justify-end">
             <button
               onClick={onTryDemo}
               className="text-purple-400 hover:text-purple-300 transition-colors text-sm font-medium flex items-center gap-1"
@@ -437,7 +390,7 @@ export default function LoginForm({
           </div>
           
           {/* Progress */}
-          <StepProgress currentStep={1} totalSteps={3} />
+          <StepProgress currentStep={1} totalSteps={2} />
           
           <div className="grid md:grid-cols-2 gap-6">
             {/* Left: Form */}
@@ -552,14 +505,14 @@ export default function LoginForm({
                 )}
               </div>
 
-              {error && (
+              {(error || submitError) && (
                 <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
                   <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-                  <p className="text-red-400 text-sm">{error}</p>
+                  <p className="text-red-400 text-sm">{submitError || error}</p>
                 </div>
               )}
 
-              {progress && (
+              {(progress && !submitError) && (
                 <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
                   <Loader2 className="w-5 h-5 text-emerald-400 animate-spin flex-shrink-0" />
                   <p className="text-emerald-400 text-sm">{progress}</p>
@@ -578,15 +531,15 @@ export default function LoginForm({
               </div>
 
               {/* CTA */}
-              <button 
-                onClick={handleSubmit} 
-                disabled={status === 'connecting' || !apiKey || !apiSecret || apiKeyValid === false || apiSecretValid === false} 
+              <button
+                onClick={handleSubmit}
+                disabled={isSubmitting || status === 'connecting' || !apiKey || !apiSecret || apiKeyValid === false || apiSecretValid === false}
                 className="w-full px-6 py-4 bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-700 disabled:cursor-not-allowed rounded-lg font-semibold transition-all text-lg flex items-center justify-center gap-2 group"
               >
-                {status === 'connecting' ? (
+                {(isSubmitting || status === 'connecting') ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    Analyzing Your Trades...
+                    Connecting & Fetching Your Trades...
                   </>
                 ) : (
                   <>

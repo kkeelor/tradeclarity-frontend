@@ -2,15 +2,28 @@
 'use client'
 
 import { useState } from 'react'
-import { TrendingUp, Shield, Zap, ArrowRight, Sparkles, Lock, Eye, Brain, TrendingDown, Target, AlertCircle } from 'lucide-react'
+import { TrendingUp, Shield, Zap, ArrowRight, Sparkles, Lock, Eye, Brain, TrendingDown, Target, AlertCircle, LogOut, LayoutDashboard } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui'
 import ThemeToggle from './components/ThemeToggle'
+import { useAuth } from '@/lib/AuthContext'
 
 export default function LandingPage() {
   const router = useRouter()
+  const { user } = useAuth()
   const [isPrimaryHovered, setIsPrimaryHovered] = useState(false)
   const [isSecondaryHovered, setIsSecondaryHovered] = useState(false)
+  const [showUserMenu, setShowUserMenu] = useState(false)
+
+  const handleSignOut = async () => {
+    try {
+      await fetch('/api/auth/signout', { method: 'POST' })
+      window.location.href = '/'
+    } catch (error) {
+      console.error('Sign out error:', error)
+      window.location.href = '/'
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex flex-col">
@@ -24,14 +37,61 @@ export default function LandingPage() {
           <span className="text-lg md:text-xl font-bold bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">TradeClarity</span>
         </button>
         <div className="flex items-center gap-2 md:gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.push('/analyze?demo=true')}
-            className="text-xs md:text-sm"
-          >
-            View Demo
-          </Button>
+          {!user && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push('/analyze?demo=true')}
+              className="text-xs md:text-sm"
+            >
+              View Demo
+            </Button>
+          )}
+          {user && (
+            <div className="relative">
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-400 flex items-center justify-center text-slate-900 font-semibold text-sm hover:shadow-lg hover:shadow-emerald-500/20 transition-all"
+              >
+                {user?.user_metadata?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
+              </button>
+
+              {showUserMenu && (
+                <>
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setShowUserMenu(false)}
+                  />
+                  <div className="absolute right-0 mt-2 w-48 bg-slate-800/95 backdrop-blur-xl border border-slate-700/50 rounded-lg shadow-2xl z-20 overflow-hidden">
+                    <div className="p-2.5 border-b border-slate-700/50">
+                      <p className="text-[10px] text-slate-500 mb-0.5">Signed in as</p>
+                      <p className="text-xs text-slate-300 truncate">{user?.email}</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowUserMenu(false)
+                        router.push('/analyze')
+                      }}
+                      className="w-full px-3 py-2 text-left text-xs text-slate-300 hover:text-white hover:bg-slate-700/50 transition-colors flex items-center gap-2"
+                    >
+                      <LayoutDashboard className="w-3.5 h-3.5" />
+                      Dashboard
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowUserMenu(false)
+                        handleSignOut()
+                      }}
+                      className="w-full px-3 py-2 text-left text-xs text-slate-400 hover:text-red-400 hover:bg-slate-700/50 transition-colors flex items-center gap-2"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      Sign Out
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </header>
 

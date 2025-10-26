@@ -119,72 +119,62 @@ const calculateAccountBalance = (balances, primaryCurrency) => {
 
 export const fetchCoinDCXTrades = async (apiKey, apiSecret, onProgress) => {
   try {
-    console.log('🚀 Starting CoinDCX trade fetch...')
+    console.log('🚀 Starting CoinDCX comprehensive data fetch...')
     onProgress('Connecting to CoinDCX...')
-    onProgress('Fetching CoinDCX trades...')
-    
-    // Fetch trade history
-    console.log('📝 Fetching trade history...')
-    const trades = await fetchCoinDCX(apiKey, apiSecret, '/exchange/v1/orders/trade_history', { limit: 500 })
-    console.log('✅ Trade history received:', trades.length, 'trades')
-    
-    if (!trades || trades.length === 0) {
-      throw new Error('No trades found')
-    }
 
-    // Detect currencies first
-    const primaryCurrency = detectPrimaryCurrency(trades)
-    const availableCurrencies = getAvailableCurrencies(trades)
-
-    // Fetch account balances
-    onProgress('Fetching account balances...')
-    let balances = []
-    let accountBalance = 0
-    
+    // Fetch live exchange rates from backend
     try {
-      console.log('📝 Fetching account balances...')
-      balances = await fetchCoinDCX(apiKey, apiSecret, '/exchange/v1/users/balances', {})
-      console.log('✅ Balances received:', balances.length, 'currencies')
-      accountBalance = calculateAccountBalance(balances, primaryCurrency)
-    } catch (error) {
-      console.warn('⚠️ Could not fetch balances:', error.message)
-      console.log('Continuing without balance data...')
+      const ratesRes = await fetch(`${BACKEND_URL}/api/currency-rate`)
+      if (ratesRes.ok) {
+        const ratesData = await ratesRes.json()
+        if (ratesData.success && ratesData.rates && ratesData.rates.INR) {
+          // Update frontend exchange rates
+          const { updateExchangeRates } = await import('../currencyFormatter')
+          updateExchangeRates(ratesData.rates.INR)
+        }
+      }
+    } catch (ratesError) {
+      console.warn('Could not fetch live exchange rates:', ratesError.message)
     }
 
-    // Fetch active orders (open positions)
-    onProgress('Fetching active orders...')
-    let activeOrders = []
-    
-    try {
-      console.log('📝 Fetching active orders...')
-      activeOrders = await fetchCoinDCX(apiKey, apiSecret, '/exchange/v1/orders/active_orders', {})
-      console.log('✅ Active orders received:', activeOrders.length, 'orders')
-    } catch (error) {
-      console.warn('⚠️ Could not fetch active orders:', error.message)
-      console.log('Continuing without active orders data...')
+    // Use the NEW comprehensive endpoint (similar to Binance)
+    const res = await fetch(`${BACKEND_URL}/api/coindcx/fetch-all`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey, apiSecret })
+    })
+
+    if (!res.ok) {
+      const error = await res.json()
+      throw new Error(error.error || `HTTP ${res.status}`)
     }
 
-    console.log('📦 Preparing metadata...')
-    const metadata = {
-      primaryCurrency,
-      availableCurrencies,
-      supportsCurrencySwitch: availableCurrencies.length > 1,
-      accountBalance,
-      accountType: 'SPOT',
-      balances,
-      activeOrders,
-      openPositions: activeOrders.length
+    const response = await res.json()
+
+    if (!response.success) {
+      throw new Error(response.error || 'Failed to fetch data')
     }
 
-    console.log('✅ Metadata prepared:', metadata)
-    console.log('📦 Returning data...')
+    const data = response.data
 
+    console.log('✅ Comprehensive fetch complete:', {
+      spotTrades: data.spotTrades?.length || 0,
+      metadata: data.metadata
+    })
+
+    // Return the normalized data from backend (similar to Binance format)
     return {
-      trades,
-      metadata
+      spotTrades: data.spotTrades || [],
+      futuresIncome: data.futuresIncome || [],
+      futuresPositions: data.futuresPositions || [],
+      metadata: data.metadata || {
+        primaryCurrency: 'INR',
+        availableCurrencies: ['INR'],
+        supportsCurrencySwitch: false
+      }
     }
   } catch (error) {
-    console.error('🔴 Error in fetchCoinDCXTrades:', error)
+    console.error('🔴 Error:', error.message)
     throw error
   }
 }
@@ -192,13 +182,49 @@ export const fetchCoinDCXTrades = async (apiKey, apiSecret, onProgress) => {
 // Normalize CoinDCX format to match standard format
 export const normalizeCoinDCXTrades = (coindcxData) => {
   console.log('🔄 Normalizing CoinDCX trades...')
-  
+
+  // NEW FORMAT: Handle structured data (similar to Binance)
+  if (coindcxData.spotTrades !== undefined) {
+    console.log('✅ Using new structured format')
+
+    // Data is already normalized from backend, just ensure string format for consistency
+    const spotNormalized = coindcxData.spotTrades.map(trade => ({
+      symbol: trade.symbol,
+      qty: String(trade.qty),
+      price: String(trade.price),
+      quoteQty: String(trade.quoteQty),
+      commission: String(trade.commission || 0),
+      commissionAsset: trade.commissionAsset,
+      isBuyer: trade.isBuyer,
+      isMaker: trade.isMaker,
+      time: trade.time,
+      orderId: trade.orderId,
+      id: trade.id,
+      accountType: 'SPOT'
+    }))
+
+    console.log('📊 Normalized data:', {
+      spotTrades: spotNormalized.length,
+      futuresIncome: coindcxData.futuresIncome?.length || 0,
+      futuresPositions: coindcxData.futuresPositions?.length || 0
+    })
+
+    return {
+      spotTrades: spotNormalized,
+      futuresIncome: coindcxData.futuresIncome || [],
+      futuresPositions: coindcxData.futuresPositions || [],
+      metadata: coindcxData.metadata
+    }
+  }
+
+  // LEGACY FORMAT: Handle old format for backwards compatibility
   const trades = coindcxData.trades || coindcxData
-  const metadata = coindcxData.metadata || {}
-  
-  console.log('Raw trades count:', trades.length)
-  console.log('Metadata:', metadata)
-  
+  const metadata = coindcxData.metadata || {
+    primaryCurrency: 'INR',
+    availableCurrencies: ['INR'],
+    supportsCurrencySwitch: false
+  }
+
   const normalized = trades.map(trade => ({
     symbol: trade.symbol,
     qty: String(trade.quantity),
@@ -207,16 +233,14 @@ export const normalizeCoinDCXTrades = (coindcxData) => {
     commission: String(trade.fee_amount || 0),
     commissionAsset: metadata.primaryCurrency || 'INR',
     isBuyer: trade.side === 'buy',
-    isMaker: false, // CoinDCX doesn't provide this
+    isMaker: false,
     time: Math.floor(trade.timestamp),
     orderId: trade.order_id,
     id: trade.id,
-    accountType: 'SPOT', // CRITICAL: Add this field!
-    realizedPnl: '0' // CoinDCX spot trades don't have direct PnL
+    accountType: 'SPOT'
   }))
 
-  console.log('✅ Normalized trades count:', normalized.length)
-  console.log('Sample normalized trade:', normalized[0])
+  console.log('✅ Normalized (legacy):', normalized.length, 'trades')
 
   return {
     trades: normalized,

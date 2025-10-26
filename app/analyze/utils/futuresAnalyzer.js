@@ -96,8 +96,8 @@ export const analyzeFuturesTrades = (futuresData) => {
         consecutiveLosses = 0
         maxConsecutiveWins = Math.max(maxConsecutiveWins, consecutiveWins)
 
-        const day = date.toLocaleDateString('en-US', { weekday: 'short' })
-        if (!tradesByDay[day]) tradesByDay[day] = { wins: 0, losses: 0, pnl: 0, count: 0 }
+        const day = date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })
+        if (!tradesByDay[day]) tradesByDay[day] = { wins: 0, losses: 0, breakevens: 0, pnl: 0, count: 0 }
         tradesByDay[day].wins++
         tradesByDay[day].count++
       } else if (amount < 0) {
@@ -109,24 +109,35 @@ export const analyzeFuturesTrades = (futuresData) => {
         consecutiveWins = 0
         maxConsecutiveLosses = Math.max(maxConsecutiveLosses, consecutiveLosses)
 
-        const day = date.toLocaleDateString('en-US', { weekday: 'short' })
-        if (!tradesByDay[day]) tradesByDay[day] = { wins: 0, losses: 0, pnl: 0, count: 0 }
+        const day = date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })
+        if (!tradesByDay[day]) tradesByDay[day] = { wins: 0, losses: 0, breakevens: 0, pnl: 0, count: 0 }
         tradesByDay[day].losses++
         tradesByDay[day].count++
+      } else {
+        // Breakeven trade (amount === 0)
+        // Don't count as win or loss, but track separately
+        const day = date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })
+        if (!tradesByDay[day]) tradesByDay[day] = { wins: 0, losses: 0, breakevens: 0, pnl: 0, count: 0 }
+        tradesByDay[day].breakevens++
+        tradesByDay[day].count++
+
+        // Reset consecutive streaks on breakeven
+        consecutiveWins = 0
+        consecutiveLosses = 0
       }
 
-      // Track monthly
-      const monthKey = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+      // Track monthly (use UTC)
+      const monthKey = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })
       if (!monthlyPnL[monthKey]) monthlyPnL[monthKey] = 0
       monthlyPnL[monthKey] += amount
 
-      // Track hourly
-      const hour = date.getHours()
+      // Track hourly (use UTC)
+      const hour = date.getUTCHours()
       tradesByHour[hour].trades++
       tradesByHour[hour].pnl += amount
 
-      // Track daily
-      const day = date.toLocaleDateString('en-US', { weekday: 'short' })
+      // Track daily (use UTC)
+      const day = date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })
       if (tradesByDay[day]) {
         tradesByDay[day].pnl += amount
       }
@@ -146,7 +157,12 @@ export const analyzeFuturesTrades = (futuresData) => {
   // Calculate averages
   avgWin = winningTrades > 0 ? avgWin / winningTrades : 0
   avgLoss = losingTrades > 0 ? avgLoss / losingTrades : 0
-  const profitFactor = avgLoss > 0 ? avgWin / avgLoss : 0
+
+  // Calculate profit factor: Gross Profit / Gross Loss
+  // NOT avgWin / avgLoss (that's different when win/loss counts differ)
+  const totalGrossProfit = winningTrades > 0 ? avgWin * winningTrades : 0
+  const totalGrossLoss = losingTrades > 0 ? avgLoss * losingTrades : 0
+  const profitFactor = totalGrossLoss > 0 ? totalGrossProfit / totalGrossLoss : 0
 
   // Build symbol analytics
   const symbolAnalytics = {}

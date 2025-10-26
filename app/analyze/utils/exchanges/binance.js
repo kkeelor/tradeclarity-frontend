@@ -83,6 +83,21 @@ export const fetchBinanceTrades = async (apiKey, apiSecret, onProgress) => {
     console.log('🚀 Starting Binance comprehensive data fetch...')
     onProgress('Connecting to Binance...')
 
+    // Fetch live exchange rates from backend
+    try {
+      const ratesRes = await fetch(`${BACKEND_URL}/api/currency-rate`)
+      if (ratesRes.ok) {
+        const ratesData = await ratesRes.json()
+        if (ratesData.success && ratesData.rates && ratesData.rates.INR) {
+          // Update frontend exchange rates
+          const { updateExchangeRates } = await import('../currencyFormatter')
+          updateExchangeRates(ratesData.rates.INR)
+        }
+      }
+    } catch (ratesError) {
+      console.warn('Could not fetch live exchange rates:', ratesError.message)
+    }
+
     // Use the NEW comprehensive endpoint
     const res = await fetch(`${BACKEND_URL}/api/binance/fetch-all`, {
       method: 'POST',

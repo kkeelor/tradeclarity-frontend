@@ -7,8 +7,10 @@ import {
   CheckCircle, AlertTriangle, Lightbulb, Clock, Calendar,
   Zap, Layers, TrendingDown, Eye, Flame, Trophy, Shield,
   BarChart3, PieChart, LineChart, ArrowUpRight, ArrowDownRight,
-  AlertCircle, Sparkles, ChevronRight, ChevronLeft, ChevronDown
+  AlertCircle, Sparkles, ChevronRight, ChevronLeft, ChevronDown,
+  Scissors, Shuffle
 } from 'lucide-react'
+import Sidebar from './Sidebar'
 import {
   AreaChart, Area, BarChart, Bar, LineChart as RechartsLineChart,
   Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart,
@@ -36,6 +38,36 @@ import {
   DataQualityBanner,
   EmptyState
 } from '../../components'
+
+// Icon mapper for string icon names to Lucide components
+const ICON_MAP = {
+  Target,
+  CheckCircle,
+  TrendingUp,
+  Award,
+  Scissors,
+  AlertTriangle,
+  AlertCircle,
+  Calendar,
+  Zap,
+  Shuffle,
+  Lightbulb,
+  DollarSign,
+  Brain,
+  BarChart3,
+  Clock,
+  Activity,
+  Flame,
+  Eye,
+  Trophy
+}
+
+const getIconComponent = (iconName) => {
+  if (typeof iconName === 'string') {
+    return ICON_MAP[iconName] || Lightbulb
+  }
+  return iconName || Lightbulb
+}
 
 // ============================================
 // HERO SECTION - REDESIGNED
@@ -207,7 +239,8 @@ function HeroSection({ analytics, currSymbol, metadata }) {
           pnl={analytics.spotPnL}
           winRate={analytics.spotWinRate}
           currSymbol={currSymbol}
-          icon="💰"
+          icon={DollarSign}
+          iconColor="emerald"
         />
         <AccountTypeCard
           type="Futures"
@@ -215,7 +248,8 @@ function HeroSection({ analytics, currSymbol, metadata }) {
           pnl={analytics.futuresPnL}
           winRate={analytics.futuresWinRate}
           currSymbol={currSymbol}
-          icon="⚡"
+          icon={Zap}
+          iconColor="cyan"
         />
       </div>
     </div>
@@ -235,7 +269,7 @@ function QuickStat({ label, value, subtitle, icon, good }) {
   )
 }
 
-function AccountTypeCard({ type, trades, pnl, winRate, currSymbol, icon }) {
+function AccountTypeCard({ type, trades, pnl, winRate, currSymbol, icon: Icon, iconColor }) {
   if (trades === 0) return null
 
   const isProfitable = pnl >= 0
@@ -244,7 +278,7 @@ function AccountTypeCard({ type, trades, pnl, winRate, currSymbol, icon }) {
     <Card variant="glass" className="hover:border-slate-600/50 transition-all">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="text-3xl">{icon}</div>
+          <IconBadge icon={Icon} color={iconColor} size="md" />
           <div>
             <h3 className="font-bold text-lg">{type} Trading</h3>
             <p className="text-xs text-slate-400">{trades} trades</p>
@@ -499,8 +533,8 @@ function InsightCardVariable({ insight, onClick, className, featured }) {
     recommendation: 'text-cyan-400 bg-cyan-500/20',
     pattern: 'text-purple-400 bg-purple-500/20'
   }
-  
-  const IconComponent = insight.icon
+
+  const IconComponent = getIconComponent(insight.icon)
   
   const iconColor = insight.type === 'strength' ? 'emerald' :
     insight.type === 'weakness' ? 'red' :
@@ -913,13 +947,13 @@ function SpotTab({ analytics, currSymbol, metadata }) {
                         </div>
                       </td>
                       <td className="p-4 text-right font-mono text-slate-300">
-                        {holding.quantity.toFixed(4)}
+                        {holding.quantity?.toFixed(4) || '0.0000'}
                       </td>
                       <td className="p-4 text-right font-mono text-slate-400">
-                        {currSymbol}{holding.price.toFixed(4)}
+                        {currSymbol}{holding.price?.toFixed(4) || '0.0000'}
                       </td>
                       <td className="p-4 text-right font-bold text-lg text-emerald-400">
-                        {currSymbol}{holding.usdValue.toFixed(2)}
+                        {currSymbol}{holding.usdValue?.toFixed(2) || '0.00'}
                       </td>
                     </tr>
                   ))}
@@ -1072,8 +1106,9 @@ function FuturesTab({ analytics, currSymbol }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-3">
             <div className="text-sm font-semibold text-slate-400 mb-2">Leverage Discipline</div>
-            <div className="text-sm text-slate-300">
-              💡 Consider limiting leverage to 3-5x for better consistency. High leverage trades often have lower win rates.
+            <div className="text-sm text-slate-300 flex items-start gap-2">
+              <Lightbulb className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" />
+              <span>Consider limiting leverage to 3-5x for better consistency. High leverage trades often have lower win rates.</span>
             </div>
           </div>
           <div className="space-y-3">
@@ -1178,10 +1213,10 @@ function BehavioralTab({ analytics, currSymbol }) {
               />
               <QuickStat
                 label="Consistency"
-                value={`${behavioral.consistencyScore ? (Number(behavioral.consistencyScore) * 100).toFixed(0) : 0}%`}
+                value={`${behavioral.consistencyScore ? Number(behavioral.consistencyScore).toFixed(0) : 0}%`}
                 subtitle={behavioral.positionSizing?.label || 'N/A'}
                 icon={Target}
-                good={(behavioral.consistencyScore ? Number(behavioral.consistencyScore) : 0) >= 0.7}
+                good={(behavioral.consistencyScore ? Number(behavioral.consistencyScore) : 0) >= 70}
               />
               <QuickStat
                 label="Emotional State"
@@ -1330,7 +1365,7 @@ function BehavioralTab({ analytics, currSymbol }) {
 
           <div className="mt-6 space-y-4">
             {behavioral.insights.map((insight, idx) => {
-              const IconComponent = insight.icon || Lightbulb
+              const IconComponent = getIconComponent(insight.icon)
               const colorMap = {
                 critical: { bg: 'bg-red-500/10', border: 'border-red-500/30', text: 'text-red-400' },
                 warning: { bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', text: 'text-yellow-400' },
@@ -1405,8 +1440,9 @@ function BehavioralTab({ analytics, currSymbol }) {
                   <span className="text-slate-400">Coefficient of Variation:</span> {behavioral.positionSizing.coefficientOfVariation ? Number(behavioral.positionSizing.coefficientOfVariation).toFixed(2) : '0.00'}
                 </div>
               </div>
-              <div className="mt-3 text-xs text-slate-400">
-                💡 Lower variation = more consistent position sizing = better risk management
+              <div className="mt-3 text-xs text-slate-400 flex items-start gap-1.5">
+                <Lightbulb className="w-3.5 h-3.5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                <span>Lower variation = more consistent position sizing = better risk management</span>
               </div>
             </div>
           </div>
@@ -1420,15 +1456,17 @@ function BehavioralTab({ analytics, currSymbol }) {
 // MAIN COMPONENT
 // ============================================
 
-export default function AnalyticsView({ 
-  analytics, 
-  currSymbol, 
+export default function AnalyticsView({
+  analytics,
+  currSymbol,
   exchangeConfig,
   currencyMetadata,
   currency,
   setCurrency,
   onDisconnect,
-  isDemoMode = false 
+  onUploadClick,
+  onViewAllExchanges,
+  isDemoMode = false
 }) {
   const [activeTab, setActiveTab] = useState('overview')
 
@@ -1437,24 +1475,40 @@ export default function AnalyticsView({
   const hasBehavioral = analytics.behavioral && analytics.behavioral.healthScore
 
   const tabs = [
-    { id: 'overview', label: '📊 Overview', show: true },
-    { id: 'behavioral', label: '🧠 Behavioral', show: hasBehavioral },
-    { id: 'spot', label: '💰 Spot', show: hasSpot },
-    { id: 'futures', label: '⚡ Futures', show: hasFutures }
+    { id: 'overview', label: 'Overview', icon: BarChart3, show: true },
+    { id: 'behavioral', label: 'Behavioral', icon: Brain, show: hasBehavioral },
+    { id: 'spot', label: 'Spot', icon: DollarSign, show: hasSpot },
+    { id: 'futures', label: 'Futures', icon: Zap, show: hasFutures }
   ].filter(tab => tab.show)
 
+  const handleSignOut = async () => {
+    const response = await fetch('/api/auth/signout', { method: 'POST' })
+    window.location.href = '/analyze'
+  }
+
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
-      <Header 
-        exchangeConfig={exchangeConfig}
-        currencyMetadata={currencyMetadata}
-        currency={currency}
-        setCurrency={setCurrency}
-        onDisconnect={onDisconnect}
-        isDemoMode={isDemoMode}
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex">
+      <Sidebar
+        activePage="patterns"
+        onDashboardClick={onDisconnect}
+        onUploadClick={onUploadClick || (() => {})}
+        onMyPatternsClick={onViewAllExchanges || (() => {})}
+        onSignOutClick={handleSignOut}
+        isMyPatternsDisabled={!onViewAllExchanges}
       />
 
-      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8 space-y-8">
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-h-screen bg-slate-950">
+        <Header
+          exchangeConfig={exchangeConfig}
+          currencyMetadata={currencyMetadata}
+          currency={currency}
+          setCurrency={setCurrency}
+          onDisconnect={onDisconnect}
+          isDemoMode={isDemoMode}
+        />
+
+        <main className="flex-1 max-w-[1400px] mx-auto px-4 sm:px-6 py-8 space-y-8 w-full">
         {/* Hero Section */}
         <HeroSection analytics={analytics} currSymbol={currSymbol} metadata={currencyMetadata} />
 
@@ -1462,16 +1516,22 @@ export default function AnalyticsView({
         <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-xl md:rounded-2xl overflow-hidden">
           {/* Tab Headers */}
           <div className="flex overflow-x-auto border-b border-slate-700/50 scrollbar-hide">
-            {tabs.map(tab => (
-              <TabButton
-                key={tab.id}
-                active={activeTab === tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className="text-xs md:text-base whitespace-nowrap"
-              >
-                {tab.label}
-              </TabButton>
-            ))}
+            {tabs.map(tab => {
+              const TabIcon = tab.icon
+              return (
+                <TabButton
+                  key={tab.id}
+                  active={activeTab === tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className="text-xs md:text-base whitespace-nowrap"
+                >
+                  <div className="flex items-center gap-2">
+                    <TabIcon className="w-4 h-4" />
+                    <span>{tab.label}</span>
+                  </div>
+                </TabButton>
+              )
+            })}
           </div>
 
           {/* Tab Content */}
@@ -1482,7 +1542,8 @@ export default function AnalyticsView({
             {activeTab === 'futures' && <FuturesTab analytics={analytics} currSymbol={currSymbol} />}
           </div>
         </div>
-      </main>
+        </main>
+      </div>
     </div>
   )
 }

@@ -63,7 +63,7 @@ const analyzeStrengths = (trades, spotAnalysis, futuresAnalysis) => {
       strengths.push({
         type: 'patience',
         message: `Patient on winning trades (avg hold: ${formatDuration(avgWinnerHold)})`,
-        icon: '✅'
+        icon: 'CheckCircle'
       })
     }
   }
@@ -74,7 +74,7 @@ const analyzeStrengths = (trades, spotAnalysis, futuresAnalysis) => {
     strengths.push({
       type: 'win_rate',
       message: `Strong win rate of ${winRate.toFixed(1)}%`,
-      icon: '🎯'
+      icon: 'Target'
     })
   }
   
@@ -84,7 +84,7 @@ const analyzeStrengths = (trades, spotAnalysis, futuresAnalysis) => {
     strengths.push({
       type: 'profit_factor',
       message: `Excellent profit factor: ${pf.toFixed(2)}x`,
-      icon: '💪'
+      icon: 'TrendingUp'
     })
   }
   
@@ -100,7 +100,7 @@ const analyzeStrengths = (trades, spotAnalysis, futuresAnalysis) => {
       strengths.push({
         type: 'symbol_mastery',
         message: `Strong on ${symbol} (${data.winRate.toFixed(0)}% WR, ${data.trades} trades)`,
-        icon: '⭐'
+        icon: 'Award'
       })
     })
   }
@@ -115,7 +115,7 @@ const analyzeStrengths = (trades, spotAnalysis, futuresAnalysis) => {
       strengths.push({
         type: 'loss_cutting',
         message: 'Good at cutting losses quickly',
-        icon: '✂️'
+        icon: 'Scissors'
       })
     }
   }
@@ -140,7 +140,7 @@ const analyzeWeaknesses = (trades, spotAnalysis, futuresAnalysis) => {
         type: 'holding_losers',
         message: `Holding losers ${(avgLoserHold / avgWinnerHold).toFixed(1)}x longer than winners`,
         severity: 'high',
-        icon: '⚠️'
+        icon: 'AlertTriangle'
       })
     }
   }
@@ -152,7 +152,7 @@ const analyzeWeaknesses = (trades, spotAnalysis, futuresAnalysis) => {
       type: 'revenge_trading',
       message: `${revengeTradingSessions.length} revenge trading sessions detected`,
       severity: 'high',
-      icon: '😤'
+      icon: 'AlertCircle'
     })
   }
   
@@ -171,7 +171,7 @@ const analyzeWeaknesses = (trades, spotAnalysis, futuresAnalysis) => {
         type: 'weekend_trading',
         message: `Weekend trading underperforms (${weekendWinRate.toFixed(0)}% vs ${overallWinRate.toFixed(0)}% WR)`,
         severity: 'medium',
-        icon: '📅'
+        icon: 'Calendar'
       })
     }
   }
@@ -186,7 +186,7 @@ const analyzeWeaknesses = (trades, spotAnalysis, futuresAnalysis) => {
         type: 'overleveraging',
         message: `Poor performance on high-leverage trades`,
         severity: 'high',
-        icon: '⚡'
+        icon: 'Zap'
       })
     }
   }
@@ -198,7 +198,7 @@ const analyzeWeaknesses = (trades, spotAnalysis, futuresAnalysis) => {
       type: 'fomo_trading',
       message: `FOMO trading on ${fomoCoins.length} symbols (low win rate)`,
       severity: 'medium',
-      icon: '🎲'
+      icon: 'Shuffle'
     })
   }
   
@@ -209,7 +209,7 @@ const analyzeWeaknesses = (trades, spotAnalysis, futuresAnalysis) => {
       type: 'overconfidence',
       message: `Position sizes increase ${((overconfidenceScore - 1) * 100).toFixed(0)}% after wins`,
       severity: 'medium',
-      icon: '📈'
+      icon: 'TrendingUp'
     })
   }
   
@@ -453,15 +453,15 @@ const analyzeSymbolBehavior = (trades, spotAnalysis, futuresAnalysis) => {
     if (data.winRate >= 65 && data.trades >= 10) {
       insight.category = 'strength'
       insight.message = 'Your go-to symbol - keep trading it!'
-      insight.icon = '✅'
+      insight.icon = 'CheckCircle'
     } else if (data.winRate >= 50 && data.trades >= 5) {
       insight.category = 'decent'
       insight.message = 'Solid performance, room for improvement'
-      insight.icon = '🟨'
+      insight.icon = 'AlertCircle'
     } else if (data.winRate < 40) {
       insight.category = 'weakness'
       insight.message = data.trades <= 5 ? 'Possible FOMO trades' : 'Consider avoiding'
-      insight.icon = '⚠️'
+      insight.icon = 'AlertTriangle'
     }
     
     // Detect impulsive trading (very short hold times)

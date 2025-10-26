@@ -8,20 +8,21 @@ import { analyzeBehavior } from './behavioralAnalyzer'
 
 export const analyzeData = (allData) => {
   console.log('\n=== MASTER ANALYZER ===')
-  
+
   // allData can be either:
   // 1. Array of trades (legacy format) - has { symbol, time, qty, price, isBuyer, accountType }
-  // 2. Object with { spotTrades, futuresIncome, futuresPositions } - new format
-  
+  // 2. Object with { spotTrades, futuresIncome, futuresPositions, metadata } - new format
+
   let spotTrades = []
   let futuresData = { income: [], trades: [], positions: [] }
-  
+  let metadata = {}
+
   if (Array.isArray(allData)) {
     // Legacy format: array of trades with accountType
     spotTrades = allData.filter(t => t.accountType === 'SPOT')
     const futuresTrades = allData.filter(t => t.accountType === 'FUTURES')
     futuresData = { trades: futuresTrades, income: [], positions: [] }
-    
+
     console.log('Using legacy format')
     console.log('Spot trades:', spotTrades.length)
     console.log('Futures trades:', futuresTrades.length)
@@ -33,11 +34,13 @@ export const analyzeData = (allData) => {
       trades: allData.futuresTrades || [],
       positions: allData.futuresPositions || []
     }
-    
+    metadata = allData.metadata || {}
+
     console.log('Using structured format')
     console.log('Spot trades:', spotTrades.length)
     console.log('Futures income records:', futuresData.income.length)
     console.log('Futures positions:', futuresData.positions.length)
+    console.log('Primary currency:', metadata.primaryCurrency || 'USD')
   }
 
   // Analyze spot trades
@@ -137,13 +140,20 @@ export const analyzeData = (allData) => {
   }
 
   // Overall stats - weighted averages
-  const avgWin = winningTrades > 0 
+  const avgWin = winningTrades > 0
     ? (spotAnalysis.avgWin * spotAnalysis.winningTrades + futuresAnalysis.avgWin * futuresAnalysis.winningTrades) / winningTrades
     : 0
   const avgLoss = losingTrades > 0
     ? (spotAnalysis.avgLoss * spotAnalysis.losingTrades + futuresAnalysis.avgLoss * futuresAnalysis.losingTrades) / losingTrades
     : 0
-  const profitFactor = avgLoss > 0 ? avgWin / avgLoss : 0
+
+  // Calculate profit factor: Gross Profit / Gross Loss
+  // Total gross profit and loss across both spot and futures
+  const totalGrossProfit = (spotAnalysis.avgWin * spotAnalysis.winningTrades) +
+                          (futuresAnalysis.avgWin * futuresAnalysis.winningTrades)
+  const totalGrossLoss = (spotAnalysis.avgLoss * spotAnalysis.losingTrades) +
+                        (futuresAnalysis.avgLoss * futuresAnalysis.losingTrades)
+  const profitFactor = totalGrossLoss > 0 ? totalGrossProfit / totalGrossLoss : 0
 
   const largestWin = Math.max(spotAnalysis.largestWin, futuresAnalysis.largestWin)
   const largestLoss = Math.min(spotAnalysis.largestLoss, futuresAnalysis.largestLoss)
@@ -169,7 +179,7 @@ export const analyzeData = (allData) => {
   const psychology = analyzeTradingPsychology(allTradesForPsychology, spotAnalysis, futuresAnalysis)
 
   // Analyze deep behavioral patterns
-  const behavioral = analyzeBehavior(spotTrades, futuresData.income)
+  const behavioral = analyzeBehavior(spotTrades, futuresData.income, metadata)
 
   console.log('\n=== MASTER ANALYSIS COMPLETE ===')
   console.log('Total P&L:', totalPnL.toFixed(2), `(Spot: ${spotAnalysis.totalPnL.toFixed(2)}, Futures: ${futuresAnalysis.netPnL.toFixed(2)})`)
@@ -180,6 +190,10 @@ export const analyzeData = (allData) => {
   console.log('Behavioral Health Score:', behavioral.healthScore)
 
   return {
+    // Currency info
+    currency: metadata.primaryCurrency || 'USD',
+    metadata,
+
     // Overall metrics
     totalPnL,
     totalInvested,
@@ -191,7 +205,7 @@ export const analyzeData = (allData) => {
     winningTrades,
     losingTrades,
     winRate: completedTrades > 0 ? (winningTrades / completedTrades) * 100 : 0,
-    
+
     // Performance metrics
     avgWin,
     avgLoss,
@@ -201,11 +215,11 @@ export const analyzeData = (allData) => {
     maxConsecutiveWins,
     maxConsecutiveLosses,
     totalCommission,
-    
+
     // Symbols
     symbols: allSymbols,
     bestSymbol,
-    
+
     // Time-based data
     dayPerformance,
     hourPerformance,
