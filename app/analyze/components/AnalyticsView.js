@@ -1510,6 +1510,29 @@ export default function AnalyticsView({
           isDemoMode={isDemoMode}
         />
 
+        {/* Demo Mode Banner */}
+        {isDemoMode && (
+          <div className="mx-4 sm:mx-6 mt-6">
+            <div className="max-w-[1400px] mx-auto">
+              <div className="bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-purple-500/10 border border-purple-500/30 rounded-xl p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0">
+                    <Eye className="w-5 h-5 text-purple-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-purple-300">
+                      Demo Mode - Viewing Sample Trading Data
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      This is example data to showcase TradeClarity's analytics. Sign up to analyze your own trades.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <main className="flex-1 max-w-[1400px] mx-auto px-4 sm:px-6 py-8 space-y-8 w-full">
         {/* Hero Section */}
         <HeroSection analytics={analytics} currSymbol={currSymbol} metadata={currencyMetadata} />
