@@ -51,10 +51,13 @@ export default function Sidebar({
   return (
     <aside className="w-64 border-r border-slate-800 bg-slate-900/50 backdrop-blur-sm flex flex-col">
       <div className="p-6 border-b border-slate-800">
-        <div className="flex items-center gap-2">
+        <button
+          onClick={() => window.location.href = '/'}
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer"
+        >
           <TrendingUp className="w-6 h-6 text-emerald-400" />
           <span className="text-lg font-bold">TradeClarity</span>
-        </div>
+        </button>
       </div>
 
       <nav className="flex-1 p-4 space-y-2">
