@@ -2,7 +2,7 @@
 'use client'
 
 import { useState } from 'react'
-import { TrendingUp, Shield, Zap, ArrowRight, Sparkles, Lock, Eye, Brain, TrendingDown, Target, AlertCircle, LogOut, LayoutDashboard } from 'lucide-react'
+import { TrendingUp, Shield, Zap, ArrowRight, Sparkles, Lock, Eye, Brain, TrendingDown, Target, AlertCircle, LogOut, LayoutDashboard, Twitter, Linkedin } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui'
 import ThemeToggle from './components/ThemeToggle'
@@ -494,7 +494,28 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="py-6 md:py-8 px-4 md:px-6 text-center text-slate-500 text-xs md:text-sm space-y-2">
+      <footer className="py-6 md:py-8 px-4 md:px-6 text-center text-slate-500 text-xs md:text-sm space-y-4">
+        <div className="flex items-center justify-center gap-4">
+          <a
+            href="https://x.com/trdclrty"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 hover:text-slate-300 transition-colors group"
+          >
+            <Twitter className="w-4 h-4 group-hover:text-cyan-400 transition-colors" />
+            <span className="hidden sm:inline">@trdclrty</span>
+          </a>
+          <span className="text-slate-700">•</span>
+          <a
+            href="https://www.linkedin.com/in/karankeelor/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 hover:text-slate-300 transition-colors group"
+          >
+            <Linkedin className="w-4 h-4 group-hover:text-blue-400 transition-colors" />
+            <span className="hidden sm:inline">LinkedIn</span>
+          </a>
+        </div>
         <p className="font-medium">Built for traders who are tired of guessing</p>
         <p>© 2025 TradeClarity. Your data stays yours. Always.</p>
       </footer>

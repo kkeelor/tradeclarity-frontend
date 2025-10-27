@@ -1,6 +1,6 @@
 'use client'
 
-import { Home, Upload, Sparkles, LogOut, TrendingUp } from 'lucide-react'
+import { Home, Upload, Sparkles, LogOut, TrendingUp, Twitter, Linkedin } from 'lucide-react'
 
 export default function Sidebar({
   activePage = 'dashboard',
@@ -105,6 +105,30 @@ export default function Sidebar({
           <span>Sign Out</span>
         </button>
       </nav>
+
+      {/* Social Links */}
+      <div className="p-4 border-t border-slate-800">
+        <div className="flex items-center justify-center gap-4">
+          <a
+            href="https://x.com/trdclrty"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-slate-500 hover:text-cyan-400 transition-colors"
+            title="Follow us on X"
+          >
+            <Twitter className="w-4 h-4" />
+          </a>
+          <a
+            href="https://www.linkedin.com/in/karankeelor/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-slate-500 hover:text-blue-400 transition-colors"
+            title="Connect on LinkedIn"
+          >
+            <Linkedin className="w-4 h-4" />
+          </a>
+        </div>
+      </div>
     </aside>
   )
 }
