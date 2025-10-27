@@ -576,8 +576,11 @@ export default function TradeClarityContent() {
     }
   }
 
+  // Check if demo mode is requested
+  const isDemoRequested = searchParams.get('demo') === 'true'
+
   // NEW: Show loading while checking authentication
-  if (authLoading) {
+  if (authLoading && !isDemoRequested) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center">
         <div className="flex items-center gap-3">
@@ -588,8 +591,8 @@ export default function TradeClarityContent() {
     )
   }
 
-  // NEW: Show auth screen if not authenticated
-  if (!user) {
+  // NEW: Show auth screen if not authenticated AND not demo mode
+  if (!user && !isDemoRequested) {
     return <AuthScreen onAuthSuccess={() => {
       console.log('User authenticated successfully')
     }} />
