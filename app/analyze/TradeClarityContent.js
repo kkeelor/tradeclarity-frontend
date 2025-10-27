@@ -654,8 +654,14 @@ export default function TradeClarityContent() {
         currencyMetadata={currencyMetadata}
         onCurrencyChange={setCurrency}
         isDemoMode={isDemoMode}
+        isAuthenticated={!!user}
         exchangeConfig={currentExchange}
         onDisconnect={() => {
+          // If in demo mode without auth, redirect to auth page
+          if (isDemoMode && !user) {
+            window.location.href = '/analyze'
+            return
+          }
           // Reset to dashboard view
           setStatus('idle')
           setAnalytics(null)
@@ -666,6 +672,11 @@ export default function TradeClarityContent() {
           setCurrentConnectionId(null)
         }}
         onUploadClick={() => {
+          // If in demo mode without auth, redirect to auth page
+          if (isDemoMode && !user) {
+            window.location.href = '/analyze'
+            return
+          }
           // Navigate to CSV upload
           setStatus('idle')
           setAnalytics(null)

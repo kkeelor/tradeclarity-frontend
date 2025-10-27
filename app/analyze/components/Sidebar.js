@@ -8,7 +8,8 @@ export default function Sidebar({
   onUploadClick,
   onMyPatternsClick,
   onSignOutClick,
-  isMyPatternsDisabled = false
+  isMyPatternsDisabled = false,
+  isDemoMode = false
 }) {
   const handleSignOut = async () => {
     console.log('🔴 Sign out button clicked')

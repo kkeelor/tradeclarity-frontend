@@ -1466,7 +1466,8 @@ export default function AnalyticsView({
   onDisconnect,
   onUploadClick,
   onViewAllExchanges,
-  isDemoMode = false
+  isDemoMode = false,
+  isAuthenticated = true
 }) {
   const [activeTab, setActiveTab] = useState('overview')
 
@@ -1495,6 +1496,7 @@ export default function AnalyticsView({
         onMyPatternsClick={onViewAllExchanges || (() => {})}
         onSignOutClick={handleSignOut}
         isMyPatternsDisabled={!onViewAllExchanges}
+        isDemoMode={isDemoMode && !isAuthenticated}
       />
 
       {/* Main Content */}
