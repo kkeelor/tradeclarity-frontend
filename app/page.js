@@ -131,7 +131,7 @@ export default function LandingPage() {
               <ArrowRight className={`w-5 h-5 transition-transform duration-300 ${isPrimaryHovered ? 'translate-x-1' : ''}`} />
             </Button>
 
-            {/* Secondary CTA - Connect Exchange */}
+            {/* Secondary CTA - Connect Exchange / Dashboard */}
             <Button
               variant="outline"
               size="xl"
@@ -139,8 +139,17 @@ export default function LandingPage() {
               onMouseEnter={() => setIsSecondaryHovered(true)}
               onMouseLeave={() => setIsSecondaryHovered(false)}
             >
-              <Lock className="w-5 h-5" />
-              Analyze My Trades
+              {user ? (
+                <>
+                  <LayoutDashboard className="w-5 h-5" />
+                  Go to Dashboard
+                </>
+              ) : (
+                <>
+                  <Lock className="w-5 h-5" />
+                  Analyze My Trades
+                </>
+              )}
             </Button>
           </div>
 
