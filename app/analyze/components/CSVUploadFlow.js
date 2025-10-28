@@ -233,7 +233,37 @@ export default function CSVUploadFlow({ onBack }) {
         return
       }
 
-      // Step 2: Store to database
+      // Step 2: Save CSV metadata first (to get csvUploadId for linking trades)
+      updateConfig(configId, {
+        progress: 'Creating CSV record...'
+      })
+
+      const metadataResponse = await fetch('/api/csv/save-metadata', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: config.file.name,
+          label: config.label || null,
+          accountType: config.accountType,
+          exchangeConnectionId: config.exchangeConnectionId || null,
+          size: config.file.size,
+          tradesCount: 0 // Will update after storing trades
+        })
+      })
+
+      const metadataData = await metadataResponse.json()
+
+      if (!metadataResponse.ok || !metadataData.success) {
+        updateConfig(configId, {
+          status: 'error',
+          message: 'Failed to save CSV metadata'
+        })
+        return
+      }
+
+      const csvUploadId = metadataData.file.id
+
+      // Step 3: Store trades to database with csvUploadId
       updateConfig(configId, {
         progress: 'Saving trades to database...'
       })
@@ -246,7 +276,8 @@ export default function CSVUploadFlow({ onBack }) {
           futuresIncome: parseData.futuresIncome || [],
           userId: user.id,
           exchange: exchange,
-          connectionId: config.exchangeConnectionId || null
+          connectionId: config.exchangeConnectionId || null,
+          csvUploadId: csvUploadId // Link trades to CSV upload
         })
       })
 
@@ -260,7 +291,7 @@ export default function CSVUploadFlow({ onBack }) {
         return
       }
 
-      // Success! Now save CSV metadata
+      // Success!
       const newTrades = storeData.tradesCount || 0
       const duplicates = storeData.alreadyExisted || 0
 
@@ -272,20 +303,6 @@ export default function CSVUploadFlow({ onBack }) {
         tradesCount: newTrades,
         duplicatesCount: duplicates,
         progress: ''
-      })
-
-      // Save CSV upload metadata
-      await fetch('/api/csv/save-metadata', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          filename: config.file.name,
-          label: config.label || null,
-          accountType: config.accountType,
-          exchangeConnectionId: config.exchangeConnectionId || null,
-          size: config.file.size,
-          tradesCount: newTrades
-        })
       })
 
       // Refresh uploaded files list

@@ -21,7 +21,27 @@ export async function POST(request) {
       )
     }
 
-    // Delete the CSV upload record
+    console.log(`🗑️ Deleting CSV file ${fileId} and associated trades...`)
+
+    // First, delete all trades associated with this CSV
+    const { data: deletedTrades, error: tradesDeleteError } = await supabase
+      .from('trades')
+      .delete()
+      .eq('csv_upload_id', fileId)
+      .eq('user_id', user.id)  // Security: only delete own trades
+      .select('id')
+
+    if (tradesDeleteError) {
+      console.error('Error deleting associated trades:', tradesDeleteError)
+      return NextResponse.json(
+        { error: 'Failed to delete associated trades' },
+        { status: 500 }
+      )
+    }
+
+    console.log(`✅ Deleted ${deletedTrades?.length || 0} associated trades`)
+
+    // Then delete the CSV upload record
     const { error: deleteError } = await supabase
       .from('csv_uploads')
       .delete()
@@ -36,9 +56,12 @@ export async function POST(request) {
       )
     }
 
+    console.log(`✅ CSV file deleted successfully`)
+
     return NextResponse.json({
       success: true,
-      message: 'File deleted successfully'
+      message: 'File and associated trades deleted successfully',
+      tradesDeleted: deletedTrades?.length || 0
     })
   } catch (error) {
     console.error('Delete CSV file error:', error)

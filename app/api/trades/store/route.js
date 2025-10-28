@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server'
 
 export async function POST(request) {
   try {
-    const { spotTrades, futuresIncome, userId, exchange, connectionId } = await request.json()
+    const { spotTrades, futuresIncome, userId, exchange, connectionId, csvUploadId } = await request.json()
 
     if (!userId || !exchange || !connectionId) {
       return NextResponse.json(
@@ -25,6 +25,7 @@ export async function POST(request) {
           user_id: userId,
           exchange: exchange,
           exchange_connection_id: connectionId,
+          csv_upload_id: csvUploadId || null,
           symbol: trade.symbol,
           side: trade.isBuyer ? 'BUY' : 'SELL',
           type: trade.isMaker ? 'LIMIT' : 'MARKET',
@@ -56,6 +57,7 @@ export async function POST(request) {
           user_id: userId,
           exchange: exchange,
           exchange_connection_id: connectionId,
+          csv_upload_id: csvUploadId || null,
           symbol: income.symbol || 'N/A',
           side: 'INCOME',
           type: income.incomeType || 'REALIZED_PNL',
