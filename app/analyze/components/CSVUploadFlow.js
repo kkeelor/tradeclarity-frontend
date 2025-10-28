@@ -59,13 +59,13 @@ export default function CSVUploadFlow({ onBack }) {
     }
   }
 
-  const handleFileSelect = (selectedFiles) => {
+  const handleFileSelect = async (selectedFiles) => {
     const fileArray = Array.from(selectedFiles).filter(file => {
       // Only allow CSV files
       return file.name.toLowerCase().endsWith('.csv') && file.size <= MAX_FILE_SIZE
     })
 
-    const newConfigs = fileArray.map(file => {
+    for (const file of fileArray) {
       // Check for duplicate filename
       const existingFile = fileConfigs.find(c => c.file.name === file.name)
       let warning = ''
@@ -74,22 +74,83 @@ export default function CSVUploadFlow({ onBack }) {
         warning = 'A file with this name was already added'
       }
 
-      return {
+      // Create initial config with detecting status
+      const newConfig = {
         id: Date.now() + Math.random(),
         file: file,
-        label: '', // Empty by default, show placeholder
+        label: '',
         exchangeConnectionId: connectedExchanges.length === 1 ? connectedExchanges[0].id : null,
-        accountType: 'BOTH', // Default to BOTH
-        status: 'ready', // ready, processing, success, error
+        accountType: 'BOTH',
+        status: 'detecting', // detecting, ready, processing, success, error
         message: '',
-        progress: '',
+        progress: '🤖 Analyzing CSV format...',
         warning: warning,
         tradesCount: null,
-        duplicatesCount: null
+        duplicatesCount: null,
+        columnMapping: null, // AI-detected mapping
+        detectedExchange: null,
+        detectedType: null,
+        confidence: null
       }
-    })
 
-    setFileConfigs(prev => [...prev, ...newConfigs])
+      setFileConfigs(prev => [...prev, newConfig])
+
+      // Try AI detection (priority)
+      try {
+        const preview = await readCSVPreview(file)
+
+        const response = await fetch('/api/csv/detect-columns', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            headers: preview.headers,
+            sampleData: preview.rows
+          })
+        })
+
+        const detection = await response.json()
+
+        if (response.ok && detection.confidence >= 0.7) {
+          // AI detection successful - use it!
+          updateConfig(newConfig.id, {
+            status: 'ready',
+            progress: '',
+            columnMapping: detection.mapping,
+            detectedExchange: detection.detectedExchange,
+            detectedType: detection.detectedType,
+            confidence: detection.confidence,
+            message: `✓ ${detection.detectedExchange || 'Format'} detected (${Math.round(detection.confidence * 100)}% confidence)`
+          })
+        } else {
+          // Low confidence - fall back to manual selection
+          updateConfig(newConfig.id, {
+            status: 'ready',
+            progress: '',
+            warning: 'Auto-detection uncertain. Fallback to manual selection.',
+            confidence: detection.confidence || 0
+          })
+        }
+      } catch (error) {
+        console.error('AI detection error:', error)
+        // AI failed - fall back to traditional method
+        updateConfig(newConfig.id, {
+          status: 'ready',
+          progress: '',
+          warning: 'Auto-detection failed. Using traditional parser.'
+        })
+      }
+    }
+  }
+
+  // Helper: Read CSV preview (headers + first 5 rows)
+  async function readCSVPreview(file) {
+    const text = await file.text()
+    const lines = text.split('\n').slice(0, 6)
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
+    const rows = lines.slice(1).filter(l => l.trim()).map(line => {
+      return line.split(',').map(v => v.trim().replace(/"/g, ''))
+    })
+    return { headers, rows }
   }
 
   const handleDrag = (e) => {
@@ -138,18 +199,24 @@ export default function CSVUploadFlow({ onBack }) {
       // Step 1: Parse CSV
       updateConfig(configId, {
         status: 'processing',
-        progress: 'Parsing CSV...'
+        progress: config.columnMapping ? 'Parsing with AI mapping...' : 'Parsing CSV...'
       })
 
       // Get exchange - either from selection or auto-detect
       let exchange = config.exchangeConnectionId
         ? connectedExchanges.find(e => e.id === config.exchangeConnectionId)?.exchange
-        : 'binance' // Default to binance for auto-detect
+        : (config.detectedExchange?.toLowerCase() || 'binance') // Use AI-detected or default
 
       const formData = new FormData()
       formData.append('file', config.file)
       formData.append('exchange', exchange)
       formData.append('accountType', config.accountType)
+
+      // Add AI mapping if available (PRIORITY)
+      if (config.columnMapping) {
+        formData.append('columnMapping', JSON.stringify(config.columnMapping))
+        console.log('🤖 Using AI-detected column mapping')
+      }
 
       const parseResponse = await fetch('/api/csv/parse', {
         method: 'POST',

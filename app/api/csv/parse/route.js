@@ -17,6 +17,7 @@ export async function POST(request) {
     const file = formData.get('file')
     const exchange = formData.get('exchange')
     const accountType = formData.get('accountType')
+    const columnMappingStr = formData.get('columnMapping') // AI-detected mapping
 
     if (!file || !exchange || !accountType) {
       return NextResponse.json(
@@ -45,7 +46,31 @@ export async function POST(request) {
       )
     }
 
-    // Parse based on exchange and account type
+    // If AI mapping provided, use it (new flow)
+    if (columnMappingStr) {
+      try {
+        const columnMapping = JSON.parse(columnMappingStr)
+        const result = parseWithAIMapping(lines, columnMapping, accountType)
+
+        if (!result.success) {
+          return NextResponse.json({ error: result.error }, { status: 400 })
+        }
+
+        return NextResponse.json({
+          success: true,
+          spotTrades: result.spotTrades || [],
+          futuresIncome: result.futuresIncome || [],
+          totalRows: result.totalRows,
+          accountType: accountType,
+          aiParsed: true
+        })
+      } catch (error) {
+        console.error('AI mapping parse error:', error)
+        // Fall through to traditional parsers
+      }
+    }
+
+    // Parse based on exchange and account type (traditional flow)
     let result = { success: true, spotTrades: [], futuresIncome: [], totalRows: 0 }
 
     if (accountType === 'BOTH') {
@@ -347,4 +372,102 @@ function parseCSVLine(line) {
 
   result.push(current)
   return result
+}
+
+// AI-based parser using detected column mapping
+function parseWithAIMapping(lines, mapping, accountType) {
+  try {
+    const header = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
+
+    console.log('🤖 Parsing with AI mapping:', mapping)
+
+    // Determine if this is spot or futures based on mapping
+    const isFutures = accountType === 'FUTURES' || mapping.positionSide || mapping.realizedPnl
+
+    const spotTrades = []
+    const futuresIncome = []
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim()
+      if (!line) continue
+
+      const values = parseCSVLine(line)
+
+      // Helper to get value by mapped column
+      const getValue = (field) => {
+        const columnName = mapping.mapping?.[field] || mapping[field]
+        if (!columnName) return null
+        const idx = header.indexOf(columnName)
+        if (idx === -1) return null
+        return values[idx]?.replace(/"/g, '')
+      }
+
+      // Get core fields
+      const symbol = getValue('symbol')
+      const side = getValue('side')
+      const timestamp = getValue('timestamp')
+      const price = parseFloat(getValue('price') || 0)
+      const quantity = parseFloat(getValue('quantity') || 0)
+      const fee = parseFloat(getValue('fee') || 0)
+
+      if (!symbol || !timestamp) continue
+
+      // Parse timestamp
+      let timestampMs
+      try {
+        timestampMs = new Date(timestamp).getTime()
+        if (isNaN(timestampMs)) continue
+      } catch (e) {
+        continue
+      }
+
+      if (isFutures) {
+        // Parse as futures/income
+        const realizedPnl = getValue('realizedPnl')
+        const income = realizedPnl ? parseFloat(realizedPnl) : (price * quantity)
+
+        futuresIncome.push({
+          symbol: symbol,
+          income: String(income),
+          asset: 'USDT', // Default, could be detected
+          incomeType: 'REALIZED_PNL',
+          time: timestampMs,
+          tranId: `csv_ai_${timestampMs}_${Math.random()}`,
+          id: `csv_ai_${timestampMs}_${Math.random()}`
+        })
+      } else {
+        // Parse as spot trade
+        const total = getValue('total')
+        const quoteQty = total ? parseFloat(total) : (price * quantity)
+
+        spotTrades.push({
+          symbol: symbol,
+          qty: String(quantity),
+          price: String(price),
+          quoteQty: String(quoteQty),
+          commission: String(fee),
+          commissionAsset: 'USDT', // Could be detected from CSV
+          time: timestampMs,
+          isBuyer: side?.toUpperCase() === 'BUY',
+          isMaker: false, // Can't determine from basic CSV
+          orderId: `csv_ai_${timestampMs}_${Math.random()}`,
+          id: `csv_ai_${timestampMs}_${Math.random()}`
+        })
+      }
+    }
+
+    return {
+      success: true,
+      spotTrades: spotTrades,
+      futuresIncome: futuresIncome,
+      totalRows: spotTrades.length + futuresIncome.length
+    }
+
+  } catch (error) {
+    console.error('AI mapping parse error:', error)
+    return {
+      success: false,
+      error: 'Failed to parse with AI mapping: ' + error.message
+    }
+  }
 }
