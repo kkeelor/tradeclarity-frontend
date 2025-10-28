@@ -447,12 +447,31 @@ function parseWithAIMapping(lines, mapping, accountType) {
         continue
       }
 
-      // Parse timestamp
+      // Parse timestamp (handle both date strings and numeric timestamps)
       let timestampMs
       try {
-        timestampMs = new Date(timestamp).getTime()
-        if (isNaN(timestampMs)) continue
+        // Check if it's already a numeric timestamp (milliseconds)
+        const numericTimestamp = parseFloat(timestamp)
+        if (!isNaN(numericTimestamp) && numericTimestamp > 1000000000000) {
+          // Looks like milliseconds timestamp (>year 2001)
+          timestampMs = Math.floor(numericTimestamp)
+        } else {
+          // Try parsing as date string
+          timestampMs = new Date(timestamp).getTime()
+        }
+
+        if (isNaN(timestampMs)) {
+          if (i === 1) {
+            console.warn('⚠️ Invalid timestamp:', timestamp, '→', timestampMs)
+          }
+          skippedRows++
+          continue
+        }
       } catch (e) {
+        if (i === 1) {
+          console.error('❌ Timestamp parse error:', e.message)
+        }
+        skippedRows++
         continue
       }
 
