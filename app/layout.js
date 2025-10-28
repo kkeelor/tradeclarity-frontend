@@ -2,6 +2,7 @@
 import './globals.css'
 import { ThemeProvider } from './components/ThemeProvider'
 import { AuthProvider } from '@/lib/AuthContext'
+import { AlertProvider } from './components/AlertProvider'
 
 export const metadata = {
   title: 'TradeClarity - Your Trading Analytics',
@@ -49,7 +50,9 @@ export default function RootLayout({ children }) {
       </head>
       <body>
         <AuthProvider>
-          <ThemeProvider>{children}</ThemeProvider>
+          <AlertProvider position="top-right">
+            <ThemeProvider>{children}</ThemeProvider>
+          </AlertProvider>
         </AuthProvider>
       </body>
     </html>

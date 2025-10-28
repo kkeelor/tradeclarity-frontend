@@ -8,6 +8,8 @@ export { Modal, ModalSection, ModalDescription, ModalMetrics, ModalActionSteps }
 export { SectionHeader, SectionHeaderWithAction, SimpleSectionHeader } from './SectionHeader'
 export { MetricDisplay, LargeMetricDisplay, SimpleStat, StatRow } from './MetricDisplay'
 export { EmptyState, LimitedDataNotice, DataQualityBanner } from './EmptyState'
+export { Alert, InlineAlert, CompactAlert, ConfirmAlert } from './Alert'
+export { AlertProvider, useAlert, toast } from './AlertProvider'
 export {
   HeroSkeleton,
   ChartSkeleton,
