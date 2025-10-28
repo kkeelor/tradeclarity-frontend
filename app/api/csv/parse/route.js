@@ -50,9 +50,21 @@ export async function POST(request) {
     if (columnMappingStr) {
       try {
         const columnMapping = JSON.parse(columnMappingStr)
+        console.log('🤖 AI Mapping received:', JSON.stringify(columnMapping, null, 2))
+        console.log('📊 CSV has', lines.length, 'lines total')
+        console.log('📋 CSV headers:', lines[0])
+
         const result = parseWithAIMapping(lines, columnMapping, accountType)
 
+        console.log('✅ AI Parse result:', {
+          success: result.success,
+          spotTrades: result.spotTrades?.length || 0,
+          futuresIncome: result.futuresIncome?.length || 0,
+          totalRows: result.totalRows
+        })
+
         if (!result.success) {
+          console.error('❌ AI parse failed:', result.error)
           return NextResponse.json({ error: result.error }, { status: 400 })
         }
 
@@ -65,7 +77,8 @@ export async function POST(request) {
           aiParsed: true
         })
       } catch (error) {
-        console.error('AI mapping parse error:', error)
+        console.error('❌ AI mapping parse error:', error)
+        console.error('Stack:', error.stack)
         // Fall through to traditional parsers
       }
     }
@@ -379,19 +392,31 @@ function parseWithAIMapping(lines, mapping, accountType) {
   try {
     const header = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
 
-    console.log('🤖 Parsing with AI mapping:', mapping)
+    console.log('🤖 parseWithAIMapping called')
+    console.log('📋 Headers:', header)
+    console.log('🗺️ Mapping:', JSON.stringify(mapping, null, 2))
+    console.log('📦 Account Type:', accountType)
 
     // Determine if this is spot or futures based on mapping
     const isFutures = accountType === 'FUTURES' || mapping.positionSide || mapping.realizedPnl
+    console.log('💱 Detected as:', isFutures ? 'FUTURES' : 'SPOT')
 
     const spotTrades = []
     const futuresIncome = []
+    let skippedRows = 0
 
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i].trim()
-      if (!line) continue
+      if (!line) {
+        skippedRows++
+        continue
+      }
 
       const values = parseCSVLine(line)
+
+      if (i === 1) {
+        console.log('📝 First data row values:', values)
+      }
 
       // Helper to get value by mapped column
       const getValue = (field) => {
@@ -410,7 +435,17 @@ function parseWithAIMapping(lines, mapping, accountType) {
       const quantity = parseFloat(getValue('quantity') || 0)
       const fee = parseFloat(getValue('fee') || 0)
 
-      if (!symbol || !timestamp) continue
+      if (i === 1) {
+        console.log('🔍 Extracted values:', { symbol, side, timestamp, price, quantity, fee })
+      }
+
+      if (!symbol || !timestamp) {
+        if (i === 1) {
+          console.warn('⚠️ Skipping row - missing symbol or timestamp')
+        }
+        skippedRows++
+        continue
+      }
 
       // Parse timestamp
       let timestampMs
@@ -456,6 +491,12 @@ function parseWithAIMapping(lines, mapping, accountType) {
       }
     }
 
+    console.log('📊 Parse complete:')
+    console.log('   - Total lines processed:', lines.length - 1)
+    console.log('   - Skipped rows:', skippedRows)
+    console.log('   - Spot trades:', spotTrades.length)
+    console.log('   - Futures income:', futuresIncome.length)
+
     return {
       success: true,
       spotTrades: spotTrades,
@@ -464,7 +505,8 @@ function parseWithAIMapping(lines, mapping, accountType) {
     }
 
   } catch (error) {
-    console.error('AI mapping parse error:', error)
+    console.error('❌ AI mapping parse error:', error)
+    console.error('Stack:', error.stack)
     return {
       success: false,
       error: 'Failed to parse with AI mapping: ' + error.message
