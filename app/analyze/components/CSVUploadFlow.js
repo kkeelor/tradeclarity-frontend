@@ -4,12 +4,14 @@
 import { useState, useEffect } from 'react'
 import { TrendingUp, Upload, FileText, X, AlertCircle, CheckCircle, Trash2, Home, LogOut, Sparkles, Loader2, Check, ChevronDown, ArrowLeft } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
+import { useAlert, ConfirmAlert } from '@/app/components'
 import Sidebar from './Sidebar'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB per file
 
 export default function CSVUploadFlow({ onBack }) {
   const { user } = useAuth()
+  const alert = useAlert()
   const [fileConfigs, setFileConfigs] = useState([])
   const [uploadedFiles, setUploadedFiles] = useState([])
   const [connectedExchanges, setConnectedExchanges] = useState([])
@@ -666,8 +668,11 @@ function FileConfigCard({ config, connectedExchanges, onUpdate, onRemove, getSta
 
 // Component for previously uploaded files
 function UploadedFileCard({ file, connectedExchanges, onRefresh }) {
+  const alert = useAlert()
   const [showExchangeDropdown, setShowExchangeDropdown] = useState(false)
   const [linking, setLinking] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const selectedExchange = connectedExchanges.find(e => e.id === file.exchange_connection_id)
 
@@ -685,17 +690,25 @@ function UploadedFileCard({ file, connectedExchanges, onRefresh }) {
 
       if (response.ok) {
         await onRefresh()
+        alert.success('Exchange linked successfully')
+      } else {
+        alert.error('Failed to link exchange')
       }
     } catch (error) {
       console.error('Error linking exchange:', error)
+      alert.error('Failed to link exchange')
     } finally {
       setLinking(false)
       setShowExchangeDropdown(false)
     }
   }
 
-  const handleDelete = async () => {
-    if (!confirm('Delete this uploaded file? This will not delete the trades from your database.')) return
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    setIsDeleting(true)
 
     try {
       const response = await fetch('/api/csv/delete', {
@@ -704,11 +717,23 @@ function UploadedFileCard({ file, connectedExchanges, onRefresh }) {
         body: JSON.stringify({ fileId: file.id })
       })
 
+      const data = await response.json()
+
       if (response.ok) {
+        alert.success(
+          `File deleted successfully. ${data.tradesDeleted || 0} associated trades removed.`,
+          { title: 'File Deleted' }
+        )
         await onRefresh()
+      } else {
+        alert.error(data.error || 'Failed to delete file')
       }
     } catch (error) {
       console.error('Error deleting file:', error)
+      alert.error('Failed to delete file')
+    } finally {
+      setIsDeleting(false)
+      setShowDeleteConfirm(false)
     }
   }
 
@@ -789,13 +814,33 @@ function UploadedFileCard({ file, connectedExchanges, onRefresh }) {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={handleDelete}
+            onClick={handleDeleteClick}
             className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-700/50 rounded-lg transition-colors"
+            title="Delete file"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
+
+      {/* Delete confirmation dialog */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="max-w-lg w-full">
+            <ConfirmAlert
+              variant="warning"
+              title="Delete CSV File?"
+              message={`Are you sure you want to delete "${file.label || file.filename}"? All ${file.trades_count || 0} associated trades will be permanently removed from the database. This action cannot be undone.`}
+              confirmText="Yes, Delete File"
+              cancelText="Keep File"
+              confirmVariant="danger"
+              onConfirm={handleDeleteConfirm}
+              onCancel={() => setShowDeleteConfirm(false)}
+              isLoading={isDeleting}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
