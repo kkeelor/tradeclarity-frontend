@@ -123,6 +123,12 @@ export default function CSVUploadFlow({ onBack }) {
             confidence: detection.confidence,
             message: `✓ ${detection.detectedExchange || 'Format'} detected (${Math.round(detection.confidence * 100)}% confidence)`
           })
+
+          // Show success toast for AI detection
+          alert.success(
+            `Format detected: ${detection.detectedExchange || 'Unknown'} (${Math.round(detection.confidence * 100)}% confidence)`,
+            { dismissAfter: 3000 }
+          )
         } else {
           // Low confidence - fall back to manual selection
           updateConfig(newConfig.id, {
@@ -228,12 +234,17 @@ export default function CSVUploadFlow({ onBack }) {
       const parseData = await parseResponse.json()
 
       if (!parseResponse.ok || !parseData.success) {
+        const errorMsg = parseData.error || 'Failed to parse CSV'
         updateConfig(configId, {
           status: 'error',
-          message: parseData.error || 'Failed to parse CSV'
+          message: errorMsg
         })
+        alert.error(errorMsg, { title: 'Parse Error' })
         return
       }
+
+      // Show success toast for successful parsing
+      alert.success('File parsed successfully', { dismissAfter: 2000 })
 
       // Step 2: Save CSV metadata first (to get csvUploadId for linking trades)
       updateConfig(configId, {
@@ -256,10 +267,12 @@ export default function CSVUploadFlow({ onBack }) {
       const metadataData = await metadataResponse.json()
 
       if (!metadataResponse.ok || !metadataData.success) {
+        const errorMsg = 'Failed to save CSV metadata'
         updateConfig(configId, {
           status: 'error',
-          message: 'Failed to save CSV metadata'
+          message: errorMsg
         })
+        alert.error(errorMsg, { title: 'Upload Error' })
         return
       }
 
@@ -286,10 +299,12 @@ export default function CSVUploadFlow({ onBack }) {
       const storeData = await storeResponse.json()
 
       if (!storeResponse.ok || !storeData.success) {
+        const errorMsg = storeData.error || 'Failed to store trades'
         updateConfig(configId, {
           status: 'error',
-          message: storeData.error || 'Failed to store trades'
+          message: errorMsg
         })
+        alert.error(errorMsg, { title: 'Storage Error' })
         return
       }
 
@@ -307,14 +322,36 @@ export default function CSVUploadFlow({ onBack }) {
         progress: ''
       })
 
+      // Show success toast
+      alert.success(
+        `${newTrades} trade${newTrades !== 1 ? 's' : ''} imported successfully`,
+        {
+          title: 'Import Complete',
+          dismissAfter: 5000
+        }
+      )
+
+      // Show warning toast for duplicates
+      if (duplicates > 0) {
+        alert.warning(
+          `${duplicates} duplicate trade${duplicates !== 1 ? 's' : ''} skipped`,
+          { dismissAfter: 4000 }
+        )
+      }
+
       // Refresh uploaded files list
       await fetchUploadedFiles()
 
     } catch (error) {
       console.error('Error processing file:', error)
+      const errorMsg = 'Failed to process file. Please try again.'
       updateConfig(configId, {
         status: 'error',
-        message: 'Failed to process file. Please try again.'
+        message: errorMsg
+      })
+      alert.error(errorMsg, {
+        title: 'Upload Failed',
+        dismissAfter: 6000
       })
     }
   }
@@ -720,10 +757,22 @@ function UploadedFileCard({ file, connectedExchanges, onRefresh }) {
       const data = await response.json()
 
       if (response.ok) {
-        alert.success(
-          `File deleted successfully. ${data.tradesDeleted || 0} associated trades removed.`,
-          { title: 'File Deleted' }
-        )
+        if (data.hasDataIntegrityIssue) {
+          // Data integrity issue - trades weren't properly linked
+          alert.warning(
+            `File deleted, but data integrity issue detected. Expected ${data.expectedTradesCount} trades, only deleted ${data.tradesDeleted}. This may indicate trades from this CSV weren't properly linked.`,
+            {
+              title: 'Partial Deletion',
+              dismissAfter: 12000
+            }
+          )
+        } else {
+          // Normal deletion
+          alert.success(
+            `File deleted successfully. ${data.tradesDeleted || 0} associated trades removed.`,
+            { title: 'File Deleted' }
+          )
+        }
         await onRefresh()
       } else {
         alert.error(data.error || 'Failed to delete file')

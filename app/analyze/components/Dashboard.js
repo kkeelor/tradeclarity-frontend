@@ -4,11 +4,13 @@
 import { useState, useEffect } from 'react'
 import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, LogOut, BarChart3, Sparkles, Database, CheckSquare, Square } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
+import { useAlert, ConfirmAlert } from '@/app/components'
 import ConnectExchangeModal from './ConnectExchangeModal'
 import Sidebar from './Sidebar'
 
 export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithCSV, onViewAnalytics }) {
   const { user } = useAuth()
+  const alert = useAlert()
   const [uploadedFiles, setUploadedFiles] = useState([])
   const [connectedExchanges, setConnectedExchanges] = useState([])
   const [showConnectModal, setShowConnectModal] = useState(false)
@@ -17,6 +19,13 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
   const [loadingFiles, setLoadingFiles] = useState(true)
   const [tradesStats, setTradesStats] = useState(null)
   const [selectedSources, setSelectedSources] = useState([]) // Array of {type: 'exchange'|'csv', id: string}
+
+  // Exchange deletion state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deletingExchange, setDeletingExchange] = useState(null)
+  const [deleteStats, setDeleteStats] = useState(null)
+  const [deleteLinkedCSVs, setDeleteLinkedCSVs] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Get time-based greeting
   const getGreeting = () => {
@@ -140,22 +149,76 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
     onViewAnalytics()
   }
 
-  const handleDeleteExchange = async (exchangeId) => {
-    if (!confirm('Are you sure you want to disconnect this exchange?')) return
+  const handleDeleteClick = async (exchange) => {
+    // Fetch deletion impact stats
+    try {
+      const response = await fetch('/api/exchange/delete-preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ connectionId: exchange.id })
+      })
+
+      if (!response.ok) {
+        alert.error('Failed to preview deletion impact')
+        return
+      }
+
+      const stats = await response.json()
+
+      setDeletingExchange(exchange)
+      setDeleteStats(stats)
+      setDeleteLinkedCSVs(false) // Reset checkbox
+      setShowDeleteConfirm(true)
+    } catch (error) {
+      console.error('Error previewing deletion:', error)
+      alert.error('Failed to preview deletion impact')
+    }
+  }
+
+  const handleDeleteConfirm = async () => {
+    setIsDeleting(true)
 
     try {
       const response = await fetch('/api/exchange/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connectionId: exchangeId })
+        body: JSON.stringify({
+          connectionId: deletingExchange.id,
+          deleteLinkedCSVs: deleteLinkedCSVs
+        })
       })
 
+      const data = await response.json()
+
       if (response.ok) {
-        setConnectedExchanges(prev => prev.filter(ex => ex.id !== exchangeId))
+        // Remove from list
+        setConnectedExchanges(prev => prev.filter(ex => ex.id !== deletingExchange.id))
+
+        // Show success message
+        const message = deleteLinkedCSVs
+          ? `Exchange disconnected. ${data.totalTradesDeleted} trades and ${data.csvFilesDeleted} CSV files deleted.`
+          : `Exchange disconnected. ${data.apiTradesDeleted} API trades deleted. ${data.csvFilesUnlinked} CSV files kept.`
+
+        alert.success(message, {
+          title: 'Exchange Disconnected',
+          dismissAfter: 8000
+        })
+
+        // Refresh files list if CSVs were affected
+        if (deleteLinkedCSVs || data.csvFilesUnlinked > 0) {
+          await fetchUploadedFiles()
+        }
+      } else {
+        alert.error(data.error || 'Failed to delete exchange connection')
       }
     } catch (error) {
       console.error('Error deleting exchange:', error)
-      alert('Failed to delete exchange connection')
+      alert.error('Failed to delete exchange connection')
+    } finally {
+      setIsDeleting(false)
+      setShowDeleteConfirm(false)
+      setDeletingExchange(null)
+      setDeleteStats(null)
     }
   }
 
@@ -536,8 +599,9 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                                     View
                                   </button>
                                   <button
-                                    onClick={() => handleDeleteExchange(exchange.id)}
+                                    onClick={() => handleDeleteClick(exchange)}
                                     className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-700/50 rounded-lg transition-colors"
+                                    title="Disconnect exchange"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>
@@ -639,6 +703,70 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
         onClose={() => setShowConnectModal(false)}
         onSelectMethod={handleConnectionMethod}
       />
+
+      {/* Exchange Delete Confirmation Dialog */}
+      {showDeleteConfirm && deletingExchange && deleteStats && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="max-w-lg w-full bg-slate-900 border border-slate-700 rounded-2xl p-6">
+            <div className="mb-6">
+              <h3 className="text-2xl font-bold mb-2">Disconnect {deletingExchange.exchange}?</h3>
+              <p className="text-slate-400">This action will affect the following data:</p>
+            </div>
+
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 mb-6 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-300">API-imported trades</span>
+                <span className="font-bold text-red-400">{deleteStats.apiTrades} will be deleted</span>
+              </div>
+
+              {deleteStats.csvFiles > 0 && (
+                <>
+                  <div className="border-t border-slate-700/50 pt-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-slate-300">Linked CSV files</span>
+                      <span className="font-bold text-yellow-400">{deleteStats.csvFiles} files ({deleteStats.csvTrades} trades)</span>
+                    </div>
+
+                    <label className="flex items-center gap-3 p-3 bg-slate-700/30 rounded-lg cursor-pointer hover:bg-slate-700/50 transition-colors mt-3">
+                      <input
+                        type="checkbox"
+                        checked={deleteLinkedCSVs}
+                        onChange={(e) => setDeleteLinkedCSVs(e.target.checked)}
+                        className="w-4 h-4 rounded border-slate-600 text-red-500 focus:ring-red-500 focus:ring-offset-slate-900"
+                      />
+                      <span className="text-sm text-slate-300">
+                        Also delete linked CSV files and their {deleteStats.csvTrades} trades
+                      </span>
+                    </label>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false)
+                  setDeletingExchange(null)
+                  setDeleteStats(null)
+                  setDeleteLinkedCSVs(false)
+                }}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-semibold transition-colors disabled:opacity-50"
+              >
+                Keep Connection
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-3 rounded-lg bg-red-500 hover:bg-red-600 text-white font-semibold transition-colors disabled:opacity-50"
+              >
+                {isDeleting ? 'Deleting...' : 'Yes, Disconnect & Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

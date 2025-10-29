@@ -1,6 +1,7 @@
 'use client'
 
 import { Home, Upload, Sparkles, LogOut, TrendingUp, Twitter, Linkedin } from 'lucide-react'
+import { useAlert } from '@/app/components'
 
 export default function Sidebar({
   activePage = 'dashboard',
@@ -11,6 +12,8 @@ export default function Sidebar({
   isMyPatternsDisabled = false,
   isDemoMode = false
 }) {
+  const alert = useAlert()
+
   const handleSignOut = async () => {
     console.log('🔴 Sign out button clicked')
 
@@ -34,18 +37,25 @@ export default function Sidebar({
 
       if (!response.ok) {
         console.error('🔴 Sign out error:', data.error)
+        alert.error('Failed to sign out. Refreshing anyway...')
       } else {
         console.log('🔴 Sign out successful!')
+        alert.success('Signed out successfully')
       }
 
-      // Force a page reload to clear all state
+      // Force a page reload to clear all state (with slight delay for toast to show)
       console.log('🔴 Reloading page...')
-      window.location.href = '/analyze'
+      setTimeout(() => {
+        window.location.href = '/analyze'
+      }, 500)
     } catch (error) {
       console.error('🔴 Sign out catch error:', error)
       clearTimeout(timeoutId)
+      alert.error('Sign out error. Refreshing...')
       // Still reload even on error
-      window.location.href = '/analyze'
+      setTimeout(() => {
+        window.location.href = '/analyze'
+      }, 500)
     }
   }
 

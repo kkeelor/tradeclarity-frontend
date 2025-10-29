@@ -4,8 +4,10 @@
 import { useState } from 'react';
 import { TrendingUp, Lock, Loader2, AlertCircle, Eye, EyeOff, Mail, Shield, Sparkles } from 'lucide-react';
 import { signUpWithEmail, signInWithEmail, signInWithGoogle } from '@/lib/auth';
+import { useAlert } from '@/app/components';
 
 export default function AuthScreen({ onAuthSuccess }) {
+  const alert = useAlert();
   const [mode, setMode] = useState('signin'); // 'signin' or 'signup'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,9 +25,12 @@ export default function AuthScreen({ onAuthSuccess }) {
       if (mode === 'signup') {
         const { data, error } = await signUpWithEmail(email, password, name);
         if (error) throw error;
-        
+
         setError('');
-        alert('Check your email to verify your account!');
+        alert.success('Check your email to verify your account!', {
+          title: 'Account Created',
+          dismissAfter: 10000
+        });
       } else {
         const { data, error } = await signInWithEmail(email, password);
         if (error) throw error;
