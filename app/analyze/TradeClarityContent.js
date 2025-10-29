@@ -521,7 +521,7 @@ export default function TradeClarityContent() {
       } else {
         // Legacy flow: fetch from backend directly
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
-        const endpoint = `${backendUrl}/api/${exchange}/comprehensive`
+        const endpoint = `${backendUrl}/api/${exchange}/fetch-all`
 
         console.log(`📡 Connecting to: ${endpoint}`)
 
