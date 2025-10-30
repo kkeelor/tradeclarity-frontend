@@ -280,7 +280,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
     console.log('🔴 Sign out button clicked')
     const timeoutId = setTimeout(() => {
       console.log('🔴 SignOut timeout - forcing reload anyway')
-      window.location.href = '/analyze'
+      window.location.href = '/'
     }, 3000)
 
     try {
@@ -299,12 +299,12 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
         console.log('🔴 Sign out successful!')
       }
 
-      console.log('🔴 Reloading page...')
-      window.location.href = '/analyze'
+      console.log('🔴 Redirecting to landing page...')
+      window.location.href = '/'
     } catch (error) {
       console.error('🔴 Sign out catch error:', error)
       clearTimeout(timeoutId)
-      window.location.href = '/analyze'
+      window.location.href = '/'
     }
   }
 

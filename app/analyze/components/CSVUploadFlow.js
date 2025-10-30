@@ -367,16 +367,16 @@ export default function CSVUploadFlow({ onBack }) {
 
   const handleSignOut = async () => {
     const timeoutId = setTimeout(() => {
-      window.location.href = '/analyze'
+      window.location.href = '/'
     }, 3000)
 
     try {
       await fetch('/api/auth/signout', { method: 'POST' })
       clearTimeout(timeoutId)
-      window.location.href = '/analyze'
+      window.location.href = '/'
     } catch (error) {
       clearTimeout(timeoutId)
-      window.location.href = '/analyze'
+      window.location.href = '/'
     }
   }
 

@@ -1483,8 +1483,12 @@ export default function AnalyticsView({
   ].filter(tab => tab.show)
 
   const handleSignOut = async () => {
-    const response = await fetch('/api/auth/signout', { method: 'POST' })
-    window.location.href = '/analyze'
+    try {
+      await fetch('/api/auth/signout', { method: 'POST' })
+    } catch (error) {
+      console.error('Sign out error:', error)
+    }
+    window.location.href = '/'
   }
 
   return (

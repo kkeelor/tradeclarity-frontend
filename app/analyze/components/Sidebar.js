@@ -20,7 +20,7 @@ export default function Sidebar({
     // Set a timeout to force reload if signOut takes too long
     const timeoutId = setTimeout(() => {
       console.log('🔴 SignOut timeout - forcing reload anyway')
-      window.location.href = '/analyze'
+      window.location.href = '/'
     }, 3000)
 
     try {
@@ -43,18 +43,18 @@ export default function Sidebar({
         alert.success('Signed out successfully')
       }
 
-      // Force a page reload to clear all state (with slight delay for toast to show)
-      console.log('🔴 Reloading page...')
+      // Redirect to landing page (with slight delay for toast to show)
+      console.log('🔴 Redirecting to landing page...')
       setTimeout(() => {
-        window.location.href = '/analyze'
+        window.location.href = '/'
       }, 500)
     } catch (error) {
       console.error('🔴 Sign out catch error:', error)
       clearTimeout(timeoutId)
       alert.error('Sign out error. Refreshing...')
-      // Still reload even on error
+      // Still redirect even on error
       setTimeout(() => {
-        window.location.href = '/analyze'
+        window.location.href = '/'
       }, 500)
     }
   }
