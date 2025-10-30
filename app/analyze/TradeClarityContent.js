@@ -16,7 +16,7 @@ import demoSpotData from './demo-data/demo-spot-data.json'
 import { TrendingUp, Sparkles, BarChart3, Brain, Zap, Lightbulb } from 'lucide-react'
 
 // Loading screen component for demo mode
-function DemoLoadingScreen({ progress }) {
+function DemoLoadingScreen({ progress, onComplete }) {
   const [loadingProgress, setLoadingProgress] = useState(0)
   const [currentStep, setCurrentStep] = useState(0)
 
@@ -52,6 +52,16 @@ function DemoLoadingScreen({ progress }) {
 
     return () => clearInterval(interval)
   }, [])
+
+  // When progress reaches 100%, notify parent after brief delay
+  useEffect(() => {
+    if (loadingProgress >= 100 && onComplete) {
+      const timer = setTimeout(() => {
+        onComplete()
+      }, 400) // Brief pause at 100% for visual satisfaction
+      return () => clearTimeout(timer)
+    }
+  }, [loadingProgress, onComplete])
 
   const CurrentIcon = steps[currentStep].icon
 
@@ -134,9 +144,10 @@ function DemoLoadingScreen({ progress }) {
 }
 
 // Loading screen component for real mode (API connection)
-function RealModeLoadingScreen({ progress }) {
+function RealModeLoadingScreen({ progress, onComplete }) {
   const [dots, setDots] = useState('.')
   const [progressPercent, setProgressPercent] = useState(0)
+  const [isDataReady, setIsDataReady] = useState(false)
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -144,6 +155,16 @@ function RealModeLoadingScreen({ progress }) {
     }, 500)
     return () => clearInterval(interval)
   }, [])
+
+  // Detect when data is ready based on progress message
+  useEffect(() => {
+    if (progress) {
+      const lowerProgress = progress.toLowerCase()
+      if (lowerProgress.includes('complete') || lowerProgress.includes('preparing')) {
+        setIsDataReady(true)
+      }
+    }
+  }, [progress])
 
   const getCurrentStep = () => {
     if (!progress) return { icon: TrendingUp, label: 'Initializing', step: 0, percent: 5 }
@@ -176,8 +197,15 @@ function RealModeLoadingScreen({ progress }) {
   const currentStep = getCurrentStep()
   const CurrentIcon = currentStep.icon
 
+  // Smooth progress animation that caps at 95% until data is ready
   useEffect(() => {
-    const targetPercent = currentStep.percent
+    let targetPercent = currentStep.percent
+
+    // If data is NOT ready yet, cap at 95% to prevent finishing too early
+    if (!isDataReady && targetPercent >= 95) {
+      targetPercent = 95
+    }
+
     if (progressPercent < targetPercent) {
       const interval = setInterval(() => {
         setProgressPercent(prev => {
@@ -191,7 +219,17 @@ function RealModeLoadingScreen({ progress }) {
       }, 20)
       return () => clearInterval(interval)
     }
-  }, [currentStep.percent])
+  }, [currentStep.percent, isDataReady])
+
+  // When data is ready AND we're at 100%, notify parent after brief delay
+  useEffect(() => {
+    if (isDataReady && progressPercent >= 100 && onComplete) {
+      const timer = setTimeout(() => {
+        onComplete()
+      }, 400) // Brief pause at 100% for visual satisfaction
+      return () => clearTimeout(timer)
+    }
+  }, [isDataReady, progressPercent, onComplete])
 
   const steps = [
     { icon: Zap, label: 'Connecting' },
@@ -302,6 +340,7 @@ export default function TradeClarityContent() {
   const [pendingTradeStorage, setPendingTradeStorage] = useState(null) // For background DB storage
   const [cachedData, setCachedData] = useState(null) // Cache for fetched data
   const [currentConnectionId, setCurrentConnectionId] = useState(null) // Track which exchange is shown
+  const [loadingComplete, setLoadingComplete] = useState(false) // Track when loading animation completes
 
   const exchangeList = getExchangeList()
   const currentExchange = EXCHANGES[exchange]
@@ -365,16 +404,17 @@ export default function TradeClarityContent() {
     setStatus('connecting')
     setProgress('Loading demo data...')
     setIsDemoMode(true)
+    setLoadingComplete(false)
 
     try {
       setTimeout(() => {
         console.log('📊 Loading demo data...')
-        
+
         const spotData = require('./demo-data/demo-spot-data.json')
-        
+
         console.log('Demo spot trades:', spotData.length)
         console.log('Demo futures income:', demoFuturesData.income.length)
-        
+
         const normalizedSpotTrades = spotData.map(trade => ({
           symbol: trade.symbol,
           qty: String(trade.qty),
@@ -389,7 +429,7 @@ export default function TradeClarityContent() {
           id: trade.id,
           accountType: 'SPOT'
         }))
-        
+
         const demoData = {
           spotTrades: normalizedSpotTrades,
           futuresIncome: demoFuturesData.income,
@@ -408,14 +448,14 @@ export default function TradeClarityContent() {
 
         setProgress('Analyzing demo data...')
         const analysis = analyzeData(demoData)
-        
+
         console.log('✅ Demo analysis complete:', analysis)
         console.log('Spot trades:', analysis.spotTrades)
         console.log('Futures trades:', analysis.futuresTrades)
-        
+
         setAnalytics(analysis)
         setCurrencyMetadata(demoData.metadata)
-        setStatus('connected')
+        // Don't set connected yet - wait for loading animation
       }, 1000)
     } catch (err) {
       console.error('Demo loading error:', err)
@@ -428,6 +468,7 @@ export default function TradeClarityContent() {
     setStatus('connecting')
     setError('')
     setProgress('Loading your saved trading data...')
+    setLoadingComplete(false)
 
     try {
       // Check cache: only re-fetch if switching to different exchange/connection
@@ -440,7 +481,8 @@ export default function TradeClarityContent() {
         setAnalytics(analysis)
         setCurrencyMetadata(cachedData.metadata)
         setCurrency(cachedData.metadata?.primaryCurrency || 'USD')
-        setStatus('connected')
+        setProgress('Analysis complete! Preparing dashboard...')
+        // Don't set connected yet - wait for loading animation
         return
       }
 
@@ -494,7 +536,8 @@ export default function TradeClarityContent() {
       setAnalytics(analysis)
       setCurrencyMetadata(data.metadata)
       setCurrency(data.metadata?.primaryCurrency || 'USD')
-      setStatus('connected')
+      setProgress('Analysis complete! Preparing dashboard...')
+      // Don't set connected yet - wait for loading animation
     } catch (err) {
       console.error('View analytics error:', err)
       setError(err.message || 'Failed to load analytics')
@@ -506,6 +549,7 @@ export default function TradeClarityContent() {
     setStatus('connecting')
     setError('')
     setProgress('Connecting to exchange...')
+    setLoadingComplete(false)
 
     try {
       let data
@@ -574,13 +618,21 @@ export default function TradeClarityContent() {
         })
       }
 
-      setStatus('connected')
+      setProgress('Analysis complete! Preparing dashboard...')
+      // Don't set connected yet - wait for loading animation
     } catch (err) {
       console.error('Connection error:', err)
       setError(err.message || 'Failed to connect to exchange. Please check your API credentials.')
       setStatus('error')
     }
   }
+
+  // Transition to connected state when loading animation completes
+  useEffect(() => {
+    if (loadingComplete && analytics && status === 'connecting') {
+      setStatus('connected')
+    }
+  }, [loadingComplete, analytics, status])
 
   // Check if demo mode is requested
   const isDemoRequested = searchParams.get('demo') === 'true'
@@ -645,9 +697,15 @@ export default function TradeClarityContent() {
 
   if (status === 'connecting' || status === 'loading') {
     return isDemoMode ? (
-      <DemoLoadingScreen progress={progress} />
+      <DemoLoadingScreen
+        progress={progress}
+        onComplete={() => setLoadingComplete(true)}
+      />
     ) : (
-      <RealModeLoadingScreen progress={progress} />
+      <RealModeLoadingScreen
+        progress={progress}
+        onComplete={() => setLoadingComplete(true)}
+      />
     )
   }
 
@@ -676,6 +734,7 @@ export default function TradeClarityContent() {
           setShowCSVUpload(false)
           setCachedData(null)
           setCurrentConnectionId(null)
+          setLoadingComplete(false)
         }}
         onUploadClick={() => {
           // If in demo mode without auth, redirect to auth page
@@ -688,6 +747,7 @@ export default function TradeClarityContent() {
           setAnalytics(null)
           setShowAPIConnection(false)
           setShowCSVUpload(true)
+          setLoadingComplete(false)
         }}
         onViewAllExchanges={() => {
           // View combined analytics for all exchanges

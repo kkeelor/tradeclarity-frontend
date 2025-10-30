@@ -2,16 +2,25 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, LogOut, BarChart3, Sparkles, Database, CheckSquare, Square } from 'lucide-react'
+import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, LogOut, BarChart3, Sparkles, Database, CheckSquare, Square, Loader2 } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
-import { useAlert, ConfirmAlert } from '@/app/components'
+import { toast } from 'sonner'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog'
 import { DashboardStatsSkeleton, DataSourceSkeleton } from '@/app/components/LoadingSkeletons'
 import ConnectExchangeModal from './ConnectExchangeModal'
 import Sidebar from './Sidebar'
 
 export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithCSV, onViewAnalytics }) {
   const { user } = useAuth()
-  const alert = useAlert()
   const [uploadedFiles, setUploadedFiles] = useState([])
   const [connectedExchanges, setConnectedExchanges] = useState([])
   const [showConnectModal, setShowConnectModal] = useState(false)
@@ -175,7 +184,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
       })
 
       if (!response.ok) {
-        alert.error('Failed to preview deletion impact')
+        toast.error('Failed to preview deletion impact')
         return
       }
 
@@ -215,9 +224,9 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
           ? `Exchange disconnected. ${data.totalTradesDeleted} trades and ${data.csvFilesDeleted} CSV files deleted.`
           : `Exchange disconnected. ${data.apiTradesDeleted} API trades deleted. ${data.csvFilesUnlinked} CSV files kept.`
 
-        alert.success(message, {
-          title: 'Exchange Disconnected',
-          dismissAfter: 8000
+        toast.success('Exchange Disconnected', {
+          description: message,
+          duration: 8000
         })
 
         // Refresh files list if CSVs were affected
@@ -225,11 +234,11 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
           await fetchUploadedFiles()
         }
       } else {
-        alert.error(data.error || 'Failed to delete exchange connection')
+        toast.error(data.error || 'Failed to delete exchange connection')
       }
     } catch (error) {
       console.error('Error deleting exchange:', error)
-      alert.error('Failed to delete exchange connection')
+      toast.error('Failed to delete exchange connection')
     } finally {
       setIsDeleting(false)
       setShowDeleteConfirm(false)
@@ -725,68 +734,95 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
       />
 
       {/* Exchange Delete Confirmation Dialog */}
-      {showDeleteConfirm && deletingExchange && deleteStats && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="max-w-lg w-full bg-slate-900 border border-slate-700 rounded-2xl p-6">
-            <div className="mb-6">
-              <h3 className="text-2xl font-bold mb-2">Disconnect {deletingExchange.exchange}?</h3>
-              <p className="text-slate-400">This action will affect the following data:</p>
-            </div>
-
-            <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 mb-6 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-300">API-imported trades</span>
-                <span className="font-bold text-red-400">{deleteStats.apiTrades} will be deleted</span>
+      <AlertDialog open={showDeleteConfirm && deletingExchange && deleteStats} onOpenChange={(open) => {
+        if (!open) {
+          setShowDeleteConfirm(false)
+          setDeletingExchange(null)
+          setDeleteStats(null)
+          setDeleteLinkedCSVs(false)
+        }
+      }}>
+        <AlertDialogContent
+          className="max-w-md"
+          onEscapeKeyDown={() => {
+            setShowDeleteConfirm(false)
+            setDeletingExchange(null)
+            setDeleteStats(null)
+            setDeleteLinkedCSVs(false)
+          }}
+          onPointerDownOutside={() => {
+            setShowDeleteConfirm(false)
+            setDeletingExchange(null)
+            setDeleteStats(null)
+            setDeleteLinkedCSVs(false)
+          }}
+        >
+          <AlertDialogHeader>
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-red-500/10 ring-4 ring-red-500/20">
+                <AlertCircle className="h-6 w-6 text-red-500" />
               </div>
+              <div className="flex-1">
+                <AlertDialogTitle className="text-xl">
+                  Disconnect {deletingExchange?.name}?
+                </AlertDialogTitle>
+                <AlertDialogDescription className="mt-2">
+                  This action will permanently delete data associated with this exchange connection.
+                </AlertDialogDescription>
+              </div>
+            </div>
+          </AlertDialogHeader>
 
-              {deleteStats.csvFiles > 0 && (
-                <>
-                  <div className="border-t border-slate-700/50 pt-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-slate-300">Linked CSV files</span>
-                      <span className="font-bold text-yellow-400">{deleteStats.csvFiles} files ({deleteStats.csvTrades} trades)</span>
-                    </div>
-
-                    <label className="flex items-center gap-3 p-3 bg-slate-700/30 rounded-lg cursor-pointer hover:bg-slate-700/50 transition-colors mt-3">
-                      <input
-                        type="checkbox"
-                        checked={deleteLinkedCSVs}
-                        onChange={(e) => setDeleteLinkedCSVs(e.target.checked)}
-                        className="w-4 h-4 rounded border-slate-600 text-red-500 focus:ring-red-500 focus:ring-offset-slate-900"
-                      />
-                      <span className="text-sm text-slate-300">
-                        Also delete linked CSV files and their {deleteStats.csvTrades} trades
-                      </span>
-                    </label>
-                  </div>
-                </>
-              )}
+          {/* Custom delete statistics content */}
+          <div className="space-y-3 border-t border-slate-700/50 pt-4">
+            <div className="flex items-center justify-between rounded-lg bg-slate-800/50 px-4 py-3">
+              <span className="text-sm text-slate-300">API-imported trades</span>
+              <span className="font-semibold text-red-400">{deleteStats?.apiTrades || 0} deleted</span>
             </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowDeleteConfirm(false)
-                  setDeletingExchange(null)
-                  setDeleteStats(null)
-                  setDeleteLinkedCSVs(false)
-                }}
-                disabled={isDeleting}
-                className="flex-1 px-4 py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-semibold transition-colors disabled:opacity-50"
-              >
-                Keep Connection
-              </button>
-              <button
-                onClick={handleDeleteConfirm}
-                disabled={isDeleting}
-                className="flex-1 px-4 py-3 rounded-lg bg-red-500 hover:bg-red-600 text-white font-semibold transition-colors disabled:opacity-50"
-              >
-                {isDeleting ? 'Deleting...' : 'Yes, Disconnect & Delete'}
-              </button>
-            </div>
+            {deleteStats?.csvFiles > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between rounded-lg bg-amber-500/10 px-4 py-3">
+                  <span className="text-sm text-slate-300">Linked CSV files</span>
+                  <span className="font-semibold text-amber-400">{deleteStats.csvFiles} files ({deleteStats.csvTrades} trades)</span>
+                </div>
+
+                <label className="flex items-start gap-3 rounded-lg bg-slate-800/30 p-3 cursor-pointer hover:bg-slate-800/50 transition-colors border border-slate-700/30">
+                  <input
+                    type="checkbox"
+                    checked={deleteLinkedCSVs}
+                    onChange={(e) => setDeleteLinkedCSVs(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-slate-600 text-red-500 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-slate-900"
+                  />
+                  <span className="text-sm text-slate-300 leading-relaxed">
+                    Also delete linked CSV files and their {deleteStats.csvTrades} trades
+                  </span>
+                </label>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+
+          <AlertDialogFooter className="mt-6">
+            <AlertDialogCancel disabled={isDeleting}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+              className="bg-red-500 text-white hover:bg-red-600 focus-visible:ring-red-500"
+            >
+              {isDeleting ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Deleting...
+                </span>
+              ) : (
+                'Delete Connection'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

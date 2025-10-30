@@ -4,7 +4,17 @@
 import { useState, useEffect } from 'react'
 import { TrendingUp, Upload, FileText, X, AlertCircle, CheckCircle, Trash2, Home, LogOut, Sparkles, Loader2, Check, ChevronDown, ArrowLeft } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
-import { useAlert, ConfirmAlert } from '@/app/components'
+import { toast } from 'sonner'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog'
 import { UploadedFilesSkeleton } from '@/app/components/LoadingSkeletons'
 import Sidebar from './Sidebar'
 
@@ -12,7 +22,6 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB per file
 
 export default function CSVUploadFlow({ onBack }) {
   const { user } = useAuth()
-  const alert = useAlert()
   const [fileConfigs, setFileConfigs] = useState([])
   const [uploadedFiles, setUploadedFiles] = useState([])
   const [connectedExchanges, setConnectedExchanges] = useState([])
@@ -134,9 +143,9 @@ export default function CSVUploadFlow({ onBack }) {
           })
 
           // Show success toast for AI detection
-          alert.success(
+          toast.success(
             `Format detected: ${detection.detectedExchange || 'Unknown'} (${Math.round(detection.confidence * 100)}% confidence)`,
-            { dismissAfter: 3000 }
+            { duration: 3000 }
           )
         } else {
           // Low confidence - fall back to manual selection
@@ -248,12 +257,12 @@ export default function CSVUploadFlow({ onBack }) {
           status: 'error',
           message: errorMsg
         })
-        alert.error(errorMsg, { title: 'Parse Error' })
+        toast.error('Parse Error', { description: errorMsg })
         return
       }
 
       // Show success toast for successful parsing
-      alert.success('File parsed successfully', { dismissAfter: 2000 })
+      toast.success('File parsed successfully', { duration: 2000 })
 
       // Step 2: Save CSV metadata first (to get csvUploadId for linking trades)
       updateConfig(configId, {
@@ -281,7 +290,7 @@ export default function CSVUploadFlow({ onBack }) {
           status: 'error',
           message: errorMsg
         })
-        alert.error(errorMsg, { title: 'Upload Error' })
+        toast.error('Upload Error', { description: errorMsg })
         return
       }
 
@@ -313,7 +322,7 @@ export default function CSVUploadFlow({ onBack }) {
           status: 'error',
           message: errorMsg
         })
-        alert.error(errorMsg, { title: 'Storage Error' })
+        toast.error('Storage Error', { description: errorMsg })
         return
       }
 
@@ -332,19 +341,19 @@ export default function CSVUploadFlow({ onBack }) {
       })
 
       // Show success toast
-      alert.success(
-        `${newTrades} trade${newTrades !== 1 ? 's' : ''} imported successfully`,
+      toast.success(
+        'Import Complete',
         {
-          title: 'Import Complete',
-          dismissAfter: 5000
+          description: `${newTrades} trade${newTrades !== 1 ? 's' : ''} imported successfully`,
+          duration: 5000
         }
       )
 
       // Show warning toast for duplicates
       if (duplicates > 0) {
-        alert.warning(
+        toast.warning(
           `${duplicates} duplicate trade${duplicates !== 1 ? 's' : ''} skipped`,
-          { dismissAfter: 4000 }
+          { duration: 4000 }
         )
       }
 
@@ -358,9 +367,9 @@ export default function CSVUploadFlow({ onBack }) {
         status: 'error',
         message: errorMsg
       })
-      alert.error(errorMsg, {
-        title: 'Upload Failed',
-        dismissAfter: 6000
+      toast.error('Upload Failed', {
+        description: errorMsg,
+        duration: 6000
       })
     }
   }
@@ -723,7 +732,6 @@ function FileConfigCard({ config, connectedExchanges, onUpdate, onRemove, getSta
 
 // Component for previously uploaded files
 function UploadedFileCard({ file, connectedExchanges, onRefresh }) {
-  const alert = useAlert()
   const [showExchangeDropdown, setShowExchangeDropdown] = useState(false)
   const [linking, setLinking] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -745,13 +753,13 @@ function UploadedFileCard({ file, connectedExchanges, onRefresh }) {
 
       if (response.ok) {
         await onRefresh()
-        alert.success('Exchange linked successfully')
+        toast.success('Exchange linked successfully')
       } else {
-        alert.error('Failed to link exchange')
+        toast.error('Failed to link exchange')
       }
     } catch (error) {
       console.error('Error linking exchange:', error)
-      alert.error('Failed to link exchange')
+      toast.error('Failed to link exchange')
     } finally {
       setLinking(false)
       setShowExchangeDropdown(false)
@@ -777,27 +785,27 @@ function UploadedFileCard({ file, connectedExchanges, onRefresh }) {
       if (response.ok) {
         if (data.hasDataIntegrityIssue) {
           // Data integrity issue - trades weren't properly linked
-          alert.warning(
-            `File deleted, but data integrity issue detected. Expected ${data.expectedTradesCount} trades, only deleted ${data.tradesDeleted}. This may indicate trades from this CSV weren't properly linked.`,
+          toast.warning(
+            'Partial Deletion',
             {
-              title: 'Partial Deletion',
-              dismissAfter: 12000
+              description: `File deleted, but data integrity issue detected. Expected ${data.expectedTradesCount} trades, only deleted ${data.tradesDeleted}. This may indicate trades from this CSV weren't properly linked.`,
+              duration: 12000
             }
           )
         } else {
           // Normal deletion
-          alert.success(
-            `File deleted successfully. ${data.tradesDeleted || 0} associated trades removed.`,
-            { title: 'File Deleted' }
+          toast.success(
+            'File Deleted',
+            { description: `File deleted successfully. ${data.tradesDeleted || 0} associated trades removed.` }
           )
         }
         await onRefresh()
       } else {
-        alert.error(data.error || 'Failed to delete file')
+        toast.error(data.error || 'Failed to delete file')
       }
     } catch (error) {
       console.error('Error deleting file:', error)
-      alert.error('Failed to delete file')
+      toast.error('Failed to delete file')
     } finally {
       setIsDeleting(false)
       setShowDeleteConfirm(false)
@@ -891,23 +899,56 @@ function UploadedFileCard({ file, connectedExchanges, onRefresh }) {
       </div>
 
       {/* Delete confirmation dialog */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="max-w-lg w-full">
-            <ConfirmAlert
-              variant="warning"
-              title="Delete CSV File?"
-              message={`Are you sure you want to delete "${file.label || file.filename}"? All ${file.trades_count || 0} associated trades will be permanently removed from the database. This action cannot be undone.`}
-              confirmText="Yes, Delete File"
-              cancelText="Keep File"
-              confirmVariant="danger"
-              onConfirm={handleDeleteConfirm}
-              onCancel={() => setShowDeleteConfirm(false)}
-              isLoading={isDeleting}
-            />
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent
+          className="max-w-md"
+          onEscapeKeyDown={() => setShowDeleteConfirm(false)}
+          onPointerDownOutside={() => setShowDeleteConfirm(false)}
+        >
+          <AlertDialogHeader>
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-red-500/10 ring-4 ring-red-500/20">
+                <Trash2 className="h-6 w-6 text-red-500" />
+              </div>
+              <div className="flex-1">
+                <AlertDialogTitle className="text-xl">
+                  Delete CSV File?
+                </AlertDialogTitle>
+                <AlertDialogDescription className="mt-2">
+                  "{file.label || file.filename}" and all {file.trades_count || 0} associated trades will be permanently removed. This action cannot be undone.
+                </AlertDialogDescription>
+              </div>
+            </div>
+          </AlertDialogHeader>
+
+          <div className="border-t border-slate-700/50 pt-4">
+            <div className="flex items-center justify-between rounded-lg bg-slate-800/50 px-4 py-3">
+              <span className="text-sm text-slate-300">Trades to delete</span>
+              <span className="font-semibold text-red-400">{file.trades_count || 0}</span>
+            </div>
           </div>
-        </div>
-      )}
+
+          <AlertDialogFooter className="mt-6">
+            <AlertDialogCancel disabled={isDeleting}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+              className="bg-red-500 text-white hover:bg-red-600 focus-visible:ring-red-500"
+            >
+              {isDeleting ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Deleting...
+                </span>
+              ) : (
+                'Delete File'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
