@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, LogOut, BarChart3, Sparkles, Database, CheckSquare, Square } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { useAlert, ConfirmAlert } from '@/app/components'
+import { DashboardStatsSkeleton, DataSourceSkeleton } from '@/app/components/LoadingSkeletons'
 import ConnectExchangeModal from './ConnectExchangeModal'
 import Sidebar from './Sidebar'
 
@@ -17,6 +18,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [loadingExchanges, setLoadingExchanges] = useState(true)
   const [loadingFiles, setLoadingFiles] = useState(true)
+  const [loadingStats, setLoadingStats] = useState(true)
   const [tradesStats, setTradesStats] = useState(null)
   const [selectedSources, setSelectedSources] = useState([]) // Array of {type: 'exchange'|'csv', id: string}
 
@@ -43,6 +45,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
   }, [])
 
   const fetchConnectedExchanges = async () => {
+    const startTime = Date.now()
     try {
       console.log('📡 [Dashboard] Fetching connected exchanges...')
       const response = await fetch('/api/exchange/list')
@@ -66,11 +69,15 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
     } catch (error) {
       console.error('❌ [Dashboard] Error fetching exchanges:', error)
     } finally {
-      setLoadingExchanges(false)
+      // Ensure minimum 350ms loading time for skeleton visibility
+      const elapsed = Date.now() - startTime
+      const remaining = Math.max(0, 350 - elapsed)
+      setTimeout(() => setLoadingExchanges(false), remaining)
     }
   }
 
   const fetchUploadedFiles = async () => {
+    const startTime = Date.now()
     try {
       const response = await fetch('/api/csv/list')
       const data = await response.json()
@@ -81,11 +88,15 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
     } catch (error) {
       console.error('Error fetching uploaded files:', error)
     } finally {
-      setLoadingFiles(false)
+      // Ensure minimum 350ms loading time for skeleton visibility
+      const elapsed = Date.now() - startTime
+      const remaining = Math.max(0, 350 - elapsed)
+      setTimeout(() => setLoadingFiles(false), remaining)
     }
   }
 
   const fetchTradesStats = async () => {
+    const startTime = Date.now()
     try {
       const response = await fetch('/api/trades/fetch')
       const data = await response.json()
@@ -95,6 +106,11 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
       }
     } catch (error) {
       console.error('Error fetching trades stats:', error)
+    } finally {
+      // Ensure minimum 350ms loading time for skeleton visibility
+      const elapsed = Date.now() - startTime
+      const remaining = Math.max(0, 350 - elapsed)
+      setTimeout(() => setLoadingStats(false), remaining)
     }
   }
 
@@ -361,7 +377,9 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
         <main className="flex-1 overflow-y-auto px-6 py-6">
           <div className="max-w-5xl mx-auto space-y-6">
             {/* Stats Overview & Smart Recommendations */}
-            {tradesStats && tradesStats.totalTrades > 0 ? (
+            {loadingStats ? (
+              <DashboardStatsSkeleton />
+            ) : tradesStats && tradesStats.totalTrades > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Stats Card */}
                 <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-4">
@@ -504,7 +522,9 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                 </button>
               </div>
 
-              {connectedExchanges.length === 0 && unlinkedFiles.length === 0 ? (
+              {loadingExchanges || loadingFiles ? (
+                <DataSourceSkeleton count={2} />
+              ) : connectedExchanges.length === 0 && unlinkedFiles.length === 0 ? (
                 <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-8 text-center">
                   <div className="w-12 h-12 bg-slate-700/50 rounded-lg flex items-center justify-center mx-auto mb-3">
                     <Database className="w-5 h-5 text-slate-500" />

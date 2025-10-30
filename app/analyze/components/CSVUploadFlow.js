@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { TrendingUp, Upload, FileText, X, AlertCircle, CheckCircle, Trash2, Home, LogOut, Sparkles, Loader2, Check, ChevronDown, ArrowLeft } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { useAlert, ConfirmAlert } from '@/app/components'
+import { UploadedFilesSkeleton } from '@/app/components/LoadingSkeletons'
 import Sidebar from './Sidebar'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB per file
@@ -26,6 +27,7 @@ export default function CSVUploadFlow({ onBack }) {
   }, [])
 
   const fetchConnectedExchanges = async () => {
+    const startTime = Date.now()
     try {
       const response = await fetch('/api/exchange/list')
       const data = await response.json()
@@ -42,11 +44,15 @@ export default function CSVUploadFlow({ onBack }) {
     } catch (error) {
       console.error('Error fetching exchanges:', error)
     } finally {
-      setLoadingExchanges(false)
+      // Ensure minimum 350ms loading time for skeleton visibility
+      const elapsed = Date.now() - startTime
+      const remaining = Math.max(0, 350 - elapsed)
+      setTimeout(() => setLoadingExchanges(false), remaining)
     }
   }
 
   const fetchUploadedFiles = async () => {
+    const startTime = Date.now()
     try {
       const response = await fetch('/api/csv/list')
       const data = await response.json()
@@ -57,7 +63,10 @@ export default function CSVUploadFlow({ onBack }) {
     } catch (error) {
       console.error('Error fetching uploaded files:', error)
     } finally {
-      setLoadingUploaded(false)
+      // Ensure minimum 350ms loading time for skeleton visibility
+      const elapsed = Date.now() - startTime
+      const remaining = Math.max(0, 350 - elapsed)
+      setTimeout(() => setLoadingUploaded(false), remaining)
     }
   }
 
@@ -526,7 +535,16 @@ export default function CSVUploadFlow({ onBack }) {
             )}
 
             {/* Uploaded Files Section */}
-            {uploadedFiles.length > 0 && (
+            {loadingUploaded ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-slate-300">
+                    Previously Uploaded Files
+                  </h3>
+                </div>
+                <UploadedFilesSkeleton count={3} />
+              </div>
+            ) : uploadedFiles.length > 0 && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-medium text-slate-300">

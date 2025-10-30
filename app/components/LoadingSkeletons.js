@@ -160,6 +160,109 @@ export function MetricCardsSkeleton({ count = 4 }) {
 }
 
 /**
+ * Dashboard Stats Skeleton
+ * Matches the 2-column stats grid
+ */
+export function DashboardStatsSkeleton() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Stats Card Skeleton */}
+      <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-4 space-y-3">
+        <Skeleton className="h-3 w-32" />
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-4 w-16" />
+          </div>
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-4 w-12" />
+          </div>
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-3 w-28" />
+          </div>
+        </div>
+      </div>
+
+      {/* Recommendations Card Skeleton */}
+      <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20 rounded-xl p-4 space-y-3">
+        <Skeleton className="h-3 w-20 bg-emerald-500/20" />
+        <Skeleton className="h-12 w-full bg-emerald-500/10" />
+        <Skeleton className="h-4 w-24 bg-emerald-500/20" />
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Data Source Card Skeleton
+ * Matches exchange/CSV card layout
+ */
+export function DataSourceSkeleton({ count = 2 }) {
+  return (
+    <div className="space-y-2">
+      {[...Array(count)].map((_, i) => (
+        <div key={i} className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 flex-1">
+              {/* Checkbox skeleton */}
+              <Skeleton className="w-5 h-5 rounded" />
+              {/* Icon skeleton */}
+              <Skeleton className="w-10 h-10 rounded-lg" />
+              {/* Content */}
+              <div className="flex-1 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-16" />
+                </div>
+                <Skeleton className="h-3 w-32" />
+              </div>
+            </div>
+            {/* Action buttons */}
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-7 w-16 rounded-lg" />
+              <Skeleton className="h-7 w-7 rounded-lg" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * Uploaded Files Skeleton
+ * Matches the uploaded file card layout in CSVUploadFlow
+ */
+export function UploadedFilesSkeleton({ count = 3 }) {
+  return (
+    <div className="space-y-2">
+      {[...Array(count)].map((_, i) => (
+        <div key={i} className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 space-y-3">
+              <div className="flex items-center gap-2">
+                <Skeleton className="w-4 h-4" />
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-5 w-20 rounded" />
+              </div>
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-3 w-12" />
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+              <Skeleton className="h-3 w-32" />
+            </div>
+            <Skeleton className="w-7 h-7 rounded-lg" />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/**
  * Full Page Loading
  * For initial page load
  */
