@@ -1,7 +1,7 @@
 'use client'
 
 import { Home, Upload, Sparkles, LogOut, TrendingUp, Twitter, Linkedin } from 'lucide-react'
-import { useAlert } from '@/app/components'
+import { toast } from 'sonner'
 
 export default function Sidebar({
   activePage = 'dashboard',
@@ -12,8 +12,6 @@ export default function Sidebar({
   isMyPatternsDisabled = false,
   isDemoMode = false
 }) {
-  const alert = useAlert()
-
   const handleSignOut = async () => {
     console.log('🔴 Sign out button clicked')
 
@@ -37,10 +35,10 @@ export default function Sidebar({
 
       if (!response.ok) {
         console.error('🔴 Sign out error:', data.error)
-        alert.error('Failed to sign out. Refreshing anyway...')
+        toast.error('Failed to sign out. Refreshing anyway...')
       } else {
         console.log('🔴 Sign out successful!')
-        alert.success('Signed out successfully')
+        toast.success('Signed out successfully')
       }
 
       // Redirect to landing page (with slight delay for toast to show)
@@ -51,7 +49,7 @@ export default function Sidebar({
     } catch (error) {
       console.error('🔴 Sign out catch error:', error)
       clearTimeout(timeoutId)
-      alert.error('Sign out error. Refreshing...')
+      toast.error('Sign out error. Refreshing...')
       // Still redirect even on error
       setTimeout(() => {
         window.location.href = '/'

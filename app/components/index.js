@@ -9,7 +9,6 @@ export { SectionHeader, SectionHeaderWithAction, SimpleSectionHeader } from './S
 export { MetricDisplay, LargeMetricDisplay, SimpleStat, StatRow } from './MetricDisplay'
 export { EmptyState, LimitedDataNotice, DataQualityBanner } from './EmptyState'
 export { Alert, InlineAlert, CompactAlert, ConfirmAlert } from './Alert'
-export { AlertProvider, useAlert, toast } from './AlertProvider'
 export {
   HeroSkeleton,
   ChartSkeleton,
