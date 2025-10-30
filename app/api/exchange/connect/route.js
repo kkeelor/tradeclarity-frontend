@@ -96,7 +96,12 @@ export async function POST(request) {
     // Pass credentials directly instead of querying database again
     let fetchResult = null
     try {
-      const fetchResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/exchange/fetch-data`, {
+      // Auto-detect the correct URL based on the request
+      const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
+      const host = request.headers.get('host') || 'localhost:3000'
+      const baseUrl = `${protocol}://${host}`
+
+      const fetchResponse = await fetch(`${baseUrl}/api/exchange/fetch-data`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
