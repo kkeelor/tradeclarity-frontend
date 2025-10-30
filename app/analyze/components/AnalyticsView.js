@@ -8,8 +8,13 @@ import {
   Zap, Layers, TrendingDown, Eye, Flame, Trophy, Shield,
   BarChart3, PieChart, LineChart, ArrowUpRight, ArrowDownRight,
   AlertCircle, Sparkles, ChevronRight, ChevronLeft, ChevronDown,
-  Scissors, Shuffle
+  Scissors, Shuffle, Coffee, Tv, Pizza, Fuel, Utensils,
+  Database, FileText
 } from 'lucide-react'
+import { generatePerformanceAnalogies } from '../utils/performanceAnalogies'
+import { analyzeDrawdowns } from '../utils/drawdownAnalysis'
+import { analyzeTimeBasedPerformance } from '../utils/timeBasedAnalysis'
+import { analyzeSymbols } from '../utils/symbolAnalysis'
 import Sidebar from './Sidebar'
 import {
   AreaChart, Area, BarChart, Bar, LineChart as RechartsLineChart,
@@ -81,158 +86,98 @@ function HeroSection({ analytics, currSymbol, metadata }) {
 
   return (
     <div className="space-y-6">
+      {/* Data Source Banner */}
+      {(metadata?.exchanges?.length > 0 || metadata?.csvFiles?.length > 0) && (
+        <div className="bg-slate-800/30 border border-slate-700/50 rounded-lg p-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2 text-sm text-slate-400">
+              <Database className="w-4 h-4" />
+              <span className="font-semibold">Data Sources:</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {metadata.exchanges?.map((exchange, idx) => (
+                <div key={idx} className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-md text-xs font-medium text-emerald-400">
+                  {exchange.toUpperCase()}
+                </div>
+              ))}
+              {metadata.csvFiles?.map((file, idx) => (
+                <div key={idx} className="px-3 py-1 bg-cyan-500/10 border border-cyan-500/20 rounded-md text-xs font-medium text-cyan-400 flex items-center gap-1">
+                  <FileText className="w-3 h-3" />
+                  {file.filename || `CSV ${idx + 1}`}
+                </div>
+              ))}
+            </div>
+            <div className="ml-auto flex items-center gap-2 text-xs text-slate-400">
+              <Activity className="w-3 h-3" />
+              <span className="font-semibold">{tradeCount.toLocaleString()}</span> trades analyzed
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Limited Data Notice - Show if user has fewer than 20 trades */}
       <LimitedDataNotice tradeCount={tradeCount} minRecommended={20} />
 
       {/* Data Quality Banner - Show if user has good data (50+ trades) */}
       <DataQualityBanner tradeCount={tradeCount} symbolCount={symbolCount} />
 
-      {/* Featured P&L Card - The Star */}
-      <div className="relative group">
-        <div className={`absolute inset-0 rounded-3xl blur-2xl group-hover:blur-3xl transition-all ${
-          isProfitable
-            ? 'bg-gradient-to-r from-emerald-500/10 to-emerald-500/5'
-            : 'bg-gradient-to-r from-red-500/10 to-red-500/5'
-        }`} />
-
-        <div className="relative bg-slate-900 backdrop-blur-xl border border-slate-700/50 rounded-2xl md:rounded-3xl p-6 md:p-8 lg:p-12">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8">
-            {/* Left: Main P&L */}
-            <div className="text-center md:text-left w-full md:w-auto">
-              <div className="flex items-center justify-center md:justify-start gap-3 mb-4">
-                <div className={`w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center ${
-                  isProfitable ? 'bg-emerald-500/20' : 'bg-red-500/20'
-                }`}>
-                  <DollarSign className={`w-6 h-6 md:w-8 md:h-8 ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`} />
-                </div>
-                <div className="text-left">
-                  <div className="text-xs md:text-sm text-slate-400 uppercase tracking-wider font-medium">Total Profit & Loss</div>
-                  <div className="text-[10px] md:text-xs text-slate-500">All time performance</div>
-                </div>
-              </div>
-
-              <div className={`text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-2 ${
-                isProfitable ? 'text-emerald-400' : 'text-red-400'
+      {/* Featured P&L Card - Simplified */}
+      <div className="bg-slate-900/50 border border-slate-700/50 rounded-xl p-6 md:p-8">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+          {/* Left: Main P&L */}
+          <div className="text-center md:text-left">
+            <div className="flex items-center justify-center md:justify-start gap-3 mb-3">
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                isProfitable ? 'bg-emerald-500/10' : 'bg-red-500/10'
               }`}>
-                {isProfitable ? '+' : ''}{currSymbol}{Math.abs(analytics.totalPnL).toFixed(2)}
+                <DollarSign className={`w-5 h-5 ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`} />
               </div>
+              <div className="text-left">
+                <div className="text-xs text-slate-400 uppercase tracking-wider font-medium">Total P&L</div>
+              </div>
+            </div>
 
-              <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 md:gap-4 text-xs md:text-sm text-slate-400">
-                <span className="flex items-center gap-1">
-                  <Activity className="w-3 h-3 md:w-4 md:h-4" />
-                  {analytics.totalTrades} trades
-                </span>
-                <span>•</span>
-                <span className="flex items-center gap-1">
-                  <TrendingUp className="w-3 h-3 md:w-4 md:h-4" />
-                  {analytics.roi?.toFixed(1) || '0.0'}% ROI
-                </span>
-              </div>
+            <div className={`text-4xl md:text-5xl font-bold mb-2 ${
+              isProfitable ? 'text-emerald-400' : 'text-red-400'
+            }`}>
+              {isProfitable ? '+' : ''}{currSymbol}{Math.abs(analytics.totalPnL).toFixed(2)}
             </div>
-            
-            {/* Right: Quick Stats */}
-            <div className="grid grid-cols-2 gap-4 w-full md:w-auto">
-              <QuickStat
-                label="Win Rate"
-                value={`${analytics.winRate.toFixed(1)}%`}
-                subtitle={`${analytics.winningTrades}W / ${analytics.losingTrades}L`}
-                icon={Target}
-                good={analytics.winRate >= 55}
-              />
-              <QuickStat
-                label="Profit Factor"
-                value={analytics.profitFactor.toFixed(2)}
-                subtitle={analytics.profitFactor >= 2 ? 'Excellent' : 'Good'}
-                icon={TrendingUp}
-                good={analytics.profitFactor >= 1.5}
-              />
-              <QuickStat
-                label="Best Symbol"
-                value={analytics.bestSymbol || 'N/A'}
-                subtitle={analytics.symbols[analytics.bestSymbol]?.winRate.toFixed(0) + '% WR' || ''}
-                icon={Award}
-              />
-              <QuickStat
-                label="Discipline"
-                value={psychology.disciplineScore || 50}
-                subtitle="/100"
-                icon={Brain}
-                good={psychology.disciplineScore >= 70}
-              />
+
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 text-xs text-slate-400">
+              <span className="flex items-center gap-1">
+                <Activity className="w-3 h-3" />
+                {analytics.totalTrades} trades
+              </span>
+              <span>•</span>
+              <span className="flex items-center gap-1">
+                <TrendingUp className="w-3 h-3" />
+                {analytics.roi?.toFixed(1) || '0.0'}% ROI
+              </span>
             </div>
+          </div>
+
+          {/* Right: Quick Stats */}
+          <div className="grid grid-cols-2 gap-3">
+            <QuickStat
+              label="Win Rate"
+              value={`${analytics.winRate.toFixed(1)}%`}
+              subtitle={`${analytics.winningTrades}W / ${analytics.losingTrades}L`}
+              icon={Target}
+              good={analytics.winRate >= 55}
+            />
+            <QuickStat
+              label="Profit Factor"
+              value={analytics.profitFactor.toFixed(2)}
+              subtitle={analytics.profitFactor >= 2 ? 'Excellent' : 'Good'}
+              icon={TrendingUp}
+              good={analytics.profitFactor >= 1.5}
+            />
           </div>
         </div>
       </div>
 
-      {/* Portfolio Overview - Show if metadata is available */}
-      {metadata && metadata.totalPortfolioValue > 0 && (
-        <Card variant="glass" className="overflow-hidden">
-          <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-700/50">
-            {/* Total Portfolio Value */}
-            <div className="p-6">
-              <div className="flex items-center gap-2 mb-3">
-                <IconBadge icon={Layers} color="purple" size="sm" />
-                <span className="text-xs text-slate-400 uppercase tracking-wider">Portfolio Value</span>
-              </div>
-              <div className="text-3xl font-bold text-purple-400 mb-1">
-                {currSymbol}{metadata.totalPortfolioValue.toFixed(2)}
-              </div>
-              <div className="text-xs text-slate-500">
-                {metadata.accountType === 'MIXED' ? 'Spot + Futures' : metadata.accountType}
-              </div>
-            </div>
-
-            {/* Spot Holdings */}
-            {metadata.totalSpotValue > 0 && (
-              <div className="p-6">
-                <div className="flex items-center gap-2 mb-3">
-                  <IconBadge icon={DollarSign} color="emerald" size="sm" />
-                  <span className="text-xs text-slate-400 uppercase tracking-wider">Spot Holdings</span>
-                </div>
-                <div className="text-3xl font-bold text-emerald-400 mb-1">
-                  {currSymbol}{metadata.totalSpotValue.toFixed(2)}
-                </div>
-                <div className="text-xs text-slate-500">
-                  {metadata.spotHoldings?.length || 0} assets
-                </div>
-              </div>
-            )}
-
-            {/* Futures Balance */}
-            {metadata.totalFuturesValue > 0 && (
-              <div className="p-6">
-                <div className="flex items-center gap-2 mb-3">
-                  <IconBadge icon={Zap} color="cyan" size="sm" />
-                  <span className="text-xs text-slate-400 uppercase tracking-wider">Futures Balance</span>
-                </div>
-                <div className="text-3xl font-bold text-cyan-400 mb-1">
-                  {currSymbol}{metadata.totalFuturesValue.toFixed(2)}
-                </div>
-                <div className="text-xs text-slate-500">
-                  {metadata.futuresPositions || 0} open positions
-                </div>
-              </div>
-            )}
-
-            {/* Trading Period */}
-            {metadata.tradingPeriodDays > 0 && (
-              <div className="p-6">
-                <div className="flex items-center gap-2 mb-3">
-                  <IconBadge icon={Calendar} color="yellow" size="sm" />
-                  <span className="text-xs text-slate-400 uppercase tracking-wider">Trading Period</span>
-                </div>
-                <div className="text-3xl font-bold text-yellow-400 mb-1">
-                  {metadata.tradingPeriodDays}
-                </div>
-                <div className="text-xs text-slate-500">days active</div>
-              </div>
-            )}
-          </div>
-        </Card>
-      )}
-
       {/* Account Type Breakdown */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <AccountTypeCard
           type="Spot"
           trades={analytics.spotTrades}
@@ -296,72 +241,847 @@ function AccountTypeCard({ type, trades, pnl, winRate, currSymbol, icon: Icon, i
 }
 
 // ============================================
-// PSYCHOLOGY SCORE - WITH ICONS
+// LIVE HOLDINGS SECTION
 // ============================================
 
-function PsychologyScoreCompact({ score, analytics }) {
-  const getScoreInfo = (score) => {
-    if (score >= 80) return { color: 'emerald', icon: Trophy, label: 'Excellent', iconColor: 'text-emerald-400', bgColor: 'bg-emerald-500/20' }
-    if (score >= 70) return { color: 'cyan', icon: CheckCircle, label: 'Good', iconColor: 'text-cyan-400', bgColor: 'bg-cyan-500/20' }
-    if (score >= 60) return { color: 'yellow', icon: AlertCircle, label: 'Fair', iconColor: 'text-yellow-400', bgColor: 'bg-yellow-500/20' }
-    if (score >= 50) return { color: 'orange', icon: TrendingUp, label: 'Needs Work', iconColor: 'text-orange-400', bgColor: 'bg-orange-500/20' }
-    return { color: 'red', icon: AlertTriangle, label: 'Critical', iconColor: 'text-red-400', bgColor: 'bg-red-500/20' }
+function LiveHoldings({ analytics, metadata, currSymbol }) {
+  const hasSpotHoldings = metadata?.spotHoldings && metadata.spotHoldings.length > 0
+  const hasFuturesPositions = analytics.futuresOpenPositions && analytics.futuresOpenPositions.length > 0
+
+  if (!hasSpotHoldings && !hasFuturesPositions) {
+    return null
   }
-  
-  const scoreInfo = getScoreInfo(score)
-  const percentage = (score / 100) * 100
-  const ScoreIcon = scoreInfo.icon
-  
+
   return (
-    <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <IconBadge icon={Brain} color="purple" size="lg" />
-          <div>
-            <h3 className="text-xl font-bold">Psychology Score</h3>
-            <p className="text-sm text-slate-400">Trading discipline rating</p>
-          </div>
-        </div>
-        <div className="text-right">
-          <div className={`text-5xl font-bold ${
-            scoreInfo.color === 'emerald' ? 'text-emerald-400' :
-            scoreInfo.color === 'cyan' ? 'text-cyan-400' :
-            scoreInfo.color === 'yellow' ? 'text-yellow-400' :
-            scoreInfo.color === 'orange' ? 'text-orange-400' :
-            'text-red-400'
-          }`}>
-            {score}
-          </div>
-          <div className="text-sm text-slate-400">/100</div>
-        </div>
+    <div className="bg-slate-800/20 border border-slate-700/30 rounded-lg overflow-hidden">
+      <div className="px-3 py-2 border-b border-slate-700/30">
+        <h3 className="text-xs font-medium text-slate-300 flex items-center gap-2">
+          <Layers className="w-3 h-3 text-slate-400" />
+          Live Holdings
+        </h3>
       </div>
-      
-      {/* Progress Bar - Now properly filled */}
-      <div className="mb-4">
-        <div className="h-3 bg-slate-800/50 rounded-full overflow-hidden">
-          <div 
-            className={`h-full rounded-full transition-all duration-1000 ease-out ${
-              scoreInfo.color === 'emerald' ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' :
-              scoreInfo.color === 'cyan' ? 'bg-gradient-to-r from-cyan-500 to-cyan-400' :
-              scoreInfo.color === 'yellow' ? 'bg-gradient-to-r from-yellow-500 to-yellow-400' :
-              scoreInfo.color === 'orange' ? 'bg-gradient-to-r from-orange-500 to-orange-400' :
-              'bg-gradient-to-r from-red-500 to-red-400'
-            }`}
-            style={{ width: `${percentage}%` }}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 p-2">
+        {/* Spot Holdings */}
+        {hasSpotHoldings && (
+          <div className="bg-slate-800/20 border border-slate-700/30 rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-700/30 bg-slate-800/30">
+              <h3 className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-slate-400" />
+                Spot Holdings
+              </h3>
+            </div>
+            <div className="p-4 space-y-2 max-h-64 overflow-y-auto">
+              {metadata.spotHoldings
+                .sort((a, b) => b.usdValue - a.usdValue)
+                .slice(0, 5)
+                .map((holding) => (
+                  <div key={holding.asset} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-slate-700/20 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-slate-700/50 flex items-center justify-center text-xs font-bold text-slate-300">
+                        {holding.asset.slice(0, 2)}
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-slate-200">{holding.asset}</div>
+                        <div className="text-xs text-slate-500 font-mono">{holding.quantity?.toFixed(4)}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-semibold text-slate-200">
+                        {currSymbol}{holding.usdValue?.toFixed(2)}
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        @{currSymbol}{holding.price?.toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+            </div>
+            {metadata.spotHoldings.length > 5 && (
+              <div className="px-4 py-2 border-t border-slate-700/30 text-xs text-slate-500 text-center">
+                +{metadata.spotHoldings.length - 5} more assets
+              </div>
+            )}
+            <div className="px-4 py-3 border-t border-slate-700/30 bg-slate-800/30">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-slate-400">Total Value</span>
+                <span className="text-sm font-bold text-slate-200">
+                  {currSymbol}{metadata.totalSpotValue?.toFixed(2)}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Futures Positions */}
+        {hasFuturesPositions && (
+          <div className="bg-slate-800/20 border border-slate-700/30 rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-700/30 bg-slate-800/30">
+              <h3 className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                <Zap className="w-4 h-4 text-slate-400" />
+                Open Futures Positions
+              </h3>
+            </div>
+            <div className="p-4 space-y-2 max-h-64 overflow-y-auto">
+              {analytics.futuresOpenPositions.slice(0, 3).map((pos, idx) => (
+                <div key={idx} className="py-2 px-3 rounded-lg border border-slate-700/20 bg-slate-800/20">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <div className="text-sm font-medium text-slate-200">{pos.symbol}</div>
+                      <div className="text-xs text-slate-500">{pos.side} • {pos.leverage}x</div>
+                    </div>
+                    <div className="text-right">
+                      <div className={`text-sm font-bold ${(pos.unrealizedProfit || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {(pos.unrealizedProfit || 0) >= 0 ? '+' : ''}{currSymbol}{Math.abs(pos.unrealizedProfit || 0).toFixed(2)}
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        {(((pos.unrealizedProfit || 0) / (pos.margin || 1)) * 100).toFixed(1)}%
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs text-slate-500">
+                    <span>Entry: {currSymbol}{pos.entryPrice?.toFixed(2)}</span>
+                    <span>Mark: {currSymbol}{pos.markPrice?.toFixed(2)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {analytics.futuresOpenPositions.length > 3 && (
+              <div className="px-4 py-2 border-t border-slate-700/30 text-xs text-slate-500 text-center">
+                +{analytics.futuresOpenPositions.length - 3} more positions
+              </div>
+            )}
+            <div className="px-4 py-3 border-t border-slate-700/30 bg-slate-800/30">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-slate-400">Unrealized P&L</span>
+                <span className={`text-sm font-bold ${(analytics.futuresUnrealizedPnL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {(analytics.futuresUnrealizedPnL || 0) >= 0 ? '+' : ''}{currSymbol}{Math.abs(analytics.futuresUnrealizedPnL || 0).toFixed(2)}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ============================================
+// RADIAL PSYCHOLOGY SCORE - APPLE WATCH RINGS STYLE
+// ============================================
+
+function RadialPsychologyScore({ score, analytics }) {
+  const radius = 70
+  const circumference = 2 * Math.PI * radius
+  const strokeDashoffset = circumference - (score / 100) * circumference
+
+  const getScoreColor = (score) => {
+    if (score >= 80) return { primary: '#10b981', secondary: '#34d399', glow: '#10b981' }
+    if (score >= 70) return { primary: '#06b6d4', secondary: '#22d3ee', glow: '#06b6d4' }
+    if (score >= 60) return { primary: '#f59e0b', secondary: '#fbbf24', glow: '#f59e0b' }
+    if (score >= 50) return { primary: '#f97316', secondary: '#fb923c', glow: '#f97316' }
+    return { primary: '#ef4444', secondary: '#f87171', glow: '#ef4444' }
+  }
+
+  const colors = getScoreColor(score)
+  const winRate = analytics.winRate || 0
+  const profitFactor = analytics.profitFactor || 0
+
+  return (
+    <div className="flex flex-col items-center">
+      {/* Radial Progress Circle */}
+      <div className="relative flex items-center justify-center mb-6">
+        {/* Glow effect */}
+        <div className="absolute inset-0 rounded-full blur-xl opacity-30"
+             style={{
+               width: '200px',
+               height: '200px',
+               background: `radial-gradient(circle, ${colors.glow}40 0%, transparent 70%)`
+             }} />
+
+        {/* SVG Circle */}
+        <svg className="transform -rotate-90" width="180" height="180">
+          {/* Background circle */}
+          <circle
+            cx="90"
+            cy="90"
+            r={radius}
+            fill="none"
+            stroke="rgba(71, 85, 105, 0.15)"
+            strokeWidth="14"
           />
+          {/* Progress circle */}
+          <circle
+            cx="90"
+            cy="90"
+            r={radius}
+            fill="none"
+            stroke={`url(#gradient-${score})`}
+            strokeWidth="14"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+            className="transition-all duration-1000 ease-out"
+            style={{ filter: `drop-shadow(0 0 6px ${colors.primary}80)` }}
+          />
+          {/* Gradient definition */}
+          <defs>
+            <linearGradient id={`gradient-${score}`} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor={colors.primary} />
+              <stop offset="100%" stopColor={colors.secondary} />
+            </linearGradient>
+          </defs>
+        </svg>
+
+        {/* Center content */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <div className="text-5xl font-bold text-white mb-1">{score}</div>
+          <div className="text-xs text-slate-400 uppercase tracking-wider">Discipline</div>
         </div>
       </div>
-      
-      <div className="flex items-center justify-between text-sm">
-        <div className="flex items-center gap-2">
-          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${scoreInfo.bgColor}`}>
-            <ScoreIcon className={`w-4 h-4 ${scoreInfo.iconColor}`} />
+
+      {/* Mini stats below */}
+      <div className="w-full grid grid-cols-2 gap-3">
+        <div className="text-center p-3 bg-slate-800/30 rounded-lg border border-slate-700/30">
+          <div className="text-xs text-slate-500 mb-1">Win Rate</div>
+          <div className={`text-lg font-bold ${winRate >= 50 ? 'text-emerald-400' : 'text-slate-400'}`}>
+            {winRate.toFixed(1)}%
           </div>
-          <span className={`font-semibold ${scoreInfo.iconColor}`}>{scoreInfo.label}</span>
         </div>
-        <div className="text-slate-400">
-          {score >= 70 ? 'Keep it up!' : score >= 50 ? 'Room for improvement' : 'Focus on discipline'}
+        <div className="text-center p-3 bg-slate-800/30 rounded-lg border border-slate-700/30">
+          <div className="text-xs text-slate-500 mb-1">Profit Factor</div>
+          <div className={`text-lg font-bold ${profitFactor >= 1 ? 'text-emerald-400' : 'text-red-400'}`}>
+            {profitFactor.toFixed(2)}x
+          </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// Alias for backward compatibility
+const PsychologyScoreCompact = RadialPsychologyScore
+
+// ============================================
+// PERFORMANCE ANALOGIES - RELATABLE COMPARISONS
+// ============================================
+
+function PerformanceAnalogies({ analytics, currSymbol }) {
+  const analogies = generatePerformanceAnalogies(analytics)
+
+  if (!analogies || Object.keys(analogies).length === 0) return null
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Hourly Rate */}
+      {analogies.hourlyRate && (
+        <div className="bg-slate-800/20 border border-slate-700/30 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 bg-slate-700/50 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Clock className="w-4 h-4 text-slate-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-xs font-medium text-slate-400 mb-1">Hourly Earnings</h4>
+              <p className="text-xl font-bold text-slate-200 mb-1">{analogies.hourlyRate.formatted}</p>
+              <p className="text-xs text-slate-500">{analogies.hourlyRate.totalHours.toFixed(0)} active hours • {analogies.hourlyRate.comparison}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Money Comparison */}
+      {analogies.moneyComparison && (
+        <div className="bg-slate-800/20 border border-slate-700/30 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <div className="text-2xl flex-shrink-0">
+              {analogies.moneyComparison.item.icon}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-xs font-medium text-slate-400 mb-1">Real-World Value</h4>
+              <p className="text-sm font-semibold text-slate-200 mb-1">
+                {analogies.moneyComparison.comparison}
+              </p>
+              <p className="text-xs text-slate-500">
+                {currSymbol}{Math.abs(analytics.totalPnL).toFixed(2)} {analytics.totalPnL >= 0 ? 'profit' : 'loss'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sports Comparison */}
+      {analogies.sportsComparison && (
+        <div className="bg-slate-800/20 border border-slate-700/30 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <div className="text-2xl flex-shrink-0">
+              {analogies.sportsComparison.emoji}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-xs font-medium text-slate-400 mb-1">Win Rate: {analytics.winRate?.toFixed(1)}%</h4>
+              <p className="text-sm font-semibold text-slate-200 mb-1">
+                {analogies.sportsComparison.comparison}
+              </p>
+              <p className="text-xs text-slate-500">
+                {analogies.sportsComparison.detail}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Risk/Reward Comparison */}
+      {analogies.riskRewardComparison && (
+        <div className="bg-slate-800/20 border border-slate-700/30 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <div className="text-2xl flex-shrink-0">
+              {analogies.riskRewardComparison.emoji}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-xs font-medium text-slate-400 mb-1">Profit Factor: {analytics.profitFactor?.toFixed(2)}x</h4>
+              <p className="text-sm font-semibold text-slate-200 mb-1">
+                {analogies.riskRewardComparison.comparison}
+              </p>
+              <p className="text-xs text-slate-500">
+                {analogies.riskRewardComparison.detail}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ============================================
+// DRAWDOWN ANALYSIS COMPONENTS
+// ============================================
+
+function UnderwaterEquityCurve({ underwaterData }) {
+  if (!underwaterData || underwaterData.length === 0) return null
+
+  const chartData = underwaterData.map(point => ({
+    date: new Date(point.timestamp).toLocaleDateString(),
+    underwater: point.underwaterPercent.toFixed(2)
+  }))
+
+  return (
+    <div className="bg-slate-800/20 border border-slate-700/30 rounded-xl p-6">
+      <div className="mb-4">
+        <h3 className="text-sm font-medium text-slate-300 flex items-center gap-2">
+          <TrendingDown className="w-4 h-4 text-red-400" />
+          Underwater Equity Curve
+        </h3>
+        <p className="text-xs text-slate-500 mt-1">% below peak balance over time</p>
+      </div>
+
+      <ResponsiveContainer width="100%" height={200}>
+        <AreaChart data={chartData}>
+          <defs>
+            <linearGradient id="underwaterGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
+              <stop offset="95%" stopColor="#ef4444" stopOpacity={0.05}/>
+            </linearGradient>
+          </defs>
+          <XAxis
+            dataKey="date"
+            stroke="#64748b"
+            style={{ fontSize: '10px' }}
+            tick={{ fill: '#64748b' }}
+            tickLine={false}
+          />
+          <YAxis
+            stroke="#64748b"
+            style={{ fontSize: '10px' }}
+            tick={{ fill: '#64748b' }}
+            tickLine={false}
+          />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: '#1e293b',
+              border: '1px solid #334155',
+              borderRadius: '8px',
+              fontSize: '12px'
+            }}
+            formatter={(value) => [`${value}%`, 'Drawdown']}
+          />
+          <Area
+            type="monotone"
+            dataKey="underwater"
+            stroke="#ef4444"
+            strokeWidth={2}
+            fill="url(#underwaterGradient)"
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
+function WorstDrawdownsTable({ drawdowns, currSymbol }) {
+  if (!drawdowns || drawdowns.length === 0) return null
+
+  return (
+    <div className="bg-slate-800/20 border border-slate-700/30 rounded-xl overflow-hidden">
+      <div className="px-6 py-4 border-b border-slate-700/30">
+        <h3 className="text-sm font-medium text-slate-300 flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-amber-400" />
+          Worst Drawdown Periods
+        </h3>
+        <p className="text-xs text-slate-500 mt-1">Your most challenging trading periods</p>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-slate-800/30">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-400">Rank</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-400">Start Date</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-400">Drawdown</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-400">Amount</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-400">Duration</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-400">Recovery</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-400">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-700/30">
+            {drawdowns.map((dd) => (
+              <tr key={dd.rank} className="hover:bg-slate-800/30 transition-colors">
+                <td className="px-4 py-3">
+                  <span className="text-sm font-bold text-amber-400">#{dd.rank}</span>
+                </td>
+                <td className="px-4 py-3">
+                  <span className="text-sm text-slate-300">
+                    {new Date(dd.startDate).toLocaleDateString()}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <span className="text-sm font-bold text-red-400">
+                    {Math.abs(dd.drawdownPercent).toFixed(1)}%
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <span className="text-sm text-red-400">
+                    -{currSymbol}{Math.abs(dd.drawdownAmount).toFixed(2)}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <span className="text-sm text-slate-400">
+                    {dd.drawdownDays} days
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  {dd.recovered ? (
+                    <span className="text-sm text-emerald-400">
+                      {dd.recoveryDays} days
+                    </span>
+                  ) : (
+                    <span className="text-sm text-amber-400">-</span>
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  {dd.recovered ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs">
+                      <CheckCircle className="w-3 h-3" />
+                      Recovered
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-500/10 text-amber-400 text-xs">
+                      <Clock className="w-3 h-3" />
+                      Active
+                    </span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+function DrawdownPatterns({ patterns }) {
+  if (!patterns || patterns.length === 0) return null
+
+  return (
+    <div className="space-y-3">
+      {patterns.map((pattern, index) => (
+        <div
+          key={index}
+          className={`border rounded-xl p-4 ${
+            pattern.severity === 'high'
+              ? 'bg-red-500/5 border-red-500/20'
+              : pattern.severity === 'medium'
+              ? 'bg-amber-500/5 border-amber-500/20'
+              : 'bg-slate-800/20 border-slate-700/30'
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+              pattern.severity === 'high'
+                ? 'bg-red-500/10 text-red-400'
+                : pattern.severity === 'medium'
+                ? 'bg-amber-500/10 text-amber-400'
+                : 'bg-slate-700/50 text-slate-400'
+            }`}>
+              <AlertTriangle className="w-4 h-4" />
+            </div>
+            <div className="flex-1">
+              <h4 className={`text-sm font-medium mb-1 ${
+                pattern.severity === 'high'
+                  ? 'text-red-400'
+                  : pattern.severity === 'medium'
+                  ? 'text-amber-400'
+                  : 'text-slate-300'
+              }`}>
+                {pattern.title}
+              </h4>
+              <p className="text-xs text-slate-400 mb-2">{pattern.message}</p>
+              <p className="text-xs text-slate-500 italic">{pattern.recommendation}</p>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ============================================
+// TIME-BASED PERFORMANCE COMPONENTS
+// ============================================
+
+function HourlyPerformanceChart({ hourlyData }) {
+  if (!hourlyData || hourlyData.length === 0) return null
+
+  const chartData = hourlyData.filter(h => h.trades > 0)
+
+  return (
+    <div className="bg-slate-800/20 border border-slate-700/30 rounded-xl p-6">
+      <div className="mb-4">
+        <h3 className="text-sm font-medium text-slate-300 flex items-center gap-2">
+          <Clock className="w-4 h-4 text-cyan-400" />
+          Performance by Hour
+        </h3>
+        <p className="text-xs text-slate-500 mt-1">Which hours are you most profitable?</p>
+      </div>
+
+      <ResponsiveContainer width="100%" height={250}>
+        <BarChart data={chartData}>
+          <XAxis
+            dataKey="label"
+            stroke="#64748b"
+            style={{ fontSize: '10px' }}
+            tick={{ fill: '#64748b' }}
+            tickLine={false}
+          />
+          <YAxis
+            stroke="#64748b"
+            style={{ fontSize: '10px' }}
+            tick={{ fill: '#64748b' }}
+            tickLine={false}
+          />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: '#1e293b',
+              border: '1px solid #334155',
+              borderRadius: '8px',
+              fontSize: '12px'
+            }}
+            formatter={(value) => [`$${value.toFixed(2)}`, 'Avg P&L']}
+          />
+          <Bar dataKey="avgPnL" radius={[4, 4, 0, 0]}>
+            {chartData.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.avgPnL >= 0 ? '#10b981' : '#ef4444'} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
+function DayOfWeekChart({ dailyData }) {
+  if (!dailyData || dailyData.length === 0) return null
+
+  const chartData = dailyData.filter(d => d.trades > 0)
+
+  return (
+    <div className="bg-slate-800/20 border border-slate-700/30 rounded-xl p-6">
+      <div className="mb-4">
+        <h3 className="text-sm font-medium text-slate-300 flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-purple-400" />
+          Performance by Day of Week
+        </h3>
+        <p className="text-xs text-slate-500 mt-1">Your best and worst trading days</p>
+      </div>
+
+      <ResponsiveContainer width="100%" height={250}>
+        <BarChart data={chartData}>
+          <XAxis
+            dataKey="dayName"
+            stroke="#64748b"
+            style={{ fontSize: '11px' }}
+            tick={{ fill: '#64748b' }}
+            tickLine={false}
+          />
+          <YAxis
+            stroke="#64748b"
+            style={{ fontSize: '10px' }}
+            tick={{ fill: '#64748b' }}
+            tickLine={false}
+          />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: '#1e293b',
+              border: '1px solid #334155',
+              borderRadius: '8px',
+              fontSize: '12px'
+            }}
+            formatter={(value) => [`$${value.toFixed(2)}`, 'Total P&L']}
+          />
+          <Bar dataKey="totalPnL" radius={[4, 4, 0, 0]}>
+            {chartData.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.totalPnL >= 0 ? '#10b981' : '#ef4444'} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
+function MonthlyPerformanceChart({ monthlyData }) {
+  if (!monthlyData || monthlyData.length === 0) return null
+
+  return (
+    <div className="bg-slate-800/20 border border-slate-700/30 rounded-xl p-6">
+      <div className="mb-4">
+        <h3 className="text-sm font-medium text-slate-300 flex items-center gap-2">
+          <BarChart3 className="w-4 h-4 text-emerald-400" />
+          Monthly Performance
+        </h3>
+        <p className="text-xs text-slate-500 mt-1">Tracking your consistency over time</p>
+      </div>
+
+      <ResponsiveContainer width="100%" height={250}>
+        <BarChart data={monthlyData}>
+          <XAxis
+            dataKey="monthName"
+            stroke="#64748b"
+            style={{ fontSize: '10px' }}
+            tick={{ fill: '#64748b' }}
+            tickLine={false}
+          />
+          <YAxis
+            stroke="#64748b"
+            style={{ fontSize: '10px' }}
+            tick={{ fill: '#64748b' }}
+            tickLine={false}
+          />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: '#1e293b',
+              border: '1px solid #334155',
+              borderRadius: '8px',
+              fontSize: '12px'
+            }}
+            formatter={(value) => [`$${value.toFixed(2)}`, 'Total P&L']}
+          />
+          <Bar dataKey="totalPnL" radius={[4, 4, 0, 0]}>
+            {monthlyData.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.totalPnL >= 0 ? '#10b981' : '#ef4444'} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
+// ============================================
+// SYMBOL RECOMMENDATIONS COMPONENTS
+// ============================================
+
+function SymbolRecommendations({ recommendations, currSymbol }) {
+  if (!recommendations || recommendations.length === 0) return null
+
+  return (
+    <div className="space-y-4">
+      <SectionHeader
+        icon={Target}
+        title="Symbol Recommendations"
+        subtitle="Data-driven guidance on which pairs to trade"
+        color="neutral"
+      />
+
+      <div className="space-y-3">
+        {recommendations.map((rec, index) => (
+          <div
+            key={index}
+            className={`border rounded-xl p-5 ${
+              rec.type === 'focus'
+                ? 'bg-emerald-500/5 border-emerald-500/20'
+                : rec.type === 'avoid'
+                ? 'bg-red-500/5 border-red-500/20'
+                : rec.type === 'inefficient'
+                ? 'bg-amber-500/5 border-amber-500/20'
+                : 'bg-slate-800/20 border-slate-700/30'
+            }`}
+          >
+            <div className="flex items-start gap-4">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                rec.type === 'focus'
+                  ? 'bg-emerald-500/10 text-emerald-400'
+                  : rec.type === 'avoid'
+                  ? 'bg-red-500/10 text-red-400'
+                  : rec.type === 'inefficient'
+                  ? 'bg-amber-500/10 text-amber-400'
+                  : 'bg-slate-700/50 text-slate-400'
+              }`}>
+                {rec.type === 'focus' && <Trophy className="w-5 h-5" />}
+                {rec.type === 'avoid' && <AlertTriangle className="w-5 h-5" />}
+                {rec.type === 'inefficient' && <Zap className="w-5 h-5" />}
+                {rec.type === 'low_data' && <Activity className="w-5 h-5" />}
+              </div>
+
+              <div className="flex-1">
+                <h4 className={`text-sm font-semibold mb-2 ${
+                  rec.type === 'focus'
+                    ? 'text-emerald-400'
+                    : rec.type === 'avoid'
+                    ? 'text-red-400'
+                    : rec.type === 'inefficient'
+                    ? 'text-amber-400'
+                    : 'text-slate-300'
+                }`}>
+                  {rec.title}
+                </h4>
+
+                <p className="text-sm text-slate-400 mb-3">{rec.message}</p>
+
+                {rec.details && rec.details.length > 0 && (
+                  <div className="space-y-2">
+                    {rec.details.map((detail, idx) => (
+                      <div key={idx} className="bg-slate-800/30 border border-slate-700/30 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-bold text-slate-200">{detail.symbol}</span>
+                          {detail.totalPnL !== undefined && (
+                            <span className={`text-sm font-bold ${detail.totalPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                              {detail.totalPnL >= 0 ? '+' : ''}{currSymbol}{detail.totalPnL.toFixed(2)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          {detail.winRate !== undefined && (
+                            <div className="text-slate-500">
+                              Win Rate: <span className="text-slate-300 font-medium">{detail.winRate.toFixed(1)}%</span>
+                            </div>
+                          )}
+                          {detail.profitFactor !== undefined && (
+                            <div className="text-slate-500">
+                              PF: <span className="text-slate-300 font-medium">{detail.profitFactor.toFixed(2)}x</span>
+                            </div>
+                          )}
+                          {detail.expectancy !== undefined && (
+                            <div className="text-slate-500">
+                              Expectancy: <span className="text-slate-300 font-medium">{currSymbol}{detail.expectancy.toFixed(2)}</span>
+                            </div>
+                          )}
+                          {detail.trades !== undefined && (
+                            <div className="text-slate-500">
+                              Trades: <span className="text-slate-300 font-medium">{detail.trades}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function SymbolRankingsTable({ rankings, currSymbol }) {
+  if (!rankings || rankings.length === 0) return null
+
+  const topSymbols = rankings.slice(0, 10) // Show top 10
+
+  return (
+    <div className="bg-slate-800/20 border border-slate-700/30 rounded-lg overflow-hidden">
+      <div className="px-3 py-2 border-b border-slate-700/30">
+        <h3 className="text-xs font-medium text-slate-300 flex items-center gap-2">
+          <Trophy className="w-3 h-3 text-amber-400" />
+          Symbol Performance Rankings
+        </h3>
+        <p className="text-[10px] text-slate-500 mt-0.5">Multi-factor scoring: win rate, profit factor, total P&L</p>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-slate-800/30">
+            <tr>
+              <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-400">Rank</th>
+              <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-400">Symbol</th>
+              <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-400">Score</th>
+              <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-400">Win Rate</th>
+              <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-400">PF</th>
+              <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-400">Total P&L</th>
+              <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-400">Trades</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-700/30">
+            {topSymbols.map((symbol) => (
+              <tr key={symbol.symbol} className="hover:bg-slate-800/30 transition-colors">
+                <td className="px-2 py-1.5">
+                  <div className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold ${
+                    symbol.rank === 1
+                      ? 'bg-amber-500/20 text-amber-400'
+                      : symbol.rank === 2
+                      ? 'bg-slate-400/20 text-slate-300'
+                      : symbol.rank === 3
+                      ? 'bg-amber-700/20 text-amber-600'
+                      : 'bg-slate-700/30 text-slate-400'
+                  }`}>
+                    {symbol.rank}
+                  </div>
+                </td>
+                <td className="px-2 py-1.5">
+                  <span className="text-xs font-bold text-slate-200">{symbol.symbol}</span>
+                </td>
+                <td className="px-2 py-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-12 bg-slate-700/30 rounded-full h-1.5">
+                      <div
+                        className="h-1.5 rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500"
+                        style={{ width: `${symbol.score}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-400">{symbol.score.toFixed(0)}</span>
+                  </div>
+                </td>
+                <td className="px-2 py-1.5">
+                  <span className="text-xs text-slate-300">{symbol.winRate.toFixed(1)}%</span>
+                </td>
+                <td className="px-2 py-1.5">
+                  <span className="text-xs text-slate-300">{symbol.profitFactor.toFixed(2)}</span>
+                </td>
+                <td className="px-2 py-1.5">
+                  <span className={`text-xs font-medium ${symbol.totalPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {symbol.totalPnL >= 0 ? '+' : ''}{currSymbol}{symbol.totalPnL.toFixed(2)}
+                  </span>
+                </td>
+                <td className="px-2 py-1.5">
+                  <span className="text-xs text-slate-400">{symbol.trades}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )
@@ -402,33 +1122,44 @@ function PatternDetectionEnhanced({ patterns }) {
       />
       
       {expanded && (
-        <div className="space-y-4">
-          {/* Critical Patterns - Full Width, Prominent */}
-          {criticalPatterns.map((pattern, i) => {
-            const IconComponent = pattern.icon
-            return (
-              <div key={`critical-${i}`} className="relative group animate-pulse-subtle">
-                <div className="absolute inset-0 bg-red-500/10 rounded-xl blur-xl" />
-                <div className="relative bg-gradient-to-r from-red-500/20 to-orange-500/20 border-2 border-red-500/50 rounded-xl p-6">
-                  <div className="flex items-start gap-4">
-                    <IconBadge icon={IconComponent} color="red" size="lg" />
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-bold text-lg text-red-400 flex items-center gap-2">
-                          <AlertTriangle className="w-5 h-5" />
-                          {pattern.title}
-                        </h4>
-                        <span className="px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-xs font-bold uppercase">
-                          Critical
+        <div className="space-y-3">
+          {/* All Patterns - Uniform Grid */}
+          <div className="grid grid-cols-1 gap-3">
+            {sortedPatterns.map((pattern, i) => {
+              const IconComponent = pattern.icon
+              return (
+                <div
+                  key={i}
+                  className={`bg-slate-800/30 border rounded-lg p-4 ${
+                    pattern.severity === 'high' ? 'border-red-500/30' :
+                    pattern.severity === 'medium' ? 'border-yellow-500/20' :
+                    'border-slate-700/30'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <IconBadge
+                      icon={IconComponent}
+                      color={pattern.severity === 'high' ? 'red' : pattern.severity === 'medium' ? 'yellow' : 'emerald'}
+                      size="sm"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <h4 className="font-semibold text-sm">{pattern.title}</h4>
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ml-2 ${
+                          pattern.severity === 'high' ? 'bg-red-500/10 text-red-400' :
+                          pattern.severity === 'medium' ? 'bg-yellow-500/10 text-yellow-400' :
+                          'bg-emerald-500/10 text-emerald-400'
+                        }`}>
+                          {pattern.severity}
                         </span>
                       </div>
-                      <p className="text-slate-300 mb-3">{pattern.description}</p>
+                      <p className="text-xs text-slate-400">{pattern.description}</p>
                       {pattern.stats && (
-                        <div className="flex flex-wrap gap-4 text-sm">
+                        <div className="flex flex-wrap gap-2 mt-2 text-xs">
                           {Object.entries(pattern.stats).map(([key, value]) => (
-                            <div key={key} className="bg-slate-800/50 px-3 py-1 rounded-lg">
+                            <div key={key} className="bg-slate-700/30 px-2 py-1 rounded">
                               <span className="text-slate-400">{key}:</span>{' '}
-                              <span className="text-white font-mono font-bold">{value}</span>
+                              <span className="text-white font-mono">{value}</span>
                             </div>
                           ))}
                         </div>
@@ -436,47 +1167,9 @@ function PatternDetectionEnhanced({ patterns }) {
                     </div>
                   </div>
                 </div>
-              </div>
-            )
-          })}
-          
-          {/* Other Patterns - Compact Grid */}
-          {otherPatterns.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {otherPatterns.map((pattern, i) => {
-                const IconComponent = pattern.icon
-                return (
-                  <div
-                    key={`other-${i}`}
-                    className={`bg-slate-800/30 border rounded-xl p-4 hover:border-slate-500/50 transition-all ${
-                      pattern.severity === 'medium' ? 'border-yellow-500/30' : 'border-slate-700/50'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <IconBadge
-                        icon={IconComponent}
-                        color={pattern.severity === 'medium' ? 'yellow' : 'emerald'}
-                        size="md"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <h4 className="font-semibold truncate">{pattern.title}</h4>
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ml-2 ${
-                            pattern.severity === 'medium' 
-                              ? 'bg-yellow-500/20 text-yellow-400' 
-                              : 'bg-emerald-500/20 text-emerald-400'
-                          }`}>
-                            {pattern.severity}
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-400 line-clamp-2">{pattern.description}</p>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
+              )
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -490,52 +1183,35 @@ function PatternDetectionEnhanced({ patterns }) {
 function InsightCardsEnhanced({ insights, onSelectInsight }) {
   // Sort by impact: 3 → 2 → 1
   const sortedInsights = [...insights].sort((a, b) => (b.impact || 0) - (a.impact || 0))
-  
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <Sparkles className="w-6 h-6 text-yellow-400" />
-        <h3 className="text-xl font-bold">Key Insights</h3>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-        {sortedInsights.map((insight, i) => {
-          // High impact = larger cards
-          const isHighImpact = insight.impact >= 3
-          const colSpan = isHighImpact ? 'md:col-span-3' : 'md:col-span-2'
-          
-          return (
-            <InsightCardVariable
-              key={i}
-              insight={insight}
-              onClick={() => onSelectInsight(insight)}
-              className={colSpan}
-              featured={isHighImpact}
-            />
-          )
-        })}
+    <div className="space-y-3">
+      <h3 className="text-sm font-semibold text-slate-300">Key Insights</h3>
+
+      <div className="grid grid-cols-1 gap-3">
+        {sortedInsights.map((insight, i) => (
+          <InsightCardVariable
+            key={i}
+            insight={insight}
+            onClick={() => onSelectInsight(insight)}
+            featured={false}
+          />
+        ))}
       </div>
     </div>
   )
 }
 
-function InsightCardVariable({ insight, onClick, className, featured }) {
+function InsightCardVariable({ insight, onClick }) {
   const typeStyles = {
-    strength: 'from-emerald-500/10 to-emerald-500/5 border-emerald-500/30 hover:border-emerald-500/60',
-    weakness: 'from-red-500/10 to-red-500/5 border-red-500/30 hover:border-red-500/60',
-    recommendation: 'from-cyan-500/10 to-cyan-500/5 border-cyan-500/30 hover:border-cyan-500/60',
-    pattern: 'from-purple-500/10 to-purple-500/5 border-purple-500/30 hover:border-purple-500/60'
-  }
-  
-  const iconStyles = {
-    strength: 'text-emerald-400 bg-emerald-500/20',
-    weakness: 'text-red-400 bg-red-500/20',
-    recommendation: 'text-cyan-400 bg-cyan-500/20',
-    pattern: 'text-purple-400 bg-purple-500/20'
+    strength: 'border-emerald-500/20 bg-emerald-500/5',
+    weakness: 'border-red-500/20 bg-red-500/5',
+    recommendation: 'border-cyan-500/20 bg-cyan-500/5',
+    pattern: 'border-purple-500/20 bg-purple-500/5'
   }
 
   const IconComponent = getIconComponent(insight.icon)
-  
+
   const iconColor = insight.type === 'strength' ? 'emerald' :
     insight.type === 'weakness' ? 'red' :
     insight.type === 'recommendation' ? 'cyan' : 'purple'
@@ -543,49 +1219,23 @@ function InsightCardVariable({ insight, onClick, className, featured }) {
   return (
     <div
       onClick={onClick}
-      className={`bg-gradient-to-br ${typeStyles[insight.type]} border backdrop-blur-sm rounded-xl cursor-pointer transition-all hover:scale-105 hover:shadow-2xl group ${className} ${
-        featured ? 'p-6' : 'p-4'
-      }`}
+      className={`${typeStyles[insight.type]} border rounded-lg cursor-pointer transition-colors hover:border-opacity-40 p-4`}
     >
-      <div className="flex items-start justify-between mb-3">
+      <div className="flex items-start justify-between mb-2">
         <IconBadge
           icon={IconComponent}
           color={iconColor}
-          size={featured ? 'lg' : 'md'}
+          size="sm"
         />
-        <div className="flex items-center gap-2">
-          {/* Impact Dots */}
-          {insight.impact && (
-            <div className="flex gap-1">
-              {[...Array(3)].map((_, i) => (
-                <div
-                  key={i}
-                  className={`w-2 h-2 rounded-full transition-all ${
-                    i < insight.impact 
-                      ? iconStyles[insight.type].split(' ')[0].replace('text-', 'bg-') + ' scale-100'
-                      : 'bg-slate-700 scale-75'
-                  }`}
-                />
-              ))}
-            </div>
-          )}
-          <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-white transition-colors" />
-        </div>
+        <ChevronRight className="w-4 h-4 text-slate-400" />
       </div>
-      
-      <h4 className={`font-semibold text-white mb-2 ${featured ? 'text-lg' : 'text-base'}`}>
+
+      <h4 className="font-semibold text-sm text-white mb-1">
         {insight.title}
       </h4>
-      <p className={`text-slate-300 leading-relaxed ${featured ? 'text-sm' : 'text-xs line-clamp-2'}`}>
+      <p className="text-xs text-slate-400 line-clamp-2">
         {insight.summary}
       </p>
-      
-      {featured && (
-        <div className="mt-4 flex items-center gap-2 text-xs text-slate-400">
-          <Lightbulb className="w-4 h-4 text-yellow-400" />
-          <span>Click for actionable steps</span>
-        </div>
-      )}
     </div>
   )
 }
@@ -855,30 +1505,175 @@ function SymbolsTable({ symbols, filter, currSymbol }) {
 // TAB CONTENT COMPONENTS
 // ============================================
 
-function OverviewTab({ analytics, currSymbol }) {
+function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
   const [selectedInsight, setSelectedInsight] = useState(null)
+  const [showCharts, setShowCharts] = useState(false)
+  const [showSymbols, setShowSymbols] = useState(false)
   const psychology = analytics.psychology || {}
-  
+
   const insights = generateEnhancedInsights(analytics, psychology)
   const patterns = detectHiddenPatterns(analytics, psychology)
-  
+  const analogies = generatePerformanceAnalogies(analytics)
+
+  // NEW ANALYSES
+  const drawdownAnalysis = analyzeDrawdowns(analytics.allTrades || [])
+  const timeAnalysis = analyzeTimeBasedPerformance(analytics.allTrades || [])
+  const symbolAnalysis = analyzeSymbols(analytics.allTrades || [])
+
+  const isProfitable = analytics.totalPnL >= 0
+  const hasFuturesData = (analytics.futuresPnL !== undefined && analytics.futuresPnL !== 0) || analytics.futuresOpenPositions?.length > 0
+
   return (
-    <div className="space-y-8">
-      {/* Psychology Score */}
-      <PsychologyScoreCompact score={psychology.disciplineScore || 50} analytics={analytics} />
-      
-      {/* Hidden Patterns */}
-      <PatternDetectionEnhanced patterns={patterns} />
-      
-      {/* Key Insights */}
-      <InsightCardsEnhanced insights={insights} onSelectInsight={setSelectedInsight} />
-      
-      {/* Charts */}
-      <ChartsSection analytics={analytics} currSymbol={currSymbol} />
-      
-      {/* Symbol Performance */}
-      <SymbolsTable symbols={analytics.symbols} currSymbol={currSymbol} />
-      
+    <div className="space-y-3">
+      {/* Compact P&L Metrics at Top */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div className={`rounded-md border ${isProfitable ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-red-500/20 bg-red-500/5'} p-2`}>
+          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Total P&L</div>
+          <div className={`text-lg font-bold ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`}>
+            {isProfitable ? '+' : ''}{currSymbol}{Math.abs(analytics.totalPnL).toFixed(2)}
+          </div>
+          <div className="text-[10px] text-slate-500">{analytics.totalTrades} trades</div>
+        </div>
+
+        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
+          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Realized P&L</div>
+          <div className="text-lg font-bold text-white">
+            {currSymbol}{((analytics.spotPnL || 0) + (analytics.futuresRealizedPnL || 0)).toFixed(2)}
+          </div>
+          <div className="text-[10px] text-slate-500">Closed positions</div>
+        </div>
+
+        {hasFuturesData && (
+          <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
+            <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Unrealized P&L</div>
+            <div className={`text-lg font-bold ${(analytics.futuresUnrealizedPnL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {currSymbol}{(analytics.futuresUnrealizedPnL || 0).toFixed(2)}
+            </div>
+            <div className="text-[10px] text-slate-500">{analytics.futuresOpenPositions?.length || 0} open</div>
+          </div>
+        )}
+
+        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
+          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Win Rate</div>
+          <div className="text-lg font-bold text-white">
+            {analytics.winRate.toFixed(1)}%
+          </div>
+          <div className="text-[10px] text-slate-500">{analytics.winningTrades}W / {analytics.losingTrades}L</div>
+        </div>
+      </div>
+
+      {/* Quick Tab Teasers - Drive users to specific tabs */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+        {/* Spot Teaser */}
+        {analytics.spotTrades > 0 && (
+          <button
+            onClick={() => setActiveTab('spot')}
+            className="group bg-emerald-500/5 hover:bg-emerald-500/10 border border-emerald-500/20 hover:border-emerald-500/40 rounded-lg p-3 text-left transition-all"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-emerald-400" />
+                <span className="text-xs font-semibold text-emerald-400">Spot Trading</span>
+              </div>
+              <ChevronRight className="w-3 h-3 text-emerald-400/50 group-hover:text-emerald-400 transition-colors" />
+            </div>
+            <div className="text-lg font-bold text-white mb-1">{currSymbol}{analytics.spotPnL.toFixed(2)}</div>
+            <div className="text-[10px] text-slate-400">{analytics.spotTrades} trades • {analytics.spotWinRate.toFixed(1)}% win rate</div>
+            <div className="text-[10px] text-emerald-400 mt-2 group-hover:underline">See detailed breakdown →</div>
+          </button>
+        )}
+
+        {/* Futures Teaser */}
+        {analytics.futuresTrades > 0 && (
+          <button
+            onClick={() => setActiveTab('futures')}
+            className="group bg-cyan-500/5 hover:bg-cyan-500/10 border border-cyan-500/20 hover:border-cyan-500/40 rounded-lg p-3 text-left transition-all"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-cyan-400" />
+                <span className="text-xs font-semibold text-cyan-400">Futures Trading</span>
+              </div>
+              <ChevronRight className="w-3 h-3 text-cyan-400/50 group-hover:text-cyan-400 transition-colors" />
+            </div>
+            <div className="text-lg font-bold text-white mb-1">{currSymbol}{analytics.futuresPnL.toFixed(2)}</div>
+            <div className="text-[10px] text-slate-400">{analytics.futuresOpenPositions?.length || 0} open • {analytics.futuresWinRate.toFixed(1)}% win rate</div>
+            <div className="text-[10px] text-cyan-400 mt-2 group-hover:underline">Analyze leverage impact →</div>
+          </button>
+        )}
+
+        {/* Behavioral Teaser */}
+        {analytics.behavioral && analytics.behavioral.healthScore && (
+          <button
+            onClick={() => setActiveTab('behavioral')}
+            className="group bg-purple-500/5 hover:bg-purple-500/10 border border-purple-500/20 hover:border-purple-500/40 rounded-lg p-3 text-left transition-all"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Brain className="w-4 h-4 text-purple-400" />
+                <span className="text-xs font-semibold text-purple-400">Psychology</span>
+              </div>
+              <ChevronRight className="w-3 h-3 text-purple-400/50 group-hover:text-purple-400 transition-colors" />
+            </div>
+            <div className="text-lg font-bold text-white mb-1">{analytics.behavioral.healthScore}/100</div>
+            <div className="text-[10px] text-slate-400">{analytics.behavioral.patterns?.filter(p => p.severity === 'high').length || 0} critical patterns detected</div>
+            <div className="text-[10px] text-purple-400 mt-2 group-hover:underline">Fix your weaknesses →</div>
+          </button>
+        )}
+      </div>
+
+      {/* Top 3 Critical Insights Only - Compact */}
+      {patterns.length > 0 && (
+        <div className="space-y-1">
+          <h3 className="text-xs font-semibold text-slate-300 flex items-center gap-2">
+            <AlertTriangle className="w-3 h-3 text-orange-400" />
+            Critical Patterns
+          </h3>
+          <div className="space-y-1">
+            {patterns.slice(0, 3).map((pattern, idx) => (
+              <div key={idx} className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2 hover:border-slate-600/50 transition-colors">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <div className="text-xs font-medium text-slate-200">{pattern.title}</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">{pattern.description}</div>
+                  </div>
+                  <div className={`text-[10px] px-1.5 py-0.5 rounded ${
+                    pattern.severity === 'high' ? 'bg-red-500/10 text-red-400' :
+                    pattern.severity === 'medium' ? 'bg-orange-500/10 text-orange-400' :
+                    'bg-yellow-500/10 text-yellow-400'
+                  }`}>
+                    {pattern.severity}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Symbol Rankings Table */}
+      {symbolAnalysis && symbolAnalysis.rankings && symbolAnalysis.rankings.length > 0 && (
+        <SymbolRankingsTable rankings={symbolAnalysis.rankings} currSymbol={currSymbol} />
+      )}
+
+      {/* Premium Teaser - Time Analysis */}
+      <div className="bg-gradient-to-br from-purple-500/5 to-cyan-500/5 border border-purple-500/20 rounded-lg p-3 relative overflow-hidden">
+        <div className="absolute top-0 right-0 bg-purple-500/10 px-2 py-0.5 rounded-bl-lg">
+          <span className="text-[10px] font-bold text-purple-400">PRO</span>
+        </div>
+        <div className="flex items-start gap-3">
+          <Clock className="w-4 h-4 text-purple-400 mt-0.5" />
+          <div className="flex-1">
+            <h4 className="text-xs font-semibold text-slate-200 mb-1">Time-Based Performance Analysis</h4>
+            <p className="text-[10px] text-slate-400 mb-2">Discover your most profitable hours, days, and months. See when you make the best decisions.</p>
+            <div className="flex items-center gap-2 text-[10px] text-purple-400">
+              <Sparkles className="w-3 h-3" />
+              <span>Unlock with Pro to see hourly, daily & monthly breakdowns</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Modal */}
       {selectedInsight && (
         <InsightModal insight={selectedInsight} onClose={() => setSelectedInsight(null)} />
@@ -890,117 +1685,118 @@ function OverviewTab({ analytics, currSymbol }) {
 function SpotTab({ analytics, currSymbol, metadata }) {
   const spotAnalysis = analytics.spotAnalysis || {}
   const hasSpotData = analytics.spotTrades > 0
+  const currency = currSymbol || '$'
 
-  // Show empty state if no spot data
   if (!hasSpotData) {
     return (
       <EmptyState
         icon={DollarSign}
         title="No Spot Trading Data"
-        description="You haven't made any spot trades yet. Spot trading involves buying and holding crypto assets directly. Start spot trading to see your portfolio breakdown and performance analytics here."
+        description="Start spot trading to see portfolio breakdown and performance analytics."
         variant="info"
       />
     )
   }
 
   return (
-    <div className="space-y-6">
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <QuickStat label="Spot P&L" value={`${currSymbol}${analytics.spotPnL?.toFixed(2) || '0.00'}`} icon={DollarSign} good={analytics.spotPnL >= 0} />
-        <QuickStat label="ROI" value={`${analytics.spotRoi?.toFixed(1) || '0.0'}%`} icon={TrendingUp} good={analytics.spotRoi >= 0} />
-        <QuickStat label="Win Rate" value={`${analytics.spotWinRate?.toFixed(1) || '0.0'}%`} subtitle={`${analytics.spotWins || 0}W / ${analytics.spotLosses || 0}L`} icon={Target} good={analytics.spotWinRate >= 55} />
-        <QuickStat label="Invested" value={`${currSymbol}${analytics.spotInvested?.toFixed(0) || '0'}`} icon={Activity} />
+    <div className="space-y-3">
+      {/* Compact Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
+          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Spot P&L</div>
+          <div className={`text-lg font-bold ${analytics.spotPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            {currency}{analytics.spotPnL?.toFixed(2) || '0.00'}
+          </div>
+          <div className="text-[10px] text-slate-500">{analytics.spotRoi?.toFixed(1) || '0.0'}% ROI</div>
+        </div>
+        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
+          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Win Rate</div>
+          <div className="text-lg font-bold text-white">{analytics.spotWinRate?.toFixed(1) || '0.0'}%</div>
+          <div className="text-[10px] text-slate-500">{analytics.spotWins || 0}W / {analytics.spotLosses || 0}L</div>
+        </div>
+        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
+          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Invested</div>
+          <div className="text-lg font-bold text-white">{currency}{analytics.spotInvested?.toFixed(0) || '0'}</div>
+          <div className="text-[10px] text-slate-500">{analytics.spotTrades || 0} trades</div>
+        </div>
+        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
+          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Best Win</div>
+          <div className="text-lg font-bold text-emerald-400">{currency}{spotAnalysis.largestWin?.toFixed(2) || '0.00'}</div>
+          <div className="text-[10px] text-slate-500">Max gain</div>
+        </div>
       </div>
 
-      {/* Current Spot Holdings */}
+      {/* Current Holdings - Compact */}
       {metadata?.spotHoldings && metadata.spotHoldings.length > 0 && (
-        <Card variant="glass" className="overflow-hidden p-0">
-          <div className="p-5 border-b border-slate-700/50">
-            <h3 className="font-semibold flex items-center gap-2 text-lg">
-              <Layers className="w-5 h-5 text-emerald-400" />
-              Current Spot Holdings
+        <div className="bg-slate-800/20 border border-slate-700/30 rounded-lg overflow-hidden">
+          <div className="px-3 py-2 border-b border-slate-700/30 bg-slate-800/30">
+            <h3 className="text-xs font-semibold text-slate-300 flex items-center gap-2">
+              <Layers className="w-3 h-3 text-emerald-400" />
+              Current Holdings
+              <span className="text-[10px] text-slate-500 font-normal ml-1">(All Exchanges)</span>
             </h3>
-            <p className="text-sm text-slate-400 mt-1">Your current asset balances valued at market price</p>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="text-left text-sm text-slate-400 border-b border-slate-700/50">
-                  <th className="p-4 font-medium">Asset</th>
-                  <th className="p-4 text-right font-medium">Quantity</th>
-                  <th className="p-4 text-right font-medium">Price</th>
-                  <th className="p-4 text-right font-medium">USD Value</th>
+            <table className="w-full text-xs">
+              <thead className="bg-slate-800/30">
+                <tr className="text-left text-[10px] text-slate-400">
+                  <th className="px-2 py-2">Asset</th>
+                  <th className="px-2 py-2">Exchange</th>
+                  <th className="px-2 py-2 text-right">Qty</th>
+                  <th className="px-2 py-2 text-right">Price</th>
+                  <th className="px-2 py-2 text-right">Value</th>
                 </tr>
               </thead>
               <tbody>
-                {metadata.spotHoldings
-                  .sort((a, b) => b.usdValue - a.usdValue)
-                  .map((holding, idx) => (
-                    <tr key={holding.asset} className="border-b border-slate-800/30 hover:bg-slate-700/20 transition-colors">
-                      <td className="p-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-xs font-bold text-emerald-400">
-                            {holding.asset.slice(0, 2)}
-                          </div>
-                          <span className="font-mono font-semibold">{holding.asset}</span>
-                        </div>
+                {metadata.spotHoldings.sort((a, b) => b.usdValue - a.usdValue).map((holding, idx) => {
+                  // Get exchange name from holding or metadata
+                  const exchangeName = holding.exchange || metadata.exchanges?.[0] || 'Unknown'
+                  const exchangeIcon = exchangeName.toLowerCase() === 'binance' ? '🟡' : exchangeName.toLowerCase() === 'coindcx' ? '🇮🇳' : '🔷'
+
+                  return (
+                    <tr key={`${holding.asset}-${idx}`} className="border-b border-slate-800/30 hover:bg-slate-700/10">
+                      <td className="px-2 py-1.5 font-mono font-semibold">{holding.asset}</td>
+                      <td className="px-2 py-1.5">
+                        <span className="inline-flex items-center gap-1 text-[10px] text-slate-400">
+                          <span>{exchangeIcon}</span>
+                          <span className="capitalize">{exchangeName}</span>
+                        </span>
                       </td>
-                      <td className="p-4 text-right font-mono text-slate-300">
-                        {holding.quantity?.toFixed(4) || '0.0000'}
-                      </td>
-                      <td className="p-4 text-right font-mono text-slate-400">
-                        {currSymbol}{holding.price?.toFixed(4) || '0.0000'}
-                      </td>
-                      <td className="p-4 text-right font-bold text-lg text-emerald-400">
-                        {currSymbol}{holding.usdValue?.toFixed(2) || '0.00'}
-                      </td>
+                      <td className="px-2 py-1.5 text-right font-mono text-slate-300">{holding.quantity?.toFixed(4)}</td>
+                      <td className="px-2 py-1.5 text-right font-mono text-slate-400">{currency}{holding.price?.toFixed(2)}</td>
+                      <td className="px-2 py-1.5 text-right font-bold text-emerald-400">{currency}{holding.usdValue?.toFixed(2)}</td>
                     </tr>
-                  ))}
+                  )
+                })}
               </tbody>
-              <tfoot>
-                <tr className="bg-slate-800/50 font-bold">
-                  <td className="p-4" colSpan="3">Total Portfolio Value</td>
-                  <td className="p-4 text-right text-xl text-emerald-400">
-                    {currSymbol}{metadata.totalSpotValue.toFixed(2)}
-                  </td>
+              <tfoot className="bg-slate-800/50">
+                <tr className="font-bold">
+                  <td className="px-2 py-2" colSpan="4">Total</td>
+                  <td className="px-2 py-2 text-right text-emerald-400">{currency}{metadata?.totalSpotValue?.toFixed(2)}</td>
                 </tr>
               </tfoot>
             </table>
           </div>
-        </Card>
+        </div>
       )}
 
-      {/* Insights */}
-      <Card variant="glass">
-        <h3 className="font-semibold mb-4 flex items-center gap-2 text-lg">
-          <Brain className="w-5 h-5 text-purple-400" />
-          Spot Trading Insights
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-3">
-            <div className="text-sm font-semibold text-slate-400 mb-2">Position Management</div>
-            <div className="text-sm text-slate-300 space-y-1">
-              <p>• Avg winner held: {spotAnalysis.avgWin > 0 ? '~2-4 hours' : 'N/A'}</p>
-              <p>• Avg loser held: {spotAnalysis.avgLoss > 0 ? '~4-8 hours' : 'N/A'}</p>
-              <p>• Largest win: {currSymbol}{spotAnalysis.largestWin?.toFixed(2) || '0.00'}</p>
-              <p>• Largest loss: {currSymbol}{spotAnalysis.largestLoss?.toFixed(2) || '0.00'}</p>
-            </div>
-          </div>
-          <div className="space-y-3">
-            <div className="text-sm font-semibold text-slate-400 mb-2">Trading Stats</div>
-            <div className="text-sm text-slate-300 space-y-1">
-              <p>• Total trades: {analytics.spotTrades || 0}</p>
-              <p>• Completed: {analytics.spotCompletedTrades || 0}</p>
-              <p>• Max consecutive wins: {spotAnalysis.maxConsecutiveWins || 0}</p>
-              <p>• Max consecutive losses: {spotAnalysis.maxConsecutiveLosses || 0}</p>
+      {/* Premium Teaser - Portfolio Rebalancing */}
+      <div className="bg-gradient-to-br from-emerald-500/5 to-cyan-500/5 border border-emerald-500/20 rounded-lg p-3 relative overflow-hidden">
+        <div className="absolute top-0 right-0 bg-emerald-500/10 px-2 py-0.5 rounded-bl-lg">
+          <span className="text-[10px] font-bold text-emerald-400">PRO</span>
+        </div>
+        <div className="flex items-start gap-3">
+          <PieChart className="w-4 h-4 text-emerald-400 mt-0.5" />
+          <div className="flex-1">
+            <h4 className="text-xs font-semibold text-slate-200 mb-1">Portfolio Rebalancing Suggestions</h4>
+            <p className="text-[10px] text-slate-400 mb-2">Get AI-powered recommendations on when to rebalance your portfolio based on market conditions and your risk profile.</p>
+            <div className="flex items-center gap-2 text-[10px] text-emerald-400">
+              <Sparkles className="w-3 h-3" />
+              <span>Unlock smart rebalancing alerts with Pro</span>
             </div>
           </div>
         </div>
-      </Card>
-
-      {/* Symbols */}
-      <SymbolsTable symbols={analytics.symbols} filter="SPOT" currSymbol={currSymbol} />
+      </div>
     </div>
   )
 }
@@ -1008,123 +1804,163 @@ function SpotTab({ analytics, currSymbol, metadata }) {
 function FuturesTab({ analytics, currSymbol }) {
   const futuresAnalysis = analytics.futuresAnalysis || {}
   const hasFuturesData = analytics.futuresTrades > 0
+  const currency = currSymbol || '$'
 
-  // Show empty state if no futures data
   if (!hasFuturesData) {
-    return (
-      <EmptyState
-        icon={Zap}
-        title="No Futures Trading Data"
-        description="You haven't made any futures trades yet. Futures trading involves leveraged positions and can offer higher returns (and risks). Start futures trading to see advanced metrics like funding fees, leverage analysis, and position management here."
-        variant="info"
-      />
-    )
+    return <EmptyState icon={Zap} title="No Futures Trading Data" variant="info" />
   }
 
   return (
-    <div className="space-y-6">
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <QuickStat label="Net P&L" value={`${currSymbol}${analytics.futuresPnL?.toFixed(2) || '0.00'}`} icon={DollarSign} good={analytics.futuresPnL >= 0} />
-        <QuickStat label="Realized" value={`${currSymbol}${analytics.futuresRealizedPnL?.toFixed(2) || '0.00'}`} icon={CheckCircle} good={analytics.futuresRealizedPnL >= 0} />
-        <QuickStat label="Unrealized" value={`${currSymbol}${analytics.futuresUnrealizedPnL?.toFixed(2) || '0.00'}`} icon={Clock} good={analytics.futuresUnrealizedPnL >= 0} />
-        <QuickStat label="Win Rate" value={`${analytics.futuresWinRate?.toFixed(1) || '0.0'}%`} subtitle={`${analytics.futuresWins || 0}W / ${analytics.futuresLosses || 0}L`} icon={Target} good={analytics.futuresWinRate >= 55} />
+    <div className="space-y-3">
+      {/* Compact Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
+          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Net P&L</div>
+          <div className={`text-lg font-bold ${analytics.futuresPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            {currency}{analytics.futuresPnL?.toFixed(2) || '0.00'}
+          </div>
+          <div className="text-[10px] text-slate-500">
+            {analytics.futuresTrades || 0} trades
+          </div>
+        </div>
+
+        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
+          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Realized</div>
+          <div className={`text-lg font-bold ${analytics.futuresRealizedPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            {currency}{analytics.futuresRealizedPnL?.toFixed(2) || '0.00'}
+          </div>
+          <div className="text-[10px] text-slate-500">Closed positions</div>
+        </div>
+
+        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
+          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Unrealized</div>
+          <div className={`text-lg font-bold ${analytics.futuresUnrealizedPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            {currency}{analytics.futuresUnrealizedPnL?.toFixed(2) || '0.00'}
+          </div>
+          <div className="text-[10px] text-slate-500">
+            {analytics.futuresOpenPositions?.length || 0} open
+          </div>
+        </div>
+
+        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
+          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Win Rate</div>
+          <div className={`text-lg font-bold ${analytics.futuresWinRate >= 55 ? 'text-emerald-400' : 'text-slate-300'}`}>
+            {analytics.futuresWinRate?.toFixed(1) || '0.0'}%
+          </div>
+          <div className="text-[10px] text-slate-500">
+            {analytics.futuresWins || 0}W / {analytics.futuresLosses || 0}L
+          </div>
+        </div>
       </div>
 
-      {/* Funding & Fees */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card variant="glass">
-          <h3 className="font-semibold mb-4 flex items-center gap-2">
-            <Zap className="w-5 h-5 text-yellow-400" />
-            Funding Fees
-          </h3>
-          <div className={`text-4xl font-bold mb-2 ${(analytics.futuresFundingFees || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {(analytics.futuresFundingFees || 0) >= 0 ? '+' : ''}{currSymbol}{(analytics.futuresFundingFees || 0).toFixed(2)}
+      {/* Funding & Commission - Compact Row */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
+          <div className="flex items-center gap-1.5 mb-1">
+            <Zap className="w-3 h-3 text-yellow-400" />
+            <span className="text-[10px] text-slate-400 uppercase tracking-wider">Funding Fees</span>
           </div>
-          <div className="text-sm text-slate-400">
-            {(analytics.futuresFundingFees || 0) >= 0 ? 'You earned funding fees' : 'You paid funding fees'}
+          <div className={`text-lg font-bold ${(analytics.futuresFundingFees || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            {(analytics.futuresFundingFees || 0) >= 0 ? '+' : ''}{currency}{(analytics.futuresFundingFees || 0).toFixed(2)}
           </div>
-        </Card>
+          <div className="text-[10px] text-slate-500">
+            {(analytics.futuresFundingFees || 0) >= 0 ? 'Earned' : 'Paid'}
+          </div>
+        </div>
 
-        <Card variant="glass">
-          <h3 className="font-semibold mb-4 flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-red-400" />
-            Commission
-          </h3>
-          <div className="text-4xl font-bold text-red-400 mb-2">
-            -{currSymbol}{(analytics.futuresCommission || 0).toFixed(2)}
+        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
+          <div className="flex items-center gap-1.5 mb-1">
+            <DollarSign className="w-3 h-3 text-red-400" />
+            <span className="text-[10px] text-slate-400 uppercase tracking-wider">Commission</span>
           </div>
-          <div className="text-sm text-slate-400">
-            Trading fees paid
+          <div className="text-lg font-bold text-red-400">
+            -{currency}{(analytics.futuresCommission || 0).toFixed(2)}
           </div>
-        </Card>
+          <div className="text-[10px] text-slate-500">Trading fees</div>
+        </div>
       </div>
 
-      {/* Open Positions */}
+      {/* Open Positions - Compact Table */}
       {analytics.futuresOpenPositions && analytics.futuresOpenPositions.length > 0 && (
-        <Card variant="glass">
-          <h3 className="font-semibold mb-5 flex items-center gap-2 text-lg">
-            <Activity className="w-5 h-5 text-cyan-400" />
-            Open Positions ({analytics.futuresOpenPositions.length})
-          </h3>
-          <div className="space-y-3">
+        <div className="bg-slate-800/20 border border-slate-700/30 rounded-lg overflow-hidden">
+          <div className="px-3 py-2 border-b border-slate-700/30 bg-slate-800/30">
+            <h3 className="text-xs font-semibold text-slate-300 flex items-center gap-2">
+              <Activity className="w-3 h-3 text-cyan-400" />
+              Open Positions ({analytics.futuresOpenPositions.length})
+            </h3>
+          </div>
+          <div className="divide-y divide-slate-700/30">
             {analytics.futuresOpenPositions.map((pos, idx) => (
-              <div key={idx} className="bg-slate-700/30 border border-slate-600/50 rounded-xl p-5 hover:border-slate-500/50 transition-all">
-                <div className="flex items-start justify-between mb-3">
+              <div key={idx} className="p-2 hover:bg-slate-800/30 transition-colors">
+                <div className="flex items-start justify-between mb-1">
                   <div>
-                    <div className="font-mono font-bold text-lg">{pos.symbol}</div>
-                    <div className="text-sm text-slate-400 mt-1">
-                      {pos.side} • {pos.leverage}x leverage • Entry: {currSymbol}{pos.entryPrice?.toFixed(2) || '0.00'}
+                    <div className="font-mono font-bold text-xs">{pos.symbol}</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">
+                      {pos.side} • {pos.leverage}x • Entry: {currency}{pos.entryPrice?.toFixed(2) || '0.00'}
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className={`text-2xl font-bold ${(pos.unrealizedProfit || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {(pos.unrealizedProfit || 0) >= 0 ? '+' : ''}{currSymbol}{(pos.unrealizedProfit || 0).toFixed(2)}
+                    <div className={`text-sm font-bold ${(pos.unrealizedProfit || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {(pos.unrealizedProfit || 0) >= 0 ? '+' : ''}{currency}{(pos.unrealizedProfit || 0).toFixed(2)}
                     </div>
-                    <div className="text-sm text-slate-400 mt-1">
+                    <div className="text-[10px] text-slate-400">
                       {(((pos.unrealizedProfit || 0) / (pos.margin || 1)) * 100).toFixed(1)}%
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center justify-between text-sm text-slate-400 border-t border-slate-600/30 pt-3">
+                <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-700/20">
                   <span>Size: {Math.abs(pos.size || 0).toFixed(4)}</span>
-                  <span>Mark: {currSymbol}{pos.markPrice?.toFixed(2) || '0.00'}</span>
-                  <span>Margin: {currSymbol}{pos.margin?.toFixed(2) || '0.00'}</span>
+                  <span>Mark: {currency}{pos.markPrice?.toFixed(2) || '0.00'}</span>
+                  <span>Margin: {currency}{pos.margin?.toFixed(2) || '0.00'}</span>
                 </div>
               </div>
             ))}
           </div>
-        </Card>
+        </div>
       )}
 
-      {/* Futures Insights */}
-      <Card variant="glass">
-        <h3 className="font-semibold mb-4 flex items-center gap-2 text-lg">
-          <Brain className="w-5 h-5 text-purple-400" />
-          Futures Trading Insights
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-3">
-            <div className="text-sm font-semibold text-slate-400 mb-2">Leverage Discipline</div>
-            <div className="text-sm text-slate-300 flex items-start gap-2">
-              <Lightbulb className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" />
-              <span>Consider limiting leverage to 3-5x for better consistency. High leverage trades often have lower win rates.</span>
-            </div>
+      {/* Risk Metrics - Compact */}
+      <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
+        <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1.5">Risk Metrics</div>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]">
+          <div className="flex justify-between">
+            <span className="text-slate-400">Max Win Streak:</span>
+            <span className="text-emerald-400 font-medium">{futuresAnalysis.maxConsecutiveWins || 0}</span>
           </div>
-          <div className="space-y-3">
-            <div className="text-sm font-semibold text-slate-400 mb-2">Risk Management</div>
-            <div className="text-sm text-slate-300 space-y-1">
-              <p>• Max consecutive wins: {futuresAnalysis.maxConsecutiveWins || 0}</p>
-              <p>• Max consecutive losses: {futuresAnalysis.maxConsecutiveLosses || 0}</p>
-              <p>• Largest win: {currSymbol}{futuresAnalysis.largestWin?.toFixed(2) || '0.00'}</p>
-              <p>• Largest loss: {currSymbol}{futuresAnalysis.largestLoss?.toFixed(2) || '0.00'}</p>
+          <div className="flex justify-between">
+            <span className="text-slate-400">Max Loss Streak:</span>
+            <span className="text-red-400 font-medium">{futuresAnalysis.maxConsecutiveLosses || 0}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-400">Largest Win:</span>
+            <span className="text-emerald-400 font-medium">{currency}{futuresAnalysis.largestWin?.toFixed(2) || '0.00'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-400">Largest Loss:</span>
+            <span className="text-red-400 font-medium">{currency}{futuresAnalysis.largestLoss?.toFixed(2) || '0.00'}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Premium Teaser - Leverage Analysis */}
+      <div className="bg-gradient-to-br from-cyan-500/5 to-purple-500/5 border border-cyan-500/20 rounded-lg p-3 relative overflow-hidden">
+        <div className="absolute top-0 right-0 bg-cyan-500/10 px-2 py-0.5 rounded-bl-lg">
+          <span className="text-[10px] font-bold text-cyan-400">PRO</span>
+        </div>
+        <div className="flex items-start gap-3">
+          <TrendingUp className="w-4 h-4 text-cyan-400 mt-0.5" />
+          <div className="flex-1">
+            <h4 className="text-xs font-semibold text-slate-200 mb-1">Leverage & Risk Analysis</h4>
+            <p className="text-[10px] text-slate-400 mb-2">
+              Discover optimal leverage levels, position sizing recommendations, and liquidation risk warnings.
+            </p>
+            <div className="flex items-center gap-2 text-[10px] text-cyan-400">
+              <Sparkles className="w-3 h-3" />
+              <span>Unlock advanced risk management with Pro</span>
             </div>
           </div>
         </div>
-      </Card>
-
-      {/* Symbols */}
-      <SymbolsTable symbols={analytics.symbols} filter="FUTURES" currSymbol={currSymbol} />
+      </div>
     </div>
   )
 }
@@ -1135,14 +1971,10 @@ function FuturesTab({ analytics, currSymbol }) {
 
 function BehavioralTab({ analytics, currSymbol }) {
   const behavioral = analytics.behavioral || {}
+  const currency = currSymbol || '$'
 
   if (!behavioral.healthScore) {
-    return (
-      <div className="text-center py-12 text-slate-400">
-        <Brain className="w-16 h-16 mx-auto mb-4 opacity-50" />
-        <p>No behavioral data available</p>
-      </div>
-    )
+    return <EmptyState icon={Brain} title="No Behavioral Data" variant="info" />
   }
 
   const healthScore = behavioral.healthScore || 0
@@ -1153,93 +1985,55 @@ function BehavioralTab({ analytics, currSymbol }) {
     return 'text-red-400'
   }
 
-  const getScoreBg = (score) => {
-    if (score >= 80) return 'from-emerald-500/20 to-green-500/20'
-    if (score >= 60) return 'from-yellow-500/20 to-orange-500/20'
-    if (score >= 40) return 'from-orange-500/20 to-red-500/20'
-    return 'from-red-500/20 to-rose-500/20'
-  }
-
   return (
-    <div className="space-y-6">
-      {/* Behavioral Health Score - Hero Card */}
-      <div className="relative group">
-        <div className={`absolute inset-0 rounded-3xl blur-2xl group-hover:blur-3xl transition-all ${
-          healthScore >= 80 ? 'bg-emerald-500/10' :
-          healthScore >= 60 ? 'bg-yellow-500/10' :
-          'bg-red-500/10'
-        }`} />
-
-        <div className="relative bg-slate-900 backdrop-blur-xl border border-slate-700/50 rounded-3xl p-8 md:p-12">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-            {/* Left: Health Score */}
-            <div className="text-center md:text-left">
-              <div className="flex items-center gap-3 mb-4">
-                <IconBadge icon={Brain} color="purple" size="xl" />
-                <div>
-                  <div className="text-sm text-slate-400 uppercase tracking-wider font-medium">Behavioral Health Score</div>
-                  <div className="text-xs text-slate-500">AI-powered trading psychology analysis</div>
-                </div>
-              </div>
-
-              <div className={`text-7xl md:text-8xl font-bold mb-2 ${getScoreColor(healthScore)}`}>
-                {healthScore}
-                <span className="text-4xl">/100</span>
-              </div>
-
-              <div className="flex items-center gap-2 text-sm text-slate-400">
-                {healthScore >= 80 && <><CheckCircle className="w-4 h-4 text-emerald-400" /> Excellent discipline</>}
-                {healthScore >= 60 && healthScore < 80 && <><Target className="w-4 h-4 text-yellow-400" /> Room for growth</>}
-                {healthScore >= 40 && healthScore < 60 && <><AlertTriangle className="w-4 h-4 text-orange-400" /> Needs attention</>}
-                {healthScore < 40 && <><AlertCircle className="w-4 h-4 text-red-400" /> Critical issues detected</>}
-              </div>
-            </div>
-
-            {/* Right: Key Metrics */}
-            <div className="grid grid-cols-2 gap-4 w-full md:w-auto">
-              <QuickStat
-                label="Panic Events"
-                value={behavioral.panicPatterns?.count || 0}
-                subtitle={behavioral.panicPatterns?.detected ? 'Detected' : 'None found'}
-                icon={Flame}
-                good={!behavioral.panicPatterns?.detected}
-              />
-              <QuickStat
-                label="Fee Efficiency"
-                value={`${behavioral.feeAnalysis?.efficiency ? Number(behavioral.feeAnalysis.efficiency).toFixed(0) : 0}%`}
-                subtitle={`${currSymbol}${behavioral.feeAnalysis?.potentialSavings ? Math.abs(Number(behavioral.feeAnalysis.potentialSavings)).toFixed(2) : '0.00'} lost`}
-                icon={DollarSign}
-                good={(behavioral.feeAnalysis?.efficiency ? Number(behavioral.feeAnalysis.efficiency) : 0) >= 70}
-              />
-              <QuickStat
-                label="Consistency"
-                value={`${behavioral.consistencyScore ? Number(behavioral.consistencyScore).toFixed(0) : 0}%`}
-                subtitle={behavioral.positionSizing?.label || 'N/A'}
-                icon={Target}
-                good={(behavioral.consistencyScore ? Number(behavioral.consistencyScore) : 0) >= 70}
-              />
-              <QuickStat
-                label="Emotional State"
-                value={behavioral.emotionalState?.detected ? 'Detected' : 'Stable'}
-                subtitle={behavioral.emotionalState?.count ? `${behavioral.emotionalState.count} events` : 'None'}
-                icon={Brain}
-                good={!behavioral.emotionalState?.detected}
-              />
-            </div>
+    <div className="space-y-3">
+      {/* Compact Behavioral Metrics */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
+          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Behavioral Score</div>
+          <div className={`text-lg font-bold ${getScoreColor(healthScore)}`}>
+            {healthScore}<span className="text-xs text-slate-500">/100</span>
           </div>
+          <div className="text-[10px] text-slate-500">
+            {healthScore >= 80 ? 'Excellent' : healthScore >= 60 ? 'Good' : healthScore >= 40 ? 'Fair' : 'Needs work'}
+          </div>
+        </div>
+
+        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
+          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Panic Events</div>
+          <div className={`text-lg font-bold ${behavioral.panicPatterns?.detected ? 'text-red-400' : 'text-emerald-400'}`}>
+            {behavioral.panicPatterns?.count || 0}
+          </div>
+          <div className="text-[10px] text-slate-500">Rapid-fire sells</div>
+        </div>
+
+        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
+          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Fee Efficiency</div>
+          <div className={`text-lg font-bold ${(behavioral.feeAnalysis?.efficiency || 0) >= 70 ? 'text-emerald-400' : 'text-yellow-400'}`}>
+            {behavioral.feeAnalysis?.efficiency ? Number(behavioral.feeAnalysis.efficiency).toFixed(0) : 0}%
+          </div>
+          <div className="text-[10px] text-slate-500">Maker/taker ratio</div>
+        </div>
+
+        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
+          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Consistency</div>
+          <div className={`text-lg font-bold ${(behavioral.consistencyScore || 0) >= 70 ? 'text-emerald-400' : 'text-yellow-400'}`}>
+            {behavioral.consistencyScore ? Number(behavioral.consistencyScore).toFixed(0) : 0}%
+          </div>
+          <div className="text-[10px] text-slate-500">Position sizing</div>
         </div>
       </div>
 
-      {/* Warnings */}
+      {/* Top Critical Warnings Only */}
       {behavioral.warnings && behavioral.warnings.length > 0 && (
-        <div className="space-y-3">
-          {behavioral.warnings.map((warning, idx) => (
-            <div key={idx} className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border-2 border-red-500/50 rounded-xl p-4">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+        <div className="space-y-1.5">
+          {behavioral.warnings.slice(0, 2).map((warning, idx) => (
+            <div key={idx} className="bg-red-500/5 border border-red-500/20 rounded-md p-2">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-3 h-3 text-red-400 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <div className="font-bold text-red-400 mb-1">{warning.title}</div>
-                  <div className="text-sm text-slate-300">{warning.message}</div>
+                  <div className="text-xs font-semibold text-red-400">{warning.title}</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">{warning.message}</div>
                 </div>
               </div>
             </div>
@@ -1247,207 +2041,79 @@ function BehavioralTab({ analytics, currSymbol }) {
         </div>
       )}
 
-      {/* Trading Style Analysis */}
-      {behavioral.tradingStyle && (
-        <Card variant="glass">
-          <SectionHeader icon={Activity} title="Trading Style Analysis" subtitle="How you execute trades" color="blue" />
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-            <div className="space-y-2">
-              <div className="text-sm text-slate-400">Pattern</div>
-              <div className="text-2xl font-bold text-cyan-400">{behavioral.tradingStyle.pattern || 'N/A'}</div>
-              <div className="text-xs text-slate-500">
-                {behavioral.tradingStyle.buyVsSellRatio ? Number(behavioral.tradingStyle.buyVsSellRatio).toFixed(2) : '0.00'} buy/sell ratio
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="text-sm text-slate-400">Execution</div>
-              <div className="text-2xl font-bold text-purple-400">
-                {behavioral.tradingStyle.makerPercent ? Number(behavioral.tradingStyle.makerPercent).toFixed(1) : '0.0'}% Maker
-              </div>
-              <div className="text-xs text-slate-500">
-                {behavioral.tradingStyle.takerPercent ? Number(behavioral.tradingStyle.takerPercent).toFixed(1) : '0.0'}% Taker (higher fees)
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="text-sm text-slate-400">Discipline</div>
-              <div className={`text-2xl font-bold ${(behavioral.tradingStyle.rapidFirePercent || 0) > 50 ? 'text-red-400' : 'text-emerald-400'}`}>
-                {behavioral.tradingStyle.rapidFirePercent ? Number(behavioral.tradingStyle.rapidFirePercent).toFixed(1) : '0.0'}%
-              </div>
-              <div className="text-xs text-slate-500">Rapid-fire trades</div>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Panic Selling Events */}
-      {behavioral.panicPatterns?.detected && behavioral.panicPatterns.events && (
-        <Card variant="glass">
-          <SectionHeader
-            icon={Flame}
-            title="Panic Selling Detected"
-            subtitle={`${behavioral.panicPatterns.events.length} rapid-fire sell events`}
-            color="red"
-          />
-
-          <div className="mt-6 space-y-3">
-            {behavioral.panicPatterns.events.slice(0, 5).map((event, idx) => (
-              <div key={idx} className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-mono font-bold text-red-400">{event.symbol}</div>
-                    <div className="text-xs text-slate-400 mt-1">
-                      {new Date(event.timestamp).toLocaleString()}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm text-slate-300">
-                      <span className="text-red-400 font-bold">
-                        {event.timeGap ? Number(event.timeGap).toFixed(1) : '0.0'} min
-                      </span> apart
-                    </div>
-                    <div className="text-xs text-slate-400">
-                      {currSymbol}{event.value ? Number(event.value).toFixed(2) : '0.00'}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      {/* Fee Hemorrhage */}
+      {/* Fee Analysis - Compact */}
       {behavioral.feeAnalysis && (
-        <Card variant="glass">
-          <SectionHeader
-            icon={DollarSign}
-            title="Fee Hemorrhage Analysis"
-            subtitle="Money lost to trading fees"
-            color="orange"
-          />
-
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6">
-              <div className="text-sm text-slate-400 mb-2">Total Fees Paid</div>
-              <div className="text-4xl font-bold text-red-400">
-                -{currSymbol}{behavioral.feeAnalysis.totalFees ? Number(behavioral.feeAnalysis.totalFees).toFixed(2) : '0.00'}
-              </div>
-              <div className="text-xs text-slate-500 mt-2">
-                {behavioral.feeAnalysis.makerFees ? Number(behavioral.feeAnalysis.makerFees).toFixed(2) : '0.00'} maker + {behavioral.feeAnalysis.takerFees ? Number(behavioral.feeAnalysis.takerFees).toFixed(2) : '0.00'} taker
+        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <DollarSign className="w-3 h-3 text-orange-400" />
+            <span className="text-[10px] text-slate-400 uppercase tracking-wider">Fee Analysis</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-[10px]">
+            <div>
+              <div className="text-slate-400 mb-0.5">Total Fees Paid</div>
+              <div className="text-sm font-bold text-red-400">
+                -{currency}{behavioral.feeAnalysis.totalFees ? Number(behavioral.feeAnalysis.totalFees).toFixed(2) : '0.00'}
               </div>
             </div>
-
-            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-6">
-              <div className="text-sm text-slate-400 mb-2">Could Have Saved</div>
-              <div className="text-4xl font-bold text-yellow-400">
-                {currSymbol}{behavioral.feeAnalysis.potentialSavings ? Math.abs(Number(behavioral.feeAnalysis.potentialSavings)).toFixed(2) : '0.00'}
-              </div>
-              <div className="text-xs text-slate-500 mt-2">
-                By using limit orders (maker) instead of market orders (taker)
+            <div>
+              <div className="text-slate-400 mb-0.5">Could Have Saved</div>
+              <div className="text-sm font-bold text-yellow-400">
+                {currency}{behavioral.feeAnalysis.potentialSavings ? Math.abs(Number(behavioral.feeAnalysis.potentialSavings)).toFixed(2) : '0.00'}
               </div>
             </div>
           </div>
-        </Card>
+          <div className="text-[10px] text-slate-500 mt-1.5 flex items-start gap-1">
+            <Lightbulb className="w-2.5 h-2.5 text-yellow-400 flex-shrink-0 mt-0.5" />
+            <span>Use limit orders (maker) instead of market orders (taker) to save on fees</span>
+          </div>
+        </div>
       )}
 
-      {/* Actionable Insights */}
+      {/* Top Actionable Insights - Compact */}
       {behavioral.insights && behavioral.insights.length > 0 && (
-        <Card variant="glass">
-          <SectionHeader
-            icon={Lightbulb}
-            title="Actionable Insights"
-            subtitle="Steps to improve your trading"
-            color="yellow"
-          />
-
-          <div className="mt-6 space-y-4">
-            {behavioral.insights.map((insight, idx) => {
-              const IconComponent = getIconComponent(insight.icon)
-              const colorMap = {
-                critical: { bg: 'bg-red-500/10', border: 'border-red-500/30', text: 'text-red-400' },
-                warning: { bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', text: 'text-yellow-400' },
-                info: { bg: 'bg-blue-500/10', border: 'border-blue-500/30', text: 'text-blue-400' },
-                success: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-400' }
-              }
-              const colors = colorMap[insight.severity] || colorMap.info
-
-              return (
-                <div key={idx} className={`${colors.bg} border ${colors.border} rounded-xl p-5`}>
-                  <div className="flex items-start gap-4">
-                    <div className={`w-10 h-10 rounded-lg ${colors.bg} flex items-center justify-center flex-shrink-0`}>
-                      <IconComponent className={`w-5 h-5 ${colors.text}`} />
-                    </div>
-                    <div className="flex-1">
-                      <div className={`font-bold ${colors.text} mb-1`}>{insight.title}</div>
-                      <div className="text-sm text-slate-300 mb-3">{insight.message}</div>
-
-                      {insight.actionSteps && insight.actionSteps.length > 0 && (
-                        <div className="space-y-2">
-                          <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Action Steps:</div>
-                          {insight.actionSteps.map((step, sIdx) => (
-                            <div key={sIdx} className="flex items-start gap-2 text-sm text-slate-300">
-                              <ChevronRight className="w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5" />
-                              <span>{step}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
+        <div className="space-y-1.5">
+          <div className="text-xs font-semibold text-slate-300 flex items-center gap-2">
+            <Lightbulb className="w-3 h-3 text-yellow-400" />
+            Top Insights
           </div>
-        </Card>
+          {behavioral.insights.slice(0, 2).map((insight, idx) => {
+            const colorMap = {
+              critical: { text: 'text-red-400' },
+              warning: { text: 'text-yellow-400' },
+              info: { text: 'text-blue-400' },
+              success: { text: 'text-emerald-400' }
+            }
+            const colors = colorMap[insight.severity] || colorMap.info
+
+            return (
+              <div key={idx} className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
+                <div className={`text-xs font-semibold ${colors.text}`}>{insight.title}</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">{insight.message}</div>
+              </div>
+            )
+          })}
+        </div>
       )}
 
-      {/* Position Sizing Consistency */}
-      {behavioral.positionSizing && (
-        <Card variant="glass">
-          <SectionHeader
-            icon={Target}
-            title="Position Sizing Consistency"
-            subtitle="How consistent are your trade sizes?"
-            color="purple"
-          />
-
-          <div className="mt-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <div className="text-sm text-slate-400">Consistency Rating</div>
-                <div className="text-3xl font-bold text-purple-400 mt-1">{behavioral.positionSizing.label || 'N/A'}</div>
-              </div>
-              <div className="text-right">
-                <div className="text-sm text-slate-400">Score</div>
-                <div className={`text-3xl font-bold mt-1 ${
-                  (behavioral.positionSizing.score || 0) >= 0.8 ? 'text-emerald-400' :
-                  (behavioral.positionSizing.score || 0) >= 0.5 ? 'text-yellow-400' : 'text-red-400'
-                }`}>
-                  {behavioral.positionSizing.score ? (Number(behavioral.positionSizing.score) * 100).toFixed(0) : 0}%
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-slate-700/30 rounded-lg p-4 text-sm text-slate-300">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <span className="text-slate-400">Average Size:</span> {currSymbol}{behavioral.positionSizing.avgSize ? Number(behavioral.positionSizing.avgSize).toFixed(2) : '0.00'}
-                </div>
-                <div>
-                  <span className="text-slate-400">Coefficient of Variation:</span> {behavioral.positionSizing.coefficientOfVariation ? Number(behavioral.positionSizing.coefficientOfVariation).toFixed(2) : '0.00'}
-                </div>
-              </div>
-              <div className="mt-3 text-xs text-slate-400 flex items-start gap-1.5">
-                <Lightbulb className="w-3.5 h-3.5 text-yellow-400 flex-shrink-0 mt-0.5" />
-                <span>Lower variation = more consistent position sizing = better risk management</span>
-              </div>
+      {/* Premium Teaser - Deep Behavioral Analysis */}
+      <div className="bg-gradient-to-br from-purple-500/5 to-pink-500/5 border border-purple-500/20 rounded-lg p-3 relative overflow-hidden">
+        <div className="absolute top-0 right-0 bg-purple-500/10 px-2 py-0.5 rounded-bl-lg">
+          <span className="text-[10px] font-bold text-purple-400">PRO</span>
+        </div>
+        <div className="flex items-start gap-3">
+          <Brain className="w-4 h-4 text-purple-400 mt-0.5" />
+          <div className="flex-1">
+            <h4 className="text-xs font-semibold text-slate-200 mb-1">Deep Behavioral Analysis</h4>
+            <p className="text-[10px] text-slate-400 mb-2">
+              Unlock detailed panic pattern detection, position sizing consistency analysis, and personalized action steps.
+            </p>
+            <div className="flex items-center gap-2 text-[10px] text-purple-400">
+              <Sparkles className="w-3 h-3" />
+              <span>Get AI-powered psychology insights with Pro</span>
             </div>
           </div>
-        </Card>
-      )}
+        </div>
+      </div>
     </div>
   )
 }
@@ -1512,6 +2178,7 @@ export default function AnalyticsView({
           setCurrency={setCurrency}
           onDisconnect={onDisconnect}
           isDemoMode={isDemoMode}
+          isLoggedIn={isAuthenticated}
         />
 
         {/* Demo Mode Banner */}
@@ -1537,12 +2204,9 @@ export default function AnalyticsView({
           </div>
         )}
 
-        <main className="flex-1 max-w-[1400px] mx-auto px-4 sm:px-6 py-8 space-y-8 w-full">
-        {/* Hero Section */}
-        <HeroSection analytics={analytics} currSymbol={currSymbol} metadata={currencyMetadata} />
-
-        {/* Tabs */}
-        <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-xl md:rounded-2xl overflow-hidden">
+        <main className="flex-1 max-w-[1400px] mx-auto px-3 sm:px-4 py-3 space-y-3 w-full">
+        {/* Tabs - Moved to Top */}
+        <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-lg overflow-hidden">
           {/* Tab Headers */}
           <div className="flex overflow-x-auto border-b border-slate-700/50 scrollbar-hide">
             {tabs.map(tab => {
@@ -1564,8 +2228,8 @@ export default function AnalyticsView({
           </div>
 
           {/* Tab Content */}
-          <div className="p-4 md:p-6 lg:p-8">
-            {activeTab === 'overview' && <OverviewTab analytics={analytics} currSymbol={currSymbol} />}
+          <div className="p-3 md:p-4">
+            {activeTab === 'overview' && <OverviewTab analytics={analytics} currSymbol={currSymbol} metadata={currencyMetadata} setActiveTab={setActiveTab} />}
             {activeTab === 'behavioral' && <BehavioralTab analytics={analytics} currSymbol={currSymbol} />}
             {activeTab === 'spot' && <SpotTab analytics={analytics} currSymbol={currSymbol} metadata={currencyMetadata} />}
             {activeTab === 'futures' && <FuturesTab analytics={analytics} currSymbol={currSymbol} />}

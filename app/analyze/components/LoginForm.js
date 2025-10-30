@@ -512,7 +512,7 @@ export default function LoginForm({
                 </div>
               )}
 
-              {(progress && !submitError) && (
+              {(progress && !submitError && isSubmitting) && (
                 <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
                   <Loader2 className="w-5 h-5 text-emerald-400 animate-spin flex-shrink-0" />
                   <p className="text-emerald-400 text-sm">{progress}</p>

@@ -4,13 +4,14 @@ import { TrendingUp, ArrowRight } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import ThemeToggle from '../../components/ThemeToggle'
 
-export default function Header({ 
-  exchangeConfig, 
-  currencyMetadata, 
-  currency, 
-  setCurrency, 
+export default function Header({
+  exchangeConfig,
+  currencyMetadata,
+  currency,
+  setCurrency,
   onDisconnect,
-  isDemoMode = false
+  isDemoMode = false,
+  isLoggedIn = false
 }) {
   const router = useRouter()
 
@@ -19,14 +20,14 @@ export default function Header({
       <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
         <div className="flex items-center gap-2">
           {/* Clickable Logo - Takes user to landing page */}
-          <button 
+          <button
             onClick={() => router.push('/')}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >
             <TrendingUp className="w-6 h-6 text-emerald-400" />
             <span className="text-lg font-bold">TradeClarity</span>
           </button>
-          
+
           {exchangeConfig && (
             <span className="text-xs text-slate-400 ml-2">
               {exchangeConfig.icon} {exchangeConfig.displayName}
@@ -39,18 +40,19 @@ export default function Header({
         <div className="flex items-center gap-4">
           {/* Theme Toggle - Always visible */}
           <ThemeToggle />
-          
+
           {/* Demo Mode CTA Button */}
           {isDemoMode && (
             <button
               onClick={() => {
                 console.log('Button clicked! Navigating to /analyze')
-                // Force full page reload to clear demo mode
+                // For logged in users viewing demo, take them to dashboard
+                // For non-logged in users, take them to analyze page (which shows sign up)
                 window.location.href = '/analyze'
               }}
               className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 rounded-lg font-semibold text-sm transition-all duration-300 hover:scale-105 flex items-center gap-2 shadow-lg shadow-emerald-500/20"
             >
-              Discover YOUR patterns
+              {isLoggedIn ? 'Discover YOUR patterns' : 'Discover YOUR patterns'}
               <ArrowRight className="w-4 h-4" />
             </button>
           )}
