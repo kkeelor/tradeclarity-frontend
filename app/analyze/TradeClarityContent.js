@@ -538,11 +538,17 @@ export default function TradeClarityContent() {
           throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`)
         }
 
-        data = await response.json()
+        const responseData = await response.json()
+        data = responseData.data || responseData // Handle both {data: ...} and direct response
 
-        console.log('✅ Data received from backend:', {
+        console.log('✅ Data received from backend:', data)
+        console.log('📊 Data structure:', {
+          success: responseData.success,
+          hasDataKey: !!responseData.data,
           spotTrades: data.spotTrades?.length || 0,
           futuresIncome: data.futuresIncome?.length || 0,
+          futuresUserTrades: data.futuresUserTrades?.length || 0,
+          futuresPositions: data.futuresPositions?.length || 0,
           metadata: data.metadata
         })
       }
