@@ -56,3 +56,53 @@ export async function POST(request) {
     )
   }
 }
+
+// PATCH endpoint to update trades_count after storing trades
+export async function PATCH(request) {
+  try {
+    const supabase = createClient()
+
+    // Get current user
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { csvUploadId, tradesCount } = await request.json()
+
+    if (!csvUploadId || tradesCount === undefined) {
+      return NextResponse.json(
+        { error: 'Missing required fields: csvUploadId, tradesCount' },
+        { status: 400 }
+      )
+    }
+
+    // Update the trades_count for this CSV upload
+    const { data, error: updateError } = await supabase
+      .from('csv_uploads')
+      .update({ trades_count: tradesCount })
+      .eq('id', csvUploadId)
+      .eq('user_id', user.id) // Security: only update own files
+      .select()
+      .single()
+
+    if (updateError) {
+      console.error('Error updating CSV trade count:', updateError)
+      return NextResponse.json(
+        { error: 'Failed to update CSV trade count' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      file: data
+    })
+  } catch (error) {
+    console.error('Update CSV trade count error:', error)
+    return NextResponse.json(
+      { error: 'Failed to update CSV trade count' },
+      { status: 500 }
+    )
+  }
+}

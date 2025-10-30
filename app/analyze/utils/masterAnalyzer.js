@@ -5,9 +5,14 @@ import { analyzeSpotTrades } from './spotAnalyzer'
 import { analyzeFuturesTrades } from './futuresAnalyzer'
 import { analyzeTradingPsychology } from './psychologyAnalyzer'
 import { analyzeBehavior } from './behavioralAnalyzer'
+import { autoConvertToUSD } from './currencyConverter'
 
-export const analyzeData = (allData) => {
+export const analyzeData = async (allData) => {
   console.log('\n=== MASTER ANALYZER ===')
+
+  // STEP 1: Auto-detect currency and convert to USD if needed
+  // This ensures all subsequent analysis uses consistent USD values
+  const convertedData = await autoConvertToUSD(allData)
 
   // allData can be either:
   // 1. Array of trades (legacy format) - has { symbol, time, qty, price, isBuyer, accountType }
@@ -17,30 +22,30 @@ export const analyzeData = (allData) => {
   let futuresData = { income: [], trades: [], positions: [] }
   let metadata = {}
 
-  if (Array.isArray(allData)) {
+  if (Array.isArray(convertedData)) {
     // Legacy format: array of trades with accountType
-    spotTrades = allData.filter(t => t.accountType === 'SPOT')
-    const futuresTrades = allData.filter(t => t.accountType === 'FUTURES')
+    spotTrades = convertedData.filter(t => t.accountType === 'SPOT')
+    const futuresTrades = convertedData.filter(t => t.accountType === 'FUTURES')
     futuresData = { trades: futuresTrades, income: [], positions: [] }
 
     console.log('Using legacy format')
     console.log('Spot trades:', spotTrades.length)
     console.log('Futures trades:', futuresTrades.length)
-  } else if (allData && typeof allData === 'object') {
+  } else if (convertedData && typeof convertedData === 'object') {
     // New format: structured object
-    spotTrades = allData.spotTrades || []
+    spotTrades = convertedData.spotTrades || []
     futuresData = {
-      income: allData.futuresIncome || [],
-      trades: allData.futuresTrades || [],
-      positions: allData.futuresPositions || []
+      income: convertedData.futuresIncome || [],
+      trades: convertedData.futuresTrades || [],
+      positions: convertedData.futuresPositions || []
     }
-    metadata = allData.metadata || {}
+    metadata = convertedData.metadata || {}
 
     console.log('Using structured format')
     console.log('Spot trades:', spotTrades.length)
     console.log('Futures income records:', futuresData.income.length)
     console.log('Futures positions:', futuresData.positions.length)
-    console.log('Primary currency:', metadata.primaryCurrency || 'USD')
+    console.log('Currency:', metadata.convertedToUSD ? `USD (converted from ${metadata.originalCurrency})` : (metadata.primaryCurrency || 'USD'))
   }
 
   // Analyze spot trades
@@ -174,12 +179,67 @@ export const analyzeData = (allData) => {
     }))
 
   const allTradesForPsychology = [...spotTrades, ...futuresTradesForPsych]
-  
+
   // Analyze trading psychology
   const psychology = analyzeTradingPsychology(allTradesForPsychology, spotAnalysis, futuresAnalysis)
 
   // Analyze deep behavioral patterns
   const behavioral = analyzeBehavior(spotTrades, futuresData.income, metadata)
+
+  // ====================================
+  // STANDARDIZED ALL TRADES ARRAY
+  // ====================================
+  // Create a unified array of all trades in standardized format for advanced analytics
+  // This enables drawdown analysis, time-based analysis, and symbol-specific analysis
+
+  const normalizeSpotTrade = (trade) => {
+    // Spot trades: Calculate P&L from price difference (stored in spotAnalyzer results)
+    // For individual trades, we approximate P&L from commission as spot doesn't have direct P&L
+    const commission = parseFloat(trade.commission || 0)
+    const qty = parseFloat(trade.qty || 0)
+    const price = parseFloat(trade.price || 0)
+    const quoteQty = parseFloat(trade.quoteQty || qty * price)
+
+    return {
+      timestamp: trade.time ? new Date(trade.time).toISOString() : new Date().toISOString(),
+      realizedPnl: trade.isBuyer ? 0 : quoteQty, // Simplified: sells generate PnL, buys are investments
+      symbol: trade.symbol || 'UNKNOWN',
+      quantity: qty,
+      price: price,
+      type: 'spot',
+      side: trade.isBuyer ? 'buy' : 'sell',
+      exchange: metadata.exchanges ? metadata.exchanges[0] : 'unknown',
+      commission: commission
+    }
+  }
+
+  const normalizeFuturesTrade = (income) => {
+    const incomeAmount = parseFloat(income.income || 0)
+
+    return {
+      timestamp: income.time ? new Date(income.time).toISOString() : new Date().toISOString(),
+      realizedPnl: incomeAmount,
+      symbol: income.symbol || 'UNKNOWN',
+      quantity: 0, // Futures income doesn't have quantity
+      price: 0,
+      type: 'futures',
+      side: income.incomeType === 'REALIZED_PNL' ? 'close' : income.incomeType?.toLowerCase() || 'unknown',
+      exchange: metadata.exchanges ? metadata.exchanges[0] : 'unknown',
+      incomeType: income.incomeType || 'UNKNOWN'
+    }
+  }
+
+  // Normalize all trades
+  const normalizedSpotTrades = spotTrades.map(normalizeSpotTrade)
+  const normalizedFuturesTrades = futuresData.income
+    .filter(inc => inc.incomeType === 'REALIZED_PNL' || inc.incomeType === 'COMMISSION')
+    .map(normalizeFuturesTrade)
+
+  // Combine and sort by timestamp
+  const allTrades = [...normalizedSpotTrades, ...normalizedFuturesTrades]
+    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+
+  console.log('📊 Standardized trades created:', allTrades.length, `(${normalizedSpotTrades.length} spot, ${normalizedFuturesTrades.length} futures)`)
 
   console.log('\n=== MASTER ANALYSIS COMPLETE ===')
   console.log('Total P&L:', totalPnL.toFixed(2), `(Spot: ${spotAnalysis.totalPnL.toFixed(2)}, Futures: ${futuresAnalysis.netPnL.toFixed(2)})`)
@@ -193,6 +253,10 @@ export const analyzeData = (allData) => {
     // Currency info
     currency: metadata.primaryCurrency || 'USD',
     metadata,
+
+    // ===== NEW: STANDARDIZED RAW TRADE DATA =====
+    // All trades in a unified format for advanced analytics
+    allTrades,  // Complete array of normalized trades with timestamp, realizedPnl, symbol, etc.
 
     // Overall metrics
     totalPnL,

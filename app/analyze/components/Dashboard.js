@@ -2,9 +2,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, LogOut, BarChart3, Sparkles, Database, CheckSquare, Square, Loader2 } from 'lucide-react'
+import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, LogOut, BarChart3, Sparkles, Database, CheckSquare, Square, Loader2, ChevronRight, Zap } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { toast } from 'sonner'
+import { getMostCriticalInsight } from '../utils/performanceAnalogies'
+import { analyzeData } from '../utils/masterAnalyzer'
 import {
   AlertDialog,
   AlertDialogContent,
@@ -29,6 +31,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
   const [loadingFiles, setLoadingFiles] = useState(true)
   const [loadingStats, setLoadingStats] = useState(true)
   const [tradesStats, setTradesStats] = useState(null)
+  const [criticalInsight, setCriticalInsight] = useState(null)
   const [selectedSources, setSelectedSources] = useState([]) // Array of {type: 'exchange'|'csv', id: string}
 
   // Exchange deletion state
@@ -112,6 +115,19 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
 
       if (data.success && data.metadata) {
         setTradesStats(data.metadata)
+
+        // Analyze data to get critical insight
+        if (data.spotTrades || data.futuresIncome) {
+          try {
+            // analyzeData is now async due to currency conversion
+            const analytics = await analyzeData(data)
+            const psychology = analytics.psychology || {}
+            const insight = getMostCriticalInsight(analytics, psychology)
+            setCriticalInsight(insight)
+          } catch (error) {
+            console.error('Error analyzing trades for insight:', error)
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching trades stats:', error)
@@ -444,6 +460,50 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                   Not ready to connect? Try the demo to see what's possible.
                 </p>
               </div>
+            )}
+
+            {/* Compact Active Insight Banner */}
+            {!loadingStats && criticalInsight && tradesStats && tradesStats.totalTrades > 0 && (
+              <button
+                onClick={onViewAnalytics}
+                className={`w-full group flex items-center gap-3 px-4 py-3 rounded-lg border transition-all text-left ${
+                  criticalInsight.type === 'weakness'
+                    ? 'bg-red-500/5 border-red-500/20 hover:border-red-500/40 hover:bg-red-500/10'
+                    : 'bg-emerald-500/5 border-emerald-500/20 hover:border-emerald-500/40 hover:bg-emerald-500/10'
+                }`}
+              >
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                  criticalInsight.type === 'weakness'
+                    ? 'bg-red-500/10 text-red-400'
+                    : 'bg-emerald-500/10 text-emerald-400'
+                }`}>
+                  {criticalInsight.type === 'weakness' ? <AlertCircle className="w-4 h-4" /> : <Zap className="w-4 h-4" />}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-medium ${
+                      criticalInsight.type === 'weakness' ? 'text-red-400' : 'text-emerald-400'
+                    }`}>
+                      {criticalInsight.title}
+                    </span>
+                    {criticalInsight.impact && (
+                      <span className="flex items-center gap-0.5">
+                        {[...Array(criticalInsight.impact)].map((_, i) => (
+                          <div key={i} className={`w-1 h-1 rounded-full ${
+                            criticalInsight.type === 'weakness' ? 'bg-red-400/60' : 'bg-emerald-400/60'
+                          }`} />
+                        ))}
+                      </span>
+                    )}
+                    <span className="text-xs text-slate-400 truncate">• {criticalInsight.message}</span>
+                  </div>
+                </div>
+
+                <ChevronRight className={`w-4 h-4 flex-shrink-0 transition-transform group-hover:translate-x-1 ${
+                  criticalInsight.type === 'weakness' ? 'text-red-400/60' : 'text-emerald-400/60'
+                }`} />
+              </button>
             )}
 
             {/* Quick Actions */}

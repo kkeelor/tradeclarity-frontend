@@ -330,6 +330,26 @@ export default function CSVUploadFlow({ onBack }) {
       const newTrades = storeData.tradesCount || 0
       const duplicates = storeData.alreadyExisted || 0
 
+      // Step 4: Update CSV metadata with actual trade count
+      updateConfig(configId, {
+        progress: 'Updating file metadata...'
+      })
+
+      try {
+        await fetch('/api/csv/save-metadata', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            csvUploadId: csvUploadId,
+            tradesCount: newTrades
+          })
+        })
+        console.log('✅ Updated CSV trade count:', newTrades)
+      } catch (error) {
+        console.error('⚠️ Failed to update CSV trade count:', error)
+        // Non-critical error - don't fail the upload
+      }
+
       updateConfig(configId, {
         status: 'success',
         message: duplicates > 0

@@ -407,7 +407,7 @@ export default function TradeClarityContent() {
     setLoadingComplete(false)
 
     try {
-      setTimeout(() => {
+      setTimeout(async () => {
         console.log('📊 Loading demo data...')
 
         const spotData = require('./demo-data/demo-spot-data.json')
@@ -447,7 +447,7 @@ export default function TradeClarityContent() {
         }
 
         setProgress('Analyzing demo data...')
-        const analysis = analyzeData(demoData)
+        const analysis = await analyzeData(demoData)
 
         console.log('✅ Demo analysis complete:', analysis)
         console.log('Spot trades:', analysis.spotTrades)
@@ -471,13 +471,22 @@ export default function TradeClarityContent() {
     setLoadingComplete(false)
 
     try {
+      // Defensive: Ensure connectionId and exchangeName are strings (not objects)
+      const safeConnectionId = connectionId && typeof connectionId === 'string' ? connectionId : null
+      const safeExchangeName = exchangeName && typeof exchangeName === 'string' ? exchangeName.toLowerCase() : null
+
+      console.log('🔍 [handleViewAnalytics] Called with:', {
+        raw: { connectionId, exchangeName },
+        safe: { safeConnectionId, safeExchangeName }
+      })
+
       // Check cache: only re-fetch if switching to different exchange/connection
-      const cacheKey = connectionId || exchangeName || 'all'
+      const cacheKey = safeConnectionId || safeExchangeName || 'all'
       if (cachedData && currentConnectionId === cacheKey) {
         console.log('✅ Using cached data for:', cacheKey)
         setProgress('Analyzing your trading data...')
 
-        const analysis = analyzeData(cachedData)
+        const analysis = await analyzeData(cachedData)
         setAnalytics(analysis)
         setCurrencyMetadata(cachedData.metadata)
         setCurrency(cachedData.metadata?.primaryCurrency || 'USD')
@@ -490,10 +499,12 @@ export default function TradeClarityContent() {
       let url = '/api/trades/fetch'
       const params = new URLSearchParams()
 
-      if (connectionId) {
-        params.append('connectionId', connectionId)
-      } else if (exchangeName) {
-        params.append('exchange', exchangeName)
+      if (safeConnectionId) {
+        console.log('📎 Adding connectionId to params:', safeConnectionId)
+        params.append('connectionId', safeConnectionId)
+      } else if (safeExchangeName) {
+        console.log('📎 Adding exchange to params:', safeExchangeName)
+        params.append('exchange', safeExchangeName)
       }
       // If neither provided, fetch ALL trades
 
@@ -529,7 +540,7 @@ export default function TradeClarityContent() {
 
       setProgress('Analyzing your trading data...')
 
-      const analysis = analyzeData(data)
+      const analysis = await analyzeData(data)
 
       console.log('📊 Analysis complete:', analysis)
 
@@ -599,7 +610,7 @@ export default function TradeClarityContent() {
 
       setProgress('Analyzing your trading data...')
 
-      const analysis = analyzeData(data)
+      const analysis = await analyzeData(data)
 
       console.log('📊 Analysis complete:', analysis)
 
