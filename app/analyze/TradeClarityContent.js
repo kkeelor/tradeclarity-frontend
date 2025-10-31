@@ -348,11 +348,12 @@ export default function TradeClarityContent() {
   // Background effect: Store trades to database after analytics loads
   useEffect(() => {
     if (pendingTradeStorage && status === 'connected' && !isDemoMode) {
-      const { spotTrades, futuresIncome, userId, exchange: exchangeName, connectionId } = pendingTradeStorage
+      const { spotTrades, futuresIncome, userId, exchange: exchangeName, connectionId, metadata } = pendingTradeStorage
 
       console.log('📥 [Background] Storing trades to database...', {
         spotTrades: spotTrades?.length || 0,
-        futuresIncome: futuresIncome?.length || 0
+        futuresIncome: futuresIncome?.length || 0,
+        hasPortfolioData: !!metadata?.spotHoldings
       })
 
       // Call storage endpoint in background (fire and forget)
@@ -364,12 +365,16 @@ export default function TradeClarityContent() {
           futuresIncome,
           userId,
           exchange: exchangeName,
-          connectionId
+          connectionId,
+          metadata // Include metadata for portfolio snapshot
         })
       })
         .then(res => res.json())
         .then(data => {
           console.log('✅ [Background] Trades stored:', data)
+          if (data.portfolioSnapshotStored) {
+            console.log('📊 Portfolio snapshot saved successfully')
+          }
         })
         .catch(err => {
           console.error('❌ [Background] Failed to store trades:', err)
@@ -625,7 +630,8 @@ export default function TradeClarityContent() {
           futuresIncome: preFetchedData.futuresIncome || [],
           userId: preFetchedData.userId,
           exchange: preFetchedData.exchange,
-          connectionId: preFetchedData.connectionId
+          connectionId: preFetchedData.connectionId,
+          metadata: preFetchedData.metadata // Include metadata for portfolio snapshot
         })
       }
 

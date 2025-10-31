@@ -95,6 +95,36 @@ export async function GET(request) {
     console.log(`📊 Fetched ${totalTrades} trades (${spotTrades.length} spot, ${futuresIncome.length} futures) ${connectionId ? `for connection ${connectionId}` : exchange ? `for ${exchange}` : 'from all exchanges'}`)
     console.log(`💱 Detected primary currency: ${primaryCurrency} based on exchanges: ${uniqueExchanges.join(', ')}`)
 
+    // Try to fetch the most recent portfolio snapshot
+    let portfolioSnapshot = null
+    try {
+      let snapshotQuery = supabase
+        .from('portfolio_snapshots')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('snapshot_time', { ascending: false })
+        .limit(1)
+
+      // Filter by connection or exchange if specified
+      if (connectionId) {
+        snapshotQuery = snapshotQuery.eq('connection_id', connectionId)
+      } else if (exchange) {
+        snapshotQuery = snapshotQuery.eq('exchange', exchange.toLowerCase())
+      }
+
+      const { data: snapshots, error: snapshotError } = await snapshotQuery
+
+      if (!snapshotError && snapshots && snapshots.length > 0) {
+        portfolioSnapshot = snapshots[0]
+        console.log(`📊 Found portfolio snapshot from ${portfolioSnapshot.snapshot_time}: $${portfolioSnapshot.total_portfolio_value}`)
+      } else {
+        console.log('📊 No portfolio snapshot found for this data')
+      }
+    } catch (snapshotErr) {
+      console.error('Error fetching portfolio snapshot:', snapshotErr)
+      // Continue without snapshot
+    }
+
     return NextResponse.json({
       success: true,
       spotTrades,
@@ -113,7 +143,15 @@ export async function GET(request) {
         newestTrade: newestTrade,
         accountType: spotTrades.length > 0 && futuresIncome.length > 0 ? 'MIXED' : spotTrades.length > 0 ? 'SPOT' : 'FUTURES',
         hasSpot: spotTrades.length > 0,
-        hasFutures: futuresIncome.length > 0
+        hasFutures: futuresIncome.length > 0,
+        // Include portfolio snapshot data if available
+        ...(portfolioSnapshot && {
+          totalPortfolioValue: parseFloat(portfolioSnapshot.total_portfolio_value),
+          totalSpotValue: parseFloat(portfolioSnapshot.total_spot_value),
+          totalFuturesValue: parseFloat(portfolioSnapshot.total_futures_value),
+          spotHoldings: portfolioSnapshot.holdings,
+          snapshotTime: portfolioSnapshot.snapshot_time
+        })
       }
     })
   } catch (error) {

@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server'
 
 export async function POST(request) {
   try {
-    const { spotTrades, futuresIncome, userId, exchange, connectionId, csvUploadId } = await request.json()
+    const { spotTrades, futuresIncome, userId, exchange, connectionId, csvUploadId, metadata } = await request.json()
 
     if (!userId || !exchange || !connectionId) {
       return NextResponse.json(
@@ -15,6 +15,9 @@ export async function POST(request) {
     }
 
     console.log(`💾 [Background] Storing trades for user ${userId}, exchange ${exchange}...`)
+    if (metadata?.spotHoldings) {
+      console.log(`📊 Portfolio data received: $${metadata.totalPortfolioValue?.toFixed(2) || 0}, ${metadata.spotHoldings?.length || 0} holdings`)
+    }
 
     const tradesToInsert = []
 
@@ -136,11 +139,46 @@ export async function POST(request) {
 
     console.log(`✅ Successfully stored ${insertedCount}/${newTrades.length} new trades`)
 
+    // Store portfolio snapshot if metadata is provided
+    let snapshotStored = false
+    if (metadata && metadata.spotHoldings && metadata.totalPortfolioValue !== undefined) {
+      try {
+        console.log(`📊 Storing portfolio snapshot...`)
+
+        const { error: snapshotError } = await adminClient
+          .from('portfolio_snapshots')
+          .insert({
+            user_id: userId,
+            exchange: exchange,
+            connection_id: connectionId,
+            snapshot_time: new Date().toISOString(),
+            total_portfolio_value: metadata.totalPortfolioValue || 0,
+            total_spot_value: metadata.totalSpotValue || 0,
+            total_futures_value: metadata.totalFuturesValue || 0,
+            holdings: metadata.spotHoldings,
+            primary_currency: metadata.primaryCurrency || 'USD',
+            account_type: metadata.accountType || 'UNKNOWN'
+          })
+
+        if (snapshotError) {
+          console.error('⚠️  Failed to store portfolio snapshot:', snapshotError)
+          // Don't fail the entire request, just log the error
+        } else {
+          snapshotStored = true
+          console.log(`✅ Portfolio snapshot stored: $${metadata.totalPortfolioValue?.toFixed(2)}, ${metadata.spotHoldings.length} holdings`)
+        }
+      } catch (snapshotErr) {
+        console.error('⚠️  Error storing portfolio snapshot:', snapshotErr)
+        // Don't fail the entire request
+      }
+    }
+
     return NextResponse.json({
       success: true,
       tradesCount: insertedCount,
       totalProcessed: tradesToInsert.length,
-      alreadyExisted: existingTradeIds.size
+      alreadyExisted: existingTradeIds.size,
+      portfolioSnapshotStored: snapshotStored
     })
   } catch (error) {
     console.error('Store trades error:', error)
