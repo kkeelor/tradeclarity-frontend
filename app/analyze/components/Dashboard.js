@@ -249,6 +249,9 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
         if (deleteLinkedCSVs || data.csvFilesUnlinked > 0) {
           await fetchUploadedFiles()
         }
+
+        // Refresh stats to update the Trading Overview section
+        await fetchTradesStats()
       } else {
         toast.error(data.error || 'Failed to delete exchange connection')
       }
