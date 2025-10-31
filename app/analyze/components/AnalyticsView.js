@@ -44,6 +44,15 @@ import {
   EmptyState
 } from '../../components'
 
+// Helper function to format numbers with commas
+const formatNumber = (num, decimals = 2) => {
+  if (num === null || num === undefined || isNaN(num)) return '0'
+  return Number(num).toLocaleString('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals
+  })
+}
+
 // Icon mapper for string icon names to Lucide components
 const ICON_MAP = {
   Target,
@@ -1551,10 +1560,10 @@ function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
             <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700/30">
               <div className="text-xs text-slate-400 mb-1">Total Value</div>
               <div className="text-xl font-bold text-white">
-                {currSymbol}{(metadata?.totalPortfolioValue || 0).toFixed(2)} <span className="text-xs text-slate-400 font-normal">USD</span>
+                ${formatNumber(metadata?.totalPortfolioValue || 0, 2)} <span className="text-xs text-slate-400 font-normal">USD</span>
               </div>
               <div className="text-[10px] text-slate-500 mt-1">
-                Spot: {currSymbol}{(metadata?.totalSpotValue || 0).toFixed(0)} • Futures: {currSymbol}{(metadata?.totalFuturesValue || 0).toFixed(0)}
+                Spot: ${formatNumber(metadata?.totalSpotValue || 0, 0)} • Futures: ${formatNumber(metadata?.totalFuturesValue || 0, 0)}
               </div>
             </div>
           ) : (
@@ -1617,7 +1626,7 @@ function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
         <div className={`rounded-md border ${isProfitable ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-red-500/20 bg-red-500/5'} p-2`}>
           <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Total P&L</div>
           <div className={`text-lg font-bold ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`}>
-            {isProfitable ? '+' : ''}{currSymbol}{Math.abs(analytics.totalPnL).toFixed(2)} <span className="text-[10px] text-slate-400 font-normal">USD</span>
+            {isProfitable ? '+' : ''}${formatNumber(Math.abs(analytics.totalPnL), 2)} <span className="text-[10px] text-slate-400 font-normal">USD</span>
           </div>
           <div className="text-[10px] text-slate-500">{analytics.totalTrades} trades</div>
         </div>
@@ -1625,7 +1634,7 @@ function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
         <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
           <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Realized P&L</div>
           <div className="text-lg font-bold text-white">
-            {currSymbol}{((analytics.spotPnL || 0) + (analytics.futuresRealizedPnL || 0)).toFixed(2)} <span className="text-[10px] text-slate-400 font-normal">USD</span>
+            ${formatNumber((analytics.spotPnL || 0) + (analytics.futuresRealizedPnL || 0), 2)} <span className="text-[10px] text-slate-400 font-normal">USD</span>
           </div>
           <div className="text-[10px] text-slate-500">Closed positions</div>
         </div>
@@ -1664,7 +1673,7 @@ function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
               </div>
               <ChevronRight className="w-3 h-3 text-emerald-400/50 group-hover:text-emerald-400 transition-colors" />
             </div>
-            <div className="text-lg font-bold text-white mb-1">{currSymbol}{analytics.spotPnL.toFixed(2)} <span className="text-[10px] text-slate-400 font-normal">USD</span></div>
+            <div className="text-lg font-bold text-white mb-1">${formatNumber(analytics.spotPnL, 2)} <span className="text-[10px] text-slate-400 font-normal">USD</span></div>
             <div className="text-[10px] text-slate-400">{analytics.spotTrades} trades • {analytics.spotWinRate.toFixed(1)}% win rate</div>
             <div className="text-[10px] text-emerald-400 mt-2 group-hover:underline">See detailed breakdown →</div>
           </button>
@@ -1683,7 +1692,7 @@ function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
               </div>
               <ChevronRight className="w-3 h-3 text-cyan-400/50 group-hover:text-cyan-400 transition-colors" />
             </div>
-            <div className="text-lg font-bold text-white mb-1">{currSymbol}{analytics.futuresPnL.toFixed(2)} <span className="text-[10px] text-slate-400 font-normal">USD</span></div>
+            <div className="text-lg font-bold text-white mb-1">${formatNumber(analytics.futuresPnL, 2)} <span className="text-[10px] text-slate-400 font-normal">USD</span></div>
             <div className="text-[10px] text-slate-400">{analytics.futuresOpenPositions?.length || 0} open • {analytics.futuresWinRate.toFixed(1)}% win rate</div>
             <div className="text-[10px] text-cyan-400 mt-2 group-hover:underline">Analyze leverage impact →</div>
           </button>
@@ -1792,7 +1801,7 @@ function SpotTab({ analytics, currSymbol, metadata }) {
         <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
           <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Spot P&L</div>
           <div className={`text-lg font-bold ${analytics.spotPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {currency}{analytics.spotPnL?.toFixed(2) || '0.00'} <span className="text-[10px] text-slate-400 font-normal">USD</span>
+            ${formatNumber(analytics.spotPnL || 0, 2)} <span className="text-[10px] text-slate-400 font-normal">USD</span>
           </div>
           <div className="text-[10px] text-slate-500">{analytics.spotRoi?.toFixed(1) || '0.0'}% ROI</div>
         </div>
@@ -1803,12 +1812,12 @@ function SpotTab({ analytics, currSymbol, metadata }) {
         </div>
         <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
           <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Invested</div>
-          <div className="text-lg font-bold text-white">{currency}{analytics.spotInvested?.toFixed(0) || '0'} <span className="text-[10px] text-slate-400 font-normal">USD</span></div>
+          <div className="text-lg font-bold text-white">${formatNumber(analytics.spotInvested || 0, 0)} <span className="text-[10px] text-slate-400 font-normal">USD</span></div>
           <div className="text-[10px] text-slate-500">{analytics.spotTrades || 0} trades</div>
         </div>
         <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
           <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Best Win</div>
-          <div className="text-lg font-bold text-emerald-400">{currency}{spotAnalysis.largestWin?.toFixed(2) || '0.00'} <span className="text-[10px] text-slate-400 font-normal">USD</span></div>
+          <div className="text-lg font-bold text-emerald-400">${formatNumber(spotAnalysis.largestWin || 0, 2)} <span className="text-[10px] text-slate-400 font-normal">USD</span></div>
           <div className="text-[10px] text-slate-500">Max gain</div>
         </div>
       </div>
@@ -1904,7 +1913,7 @@ function FuturesTab({ analytics, currSymbol }) {
         <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
           <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Net P&L</div>
           <div className={`text-lg font-bold ${analytics.futuresPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {currency}{analytics.futuresPnL?.toFixed(2) || '0.00'} <span className="text-[10px] text-slate-400 font-normal">USD</span>
+            ${formatNumber(analytics.futuresPnL || 0, 2)} <span className="text-[10px] text-slate-400 font-normal">USD</span>
           </div>
           <div className="text-[10px] text-slate-500">
             {analytics.futuresTrades || 0} trades
@@ -1914,7 +1923,7 @@ function FuturesTab({ analytics, currSymbol }) {
         <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
           <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Realized</div>
           <div className={`text-lg font-bold ${analytics.futuresRealizedPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {currency}{analytics.futuresRealizedPnL?.toFixed(2) || '0.00'} <span className="text-[10px] text-slate-400 font-normal">USD</span>
+            ${formatNumber(analytics.futuresRealizedPnL || 0, 2)} <span className="text-[10px] text-slate-400 font-normal">USD</span>
           </div>
           <div className="text-[10px] text-slate-500">Closed positions</div>
         </div>
@@ -1922,7 +1931,7 @@ function FuturesTab({ analytics, currSymbol }) {
         <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
           <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Unrealized</div>
           <div className={`text-lg font-bold ${analytics.futuresUnrealizedPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {currency}{analytics.futuresUnrealizedPnL?.toFixed(2) || '0.00'} <span className="text-[10px] text-slate-400 font-normal">USD</span>
+            ${formatNumber(analytics.futuresUnrealizedPnL || 0, 2)} <span className="text-[10px] text-slate-400 font-normal">USD</span>
           </div>
           <div className="text-[10px] text-slate-500">
             {analytics.futuresOpenPositions?.length || 0} open
@@ -1948,7 +1957,7 @@ function FuturesTab({ analytics, currSymbol }) {
             <span className="text-[10px] text-slate-400 uppercase tracking-wider">Funding Fees</span>
           </div>
           <div className={`text-lg font-bold ${(analytics.futuresFundingFees || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {(analytics.futuresFundingFees || 0) >= 0 ? '+' : ''}{currency}{(analytics.futuresFundingFees || 0).toFixed(2)} <span className="text-[10px] text-slate-400 font-normal">USD</span>
+            {(analytics.futuresFundingFees || 0) >= 0 ? '+' : ''}${formatNumber(Math.abs(analytics.futuresFundingFees || 0), 2)} <span className="text-[10px] text-slate-400 font-normal">USD</span>
           </div>
           <div className="text-[10px] text-slate-500">
             {(analytics.futuresFundingFees || 0) >= 0 ? 'Earned' : 'Paid'}
@@ -1961,7 +1970,7 @@ function FuturesTab({ analytics, currSymbol }) {
             <span className="text-[10px] text-slate-400 uppercase tracking-wider">Commission</span>
           </div>
           <div className="text-lg font-bold text-red-400">
-            -{currency}{(analytics.futuresCommission || 0).toFixed(2)} <span className="text-[10px] text-slate-400 font-normal">USD</span>
+            -${formatNumber(analytics.futuresCommission || 0, 2)} <span className="text-[10px] text-slate-400 font-normal">USD</span>
           </div>
           <div className="text-[10px] text-slate-500">Trading fees</div>
         </div>
