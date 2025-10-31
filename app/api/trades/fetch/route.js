@@ -77,8 +77,10 @@ export async function GET(request) {
 
     // Get optional query parameters for filtering
     const { searchParams } = new URL(request.url)
-    const connectionId = searchParams.get('connectionId')
-    const exchange = searchParams.get('exchange')
+    const connectionId = searchParams.get('connectionId')  // Single connection (legacy)
+    const exchange = searchParams.get('exchange')          // Single exchange (legacy)
+    const connectionIds = searchParams.get('connectionIds') // Multiple connections (new)
+    const csvIds = searchParams.get('csvIds')              // Multiple CSV files (new)
 
     // Build query with optional filters
     let query = supabase
@@ -86,13 +88,37 @@ export async function GET(request) {
       .select('*')
       .eq('user_id', user.id)
 
-    // Apply filters if provided (for single exchange analytics)
-    if (connectionId) {
+    // Apply filters based on which params are provided
+    if (connectionIds || csvIds) {
+      // New: Filter by multiple sources (exchanges and/or CSVs)
+      // When both are provided, we need to use OR logic
+      const connIds = connectionIds ? connectionIds.split(',').filter(id => id.trim()) : []
+      const csvFileIds = csvIds ? csvIds.split(',').filter(id => id.trim()) : []
+
+      console.log('📎 Filtering by selected sources:', { connectionIds: connIds, csvIds: csvFileIds })
+
+      if (connIds.length > 0 && csvFileIds.length > 0) {
+        // Both exchanges AND CSV files selected - use OR query
+        query = query.or(`exchange_connection_id.in.(${connIds.join(',')}),csv_upload_id.in.(${csvFileIds.join(',')})`)
+      } else if (connIds.length > 0) {
+        // Only exchanges selected
+        query = query.in('exchange_connection_id', connIds)
+      } else if (csvFileIds.length > 0) {
+        // Only CSV files selected
+        query = query.in('csv_upload_id', csvFileIds)
+      }
+    } else if (connectionId) {
+      // Legacy: Single connection ID
+      console.log('📎 Filtering by single connectionId:', connectionId)
       query = query.eq('exchange_connection_id', connectionId)
     } else if (exchange) {
+      // Legacy: Single exchange
+      console.log('🏦 Filtering by single exchange:', exchange)
       query = query.eq('exchange', exchange.toLowerCase())
+    } else {
+      // No filters provided - fetch ALL trades (for combined analytics)
+      console.log('📊 No filters - fetching ALL trades for combined analytics')
     }
-    // If neither provided, fetch ALL trades (for combined analytics)
 
     const { data: trades, error: fetchError } = await query.order('trade_time', { ascending: true })
 

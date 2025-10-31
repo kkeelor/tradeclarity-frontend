@@ -469,24 +469,42 @@ export default function TradeClarityContent() {
     }
   }
 
-  const handleViewAnalytics = async (connectionId = null, exchangeName = null) => {
+  const handleViewAnalytics = async (connectionIdOrSources = null, exchangeName = null) => {
     setStatus('connecting')
     setError('')
     setProgress('Loading your saved trading data...')
     setLoadingComplete(false)
 
     try {
-      // Defensive: Ensure connectionId and exchangeName are strings (not objects)
-      const safeConnectionId = connectionId && typeof connectionId === 'string' ? connectionId : null
-      const safeExchangeName = exchangeName && typeof exchangeName === 'string' ? exchangeName.toLowerCase() : null
+      // Handle two calling patterns:
+      // 1. Legacy: (connectionId, exchangeName) - single source
+      // 2. New: (selectedSources) - array of sources
+      let selectedSources = null
+      let safeConnectionId = null
+      let safeExchangeName = null
 
-      console.log('🔍 [handleViewAnalytics] Called with:', {
-        raw: { connectionId, exchangeName },
-        safe: { safeConnectionId, safeExchangeName }
-      })
+      if (Array.isArray(connectionIdOrSources)) {
+        // New pattern: array of selected sources
+        selectedSources = connectionIdOrSources
+        console.log('🔍 [handleViewAnalytics] Called with selectedSources:', selectedSources)
+      } else {
+        // Legacy pattern: single connection ID or exchange name
+        safeConnectionId = connectionIdOrSources && typeof connectionIdOrSources === 'string' ? connectionIdOrSources : null
+        safeExchangeName = exchangeName && typeof exchangeName === 'string' ? exchangeName.toLowerCase() : null
+        console.log('🔍 [handleViewAnalytics] Called with:', {
+          raw: { connectionId: connectionIdOrSources, exchangeName },
+          safe: { safeConnectionId, safeExchangeName }
+        })
+      }
 
-      // Check cache: only re-fetch if switching to different exchange/connection
-      const cacheKey = safeConnectionId || safeExchangeName || 'all'
+      // Check cache: only re-fetch if switching to different data set
+      let cacheKey
+      if (selectedSources) {
+        cacheKey = `selected:${selectedSources.map(s => `${s.type}:${s.id}`).join(',')}`
+      } else {
+        cacheKey = safeConnectionId || safeExchangeName || 'all'
+      }
+
       if (cachedData && currentConnectionId === cacheKey) {
         console.log('✅ Using cached data for:', cacheKey)
         setProgress('Analyzing your trading data...')
@@ -500,18 +518,39 @@ export default function TradeClarityContent() {
         return
       }
 
-      // Build URL with optional filters
+      // Build URL with filters
       let url = '/api/trades/fetch'
       const params = new URLSearchParams()
 
-      if (safeConnectionId) {
+      if (selectedSources && selectedSources.length > 0) {
+        // New pattern: filter by multiple selected sources
+        const exchangeIds = selectedSources
+          .filter(s => s.type === 'exchange')
+          .map(s => s.id)
+
+        const csvIds = selectedSources
+          .filter(s => s.type === 'csv')
+          .map(s => s.id)
+
+        if (exchangeIds.length > 0) {
+          console.log('📎 Adding connectionIds to params:', exchangeIds)
+          params.append('connectionIds', exchangeIds.join(','))
+        }
+
+        if (csvIds.length > 0) {
+          console.log('📄 Adding csvIds to params:', csvIds)
+          params.append('csvIds', csvIds.join(','))
+        }
+      } else if (safeConnectionId) {
+        // Legacy: single connection
         console.log('📎 Adding connectionId to params:', safeConnectionId)
         params.append('connectionId', safeConnectionId)
       } else if (safeExchangeName) {
+        // Legacy: single exchange
         console.log('📎 Adding exchange to params:', safeExchangeName)
         params.append('exchange', safeExchangeName)
       }
-      // If neither provided, fetch ALL trades
+      // If no filters, fetch ALL trades (combined analytics)
 
       if (params.toString()) {
         url += '?' + params.toString()

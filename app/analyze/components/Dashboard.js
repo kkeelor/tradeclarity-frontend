@@ -180,14 +180,10 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
   const handleViewSelected = () => {
     if (selectedSources.length === 0) return
 
-    // Extract connection IDs and determine if we're viewing all or specific sources
-    const exchangeIds = selectedSources
-      .filter(s => s.type === 'exchange')
-      .map(s => s.id)
+    console.log('📊 Viewing analytics for selected sources:', selectedSources)
 
-    // For simplicity, if mixed or multiple sources selected, view all
-    // In the future, this could be enhanced to filter by specific sources
-    onViewAnalytics()
+    // Pass selected sources to analytics view for filtering
+    onViewAnalytics(selectedSources)
   }
 
   const handleDeleteClick = async (exchange) => {
