@@ -95,30 +95,113 @@ export async function GET(request) {
     console.log(`📊 Fetched ${totalTrades} trades (${spotTrades.length} spot, ${futuresIncome.length} futures) ${connectionId ? `for connection ${connectionId}` : exchange ? `for ${exchange}` : 'from all exchanges'}`)
     console.log(`💱 Detected primary currency: ${primaryCurrency} based on exchanges: ${uniqueExchanges.join(', ')}`)
 
-    // Try to fetch the most recent portfolio snapshot
+    // Try to fetch portfolio snapshot(s)
     let portfolioSnapshot = null
     try {
-      let snapshotQuery = supabase
-        .from('portfolio_snapshots')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('snapshot_time', { ascending: false })
-        .limit(1)
+      if (connectionId || exchange) {
+        // Viewing SINGLE exchange - fetch most recent snapshot for that exchange
+        let snapshotQuery = supabase
+          .from('portfolio_snapshots')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('snapshot_time', { ascending: false })
+          .limit(1)
 
-      // Filter by connection or exchange if specified
-      if (connectionId) {
-        snapshotQuery = snapshotQuery.eq('connection_id', connectionId)
-      } else if (exchange) {
-        snapshotQuery = snapshotQuery.eq('exchange', exchange.toLowerCase())
-      }
+        if (connectionId) {
+          snapshotQuery = snapshotQuery.eq('connection_id', connectionId)
+        } else if (exchange) {
+          snapshotQuery = snapshotQuery.eq('exchange', exchange.toLowerCase())
+        }
 
-      const { data: snapshots, error: snapshotError } = await snapshotQuery
+        const { data: snapshots, error: snapshotError } = await snapshotQuery
 
-      if (!snapshotError && snapshots && snapshots.length > 0) {
-        portfolioSnapshot = snapshots[0]
-        console.log(`📊 Found portfolio snapshot from ${portfolioSnapshot.snapshot_time}: $${portfolioSnapshot.total_portfolio_value}`)
+        if (!snapshotError && snapshots && snapshots.length > 0) {
+          portfolioSnapshot = snapshots[0]
+          console.log(`📊 Found portfolio snapshot from ${portfolioSnapshot.snapshot_time}: $${portfolioSnapshot.total_portfolio_value}`)
+        } else {
+          console.log('📊 No portfolio snapshot found for this exchange')
+        }
       } else {
-        console.log('📊 No portfolio snapshot found for this data')
+        // Viewing COMBINED analytics - fetch ALL snapshots and aggregate them
+        console.log('📊 Fetching ALL portfolio snapshots for combined analytics...')
+
+        const { data: allSnapshots, error: snapshotError } = await supabase
+          .from('portfolio_snapshots')
+          .select('*')
+          .eq('user_id', user.id)
+
+        if (snapshotError) {
+          console.error('Error fetching portfolio snapshots:', snapshotError)
+        } else if (allSnapshots && allSnapshots.length > 0) {
+          console.log(`📊 Found ${allSnapshots.length} total snapshots across all exchanges`)
+
+          // Group by connection_id, keep most recent for each
+          const latestPerConnection = {}
+          allSnapshots.forEach(snap => {
+            const key = snap.connection_id
+            if (!latestPerConnection[key] || snap.snapshot_time > latestPerConnection[key].snapshot_time) {
+              latestPerConnection[key] = snap
+            }
+          })
+
+          const recentSnapshots = Object.values(latestPerConnection)
+          console.log(`📊 Using ${recentSnapshots.length} most recent snapshots (one per connection)`)
+
+          // Aggregate portfolio values across all exchanges
+          let totalPortfolioValue = 0
+          let totalSpotValue = 0
+          let totalFuturesValue = 0
+          let allHoldings = []
+
+          for (const snap of recentSnapshots) {
+            const snapCurrency = snap.primary_currency || 'USD'
+            let conversionRate = 1.0
+
+            // Convert to USD if needed
+            if (snapCurrency === 'INR') {
+              // Use approximate rate (in production, fetch from currency API)
+              conversionRate = 1 / 87.0
+              console.log(`💱 Converting ${snap.exchange} snapshot from INR to USD (rate: ${conversionRate.toFixed(6)})`)
+            }
+
+            const portfolioValueUSD = parseFloat(snap.total_portfolio_value || 0) * conversionRate
+            const spotValueUSD = parseFloat(snap.total_spot_value || 0) * conversionRate
+            const futuresValueUSD = parseFloat(snap.total_futures_value || 0) * conversionRate
+
+            totalPortfolioValue += portfolioValueUSD
+            totalSpotValue += spotValueUSD
+            totalFuturesValue += futuresValueUSD
+
+            console.log(`  - ${snap.exchange}: $${portfolioValueUSD.toFixed(2)} (${snapCurrency})`)
+
+            // Merge holdings with exchange attribution
+            if (snap.holdings && Array.isArray(snap.holdings)) {
+              const exchangeHoldings = snap.holdings.map(h => ({
+                ...h,
+                exchange: snap.exchange,
+                // Convert holding value to USD if needed
+                usdValue: (h.usdValue || 0) * conversionRate,
+                originalCurrency: snapCurrency
+              }))
+              allHoldings.push(...exchangeHoldings)
+            }
+          }
+
+          // Create aggregated portfolio snapshot
+          portfolioSnapshot = {
+            total_portfolio_value: totalPortfolioValue,
+            total_spot_value: totalSpotValue,
+            total_futures_value: totalFuturesValue,
+            holdings: allHoldings,
+            snapshot_time: recentSnapshots[0].snapshot_time, // Use most recent timestamp
+            _aggregated: true,
+            _snapshotCount: recentSnapshots.length
+          }
+
+          console.log(`✅ Aggregated portfolio: $${totalPortfolioValue.toFixed(2)} USD (${allHoldings.length} holdings from ${recentSnapshots.length} exchanges)`)
+        } else {
+          console.log('📊 No portfolio snapshots found')
+        }
       }
     } catch (snapshotErr) {
       console.error('Error fetching portfolio snapshot:', snapshotErr)
