@@ -17,6 +17,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog'
+import { ExchangeIcon } from '@/components/ui'
 import { DashboardStatsSkeleton, DataSourceSkeleton } from '@/app/components/LoadingSkeletons'
 import ConnectExchangeModal from './ConnectExchangeModal'
 import Sidebar from './Sidebar'
@@ -69,7 +70,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
         const formatted = data.connections.map(conn => ({
           id: conn.id,
           name: conn.exchange.charAt(0).toUpperCase() + conn.exchange.slice(1),
-          icon: conn.exchange === 'binance' ? '🟡' : '🇮🇳',
+          exchange: conn.exchange,
           connectedAt: conn.created_at,
           lastSynced: conn.last_synced || conn.updated_at || conn.created_at
         }))
@@ -649,8 +650,8 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                                   }`}>
                                     {selected && <CheckSquare className="w-3 h-3 text-white" />}
                                   </div>
-                                  <div className="w-10 h-10 bg-slate-700/50 rounded-lg flex items-center justify-center text-xl">
-                                    {exchange.icon}
+                                  <div className="w-10 h-10 bg-slate-700/50 rounded-lg flex items-center justify-center">
+                                    <ExchangeIcon exchange={exchange.exchange} size={24} />
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1">

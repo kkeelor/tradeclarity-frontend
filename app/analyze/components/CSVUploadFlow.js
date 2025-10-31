@@ -15,6 +15,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog'
+import { ExchangeIcon } from '@/components/ui'
 import { UploadedFilesSkeleton } from '@/app/components/LoadingSkeletons'
 import Sidebar from './Sidebar'
 
@@ -45,8 +46,7 @@ export default function CSVUploadFlow({ onBack }) {
         const formatted = data.connections.map(conn => ({
           id: conn.id,
           name: conn.exchange.charAt(0).toUpperCase() + conn.exchange.slice(1),
-          exchange: conn.exchange,
-          icon: conn.exchange === 'binance' ? '🟡' : '🇮🇳'
+          exchange: conn.exchange
         }))
         setConnectedExchanges(formatted)
       }
@@ -684,7 +684,7 @@ function FileConfigCard({ config, connectedExchanges, onUpdate, onRemove, getSta
                         }}
                         className="w-full px-3 py-2 text-left text-sm hover:bg-slate-700/50 transition-colors flex items-center gap-2"
                       >
-                        <span>{exchange.icon}</span>
+                        <ExchangeIcon exchange={exchange.exchange} size={16} />
                         <span className="text-slate-200">{exchange.name}</span>
                       </button>
                     ))}
@@ -895,7 +895,7 @@ function UploadedFileCard({ file, connectedExchanges, onRefresh }) {
                           onClick={() => handleLinkExchange(exchange.id)}
                           className="w-full px-3 py-2 text-left text-sm hover:bg-slate-700/50 transition-colors flex items-center gap-2"
                         >
-                          <span>{exchange.icon}</span>
+                          <ExchangeIcon exchange={exchange.exchange} size={16} />
                           <span className="text-slate-200">{exchange.name}</span>
                         </button>
                       ))}

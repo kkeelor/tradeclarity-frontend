@@ -13,3 +13,4 @@ export {
   AlertDialogAction,
   AlertDialogCancel,
 } from './alert-dialog'
+export { default as ExchangeIcon } from './ExchangeIcon'

@@ -5,7 +5,8 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
 export const binanceConfig = {
   name: 'Binance',
   displayName: 'Binance',
-  icon: '🟡',
+  icon: '🟡', // Legacy fallback
+  logoPath: '/exchanges/binance.svg',
   website: 'binance.com',
   supportsCurrencyDetection: false
 }

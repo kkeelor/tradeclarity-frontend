@@ -5,7 +5,8 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
 export const coindcxConfig = {
   name: 'CoinDCX',
   displayName: 'CoinDCX',
-  icon: '🇮🇳',
+  icon: '🇮🇳', // Legacy fallback
+  logoPath: '/exchanges/coindcx.svg',
   website: 'coindcx.com',
   supportsCurrencyDetection: true
 }

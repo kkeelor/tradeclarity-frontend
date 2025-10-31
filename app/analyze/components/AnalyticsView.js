@@ -16,6 +16,7 @@ import { analyzeDrawdowns } from '../utils/drawdownAnalysis'
 import { analyzeTimeBasedPerformance } from '../utils/timeBasedAnalysis'
 import { analyzeSymbols } from '../utils/symbolAnalysis'
 import Sidebar from './Sidebar'
+import { ExchangeIcon } from '@/components/ui'
 import {
   AreaChart, Area, BarChart, Bar, LineChart as RechartsLineChart,
   Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart,
@@ -1873,14 +1874,13 @@ function SpotTab({ analytics, currSymbol, metadata }) {
                   {displayedHoldings.map((holding, idx) => {
                     // Get exchange name from holding or metadata
                     const exchangeName = holding.exchange || metadata.exchanges?.[0] || 'Unknown'
-                    const exchangeIcon = exchangeName.toLowerCase() === 'binance' ? '🟡' : exchangeName.toLowerCase() === 'coindcx' ? '🇮🇳' : '🔷'
 
                     return (
                       <tr key={`${holding.asset}-${idx}`} className="border-b border-slate-800/30 hover:bg-slate-700/10">
                         <td className="px-2 py-1.5 font-mono font-semibold">{holding.asset}</td>
                         <td className="px-2 py-1.5">
                           <span className="inline-flex items-center gap-1 text-[10px] text-slate-400">
-                            <span>{exchangeIcon}</span>
+                            <ExchangeIcon exchange={exchangeName} size={12} />
                             <span className="capitalize">{exchangeName}</span>
                           </span>
                         </td>

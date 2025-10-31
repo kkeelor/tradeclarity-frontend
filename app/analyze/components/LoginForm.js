@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { TrendingUp, Lock, Loader2, AlertCircle, Eye, EyeOff, HelpCircle, Sparkles, ChevronRight, CheckCircle, Shield, ExternalLink, X, Play, FileText, Clock, BarChart3, Brain, Zap, Target } from 'lucide-react'
+import { ExchangeIcon } from '@/components/ui'
 
 // Step Progress Indicator Component
 function StepProgress({ currentStep, totalSteps }) {
@@ -321,12 +322,14 @@ export default function LoginForm({
                   }`}
                 >
                   <div className="flex items-start gap-4">
-                    <div className="text-4xl">{ex.icon}</div>
+                    <div className="w-12 h-12 flex items-center justify-center">
+                      <ExchangeIcon exchange={ex.id} size={48} />
+                    </div>
                     <div className="flex-1 text-left">
                       <div className="font-bold text-xl mb-1">{ex.displayName}</div>
                       <div className="text-sm text-slate-400 mb-3">
-                        {ex.id === 'binance' && '🌍 World\'s largest crypto exchange'}
-                        {ex.id === 'coindcx' && '🇮🇳 India\'s #1 crypto exchange'}
+                        {ex.id === 'binance' && 'World\'s largest crypto exchange'}
+                        {ex.id === 'coindcx' && 'India\'s #1 crypto exchange'}
                       </div>
                       {ex.id === 'binance' && (
                         <div className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded-full text-xs font-medium">
