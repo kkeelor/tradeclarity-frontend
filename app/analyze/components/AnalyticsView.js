@@ -2339,74 +2339,64 @@ export default function AnalyticsView({
 
           {/* Filter Panel */}
           {showFilters && currencyMetadata?.exchanges && currencyMetadata.exchanges.length > 1 && (
-            <div className="border-b border-slate-700/50 bg-slate-800/50 p-4">
-              <div className="space-y-4">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-slate-200">Filter by Data Source</h3>
+            <div className="border-b border-slate-700/50 bg-slate-800/50 px-4 py-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Exchange Buttons */}
+                {currencyMetadata.exchanges.map(exchange => (
+                  <button
+                    key={exchange}
+                    onClick={() => {
+                      if (selectedExchanges.includes(exchange)) {
+                        setSelectedExchanges(selectedExchanges.filter(ex => ex !== exchange))
+                      } else {
+                        setSelectedExchanges([...selectedExchanges, exchange])
+                      }
+                    }}
+                    className={`relative flex items-center gap-1.5 border rounded-lg px-3 py-1.5 text-sm font-medium capitalize transition-all ${
+                      selectedExchanges.includes(exchange)
+                        ? 'bg-purple-500/20 border-purple-500 text-white'
+                        : 'bg-slate-700/50 border-slate-600 text-slate-300 hover:border-purple-500/50'
+                    }`}
+                  >
+                    {selectedExchanges.includes(exchange) && (
+                      <CheckCircle className="w-3.5 h-3.5 text-purple-400" />
+                    )}
+                    {exchange}
+                  </button>
+                ))}
+
+                {/* Apply Button */}
+                <button
+                  onClick={() => {
+                    setAppliedExchanges(selectedExchanges)
+                    console.log('🔍 Applying exchange filter:', selectedExchanges)
+                    if (onFilterExchanges && selectedExchanges.length > 0) {
+                      onFilterExchanges(selectedExchanges)
+                    }
+                  }}
+                  disabled={selectedExchanges.length === 0}
+                  className={`px-3 py-1.5 rounded-lg font-medium text-sm transition-all ${
+                    selectedExchanges.length > 0
+                      ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                      : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                  }`}
+                >
+                  Apply
+                </button>
+
+                {/* Clear Filter */}
+                {selectedExchanges.length > 0 && (
                   <button
                     onClick={() => {
                       setSelectedExchanges([])
                       setAppliedExchanges([])
                     }}
-                    className="text-xs text-purple-400 hover:text-purple-300 transition-colors flex items-center gap-1"
+                    className="text-xs text-slate-400 hover:text-purple-400 transition-colors flex items-center gap-1 ml-auto"
                   >
                     <X className="w-3 h-3" />
-                    Clear Filter
+                    Clear
                   </button>
-                </div>
-
-                {/* Exchange Selection */}
-                <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-3">
-                    Select data sources to analyze {selectedExchanges.length > 0 && `(${selectedExchanges.length} selected)`}
-                  </label>
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {currencyMetadata.exchanges.map(exchange => (
-                      <label
-                        key={exchange}
-                        className={`flex items-center gap-2 border rounded-lg px-3 py-2 cursor-pointer transition-all ${
-                          selectedExchanges.includes(exchange)
-                            ? 'bg-purple-500/20 border-purple-500 text-white'
-                            : 'bg-slate-700/50 border-slate-600 text-slate-300 hover:border-purple-500/50'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedExchanges.includes(exchange)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedExchanges([...selectedExchanges, exchange])
-                            } else {
-                              setSelectedExchanges(selectedExchanges.filter(ex => ex !== exchange))
-                            }
-                          }}
-                          className="w-4 h-4 rounded border-slate-500 text-purple-500 focus:ring-purple-500 focus:ring-offset-0"
-                        />
-                        <span className="text-sm font-medium capitalize">{exchange}</span>
-                      </label>
-                    ))}
-                  </div>
-
-                  {/* Apply Button */}
-                  <button
-                    onClick={() => {
-                      setAppliedExchanges(selectedExchanges)
-                      console.log('🔍 Applying exchange filter:', selectedExchanges)
-                      if (onFilterExchanges && selectedExchanges.length > 0) {
-                        onFilterExchanges(selectedExchanges)
-                      }
-                    }}
-                    disabled={selectedExchanges.length === 0}
-                    className={`w-full py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${
-                      selectedExchanges.length > 0
-                        ? 'bg-purple-600 hover:bg-purple-700 text-white'
-                        : 'bg-slate-700 text-slate-500 cursor-not-allowed'
-                    }`}
-                  >
-                    Apply Filter
-                  </button>
-                </div>
+                )}
               </div>
             </div>
           )}
