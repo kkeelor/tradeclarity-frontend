@@ -2,6 +2,69 @@
 import { createClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000'
+
+/**
+ * Fetch live currency rates from backend
+ * @returns {Promise<Object>} Currency rates with USD as base
+ */
+async function getCurrencyRates() {
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/currency-rate`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`)
+    }
+
+    const data = await response.json()
+
+    if (data.success && data.rates) {
+      console.log('💱 Fetched live currency rates from backend:', Object.keys(data.rates).length, 'currencies')
+      return data.rates
+    }
+
+    throw new Error('Invalid response format')
+  } catch (error) {
+    console.error('⚠️ Failed to fetch currency rates from backend:', error.message)
+    console.log('⚠️ Using fallback rates')
+
+    // Return fallback rates
+    return {
+      'USD': 1.0,
+      'INR': 87.0,
+      'EUR': 0.92,
+      'GBP': 0.79
+    }
+  }
+}
+
+/**
+ * Convert amount from one currency to another using live rates
+ * @param {number} amount - Amount to convert
+ * @param {string} fromCurrency - Source currency code
+ * @param {string} toCurrency - Target currency code
+ * @param {Object} rates - Currency rates object
+ * @returns {number} Converted amount
+ */
+function convertCurrency(amount, fromCurrency, toCurrency, rates) {
+  if (fromCurrency === toCurrency) {
+    return amount
+  }
+
+  // All rates are relative to USD (base currency)
+  const fromRate = rates[fromCurrency] || 1.0
+  const toRate = rates[toCurrency] || 1.0
+
+  // Convert: amount in FROM → USD → TO
+  const usdAmount = amount / fromRate
+  const convertedAmount = usdAmount * toRate
+
+  return convertedAmount
+}
+
 export async function GET(request) {
   try {
     const supabase = createClient()
@@ -147,6 +210,9 @@ export async function GET(request) {
           const recentSnapshots = Object.values(latestPerConnection)
           console.log(`📊 Using ${recentSnapshots.length} most recent snapshots (one per connection)`)
 
+          // Fetch live currency rates from backend
+          const currencyRates = await getCurrencyRates()
+
           // Aggregate portfolio values across all exchanges
           let totalPortfolioValue = 0
           let totalSpotValue = 0
@@ -155,34 +221,52 @@ export async function GET(request) {
 
           for (const snap of recentSnapshots) {
             const snapCurrency = snap.primary_currency || 'USD'
-            let conversionRate = 1.0
 
-            // Convert to USD if needed
-            if (snapCurrency === 'INR') {
-              // Use approximate rate (in production, fetch from currency API)
-              conversionRate = 1 / 87.0
-              console.log(`💱 Converting ${snap.exchange} snapshot from INR to USD (rate: ${conversionRate.toFixed(6)})`)
-            }
-
-            const portfolioValueUSD = parseFloat(snap.total_portfolio_value || 0) * conversionRate
-            const spotValueUSD = parseFloat(snap.total_spot_value || 0) * conversionRate
-            const futuresValueUSD = parseFloat(snap.total_futures_value || 0) * conversionRate
+            // Convert to USD using live rates
+            const portfolioValueUSD = convertCurrency(
+              parseFloat(snap.total_portfolio_value || 0),
+              snapCurrency,
+              'USD',
+              currencyRates
+            )
+            const spotValueUSD = convertCurrency(
+              parseFloat(snap.total_spot_value || 0),
+              snapCurrency,
+              'USD',
+              currencyRates
+            )
+            const futuresValueUSD = convertCurrency(
+              parseFloat(snap.total_futures_value || 0),
+              snapCurrency,
+              'USD',
+              currencyRates
+            )
 
             totalPortfolioValue += portfolioValueUSD
             totalSpotValue += spotValueUSD
             totalFuturesValue += futuresValueUSD
 
-            console.log(`  - ${snap.exchange}: $${portfolioValueUSD.toFixed(2)} (${snapCurrency})`)
+            console.log(`  - ${snap.exchange}: $${portfolioValueUSD.toFixed(2)} USD (from ${snapCurrency})`)
 
             // Merge holdings with exchange attribution
             if (snap.holdings && Array.isArray(snap.holdings)) {
-              const exchangeHoldings = snap.holdings.map(h => ({
-                ...h,
-                exchange: snap.exchange,
-                // Convert holding value to USD if needed
-                usdValue: (h.usdValue || 0) * conversionRate,
-                originalCurrency: snapCurrency
-              }))
+              const exchangeHoldings = snap.holdings.map(h => {
+                // Convert holding value to USD using live rates
+                const holdingValueUSD = convertCurrency(
+                  h.usdValue || 0,
+                  snapCurrency,
+                  'USD',
+                  currencyRates
+                )
+
+                return {
+                  ...h,
+                  exchange: snap.exchange,
+                  usdValue: holdingValueUSD,
+                  originalValue: h.usdValue,
+                  originalCurrency: snapCurrency
+                }
+              })
               allHoldings.push(...exchangeHoldings)
             }
           }
