@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, LogOut, BarChart3, Sparkles, Database, CheckSquare, Square, Loader2, ChevronRight, Zap } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { toast } from 'sonner'
+import ThemeToggle from '@/app/components/ThemeToggle'
 import { getMostCriticalInsight } from '../utils/performanceAnalogies'
 import { analyzeData } from '../utils/masterAnalyzer'
 import {
@@ -363,13 +364,15 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                 )}
               </p>
             </div>
-            <div className="relative">
-              <button
-                onClick={() => setShowUserMenu(!showUserMenu)}
-                className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-400 flex items-center justify-center text-slate-900 font-semibold text-sm hover:shadow-lg hover:shadow-emerald-500/20 transition-all"
-              >
-                {user?.user_metadata?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
-              </button>
+            <div className="flex items-center gap-3">
+              <ThemeToggle />
+              <div className="relative">
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-400 flex items-center justify-center text-slate-900 font-semibold text-sm hover:shadow-lg hover:shadow-emerald-500/20 transition-all"
+                >
+                  {user?.user_metadata?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
+                </button>
 
               {showUserMenu && (
                 <>
@@ -395,6 +398,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                   </div>
                 </>
               )}
+              </div>
             </div>
           </div>
         </header>
@@ -650,9 +654,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                                   }`}>
                                     {selected && <CheckSquare className="w-3 h-3 text-white" />}
                                   </div>
-                                  <div className="w-10 h-10 bg-slate-700/50 rounded-lg flex items-center justify-center">
-                                    <ExchangeIcon exchange={exchange.exchange} size={24} />
-                                  </div>
+                                  <ExchangeIcon exchange={exchange.exchange} size={20} className="w-10 h-10 p-2" />
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1">
                                       <span className="text-sm font-medium text-slate-200">{exchange.name}</span>

@@ -1,7 +1,7 @@
 // app/analyze/components/LoginForm.js
 
 import { useState } from 'react'
-import { TrendingUp, Lock, Loader2, AlertCircle, Eye, EyeOff, HelpCircle, Sparkles, ChevronRight, CheckCircle, Shield, ExternalLink, X, Play, FileText, Clock, BarChart3, Brain, Zap, Target } from 'lucide-react'
+import { TrendingUp, Lock, Loader2, AlertCircle, Eye, EyeOff, HelpCircle, Sparkles, ChevronRight, CheckCircle, Shield, ExternalLink, X, Play, FileText, Clock, BarChart3, Brain, Zap, Target, ArrowLeft } from 'lucide-react'
 import { ExchangeIcon } from '@/components/ui'
 
 // Step Progress Indicator Component
@@ -161,7 +161,7 @@ function HelpModal({ isOpen, onClose, exchange }) {
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
-                <span>Your keys are encrypted and never stored on our servers</span>
+                <span>Your keys are encrypted with industry-standard security</span>
               </li>
             </ul>
           </div>
@@ -178,6 +178,7 @@ export default function LoginForm({
   currentExchange,
   onConnect,
   onTryDemo,
+  onBack,
   status,
   error,
   progress
@@ -288,7 +289,16 @@ export default function LoginForm({
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center p-6">
         <div className="max-w-3xl w-full space-y-6">
           {/* Header */}
-          <div className="text-center space-y-3">
+          <div className="text-center space-y-3 relative">
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="absolute left-0 top-0 text-slate-400 hover:text-white transition-colors flex items-center gap-2 text-sm font-medium"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back
+              </button>
+            )}
             <div className="flex items-center justify-center gap-2 mb-4">
               <TrendingUp className="w-8 h-8 text-emerald-400" />
               <h1 className="text-2xl font-bold">TradeClarity</h1>
@@ -322,9 +332,7 @@ export default function LoginForm({
                   }`}
                 >
                   <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 flex items-center justify-center">
-                      <ExchangeIcon exchange={ex.id} size={48} />
-                    </div>
+                    <ExchangeIcon exchange={ex.id} size={32} className="w-12 h-12 p-2" />
                     <div className="flex-1 text-left">
                       <div className="font-bold text-xl mb-1">{ex.displayName}</div>
                       <div className="text-sm text-slate-400 mb-3">
@@ -351,8 +359,8 @@ export default function LoginForm({
                   <Shield className="w-5 h-5 text-emerald-400" />
                 </div>
                 <div className="flex-1">
-                  <div className="font-semibold text-emerald-400 mb-1">🔒 Bank-Level Security</div>
-                  <div className="text-sm text-slate-300">Read-Only • No Trading Access • 100% Safe</div>
+                  <div className="font-semibold text-emerald-400 mb-1">Secure & Private</div>
+                  <div className="text-sm text-slate-300">Read-Only Access • Encrypted Storage • Industry-Standard Security</div>
                 </div>
               </div>
             </div>
@@ -385,13 +393,22 @@ export default function LoginForm({
           />
           
           {/* Header */}
-          <div className="text-center space-y-3">
+          <div className="text-center space-y-3 relative">
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="absolute left-0 top-0 text-slate-400 hover:text-white transition-colors flex items-center gap-2 text-sm font-medium"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to Dashboard
+              </button>
+            )}
             <div className="flex items-center justify-center gap-2 mb-4">
               <TrendingUp className="w-8 h-8 text-emerald-400" />
               <h1 className="text-2xl font-bold">TradeClarity</h1>
             </div>
           </div>
-          
+
           {/* Progress */}
           <StepProgress currentStep={1} totalSteps={2} />
           
@@ -528,7 +545,7 @@ export default function LoginForm({
                   <Lock className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
                   <div className="space-y-1">
                     <p className="text-slate-300 font-medium">Your data is secure</p>
-                    <p className="text-slate-400">Keys are encrypted and never stored. We only read your trade history.</p>
+                    <p className="text-slate-400">Keys are encrypted and securely stored. We only read your trade history.</p>
                   </div>
                 </div>
               </div>

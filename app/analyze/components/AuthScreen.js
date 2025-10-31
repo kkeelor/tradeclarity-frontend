@@ -222,8 +222,8 @@ export default function AuthScreen({ onAuthSuccess }) {
                 <Shield className="w-5 h-5 text-emerald-400" />
               </div>
               <div className="flex-1">
-                <div className="font-semibold text-emerald-400 mb-1">🔒 Your Data is Secure</div>
-                <div className="text-xs text-slate-400">Bank-level encryption • Your API keys are never exposed • Complete data privacy</div>
+                <div className="font-semibold text-emerald-400 mb-1">Your Data is Secure</div>
+                <div className="text-xs text-slate-400">Industry-standard encryption • Secure key storage • Complete data privacy</div>
               </div>
             </div>
           </div>

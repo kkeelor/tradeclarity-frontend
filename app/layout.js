@@ -1,6 +1,5 @@
 // app/layout.js
 import './globals.css'
-import { ThemeProvider } from './components/ThemeProvider'
 import { AuthProvider } from '@/lib/AuthContext'
 import { Toaster } from 'sonner'
 
@@ -36,30 +35,16 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                const theme = localStorage.getItem('theme') || 'dark';
-                document.documentElement.classList.toggle('light', theme === 'light');
-              })();
-            `,
-          }}
-        />
-      </head>
       <body>
         <AuthProvider>
-          <ThemeProvider>
-            {children}
-            <Toaster
-              theme="dark"
-              position="top-right"
-              richColors
-              closeButton
-              duration={5000}
-            />
-          </ThemeProvider>
+          {children}
+          <Toaster
+            theme="dark"
+            position="top-right"
+            richColors
+            closeButton
+            duration={5000}
+          />
         </AuthProvider>
       </body>
     </html>

@@ -1748,11 +1748,6 @@ function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
         </div>
       )}
 
-      {/* Symbol Rankings Table */}
-      {symbolAnalysis && symbolAnalysis.rankings && symbolAnalysis.rankings.length > 0 && (
-        <SymbolRankingsTable rankings={symbolAnalysis.rankings} currSymbol={currSymbol} />
-      )}
-
       {/* Premium Teaser - Time Analysis */}
       <div className="bg-gradient-to-br from-purple-500/5 to-cyan-500/5 border border-purple-500/20 rounded-lg p-3 relative overflow-hidden">
         <div className="absolute top-0 right-0 bg-purple-500/10 px-2 py-0.5 rounded-bl-lg">
@@ -1880,7 +1875,7 @@ function SpotTab({ analytics, currSymbol, metadata }) {
                         <td className="px-2 py-1.5 font-mono font-semibold">{holding.asset}</td>
                         <td className="px-2 py-1.5">
                           <span className="inline-flex items-center gap-1 text-[10px] text-slate-400">
-                            <ExchangeIcon exchange={exchangeName} size={12} />
+                            <ExchangeIcon exchange={exchangeName} size={10} className="w-4 h-4 p-0.5" />
                             <span className="capitalize">{exchangeName}</span>
                           </span>
                         </td>

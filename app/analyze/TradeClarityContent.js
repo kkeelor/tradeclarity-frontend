@@ -312,7 +312,7 @@ function RealModeLoadingScreen({ progress, onComplete }) {
           </div>
 
           <div className="pt-4 text-center text-xs text-slate-400 border-t border-slate-700/50">
-            🔒 Your API keys are encrypted and never stored
+            Your API keys are encrypted and securely stored
           </div>
         </div>
 
@@ -724,6 +724,7 @@ export default function TradeClarityContent() {
           currentExchange={currentExchange}
           onConnect={handleConnect}
           onTryDemo={handleTryDemo}
+          onBack={() => setShowAPIConnection(false)}
           status={status}
           error={error}
           progress={progress}

@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react'
 import { TrendingUp, Upload, FileText, X, AlertCircle, CheckCircle, Trash2, Home, LogOut, Sparkles, Loader2, Check, ChevronDown, ArrowLeft } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
+import { ExchangeIcon } from '@/components/ui'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -15,7 +16,6 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog'
-import { ExchangeIcon } from '@/components/ui'
 import { UploadedFilesSkeleton } from '@/app/components/LoadingSkeletons'
 import Sidebar from './Sidebar'
 
@@ -103,7 +103,7 @@ export default function CSVUploadFlow({ onBack }) {
         accountType: 'BOTH',
         status: 'detecting', // detecting, ready, processing, success, error
         message: '',
-        progress: '🤖 Analyzing CSV format...',
+        progress: 'Analyzing CSV format...',
         warning: warning,
         tradesCount: null,
         duplicatesCount: null,
@@ -611,7 +611,11 @@ function FileConfigCard({ config, connectedExchanges, onUpdate, onRemove, getSta
       {/* File name and remove button */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2">
-          <FileText className="w-5 h-5 text-slate-400" />
+          {selectedExchange ? (
+            <ExchangeIcon exchange={selectedExchange.exchange} size={20} className="w-5 h-5" />
+          ) : (
+            <FileText className="w-5 h-5 text-slate-400" />
+          )}
           <span className="text-sm font-medium text-slate-200">{config.file.name}</span>
           <span className="text-xs text-slate-500">
             ({(config.file.size / 1024).toFixed(1)} KB)
@@ -684,7 +688,7 @@ function FileConfigCard({ config, connectedExchanges, onUpdate, onRemove, getSta
                         }}
                         className="w-full px-3 py-2 text-left text-sm hover:bg-slate-700/50 transition-colors flex items-center gap-2"
                       >
-                        <ExchangeIcon exchange={exchange.exchange} size={16} />
+                        <ExchangeIcon exchange={exchange.exchange} size={14} className="w-6 h-6 p-1" />
                         <span className="text-slate-200">{exchange.name}</span>
                       </button>
                     ))}
@@ -842,7 +846,11 @@ function UploadedFileCard({ file, connectedExchanges, onRefresh }) {
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2">
-            <FileText className="w-4 h-4 text-slate-400 flex-shrink-0" />
+            {selectedExchange ? (
+              <ExchangeIcon exchange={selectedExchange.exchange} size={16} className="w-4 h-4 flex-shrink-0" />
+            ) : (
+              <FileText className="w-4 h-4 text-slate-400 flex-shrink-0" />
+            )}
             <span className="text-sm font-medium text-slate-200 truncate">
               {file.label || file.filename}
             </span>
@@ -895,7 +903,7 @@ function UploadedFileCard({ file, connectedExchanges, onRefresh }) {
                           onClick={() => handleLinkExchange(exchange.id)}
                           className="w-full px-3 py-2 text-left text-sm hover:bg-slate-700/50 transition-colors flex items-center gap-2"
                         >
-                          <ExchangeIcon exchange={exchange.exchange} size={16} />
+                          <ExchangeIcon exchange={exchange.exchange} size={14} className="w-6 h-6 p-1" />
                           <span className="text-slate-200">{exchange.name}</span>
                         </button>
                       ))}

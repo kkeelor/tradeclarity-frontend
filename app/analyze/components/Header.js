@@ -19,14 +19,7 @@ export default function Header({
     <header className="border-b border-slate-800 backdrop-blur-sm bg-slate-900/50 sticky top-0 z-10">
       <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
         <div className="flex items-center gap-2">
-          {/* Clickable Logo - Takes user to landing page */}
-          <button
-            onClick={() => router.push('/')}
-            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-          >
-            <TrendingUp className="w-6 h-6 text-emerald-400" />
-            <span className="text-lg font-bold">TradeClarity</span>
-          </button>
+          <h1 className="text-lg font-bold">Your Trading Patterns</h1>
 
           {exchangeConfig && (
             <span className="text-xs text-slate-400 ml-2">

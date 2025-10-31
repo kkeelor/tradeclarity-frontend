@@ -1,7 +1,7 @@
 // app/components/ThemeToggle.js
 'use client'
 
-import { Sun, Moon } from 'lucide-react'
+import { Sparkles, Crown } from 'lucide-react'
 import { useTheme } from './ThemeProvider'
 import { useEffect, useState } from 'react'
 
@@ -53,15 +53,15 @@ export default function ThemeToggle() {
       {/* Toggle Circle */}
       <div
         className={`absolute top-0.5 left-0.5 w-6 h-6 rounded-full transition-all duration-300 flex items-center justify-center ${
-          theme === 'light'
+          theme === 'midnight'
             ? 'translate-x-7 bg-yellow-400'
             : 'translate-x-0 bg-slate-800'
         }`}
       >
-        {theme === 'light' ? (
-          <Sun className="w-4 h-4 text-slate-900" />
+        {theme === 'midnight' ? (
+          <Crown className="w-4 h-4 text-slate-900" />
         ) : (
-          <Moon className="w-4 h-4 text-slate-300" />
+          <Sparkles className="w-4 h-4 text-slate-300" />
         )}
       </div>
     </button>

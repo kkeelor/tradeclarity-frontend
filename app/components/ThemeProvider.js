@@ -4,27 +4,43 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 
 const ThemeContext = createContext({
-  theme: 'dark',
+  theme: 'classic',
   toggleTheme: () => {}
 })
 
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState('dark')
+  const [theme, setTheme] = useState('classic')
   const [mounted, setMounted] = useState(false)
 
   // Load theme from localStorage on mount
   useEffect(() => {
     setMounted(true)
-    const savedTheme = localStorage.getItem('theme') || 'dark'
+    const savedTheme = localStorage.getItem('theme') || 'classic'
     setTheme(savedTheme)
-    document.documentElement.classList.toggle('light', savedTheme === 'light')
+    loadThemeStyles(savedTheme)
   }, [])
 
+  // Dynamically load theme CSS file
+  const loadThemeStyles = (themeName) => {
+    // Remove existing theme link if any
+    const existingLink = document.querySelector('link[data-theme-link]')
+    if (existingLink) {
+      existingLink.remove()
+    }
+
+    // Create new link element for theme CSS
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = `/styles/themes/${themeName}.css`
+    link.setAttribute('data-theme-link', 'true')
+    document.head.appendChild(link)
+  }
+
   const toggleTheme = () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark'
+    const newTheme = theme === 'classic' ? 'midnight' : 'classic'
     setTheme(newTheme)
     localStorage.setItem('theme', newTheme)
-    document.documentElement.classList.toggle('light', newTheme === 'light')
+    loadThemeStyles(newTheme)
   }
 
   // Prevent flash of wrong theme

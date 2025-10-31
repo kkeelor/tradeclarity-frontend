@@ -1,0 +1,279 @@
+/* ============================================
+   MIDNIGHT THEME - Binance Gold Colors
+   ============================================ */
+
+:root {
+  /* Dark theme base with gold accents */
+  --background: 0 0% 7%;  /* #121212 - Deep black */
+  --foreground: 48 100% 96%;  /* #FEFCE8 - Warm white */
+
+  --card: 0 0% 10%;  /* #1A1A1A */
+  --card-foreground: 48 100% 96%;
+
+  --popover: 0 0% 10%;
+  --popover-foreground: 48 100% 96%;
+
+  --primary: 45 93% 47%;  /* #EAAF08 - Gold */
+  --primary-foreground: 0 0% 0%;
+
+  --secondary: 0 0% 15%;  /* #262626 */
+  --secondary-foreground: 48 100% 96%;
+
+  --muted: 0 0% 15%;
+  --muted-foreground: 45 5% 65%;
+
+  --accent: 45 93% 47%;
+  --accent-foreground: 0 0% 0%;
+
+  --destructive: 349 89% 60%;  /* #F6465D */
+  --destructive-foreground: 48 100% 96%;
+
+  --border: 0 0% 20%;  /* #333333 */
+  --input: 0 0% 20%;
+  --ring: 45 93% 47%;
+}
+
+/* Dark mode background - True black Binance style */
+body {
+  background: #0b0e11 !important;
+}
+
+/* Override all slate backgrounds to black/dark */
+.bg-gradient-to-br.from-slate-950 {
+  background: #0b0e11 !important;
+}
+
+.bg-slate-950 {
+  background: #0b0e11 !important;
+}
+
+.bg-slate-900 {
+  background: #181a20 !important;
+}
+
+.bg-slate-900\/80 {
+  background: rgba(24, 26, 32, 0.95) !important;
+}
+
+.bg-slate-900\/40 {
+  background: rgba(24, 26, 32, 0.4) !important;
+}
+
+.bg-slate-800 {
+  background: #1e2329 !important;
+}
+
+.bg-slate-800\/50 {
+  background: rgba(30, 35, 41, 0.5) !important;
+}
+
+.bg-slate-800\/30 {
+  background: rgba(30, 35, 41, 0.3) !important;
+}
+
+.bg-slate-700 {
+  background: #2b3139 !important;
+}
+
+.bg-slate-700\/50 {
+  background: rgba(43, 49, 57, 0.5) !important;
+}
+
+.bg-slate-700\/30 {
+  background: rgba(43, 49, 57, 0.3) !important;
+}
+
+.bg-slate-700\/20 {
+  background: rgba(43, 49, 57, 0.2) !important;
+}
+
+/* Borders - darker for black theme */
+.border-slate-800,
+.border-slate-800\/50 {
+  border-color: #2b3139 !important;
+}
+
+.border-slate-700,
+.border-slate-700\/50 {
+  border-color: #343a40 !important;
+}
+
+.border-slate-600\/50 {
+  border-color: #474d57 !important;
+}
+
+/* Text colors for black background */
+.text-slate-400 {
+  color: #848e9c !important;
+}
+
+.text-slate-300 {
+  color: #b7bdc6 !important;
+}
+
+.text-slate-200 {
+  color: #eaecef !important;
+}
+
+/* Gold accents for important elements */
+.text-gold {
+  color: #f0b90b !important;
+}
+
+.bg-gold {
+  background-color: #f0b90b !important;
+}
+
+.border-gold {
+  border-color: #f0b90b !important;
+}
+
+/* Override yellow/cyan to gold colors */
+.text-yellow-400,
+.text-yellow-500 {
+  color: #f0b90b !important;
+}
+
+.bg-yellow-400,
+.bg-yellow-500 {
+  background-color: #f0b90b !important;
+}
+
+.bg-yellow-500\/20 {
+  background-color: rgba(240, 185, 11, 0.2) !important;
+}
+
+.border-yellow-500,
+.border-yellow-500\/30 {
+  border-color: rgba(240, 185, 11, 0.3) !important;
+}
+
+.text-cyan-400,
+.text-cyan-500 {
+  color: #fde047 !important;
+}
+
+.bg-cyan-500\/20 {
+  background-color: rgba(253, 224, 71, 0.2) !important;
+}
+
+.border-cyan-500,
+.border-cyan-500\/30 {
+  border-color: rgba(253, 224, 71, 0.3) !important;
+}
+
+/* Hover states for black theme */
+.hover\:bg-slate-700:hover {
+  background-color: #2b3139 !important;
+}
+
+.hover\:bg-slate-800:hover {
+  background-color: #1e2329 !important;
+}
+
+.hover\:border-gold:hover {
+  border-color: #f0b90b !important;
+}
+
+.hover\:border-emerald-500:hover,
+.hover\:border-emerald-500\/50:hover {
+  border-color: #f0b90b !important;
+}
+
+/* Purple tones */
+.text-purple-400 {
+  color: #c084fc !important;
+}
+
+.bg-purple-500\/20 {
+  background-color: rgba(192, 132, 252, 0.2) !important;
+}
+
+.bg-purple-500\/10 {
+  background-color: rgba(192, 132, 252, 0.1) !important;
+}
+
+.border-purple-500\/30 {
+  border-color: rgba(192, 132, 252, 0.3) !important;
+}
+
+.from-purple-500\/10 {
+  --tw-gradient-from: rgba(192, 132, 252, 0.1) !important;
+}
+
+.to-purple-500\/5 {
+  --tw-gradient-to: rgba(192, 132, 252, 0.05) !important;
+}
+
+/* Industry-standard green and red for P&L */
+.text-profit {
+  color: #0ecb81 !important;
+}
+
+.bg-profit {
+  background-color: #0ecb81 !important;
+}
+
+.text-loss {
+  color: #f6465d !important;
+}
+
+.bg-loss {
+  background-color: #f6465d !important;
+}
+
+/* Override all emerald to gold */
+.text-emerald-400,
+.text-emerald-500 {
+  color: #f0b90b !important;
+}
+
+.bg-emerald-400,
+.bg-emerald-500 {
+  background-color: #f0b90b !important;
+}
+
+.bg-emerald-500\/20 {
+  background-color: rgba(240, 185, 11, 0.2) !important;
+}
+
+.bg-emerald-500\/10 {
+  background-color: rgba(240, 185, 11, 0.1) !important;
+}
+
+.border-emerald-500,
+.border-emerald-500\/30 {
+  border-color: rgba(240, 185, 11, 0.3) !important;
+}
+
+.from-emerald-500 {
+  --tw-gradient-from: #f0b90b !important;
+}
+
+.to-cyan-500 {
+  --tw-gradient-to: #fde047 !important;
+}
+
+/* Override all red to loss red */
+.text-red-400,
+.text-red-500 {
+  color: #f6465d !important;
+}
+
+.bg-red-400,
+.bg-red-500 {
+  background-color: #f6465d !important;
+}
+
+.bg-red-500\/20 {
+  background-color: rgba(246, 70, 93, 0.2) !important;
+}
+
+.bg-red-500\/10 {
+  background-color: rgba(246, 70, 93, 0.1) !important;
+}
+
+.border-red-500,
+.border-red-500\/30 {
+  border-color: rgba(246, 70, 93, 0.3) !important;
+}

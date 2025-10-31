@@ -161,7 +161,7 @@ export default function LandingPage() {
             </div>
             <div className="flex items-center gap-2">
               <Lock className="w-4 h-4 text-gold" />
-              <span>Keys never stored</span>
+              <span>Encrypted storage</span>
             </div>
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-gold" />
