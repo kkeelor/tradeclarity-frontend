@@ -1659,12 +1659,12 @@ function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
           >
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-emerald-400" />
+                <TrendingUp className="w-4 h-4 text-emerald-400" />
                 <span className="text-xs font-semibold text-emerald-400">Spot Trading</span>
               </div>
               <ChevronRight className="w-3 h-3 text-emerald-400/50 group-hover:text-emerald-400 transition-colors" />
             </div>
-            <div className="text-lg font-bold text-white mb-1">{currSymbol}{analytics.spotPnL.toFixed(2)}</div>
+            <div className="text-lg font-bold text-white mb-1">{currSymbol}{analytics.spotPnL.toFixed(2)} <span className="text-[10px] text-slate-400 font-normal">USD</span></div>
             <div className="text-[10px] text-slate-400">{analytics.spotTrades} trades • {analytics.spotWinRate.toFixed(1)}% win rate</div>
             <div className="text-[10px] text-emerald-400 mt-2 group-hover:underline">See detailed breakdown →</div>
           </button>
@@ -1683,7 +1683,7 @@ function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
               </div>
               <ChevronRight className="w-3 h-3 text-cyan-400/50 group-hover:text-cyan-400 transition-colors" />
             </div>
-            <div className="text-lg font-bold text-white mb-1">{currSymbol}{analytics.futuresPnL.toFixed(2)}</div>
+            <div className="text-lg font-bold text-white mb-1">{currSymbol}{analytics.futuresPnL.toFixed(2)} <span className="text-[10px] text-slate-400 font-normal">USD</span></div>
             <div className="text-[10px] text-slate-400">{analytics.futuresOpenPositions?.length || 0} open • {analytics.futuresWinRate.toFixed(1)}% win rate</div>
             <div className="text-[10px] text-cyan-400 mt-2 group-hover:underline">Analyze leverage impact →</div>
           </button>
@@ -1777,7 +1777,7 @@ function SpotTab({ analytics, currSymbol, metadata }) {
   if (!hasSpotData) {
     return (
       <EmptyState
-        icon={DollarSign}
+        icon={TrendingUp}
         title="No Spot Trading Data"
         description="Start spot trading to see portfolio breakdown and performance analytics."
         variant="info"
@@ -1792,7 +1792,7 @@ function SpotTab({ analytics, currSymbol, metadata }) {
         <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
           <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Spot P&L</div>
           <div className={`text-lg font-bold ${analytics.spotPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {currency}{analytics.spotPnL?.toFixed(2) || '0.00'}
+            {currency}{analytics.spotPnL?.toFixed(2) || '0.00'} <span className="text-[10px] text-slate-400 font-normal">USD</span>
           </div>
           <div className="text-[10px] text-slate-500">{analytics.spotRoi?.toFixed(1) || '0.0'}% ROI</div>
         </div>
@@ -1803,12 +1803,12 @@ function SpotTab({ analytics, currSymbol, metadata }) {
         </div>
         <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
           <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Invested</div>
-          <div className="text-lg font-bold text-white">{currency}{analytics.spotInvested?.toFixed(0) || '0'}</div>
+          <div className="text-lg font-bold text-white">{currency}{analytics.spotInvested?.toFixed(0) || '0'} <span className="text-[10px] text-slate-400 font-normal">USD</span></div>
           <div className="text-[10px] text-slate-500">{analytics.spotTrades || 0} trades</div>
         </div>
         <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
           <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Best Win</div>
-          <div className="text-lg font-bold text-emerald-400">{currency}{spotAnalysis.largestWin?.toFixed(2) || '0.00'}</div>
+          <div className="text-lg font-bold text-emerald-400">{currency}{spotAnalysis.largestWin?.toFixed(2) || '0.00'} <span className="text-[10px] text-slate-400 font-normal">USD</span></div>
           <div className="text-[10px] text-slate-500">Max gain</div>
         </div>
       </div>
@@ -1850,8 +1850,8 @@ function SpotTab({ analytics, currSymbol, metadata }) {
                         </span>
                       </td>
                       <td className="px-2 py-1.5 text-right font-mono text-slate-300">{holding.quantity?.toFixed(4)}</td>
-                      <td className="px-2 py-1.5 text-right font-mono text-slate-400">{currency}{holding.price?.toFixed(2)}</td>
-                      <td className="px-2 py-1.5 text-right font-bold text-emerald-400">{currency}{holding.usdValue?.toFixed(2)}</td>
+                      <td className="px-2 py-1.5 text-right font-mono text-slate-400">{currency}{holding.price?.toFixed(2)} <span className="text-[9px] text-slate-500">USD</span></td>
+                      <td className="px-2 py-1.5 text-right font-bold text-emerald-400">{currency}{holding.usdValue?.toFixed(2)} <span className="text-[9px] text-slate-400 font-normal">USD</span></td>
                     </tr>
                   )
                 })}
@@ -1859,7 +1859,7 @@ function SpotTab({ analytics, currSymbol, metadata }) {
               <tfoot className="bg-slate-800/50">
                 <tr className="font-bold">
                   <td className="px-2 py-2" colSpan="4">Total</td>
-                  <td className="px-2 py-2 text-right text-emerald-400">{currency}{metadata?.totalSpotValue?.toFixed(2)}</td>
+                  <td className="px-2 py-2 text-right text-emerald-400">{currency}{metadata?.totalSpotValue?.toFixed(2)} <span className="text-[9px] text-slate-400 font-normal">USD</span></td>
                 </tr>
               </tfoot>
             </table>
@@ -1904,7 +1904,7 @@ function FuturesTab({ analytics, currSymbol }) {
         <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
           <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Net P&L</div>
           <div className={`text-lg font-bold ${analytics.futuresPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {currency}{analytics.futuresPnL?.toFixed(2) || '0.00'}
+            {currency}{analytics.futuresPnL?.toFixed(2) || '0.00'} <span className="text-[10px] text-slate-400 font-normal">USD</span>
           </div>
           <div className="text-[10px] text-slate-500">
             {analytics.futuresTrades || 0} trades
@@ -1914,7 +1914,7 @@ function FuturesTab({ analytics, currSymbol }) {
         <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
           <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Realized</div>
           <div className={`text-lg font-bold ${analytics.futuresRealizedPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {currency}{analytics.futuresRealizedPnL?.toFixed(2) || '0.00'}
+            {currency}{analytics.futuresRealizedPnL?.toFixed(2) || '0.00'} <span className="text-[10px] text-slate-400 font-normal">USD</span>
           </div>
           <div className="text-[10px] text-slate-500">Closed positions</div>
         </div>
@@ -1922,7 +1922,7 @@ function FuturesTab({ analytics, currSymbol }) {
         <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
           <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Unrealized</div>
           <div className={`text-lg font-bold ${analytics.futuresUnrealizedPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {currency}{analytics.futuresUnrealizedPnL?.toFixed(2) || '0.00'}
+            {currency}{analytics.futuresUnrealizedPnL?.toFixed(2) || '0.00'} <span className="text-[10px] text-slate-400 font-normal">USD</span>
           </div>
           <div className="text-[10px] text-slate-500">
             {analytics.futuresOpenPositions?.length || 0} open
@@ -1948,7 +1948,7 @@ function FuturesTab({ analytics, currSymbol }) {
             <span className="text-[10px] text-slate-400 uppercase tracking-wider">Funding Fees</span>
           </div>
           <div className={`text-lg font-bold ${(analytics.futuresFundingFees || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {(analytics.futuresFundingFees || 0) >= 0 ? '+' : ''}{currency}{(analytics.futuresFundingFees || 0).toFixed(2)}
+            {(analytics.futuresFundingFees || 0) >= 0 ? '+' : ''}{currency}{(analytics.futuresFundingFees || 0).toFixed(2)} <span className="text-[10px] text-slate-400 font-normal">USD</span>
           </div>
           <div className="text-[10px] text-slate-500">
             {(analytics.futuresFundingFees || 0) >= 0 ? 'Earned' : 'Paid'}
@@ -1961,7 +1961,7 @@ function FuturesTab({ analytics, currSymbol }) {
             <span className="text-[10px] text-slate-400 uppercase tracking-wider">Commission</span>
           </div>
           <div className="text-lg font-bold text-red-400">
-            -{currency}{(analytics.futuresCommission || 0).toFixed(2)}
+            -{currency}{(analytics.futuresCommission || 0).toFixed(2)} <span className="text-[10px] text-slate-400 font-normal">USD</span>
           </div>
           <div className="text-[10px] text-slate-500">Trading fees</div>
         </div>
@@ -1983,12 +1983,12 @@ function FuturesTab({ analytics, currSymbol }) {
                   <div>
                     <div className="font-mono font-bold text-xs">{pos.symbol}</div>
                     <div className="text-[10px] text-slate-400 mt-0.5">
-                      {pos.side} • {pos.leverage}x • Entry: {currency}{pos.entryPrice?.toFixed(2) || '0.00'}
+                      {pos.side} • {pos.leverage}x • Entry: {currency}{pos.entryPrice?.toFixed(2) || '0.00'} <span className="text-[9px] text-slate-500">USD</span>
                     </div>
                   </div>
                   <div className="text-right">
                     <div className={`text-sm font-bold ${(pos.unrealizedProfit || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {(pos.unrealizedProfit || 0) >= 0 ? '+' : ''}{currency}{(pos.unrealizedProfit || 0).toFixed(2)}
+                      {(pos.unrealizedProfit || 0) >= 0 ? '+' : ''}{currency}{(pos.unrealizedProfit || 0).toFixed(2)} <span className="text-[9px] text-slate-400 font-normal">USD</span>
                     </div>
                     <div className="text-[10px] text-slate-400">
                       {(((pos.unrealizedProfit || 0) / (pos.margin || 1)) * 100).toFixed(1)}%
@@ -1997,8 +1997,8 @@ function FuturesTab({ analytics, currSymbol }) {
                 </div>
                 <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-700/20">
                   <span>Size: {Math.abs(pos.size || 0).toFixed(4)}</span>
-                  <span>Mark: {currency}{pos.markPrice?.toFixed(2) || '0.00'}</span>
-                  <span>Margin: {currency}{pos.margin?.toFixed(2) || '0.00'}</span>
+                  <span>Mark: {currency}{pos.markPrice?.toFixed(2) || '0.00'} <span className="text-[9px] text-slate-500">USD</span></span>
+                  <span>Margin: {currency}{pos.margin?.toFixed(2) || '0.00'} <span className="text-[9px] text-slate-500">USD</span></span>
                 </div>
               </div>
             ))}
@@ -2231,7 +2231,7 @@ export default function AnalyticsView({
   const tabs = [
     { id: 'overview', label: 'Overview', icon: BarChart3, show: true },
     { id: 'behavioral', label: 'Behavioral', icon: Brain, show: hasBehavioral },
-    { id: 'spot', label: 'Spot', icon: DollarSign, show: hasSpot },
+    { id: 'spot', label: 'Spot', icon: TrendingUp, show: hasSpot },
     { id: 'futures', label: 'Futures', icon: Zap, show: hasFutures }
   ].filter(tab => tab.show)
 
