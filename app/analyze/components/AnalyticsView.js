@@ -1551,7 +1551,7 @@ function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
             <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700/30">
               <div className="text-xs text-slate-400 mb-1">Total Value</div>
               <div className="text-xl font-bold text-white">
-                {currSymbol}{(metadata?.totalPortfolioValue || 0).toFixed(2)}
+                {currSymbol}{(metadata?.totalPortfolioValue || 0).toFixed(2)} <span className="text-xs text-slate-400 font-normal">USD</span>
               </div>
               <div className="text-[10px] text-slate-500 mt-1">
                 Spot: {currSymbol}{(metadata?.totalSpotValue || 0).toFixed(0)} • Futures: {currSymbol}{(metadata?.totalFuturesValue || 0).toFixed(0)}
@@ -1592,10 +1592,7 @@ function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
             <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700/30">
               <div className="text-xs text-slate-400 mb-1">Date Range</div>
               <div className="text-sm font-bold text-white">
-                {dateRange.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-              </div>
-              <div className="text-[10px] text-slate-500 mt-1">
-                to {dateRange.end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                {dateRange.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: dateRange.start.getFullYear() !== dateRange.end.getFullYear() ? 'numeric' : undefined })} to {dateRange.end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
               </div>
             </div>
           )}
@@ -1620,7 +1617,7 @@ function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
         <div className={`rounded-md border ${isProfitable ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-red-500/20 bg-red-500/5'} p-2`}>
           <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Total P&L</div>
           <div className={`text-lg font-bold ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`}>
-            {isProfitable ? '+' : ''}{currSymbol}{Math.abs(analytics.totalPnL).toFixed(2)}
+            {isProfitable ? '+' : ''}{currSymbol}{Math.abs(analytics.totalPnL).toFixed(2)} <span className="text-[10px] text-slate-400 font-normal">USD</span>
           </div>
           <div className="text-[10px] text-slate-500">{analytics.totalTrades} trades</div>
         </div>
@@ -1628,7 +1625,7 @@ function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
         <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
           <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Realized P&L</div>
           <div className="text-lg font-bold text-white">
-            {currSymbol}{((analytics.spotPnL || 0) + (analytics.futuresRealizedPnL || 0)).toFixed(2)}
+            {currSymbol}{((analytics.spotPnL || 0) + (analytics.futuresRealizedPnL || 0)).toFixed(2)} <span className="text-[10px] text-slate-400 font-normal">USD</span>
           </div>
           <div className="text-[10px] text-slate-500">Closed positions</div>
         </div>
@@ -1637,7 +1634,7 @@ function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
           <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
             <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Unrealized P&L</div>
             <div className={`text-lg font-bold ${(analytics.futuresUnrealizedPnL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {currSymbol}{(analytics.futuresUnrealizedPnL || 0).toFixed(2)}
+              {currSymbol}{(analytics.futuresUnrealizedPnL || 0).toFixed(2)} <span className="text-[10px] text-slate-400 font-normal">USD</span>
             </div>
             <div className="text-[10px] text-slate-500">{analytics.futuresOpenPositions?.length || 0} open</div>
           </div>
