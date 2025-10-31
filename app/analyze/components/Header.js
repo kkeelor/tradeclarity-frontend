@@ -1,8 +1,21 @@
 // app/analyze/components/Header.js
 
-import { TrendingUp, ArrowRight } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { TrendingUp, ArrowRight, LayoutDashboard, Upload, BarChart3, LogOut } from 'lucide-react'
 import ThemeToggle from '../../components/ThemeToggle'
+
+function NavButton({ icon: Icon, label, onClick }) {
+  if (!onClick) return null
+
+  return (
+    <button
+      onClick={onClick}
+      className="group inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium text-slate-300 transition-colors hover:text-white"
+    >
+      <Icon className="h-4 w-4 text-slate-500 transition-colors group-hover:text-emerald-300" />
+      {label}
+    </button>
+  )
+}
 
 export default function Header({
   exchangeConfig,
@@ -10,56 +23,56 @@ export default function Header({
   currency,
   setCurrency,
   onDisconnect,
-  isDemoMode = false,
-  isLoggedIn = false
+  onNavigateDashboard,
+  onNavigateUpload,
+  onNavigateAll,
+  onSignOut,
+  isDemoMode = false
 }) {
-  const router = useRouter()
+  const navItems = [
+    { label: 'Dashboard', icon: LayoutDashboard, onClick: onNavigateDashboard },
+    { label: 'Upload CSV', icon: Upload, onClick: onNavigateUpload },
+    { label: 'All Data', icon: BarChart3, onClick: onNavigateAll }
+  ].filter(item => Boolean(item.onClick))
 
   return (
-    <header className="border-b border-slate-800 backdrop-blur-sm bg-slate-900/50 sticky top-0 z-10">
-      <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <h1 className="text-lg font-bold">Your Trading Patterns</h1>
+    <header className="sticky top-0 z-30 border-b border-white/5 bg-slate-950/70 backdrop-blur-xl">
+      <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-4 px-4 py-4">
+        <div className="flex items-center gap-8">
+          <button
+            onClick={() => window.location.href = '/'}
+            className="flex items-center gap-2 rounded-full border border-white/5 bg-white/[0.03] px-3 py-1 text-sm font-semibold text-white/90 transition hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white"
+          >
+            <TrendingUp className="h-5 w-5 text-emerald-300" />
+            TradeClarity
+          </button>
 
-          {exchangeConfig && (
-            <span className="text-xs text-slate-400 ml-2">
-              {exchangeConfig.icon} {exchangeConfig.displayName}
-            </span>
-          )}
-          {currencyMetadata?.supportsCurrencySwitch && (
-            <span className="text-xs text-cyan-400 ml-2">• {currency}</span>
+          {navItems.length > 0 && (
+            <nav className="hidden items-center gap-2 md:flex">
+              {navItems.map(item => (
+                <NavButton key={item.label} {...item} />
+              ))}
+            </nav>
           )}
         </div>
-        <div className="flex items-center gap-4">
-          {/* Theme Toggle - Always visible */}
-          <ThemeToggle />
 
-          {/* Demo Mode CTA Button */}
-          {isDemoMode && (
-            <button
-              onClick={() => {
-                console.log('Button clicked! Navigating to /analyze')
-                // For logged in users viewing demo, take them to dashboard
-                // For non-logged in users, take them to analyze page (which shows sign up)
-                window.location.href = '/analyze'
-              }}
-              className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 rounded-lg font-semibold text-sm transition-all duration-300 hover:scale-105 flex items-center gap-2 shadow-lg shadow-emerald-500/20"
-            >
-              {isLoggedIn ? 'Discover YOUR patterns' : 'Discover YOUR patterns'}
-              <ArrowRight className="w-4 h-4" />
-            </button>
+        <div className="flex items-center gap-3">
+          {exchangeConfig && (
+            <span className="hidden items-center gap-2 rounded-full border border-white/5 bg-white/[0.02] px-3 py-1 text-xs text-slate-300/80 sm:inline-flex">
+              {exchangeConfig.icon}
+              {exchangeConfig.displayName}
+            </span>
           )}
-          
-          {/* Currency Switcher - Only in real mode */}
+
           {!isDemoMode && currencyMetadata?.supportsCurrencySwitch && currencyMetadata.availableCurrencies.length > 1 && (
-            <div className="flex items-center gap-2 bg-slate-800/50 border border-slate-700 rounded-lg p-1">
+            <div className="flex items-center gap-1 rounded-full border border-white/5 bg-white/[0.02] p-1">
               {currencyMetadata.availableCurrencies.map((curr) => (
                 <button
                   key={curr}
                   onClick={() => setCurrency(curr)}
-                  className={`px-3 py-1 rounded text-xs font-medium transition-all ${
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${
                     currency === curr
-                      ? 'bg-emerald-500 text-white'
+                      ? 'bg-emerald-400 text-slate-900'
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -68,14 +81,35 @@ export default function Header({
               ))}
             </div>
           )}
-          
-          {/* Disconnect Button - Only in real mode */}
+
+          {isDemoMode && (
+            <button
+              onClick={() => window.location.href = '/analyze'}
+              className="hidden items-center gap-2 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 px-4 py-2 text-xs font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:from-emerald-300 hover:to-cyan-300 md:inline-flex"
+            >
+              Discover yours
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          )}
+
+          <ThemeToggle />
+
           {!isDemoMode && (
-            <button 
-              onClick={onDisconnect} 
-              className="text-sm text-slate-400 hover:text-white transition-colors"
+            <button
+              onClick={onDisconnect}
+              className="rounded-full border border-white/5 px-3 py-1 text-xs font-medium text-slate-400 transition hover:border-rose-400/50 hover:bg-rose-400/10 hover:text-rose-200"
             >
               Disconnect
+            </button>
+          )}
+
+          {onSignOut && (
+            <button
+              onClick={onSignOut}
+              className="hidden items-center gap-2 rounded-full border border-white/5 px-3 py-1 text-xs font-medium text-slate-500 transition hover:border-white/10 hover:bg-white/10 hover:text-white md:inline-flex"
+            >
+              <LogOut className="h-4 w-4" />
+              Sign out
             </button>
           )}
         </div>

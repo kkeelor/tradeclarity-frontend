@@ -15,7 +15,6 @@ import { generatePerformanceAnalogies } from '../utils/performanceAnalogies'
 import { analyzeDrawdowns } from '../utils/drawdownAnalysis'
 import { analyzeTimeBasedPerformance } from '../utils/timeBasedAnalysis'
 import { analyzeSymbols } from '../utils/symbolAnalysis'
-import Sidebar from './Sidebar'
 import { ExchangeIcon } from '@/components/ui'
 import {
   AreaChart, Area, BarChart, Bar, LineChart as RechartsLineChart,
@@ -40,8 +39,6 @@ import {
   ChartSkeleton,
   CardGridSkeleton,
   TableSkeleton,
-  LimitedDataNotice,
-  DataQualityBanner,
   EmptyState
 } from '../../components'
 
@@ -90,84 +87,105 @@ const getIconComponent = (iconName) => {
 
 function HeroSection({ analytics, currSymbol, metadata }) {
   const isProfitable = analytics.totalPnL >= 0
-  const psychology = analytics.psychology || {}
   const tradeCount = analytics.totalTrades || 0
   const symbolCount = Object.keys(analytics.symbols || {}).length
 
+  const hasLimitedData = tradeCount > 0 && tradeCount < 20
+  const hasGreatData = tradeCount >= 50
+  const dataSources = [
+    ...(metadata?.exchanges || []).map(source => ({
+      label: source.toUpperCase(),
+      tone: 'emerald'
+    })),
+    ...(metadata?.csvFiles || []).map(file => ({
+      label: file.filename || 'CSV',
+      tone: 'cyan',
+      icon: FileText
+    }))
+  ]
+
   return (
-    <div className="space-y-6">
-      {/* Data Source Banner */}
-      {(metadata?.exchanges?.length > 0 || metadata?.csvFiles?.length > 0) && (
-        <div className="bg-slate-800/30 border border-slate-700/50 rounded-lg p-4">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2 text-sm text-slate-400">
-              <Database className="w-4 h-4" />
-              <span className="font-semibold">Data Sources:</span>
+    <div className="relative overflow-hidden rounded-3xl border border-white/5 bg-white/[0.04] shadow-2xl shadow-emerald-500/5">
+      <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10" />
+      <div className="absolute -top-24 -right-20 w-72 h-72 bg-emerald-500/20 blur-3xl rounded-full" />
+      <div className="absolute -bottom-32 -left-12 w-60 h-60 bg-cyan-500/10 blur-3xl rounded-full" />
+
+      <div className="relative p-6 sm:p-8 lg:p-10 space-y-8">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+          <div className="space-y-6 max-w-xl">
+            <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-300/80">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
+              Your Performance Pulse
             </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
+                  isProfitable ? 'bg-emerald-500/20 text-emerald-200' : 'bg-rose-500/20 text-rose-200'
+                }`}>
+                  <DollarSign className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-300/80">Total P&L</p>
+                  <p className={`text-4xl font-semibold tracking-tight ${
+                    isProfitable ? 'text-emerald-200' : 'text-rose-200'
+                  }`}>
+                    {isProfitable ? '+' : '-'}{currSymbol}{Math.abs(analytics.totalPnL).toFixed(2)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-300/70">
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-3 py-1">
+                  <Activity className="w-3 h-3" />
+                  {tradeCount.toLocaleString()} trades
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-3 py-1">
+                  <TrendingUp className="w-3 h-3" />
+                  {analytics.roi?.toFixed(1) || '0.0'}% ROI
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-3 py-1">
+                  <Calendar className="w-3 h-3" />
+                  {symbolCount} symbols
+                </span>
+              </div>
+            </div>
+
             <div className="flex flex-wrap items-center gap-2">
-              {metadata.exchanges?.map((exchange, idx) => (
-                <div key={idx} className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-md text-xs font-medium text-emerald-400">
-                  {exchange.toUpperCase()}
-                </div>
-              ))}
-              {metadata.csvFiles?.map((file, idx) => (
-                <div key={idx} className="px-3 py-1 bg-cyan-500/10 border border-cyan-500/20 rounded-md text-xs font-medium text-cyan-400 flex items-center gap-1">
-                  <FileText className="w-3 h-3" />
-                  {file.filename || `CSV ${idx + 1}`}
-                </div>
-              ))}
-            </div>
-            <div className="ml-auto flex items-center gap-2 text-xs text-slate-400">
-              <Activity className="w-3 h-3" />
-              <span className="font-semibold">{tradeCount.toLocaleString()}</span> trades analyzed
-            </div>
-          </div>
-        </div>
-      )}
+              {dataSources.map((source, idx) => {
+                const ToneIcon = source.icon
+                return (
+                  <span
+                    key={`${source.label}-${idx}`}
+                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium backdrop-blur-sm ${
+                      source.tone === 'emerald'
+                        ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-100'
+                        : 'border-cyan-400/40 bg-cyan-400/10 text-cyan-100'
+                    }`}
+                  >
+                    {ToneIcon ? <ToneIcon className="w-3.5 h-3.5" /> : null}
+                    {source.label}
+                  </span>
+                )
+              })}
 
-      {/* Limited Data Notice - Show if user has fewer than 20 trades */}
-      <LimitedDataNotice tradeCount={tradeCount} minRecommended={20} />
+              {hasLimitedData && (
+                <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/40 bg-amber-400/10 px-3 py-1.5 text-xs font-semibold text-amber-100">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  {tradeCount}/20 trades analyzed
+                </span>
+              )}
 
-      {/* Data Quality Banner - Show if user has good data (50+ trades) */}
-      <DataQualityBanner tradeCount={tradeCount} symbolCount={symbolCount} />
-
-      {/* Featured P&L Card - Simplified */}
-      <div className="bg-slate-900/50 border border-slate-700/50 rounded-xl p-6 md:p-8">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-          {/* Left: Main P&L */}
-          <div className="text-center md:text-left">
-            <div className="flex items-center justify-center md:justify-start gap-3 mb-3">
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                isProfitable ? 'bg-emerald-500/10' : 'bg-red-500/10'
-              }`}>
-                <DollarSign className={`w-5 h-5 ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`} />
-              </div>
-              <div className="text-left">
-                <div className="text-xs text-slate-400 uppercase tracking-wider font-medium">Total P&L</div>
-              </div>
-            </div>
-
-            <div className={`text-4xl md:text-5xl font-bold mb-2 ${
-              isProfitable ? 'text-emerald-400' : 'text-red-400'
-            }`}>
-              {isProfitable ? '+' : ''}{currSymbol}{Math.abs(analytics.totalPnL).toFixed(2)}
-            </div>
-
-            <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 text-xs text-slate-400">
-              <span className="flex items-center gap-1">
-                <Activity className="w-3 h-3" />
-                {analytics.totalTrades} trades
-              </span>
-              <span>•</span>
-              <span className="flex items-center gap-1">
-                <TrendingUp className="w-3 h-3" />
-                {analytics.roi?.toFixed(1) || '0.0'}% ROI
-              </span>
+              {hasGreatData && (
+                <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/40 bg-emerald-400/10 px-3 py-1.5 text-xs font-semibold text-emerald-100">
+                  <CheckCircle className="w-3.5 h-3.5" />
+                  High-quality dataset
+                </span>
+              )}
             </div>
           </div>
 
-          {/* Right: Quick Stats */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-2 gap-4 min-w-[220px]">
             <QuickStat
               label="Win Rate"
               value={`${analytics.winRate.toFixed(1)}%`}
@@ -178,34 +196,47 @@ function HeroSection({ analytics, currSymbol, metadata }) {
             <QuickStat
               label="Profit Factor"
               value={analytics.profitFactor.toFixed(2)}
-              subtitle={analytics.profitFactor >= 2 ? 'Excellent' : 'Good'}
+              subtitle={analytics.profitFactor >= 2 ? 'Excellent' : 'Healthy'}
               icon={TrendingUp}
               good={analytics.profitFactor >= 1.5}
             />
+            <QuickStat
+              label="Avg Win"
+              value={`${currSymbol}${Math.abs(analytics.avgWin || 0).toFixed(2)}`}
+              subtitle="Per winning trade"
+              icon={ArrowUpRight}
+              good={analytics.avgWin >= Math.abs(analytics.avgLoss || 0)}
+            />
+            <QuickStat
+              label="Avg Loss"
+              value={`${currSymbol}${Math.abs(analytics.avgLoss || 0).toFixed(2)}`}
+              subtitle="Per losing trade"
+              icon={ArrowDownRight}
+              good={false}
+            />
           </div>
         </div>
-      </div>
 
-      {/* Account Type Breakdown */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <AccountTypeCard
-          type="Spot"
-          trades={analytics.spotTrades}
-          pnl={analytics.spotPnL}
-          winRate={analytics.spotWinRate}
-          currSymbol={currSymbol}
-          icon={DollarSign}
-          iconColor="emerald"
-        />
-        <AccountTypeCard
-          type="Futures"
-          trades={analytics.futuresTrades}
-          pnl={analytics.futuresPnL}
-          winRate={analytics.futuresWinRate}
-          currSymbol={currSymbol}
-          icon={Zap}
-          iconColor="cyan"
-        />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <AccountTypeCard
+            type="Spot"
+            trades={analytics.spotTrades}
+            pnl={analytics.spotPnL}
+            winRate={analytics.spotWinRate}
+            currSymbol={currSymbol}
+            icon={DollarSign}
+            iconColor="emerald"
+          />
+          <AccountTypeCard
+            type="Futures"
+            trades={analytics.futuresTrades}
+            pnl={analytics.futuresPnL}
+            winRate={analytics.futuresWinRate}
+            currSymbol={currSymbol}
+            icon={Zap}
+            iconColor="cyan"
+          />
+        </div>
       </div>
     </div>
   )
@@ -263,59 +294,53 @@ function LiveHoldings({ analytics, metadata, currSymbol }) {
   }
 
   return (
-    <div className="bg-slate-800/20 border border-slate-700/30 rounded-lg overflow-hidden">
-      <div className="px-3 py-2 border-b border-slate-700/30">
-        <h3 className="text-xs font-medium text-slate-300 flex items-center gap-2">
-          <Layers className="w-3 h-3 text-slate-400" />
-          Live Holdings
-        </h3>
+    <div className="overflow-hidden rounded-2xl border border-white/5 bg-white/[0.02] backdrop-blur">
+      <div className="flex items-center gap-2 border-b border-white/5 px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-300/80">
+        <Layers className="h-3 w-3 text-emerald-200" />
+        Live Holdings Snapshot
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 p-2">
+      <div className="grid grid-cols-1 gap-3 p-4 lg:grid-cols-2">
         {/* Spot Holdings */}
         {hasSpotHoldings && (
-          <div className="bg-slate-800/20 border border-slate-700/30 rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-700/30 bg-slate-800/30">
-              <h3 className="text-sm font-medium text-slate-300 flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-slate-400" />
-                Spot Holdings
-              </h3>
+          <div className="overflow-hidden rounded-2xl border border-white/5 bg-white/[0.02]">
+            <div className="flex items-center gap-2 border-b border-white/5 bg-white/[0.02] px-4 py-3 text-sm font-semibold text-slate-200">
+              <DollarSign className="h-4 w-4 text-emerald-200" />
+              Spot Holdings
             </div>
-            <div className="p-4 space-y-2 max-h-64 overflow-y-auto">
+            <div className="max-h-64 space-y-2 overflow-y-auto p-4">
               {metadata.spotHoldings
                 .sort((a, b) => b.usdValue - a.usdValue)
                 .slice(0, 5)
                 .map((holding) => (
-                  <div key={holding.asset} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-slate-700/20 transition-colors">
+                  <div key={holding.asset} className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.03] px-3 py-2 transition duration-300 hover:border-emerald-400/30 hover:bg-emerald-400/5">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-slate-700/50 flex items-center justify-center text-xs font-bold text-slate-300">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-xs font-bold text-slate-100">
                         {holding.asset.slice(0, 2)}
                       </div>
                       <div>
-                        <div className="text-sm font-medium text-slate-200">{holding.asset}</div>
-                        <div className="text-xs text-slate-500 font-mono">{holding.quantity?.toFixed(4)}</div>
+                        <p className="text-sm font-semibold text-white/90">{holding.asset}</p>
+                        <p className="font-mono text-[11px] text-slate-400">{holding.quantity?.toFixed(4)}</p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm font-semibold text-slate-200">
+                      <p className="text-sm font-semibold text-emerald-200">
                         {currSymbol}{holding.usdValue?.toFixed(2)}
-                      </div>
-                      <div className="text-xs text-slate-500">
-                        @{currSymbol}{holding.price?.toFixed(2)}
-                      </div>
+                      </p>
+                      <p className="text-[11px] text-slate-400">@{currSymbol}{holding.price?.toFixed(2)}</p>
                     </div>
                   </div>
                 ))}
             </div>
             {metadata.spotHoldings.length > 5 && (
-              <div className="px-4 py-2 border-t border-slate-700/30 text-xs text-slate-500 text-center">
+              <div className="border-t border-white/5 px-4 py-2 text-center text-xs text-slate-400/80">
                 +{metadata.spotHoldings.length - 5} more assets
               </div>
             )}
-            <div className="px-4 py-3 border-t border-slate-700/30 bg-slate-800/30">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-slate-400">Total Value</span>
-                <span className="text-sm font-bold text-slate-200">
+            <div className="border-t border-white/5 bg-white/[0.02] px-4 py-3">
+              <div className="flex items-center justify-between text-xs text-slate-400">
+                <span>Total spot value</span>
+                <span className="text-sm font-semibold text-emerald-200">
                   {currSymbol}{metadata.totalSpotValue?.toFixed(2)}
                 </span>
               </div>
@@ -325,46 +350,42 @@ function LiveHoldings({ analytics, metadata, currSymbol }) {
 
         {/* Futures Positions */}
         {hasFuturesPositions && (
-          <div className="bg-slate-800/20 border border-slate-700/30 rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-700/30 bg-slate-800/30">
-              <h3 className="text-sm font-medium text-slate-300 flex items-center gap-2">
-                <Zap className="w-4 h-4 text-slate-400" />
-                Open Futures Positions
-              </h3>
+          <div className="overflow-hidden rounded-2xl border border-white/5 bg-white/[0.02]">
+            <div className="flex items-center gap-2 border-b border-white/5 bg-white/[0.02] px-4 py-3 text-sm font-semibold text-slate-200">
+              <Zap className="h-4 w-4 text-cyan-200" />
+              Open Futures Positions
             </div>
-            <div className="p-4 space-y-2 max-h-64 overflow-y-auto">
+            <div className="max-h-64 space-y-2 overflow-y-auto p-4">
               {analytics.futuresOpenPositions.slice(0, 3).map((pos, idx) => (
-                <div key={idx} className="py-2 px-3 rounded-lg border border-slate-700/20 bg-slate-800/20">
-                  <div className="flex items-start justify-between mb-2">
+                <div key={idx} className="rounded-xl border border-white/5 bg-white/[0.03] px-3 py-3">
+                  <div className="mb-2 flex items-start justify-between">
                     <div>
-                      <div className="text-sm font-medium text-slate-200">{pos.symbol}</div>
-                      <div className="text-xs text-slate-500">{pos.side} • {pos.leverage}x</div>
+                      <p className="text-sm font-semibold text-white/90">{pos.symbol}</p>
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">{pos.side} ? {pos.leverage}x</p>
                     </div>
                     <div className="text-right">
-                      <div className={`text-sm font-bold ${(pos.unrealizedProfit || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      <p className={`text-sm font-semibold ${(pos.unrealizedProfit || 0) >= 0 ? 'text-emerald-200' : 'text-rose-200'}`}>
                         {(pos.unrealizedProfit || 0) >= 0 ? '+' : ''}{currSymbol}{Math.abs(pos.unrealizedProfit || 0).toFixed(2)}
-                      </div>
-                      <div className="text-xs text-slate-500">
-                        {(((pos.unrealizedProfit || 0) / (pos.margin || 1)) * 100).toFixed(1)}%
-                      </div>
+                      </p>
+                      <p className="text-[11px] text-slate-400">{(((pos.unrealizedProfit || 0) / (pos.margin || 1)) * 100).toFixed(1)}%</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 text-xs text-slate-500">
-                    <span>Entry: {currSymbol}{pos.entryPrice?.toFixed(2)}</span>
-                    <span>Mark: {currSymbol}{pos.markPrice?.toFixed(2)}</span>
+                  <div className="flex flex-wrap items-center gap-4 text-[11px] text-slate-400">
+                    <span>Entry {currSymbol}{pos.entryPrice?.toFixed(2)}</span>
+                    <span>Mark {currSymbol}{pos.markPrice?.toFixed(2)}</span>
                   </div>
                 </div>
               ))}
             </div>
             {analytics.futuresOpenPositions.length > 3 && (
-              <div className="px-4 py-2 border-t border-slate-700/30 text-xs text-slate-500 text-center">
+              <div className="border-t border-white/5 px-4 py-2 text-center text-xs text-slate-400/80">
                 +{analytics.futuresOpenPositions.length - 3} more positions
               </div>
             )}
-            <div className="px-4 py-3 border-t border-slate-700/30 bg-slate-800/30">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-slate-400">Unrealized P&L</span>
-                <span className={`text-sm font-bold ${(analytics.futuresUnrealizedPnL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            <div className="border-t border-white/5 bg-white/[0.02] px-4 py-3">
+              <div className="flex items-center justify-between text-xs text-slate-400">
+                <span>Unrealized P&L</span>
+                <span className={`text-sm font-semibold ${(analytics.futuresUnrealizedPnL || 0) >= 0 ? 'text-emerald-200' : 'text-rose-200'}`}>
                   {(analytics.futuresUnrealizedPnL || 0) >= 0 ? '+' : ''}{currSymbol}{Math.abs(analytics.futuresUnrealizedPnL || 0).toFixed(2)}
                 </span>
               </div>
@@ -493,7 +514,7 @@ function PerformanceAnalogies({ analytics, currSymbol }) {
             <div className="flex-1 min-w-0">
               <h4 className="text-xs font-medium text-slate-400 mb-1">Hourly Earnings</h4>
               <p className="text-xl font-bold text-slate-200 mb-1">{analogies.hourlyRate.formatted}</p>
-              <p className="text-xs text-slate-500">{analogies.hourlyRate.totalHours.toFixed(0)} active hours • {analogies.hourlyRate.comparison}</p>
+              <p className="text-xs text-slate-500">{analogies.hourlyRate.totalHours.toFixed(0)} active hours ? {analogies.hourlyRate.comparison}</p>
             </div>
           </div>
         </div>
@@ -1104,7 +1125,7 @@ function SymbolRankingsTable({ rankings, currSymbol }) {
 function PatternDetectionEnhanced({ patterns }) {
   const [expanded, setExpanded] = useState(true)
   
-  // Sort by severity: high → medium → low
+  // Sort by severity: high ? medium ? low
   const severityOrder = { high: 0, medium: 1, low: 2 }
   const sortedPatterns = [...patterns].sort((a, b) => 
     severityOrder[a.severity] - severityOrder[b.severity]
@@ -1191,7 +1212,7 @@ function PatternDetectionEnhanced({ patterns }) {
 // ============================================
 
 function InsightCardsEnhanced({ insights, onSelectInsight }) {
-  // Sort by impact: 3 → 2 → 1
+  // Sort by impact: 3 ? 2 ? 1
   const sortedInsights = [...insights].sort((a, b) => (b.impact || 0) - (a.impact || 0))
 
   return (
@@ -1564,7 +1585,7 @@ function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
                 ${formatNumber(metadata?.totalPortfolioValue || 0, 2)} <span className="text-xs text-slate-400 font-normal">USD</span>
               </div>
               <div className="text-[10px] text-slate-500 mt-1">
-                Spot: ${formatNumber(metadata?.totalSpotValue || 0, 0)} • Futures: ${formatNumber(metadata?.totalFuturesValue || 0, 0)}
+                Spot: ${formatNumber(metadata?.totalSpotValue || 0, 0)} ? Futures: ${formatNumber(metadata?.totalFuturesValue || 0, 0)}
               </div>
             </div>
           ) : (
@@ -1584,7 +1605,7 @@ function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
             <div className="text-xs text-slate-400 mb-1">Trades Analyzed</div>
             <div className="text-xl font-bold text-white">{totalTrades.toLocaleString()}</div>
             <div className="text-[10px] text-slate-500 mt-1">
-              {analytics.spotTrades || 0} Spot • {analytics.futuresTrades || 0} Futures
+              {analytics.spotTrades || 0} Spot ? {analytics.futuresTrades || 0} Futures
             </div>
           </div>
 
@@ -1675,8 +1696,8 @@ function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
               <ChevronRight className="w-3 h-3 text-emerald-400/50 group-hover:text-emerald-400 transition-colors" />
             </div>
             <div className="text-lg font-bold text-white mb-1">${formatNumber(analytics.spotPnL, 2)} <span className="text-[10px] text-slate-400 font-normal">USD</span></div>
-            <div className="text-[10px] text-slate-400">{analytics.spotTrades} trades • {analytics.spotWinRate.toFixed(1)}% win rate</div>
-            <div className="text-[10px] text-emerald-400 mt-2 group-hover:underline">See detailed breakdown →</div>
+            <div className="text-[10px] text-slate-400">{analytics.spotTrades} trades ? {analytics.spotWinRate.toFixed(1)}% win rate</div>
+            <div className="text-[10px] text-emerald-400 mt-2 group-hover:underline">See detailed breakdown ?</div>
           </button>
         )}
 
@@ -1694,8 +1715,8 @@ function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
               <ChevronRight className="w-3 h-3 text-cyan-400/50 group-hover:text-cyan-400 transition-colors" />
             </div>
             <div className="text-lg font-bold text-white mb-1">${formatNumber(analytics.futuresPnL, 2)} <span className="text-[10px] text-slate-400 font-normal">USD</span></div>
-            <div className="text-[10px] text-slate-400">{analytics.futuresOpenPositions?.length || 0} open • {analytics.futuresWinRate.toFixed(1)}% win rate</div>
-            <div className="text-[10px] text-cyan-400 mt-2 group-hover:underline">Analyze leverage impact →</div>
+            <div className="text-[10px] text-slate-400">{analytics.futuresOpenPositions?.length || 0} open ? {analytics.futuresWinRate.toFixed(1)}% win rate</div>
+            <div className="text-[10px] text-cyan-400 mt-2 group-hover:underline">Analyze leverage impact ?</div>
           </button>
         )}
 
@@ -1714,7 +1735,7 @@ function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
             </div>
             <div className="text-lg font-bold text-white mb-1">{analytics.behavioral.healthScore}/100</div>
             <div className="text-[10px] text-slate-400">{analytics.behavioral.patterns?.filter(p => p.severity === 'high').length || 0} critical patterns detected</div>
-            <div className="text-[10px] text-purple-400 mt-2 group-hover:underline">Fix your weaknesses →</div>
+            <div className="text-[10px] text-purple-400 mt-2 group-hover:underline">Fix your weaknesses ?</div>
           </button>
         )}
       </div>
@@ -2014,7 +2035,7 @@ function FuturesTab({ analytics, currSymbol }) {
                   <div>
                     <div className="font-mono font-bold text-xs">{pos.symbol}</div>
                     <div className="text-[10px] text-slate-400 mt-0.5">
-                      {pos.side} • {pos.leverage}x • Entry: {currency}{pos.entryPrice?.toFixed(2) || '0.00'} <span className="text-[9px] text-slate-500">USD</span>
+                      {pos.side} ? {pos.leverage}x ? Entry: {currency}{pos.entryPrice?.toFixed(2) || '0.00'} <span className="text-[9px] text-slate-500">USD</span>
                     </div>
                   </div>
                   <div className="text-right">
@@ -2282,58 +2303,48 @@ export default function AnalyticsView({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex">
-      <Sidebar
-        activePage="patterns"
-        onDashboardClick={onDisconnect}
-        onUploadClick={onUploadClick || (() => {})}
-        onMyPatternsClick={onViewAllExchanges || (() => {})}
-        onSignOutClick={handleSignOut}
-        isMyPatternsDisabled={!onViewAllExchanges}
-        isDemoMode={isDemoMode && !isAuthenticated}
+    <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(46,204,149,0.08),_transparent_60%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom,_rgba(59,130,246,0.06),_transparent_55%)]" />
+
+      <Header
+        exchangeConfig={exchangeConfig}
+        currencyMetadata={currencyMetadata}
+        currency={currency}
+        setCurrency={setCurrency}
+        onDisconnect={onDisconnect}
+        onNavigateDashboard={onDisconnect}
+        onNavigateUpload={onUploadClick}
+        onNavigateAll={onViewAllExchanges}
+        onSignOut={handleSignOut}
+        isDemoMode={isDemoMode}
       />
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-h-screen bg-slate-950">
-        <Header
-          exchangeConfig={exchangeConfig}
-          currencyMetadata={currencyMetadata}
-          currency={currency}
-          setCurrency={setCurrency}
-          onDisconnect={onDisconnect}
-          isDemoMode={isDemoMode}
-          isLoggedIn={isAuthenticated}
-        />
-
-        {/* Demo Mode Banner */}
-        {isDemoMode && (
-          <div className="mx-4 sm:mx-6 mt-6">
-            <div className="max-w-[1400px] mx-auto">
-              <div className="bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-purple-500/10 border border-purple-500/30 rounded-xl p-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0">
-                    <Eye className="w-5 h-5 text-purple-400" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-purple-300">
-                      Demo Mode - Viewing Sample Trading Data
-                    </p>
-                    <p className="text-xs text-slate-400 mt-1">
-                      This is example data to showcase TradeClarity's analytics. Sign up to analyze your own trades.
-                    </p>
-                  </div>
-                </div>
+      {isDemoMode && (
+        <div className="mx-auto mt-6 w-full max-w-[1400px] px-4">
+          <div className="relative overflow-hidden rounded-2xl border border-purple-400/20 bg-purple-500/10 px-5 py-4 backdrop-blur">
+            <div className="absolute -top-10 right-0 h-24 w-24 rounded-full bg-purple-400/20 blur-3xl" />
+            <div className="relative flex items-start gap-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/10">
+                <Eye className="h-5 w-5 text-purple-200" />
+              </div>
+              <div className="space-y-1 text-sm">
+                <p className="font-medium text-purple-100">Demo mode ? sample Binance data</p>
+                <p className="text-slate-300/80">
+                  Explore how TradeClarity surfaces patterns, then connect your exchange to uncover your own.
+                </p>
               </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        <main className="flex-1 max-w-[1400px] mx-auto px-3 sm:px-4 py-3 space-y-3 w-full">
+      <main className="relative mx-auto w-full max-w-[1400px] px-4 pb-16 pt-10 space-y-10">
         {/* Tabs - Moved to Top */}
-        <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-lg overflow-hidden">
+        <div className="overflow-hidden rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-emerald-500/5 backdrop-blur">
           {/* Tab Headers */}
-          <div className="flex items-center border-b border-slate-700/50">
-            <div className="flex-1 flex overflow-x-auto scrollbar-hide">
+          <div className="flex items-center border-b border-white/5">
+            <div className="flex flex-1 overflow-x-auto scrollbar-hide">
               {tabs.map(tab => {
                 const TabIcon = tab.icon
                 return (
@@ -2341,7 +2352,7 @@ export default function AnalyticsView({
                     key={tab.id}
                     active={activeTab === tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className="text-xs md:text-base whitespace-nowrap"
+                    className="whitespace-nowrap text-xs md:text-base"
                   >
                     <div className="flex items-center gap-2">
                       <TabIcon className="w-4 h-4" />
@@ -2353,13 +2364,13 @@ export default function AnalyticsView({
             </div>
 
             {/* Filter Button */}
-            <div className="flex-shrink-0 px-3 border-l border-slate-700/50">
+            <div className="flex-shrink-0 border-l border-white/5 px-3">
               <button
                 onClick={() => setShowFilters(!showFilters)}
                 className={`p-2 rounded-lg transition-all ${
                   showFilters
-                    ? 'bg-purple-500/20 text-purple-400'
-                    : 'hover:bg-slate-700/50 text-slate-400 hover:text-slate-300'
+                    ? 'bg-purple-500/20 text-purple-200'
+                    : 'text-slate-400 hover:bg-white/10 hover:text-white'
                 }`}
                 title="Filter data"
               >
@@ -2370,8 +2381,8 @@ export default function AnalyticsView({
 
           {/* Filter Panel */}
           {showFilters && currencyMetadata?.exchanges && currencyMetadata.exchanges.length > 1 && (
-            <div className="border-b border-slate-700/50 bg-slate-800/50 px-4 py-3">
-              <div className="flex items-center gap-2 flex-wrap">
+            <div className="border-b border-white/5 bg-white/[0.03] px-4 py-3">
+              <div className="flex flex-wrap items-center gap-2">
                 {/* Exchange Buttons */}
                 {currencyMetadata.exchanges.map(exchange => (
                   <button
@@ -2383,14 +2394,14 @@ export default function AnalyticsView({
                         setSelectedExchanges([...selectedExchanges, exchange])
                       }
                     }}
-                    className={`relative flex items-center gap-1.5 border rounded-lg px-3 py-1.5 text-sm font-medium capitalize transition-all ${
+                    className={`relative flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium capitalize transition-all ${
                       selectedExchanges.includes(exchange)
-                        ? 'bg-purple-500/20 border-purple-500 text-white'
-                        : 'bg-slate-700/50 border-slate-600 text-slate-300 hover:border-purple-500/50'
+                        ? 'border-purple-400/50 bg-purple-500/20 text-white'
+                        : 'border-white/10 bg-white/5 text-slate-200 hover:border-purple-400/40 hover:text-white'
                     }`}
                   >
                     {selectedExchanges.includes(exchange) && (
-                      <CheckCircle className="w-3.5 h-3.5 text-purple-400" />
+                      <CheckCircle className="w-3.5 h-3.5 text-purple-200" />
                     )}
                     {exchange}
                   </button>
@@ -2400,16 +2411,16 @@ export default function AnalyticsView({
                 <button
                   onClick={() => {
                     setAppliedExchanges(selectedExchanges)
-                    console.log('🔍 Applying exchange filter:', selectedExchanges)
+                    console.log('?? Applying exchange filter:', selectedExchanges)
                     if (onFilterExchanges && selectedExchanges.length > 0) {
                       onFilterExchanges(selectedExchanges)
                     }
                   }}
                   disabled={selectedExchanges.length === 0}
-                  className={`px-3 py-1.5 rounded-lg font-medium text-sm transition-all ${
+                  className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-all ${
                     selectedExchanges.length > 0
-                      ? 'bg-purple-600 hover:bg-purple-700 text-white'
-                      : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                      ? 'bg-gradient-to-r from-purple-500 to-purple-400 text-white shadow-lg shadow-purple-500/30 hover:from-purple-400 hover:to-purple-300'
+                      : 'cursor-not-allowed bg-white/5 text-slate-500'
                   }`}
                 >
                   Apply
@@ -2422,13 +2433,14 @@ export default function AnalyticsView({
                       setSelectedExchanges([])
                       setAppliedExchanges([])
                     }}
-                    className="text-xs text-slate-400 hover:text-purple-400 transition-colors flex items-center gap-1 ml-auto"
+                    className="ml-auto inline-flex items-center gap-1 text-xs text-slate-400 transition-colors hover:text-purple-200"
                   >
                     <X className="w-3 h-3" />
                     Clear
                   </button>
                 )}
               </div>
+              <p className="mt-2 text-xs text-slate-400/80">Refine which sources feed this view</p>
             </div>
           )}
 
@@ -2440,8 +2452,7 @@ export default function AnalyticsView({
             {activeTab === 'futures' && <FuturesTab analytics={analytics} currSymbol={currSymbol} />}
           </div>
         </div>
-        </main>
-      </div>
+      </main>
     </div>
   )
 }
