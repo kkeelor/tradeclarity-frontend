@@ -1533,6 +1533,9 @@ function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
       }
     : null
 
+  // Check if portfolio data is available (only present on live connections)
+  const hasPortfolioData = metadata?.totalPortfolioValue !== undefined && metadata?.totalPortfolioValue !== null
+
   return (
     <div className="space-y-3">
       {/* Portfolio Overview Summary */}
@@ -1543,16 +1546,28 @@ function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
         </h2>
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          {/* Total Portfolio Value */}
-          <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700/30">
-            <div className="text-xs text-slate-400 mb-1">Total Value</div>
-            <div className="text-xl font-bold text-white">
-              {currSymbol}{(metadata?.totalPortfolioValue || 0).toFixed(2)}
+          {/* Total Portfolio Value - Only show if data available */}
+          {hasPortfolioData ? (
+            <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700/30">
+              <div className="text-xs text-slate-400 mb-1">Total Value</div>
+              <div className="text-xl font-bold text-white">
+                {currSymbol}{(metadata?.totalPortfolioValue || 0).toFixed(2)}
+              </div>
+              <div className="text-[10px] text-slate-500 mt-1">
+                Spot: {currSymbol}{(metadata?.totalSpotValue || 0).toFixed(0)} • Futures: {currSymbol}{(metadata?.totalFuturesValue || 0).toFixed(0)}
+              </div>
             </div>
-            <div className="text-[10px] text-slate-500 mt-1">
-              Spot: {currSymbol}{(metadata?.totalSpotValue || 0).toFixed(0)} • Futures: {currSymbol}{(metadata?.totalFuturesValue || 0).toFixed(0)}
+          ) : (
+            <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700/30">
+              <div className="text-xs text-slate-400 mb-1">Total Value</div>
+              <div className="text-sm font-bold text-slate-400">
+                Not Available
+              </div>
+              <div className="text-[10px] text-slate-500 mt-1">
+                Connect live to view portfolio
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Total Trades */}
           <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700/30">
