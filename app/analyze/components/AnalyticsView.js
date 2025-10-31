@@ -9,7 +9,7 @@ import {
   BarChart3, PieChart, LineChart, ArrowUpRight, ArrowDownRight,
   AlertCircle, Sparkles, ChevronRight, ChevronLeft, ChevronDown,
   Scissors, Shuffle, Coffee, Tv, Pizza, Fuel, Utensils,
-  Database, FileText, Briefcase
+  Database, FileText, Briefcase, Filter, X
 } from 'lucide-react'
 import { generatePerformanceAnalogies } from '../utils/performanceAnalogies'
 import { analyzeDrawdowns } from '../utils/drawdownAnalysis'
@@ -2219,10 +2219,16 @@ export default function AnalyticsView({
   onDisconnect,
   onUploadClick,
   onViewAllExchanges,
+  onFilterExchanges, // Callback to re-fetch data with filtered exchanges
   isDemoMode = false,
   isAuthenticated = true
 }) {
   const [activeTab, setActiveTab] = useState('overview')
+  const [showFilters, setShowFilters] = useState(false)
+
+  // Filter state - Only data source filtering
+  const [selectedExchanges, setSelectedExchanges] = useState([])
+  const [appliedExchanges, setAppliedExchanges] = useState([]) // Track what's currently applied
 
   const hasFutures = analytics.futuresTrades > 0
   const hasSpot = analytics.spotTrades > 0
@@ -2295,24 +2301,115 @@ export default function AnalyticsView({
         {/* Tabs - Moved to Top */}
         <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-lg overflow-hidden">
           {/* Tab Headers */}
-          <div className="flex overflow-x-auto border-b border-slate-700/50 scrollbar-hide">
-            {tabs.map(tab => {
-              const TabIcon = tab.icon
-              return (
-                <TabButton
-                  key={tab.id}
-                  active={activeTab === tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className="text-xs md:text-base whitespace-nowrap"
-                >
-                  <div className="flex items-center gap-2">
-                    <TabIcon className="w-4 h-4" />
-                    <span>{tab.label}</span>
-                  </div>
-                </TabButton>
-              )
-            })}
+          <div className="flex items-center border-b border-slate-700/50">
+            <div className="flex-1 flex overflow-x-auto scrollbar-hide">
+              {tabs.map(tab => {
+                const TabIcon = tab.icon
+                return (
+                  <TabButton
+                    key={tab.id}
+                    active={activeTab === tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className="text-xs md:text-base whitespace-nowrap"
+                  >
+                    <div className="flex items-center gap-2">
+                      <TabIcon className="w-4 h-4" />
+                      <span>{tab.label}</span>
+                    </div>
+                  </TabButton>
+                )
+              })}
+            </div>
+
+            {/* Filter Button */}
+            <div className="flex-shrink-0 px-3 border-l border-slate-700/50">
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`p-2 rounded-lg transition-all ${
+                  showFilters
+                    ? 'bg-purple-500/20 text-purple-400'
+                    : 'hover:bg-slate-700/50 text-slate-400 hover:text-slate-300'
+                }`}
+                title="Filter data"
+              >
+                <Filter className="w-4 h-4" />
+              </button>
+            </div>
           </div>
+
+          {/* Filter Panel */}
+          {showFilters && currencyMetadata?.exchanges && currencyMetadata.exchanges.length > 1 && (
+            <div className="border-b border-slate-700/50 bg-slate-800/50 p-4">
+              <div className="space-y-4">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-slate-200">Filter by Data Source</h3>
+                  <button
+                    onClick={() => {
+                      setSelectedExchanges([])
+                      setAppliedExchanges([])
+                    }}
+                    className="text-xs text-purple-400 hover:text-purple-300 transition-colors flex items-center gap-1"
+                  >
+                    <X className="w-3 h-3" />
+                    Clear Filter
+                  </button>
+                </div>
+
+                {/* Exchange Selection */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-3">
+                    Select data sources to analyze {selectedExchanges.length > 0 && `(${selectedExchanges.length} selected)`}
+                  </label>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {currencyMetadata.exchanges.map(exchange => (
+                      <label
+                        key={exchange}
+                        className={`flex items-center gap-2 border rounded-lg px-3 py-2 cursor-pointer transition-all ${
+                          selectedExchanges.includes(exchange)
+                            ? 'bg-purple-500/20 border-purple-500 text-white'
+                            : 'bg-slate-700/50 border-slate-600 text-slate-300 hover:border-purple-500/50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedExchanges.includes(exchange)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedExchanges([...selectedExchanges, exchange])
+                            } else {
+                              setSelectedExchanges(selectedExchanges.filter(ex => ex !== exchange))
+                            }
+                          }}
+                          className="w-4 h-4 rounded border-slate-500 text-purple-500 focus:ring-purple-500 focus:ring-offset-0"
+                        />
+                        <span className="text-sm font-medium capitalize">{exchange}</span>
+                      </label>
+                    ))}
+                  </div>
+
+                  {/* Apply Button */}
+                  <button
+                    onClick={() => {
+                      setAppliedExchanges(selectedExchanges)
+                      console.log('🔍 Applying exchange filter:', selectedExchanges)
+                      if (onFilterExchanges && selectedExchanges.length > 0) {
+                        onFilterExchanges(selectedExchanges)
+                      }
+                    }}
+                    disabled={selectedExchanges.length === 0}
+                    className={`w-full py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${
+                      selectedExchanges.length > 0
+                        ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                        : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                    }`}
+                  >
+                    Apply Filter
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Tab Content */}
           <div className="p-3 md:p-4">

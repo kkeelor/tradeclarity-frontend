@@ -809,6 +809,19 @@ export default function TradeClarityContent() {
           // View combined analytics for all exchanges
           handleViewAnalytics()
         }}
+        onFilterExchanges={(exchanges) => {
+          // Re-fetch data with filtered exchanges
+          console.log('🔍 Filtering by exchanges:', exchanges)
+          // Build selected sources array from exchange names
+          const selectedSources = exchanges.map(exchangeName => {
+            // Find matching connection for this exchange
+            const connection = connections.find(conn => conn.exchange.toLowerCase() === exchangeName.toLowerCase())
+            return connection ? { type: 'exchange', id: connection.id, name: exchangeName } : null
+          }).filter(Boolean)
+
+          console.log('📊 Mapped to sources:', selectedSources)
+          handleViewAnalytics(selectedSources)
+        }}
         setCurrency={setCurrency}
       />
     )
