@@ -9,7 +9,7 @@ import {
   BarChart3, PieChart, LineChart, ArrowUpRight, ArrowDownRight,
   AlertCircle, Sparkles, ChevronRight, ChevronLeft, ChevronDown,
   Scissors, Shuffle, Coffee, Tv, Pizza, Fuel, Utensils,
-  Database, FileText
+  Database, FileText, Briefcase
 } from 'lucide-react'
 import { generatePerformanceAnalogies } from '../utils/performanceAnalogies'
 import { analyzeDrawdowns } from '../utils/drawdownAnalysis'
@@ -1659,7 +1659,7 @@ function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
           >
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-emerald-400" />
+                <Briefcase className="w-4 h-4 text-emerald-400" />
                 <span className="text-xs font-semibold text-emerald-400">Spot Trading</span>
               </div>
               <ChevronRight className="w-3 h-3 text-emerald-400/50 group-hover:text-emerald-400 transition-colors" />
@@ -1777,7 +1777,7 @@ function SpotTab({ analytics, currSymbol, metadata }) {
   if (!hasSpotData) {
     return (
       <EmptyState
-        icon={TrendingUp}
+        icon={Briefcase}
         title="No Spot Trading Data"
         description="Start spot trading to see portfolio breakdown and performance analytics."
         variant="info"
@@ -2231,7 +2231,7 @@ export default function AnalyticsView({
   const tabs = [
     { id: 'overview', label: 'Overview', icon: BarChart3, show: true },
     { id: 'behavioral', label: 'Behavioral', icon: Brain, show: hasBehavioral },
-    { id: 'spot', label: 'Spot', icon: TrendingUp, show: hasSpot },
+    { id: 'spot', label: 'Spot', icon: Briefcase, show: hasSpot },
     { id: 'futures', label: 'Futures', icon: Zap, show: hasFutures }
   ].filter(tab => tab.show)
 
