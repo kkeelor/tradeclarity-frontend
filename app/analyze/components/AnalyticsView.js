@@ -1523,8 +1523,83 @@ function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
   const isProfitable = analytics.totalPnL >= 0
   const hasFuturesData = (analytics.futuresPnL !== undefined && analytics.futuresPnL !== 0) || analytics.futuresOpenPositions?.length > 0
 
+  // Calculate summary metrics
+  const totalTrades = (analytics.spotTrades || 0) + (analytics.futuresTrades || 0)
+  const exchanges = metadata?.exchanges || []
+  const dateRange = analytics.allTrades && analytics.allTrades.length > 0
+    ? {
+        start: new Date(Math.min(...analytics.allTrades.map(t => new Date(t.timestamp).getTime()))),
+        end: new Date(Math.max(...analytics.allTrades.map(t => new Date(t.timestamp).getTime())))
+      }
+    : null
+
   return (
     <div className="space-y-3">
+      {/* Portfolio Overview Summary */}
+      <div className="bg-gradient-to-br from-slate-800/40 to-slate-800/20 border border-slate-700/50 rounded-xl p-4">
+        <h2 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+          <BarChart3 className="w-5 h-5 text-emerald-400" />
+          Portfolio Overview
+        </h2>
+
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {/* Total Portfolio Value */}
+          <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700/30">
+            <div className="text-xs text-slate-400 mb-1">Total Value</div>
+            <div className="text-xl font-bold text-white">
+              {currSymbol}{(metadata?.totalPortfolioValue || 0).toFixed(2)}
+            </div>
+            <div className="text-[10px] text-slate-500 mt-1">
+              Spot: {currSymbol}{(metadata?.totalSpotValue || 0).toFixed(0)} • Futures: {currSymbol}{(metadata?.totalFuturesValue || 0).toFixed(0)}
+            </div>
+          </div>
+
+          {/* Total Trades */}
+          <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700/30">
+            <div className="text-xs text-slate-400 mb-1">Trades Analyzed</div>
+            <div className="text-xl font-bold text-white">{totalTrades.toLocaleString()}</div>
+            <div className="text-[10px] text-slate-500 mt-1">
+              {analytics.spotTrades || 0} Spot • {analytics.futuresTrades || 0} Futures
+            </div>
+          </div>
+
+          {/* Exchanges */}
+          <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700/30">
+            <div className="text-xs text-slate-400 mb-1">Exchanges</div>
+            <div className="text-xl font-bold text-white">{exchanges.length}</div>
+            <div className="text-[10px] text-slate-500 mt-1 capitalize">
+              {exchanges.join(', ') || 'Unknown'}
+            </div>
+          </div>
+
+          {/* Date Range */}
+          {dateRange && (
+            <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700/30">
+              <div className="text-xs text-slate-400 mb-1">Date Range</div>
+              <div className="text-sm font-bold text-white">
+                {dateRange.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </div>
+              <div className="text-[10px] text-slate-500 mt-1">
+                to {dateRange.end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </div>
+            </div>
+          )}
+
+          {/* Account Type */}
+          <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700/30">
+            <div className="text-xs text-slate-400 mb-1">Account Type</div>
+            <div className="text-xl font-bold text-white capitalize">
+              {metadata?.accountType || 'Mixed'}
+            </div>
+            <div className="text-[10px] text-slate-500 mt-1">
+              {metadata?.hasSpot && 'Spot '}
+              {metadata?.hasSpot && metadata?.hasFutures && '+ '}
+              {metadata?.hasFutures && 'Futures'}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Compact P&L Metrics at Top */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         <div className={`rounded-md border ${isProfitable ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-red-500/20 bg-red-500/5'} p-2`}>

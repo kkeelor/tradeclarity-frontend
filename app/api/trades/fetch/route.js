@@ -80,7 +80,20 @@ export async function GET(request) {
     const oldestTrade = trades.length > 0 ? trades[0].trade_time : null
     const newestTrade = trades.length > 0 ? trades[trades.length - 1].trade_time : null
 
+    // Detect primary currency based on exchange
+    // CoinDCX trades are stored in INR, need conversion
+    // Binance trades are stored in USD/USDT, no conversion needed
+    let primaryCurrency = 'USD'
+    if (uniqueExchanges.length === 1 && uniqueExchanges[0] === 'coindcx') {
+      primaryCurrency = 'INR'
+    } else if (uniqueExchanges.includes('coindcx')) {
+      // Mixed exchanges - need to handle per-trade conversion
+      // For now, mark as INR and let frontend handle it
+      primaryCurrency = 'INR'
+    }
+
     console.log(`📊 Fetched ${totalTrades} trades (${spotTrades.length} spot, ${futuresIncome.length} futures) ${connectionId ? `for connection ${connectionId}` : exchange ? `for ${exchange}` : 'from all exchanges'}`)
+    console.log(`💱 Detected primary currency: ${primaryCurrency} based on exchanges: ${uniqueExchanges.join(', ')}`)
 
     return NextResponse.json({
       success: true,
@@ -88,8 +101,8 @@ export async function GET(request) {
       futuresIncome,
       futuresPositions: [],
       metadata: {
-        primaryCurrency: 'USD',
-        availableCurrencies: ['USD'],
+        primaryCurrency: primaryCurrency,
+        availableCurrencies: ['USD', 'INR'],
         supportsCurrencySwitch: false,
         // Additional metadata
         exchanges: uniqueExchanges,
