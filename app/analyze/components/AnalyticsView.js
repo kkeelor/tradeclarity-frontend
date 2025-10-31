@@ -7,7 +7,7 @@ import {
   CheckCircle, AlertTriangle, Lightbulb, Clock, Calendar,
   Zap, Layers, TrendingDown, Eye, Flame, Trophy, Shield,
   BarChart3, PieChart, LineChart, ArrowUpRight, ArrowDownRight,
-  AlertCircle, Sparkles, ChevronRight, ChevronLeft, ChevronDown,
+  AlertCircle, Sparkles, ChevronRight, ChevronLeft, ChevronDown, ChevronUp,
   Scissors, Shuffle, Coffee, Tv, Pizza, Fuel, Utensils,
   Database, FileText, Briefcase, Filter, X
 } from 'lucide-react'
@@ -1779,6 +1779,7 @@ function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
 }
 
 function SpotTab({ analytics, currSymbol, metadata }) {
+  const [showAllHoldings, setShowAllHoldings] = useState(false)
   const spotAnalysis = analytics.spotAnalysis || {}
   const hasSpotData = analytics.spotTrades > 0
   const currency = currSymbol || '$'
@@ -1823,58 +1824,84 @@ function SpotTab({ analytics, currSymbol, metadata }) {
       </div>
 
       {/* Current Holdings - Compact */}
-      {metadata?.spotHoldings && metadata.spotHoldings.length > 0 && (
-        <div className="bg-slate-800/20 border border-slate-700/30 rounded-lg overflow-hidden">
-          <div className="px-3 py-2 border-b border-slate-700/30 bg-slate-800/30">
-            <h3 className="text-xs font-semibold text-slate-300 flex items-center gap-2">
-              <Layers className="w-3 h-3 text-emerald-400" />
-              Current Holdings
-              <span className="text-[10px] text-slate-500 font-normal ml-1">(All Exchanges)</span>
-            </h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead className="bg-slate-800/30">
-                <tr className="text-left text-[10px] text-slate-400">
-                  <th className="px-2 py-2">Asset</th>
-                  <th className="px-2 py-2">Exchange</th>
-                  <th className="px-2 py-2 text-right">Qty</th>
-                  <th className="px-2 py-2 text-right">Price</th>
-                  <th className="px-2 py-2 text-right">Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                {metadata.spotHoldings.sort((a, b) => b.usdValue - a.usdValue).map((holding, idx) => {
-                  // Get exchange name from holding or metadata
-                  const exchangeName = holding.exchange || metadata.exchanges?.[0] || 'Unknown'
-                  const exchangeIcon = exchangeName.toLowerCase() === 'binance' ? '🟡' : exchangeName.toLowerCase() === 'coindcx' ? '🇮🇳' : '🔷'
+      {metadata?.spotHoldings && metadata.spotHoldings.length > 0 && (() => {
+        const sortedHoldings = metadata.spotHoldings.sort((a, b) => b.usdValue - a.usdValue)
+        const displayedHoldings = showAllHoldings ? sortedHoldings : sortedHoldings.slice(0, 5)
+        const hasMore = sortedHoldings.length > 5
 
-                  return (
-                    <tr key={`${holding.asset}-${idx}`} className="border-b border-slate-800/30 hover:bg-slate-700/10">
-                      <td className="px-2 py-1.5 font-mono font-semibold">{holding.asset}</td>
-                      <td className="px-2 py-1.5">
-                        <span className="inline-flex items-center gap-1 text-[10px] text-slate-400">
-                          <span>{exchangeIcon}</span>
-                          <span className="capitalize">{exchangeName}</span>
-                        </span>
-                      </td>
-                      <td className="px-2 py-1.5 text-right font-mono text-slate-300">{holding.quantity?.toFixed(4)}</td>
-                      <td className="px-2 py-1.5 text-right font-mono text-slate-400">{currency}{holding.price?.toFixed(2)} <span className="text-[9px] text-slate-500">USD</span></td>
-                      <td className="px-2 py-1.5 text-right font-bold text-emerald-400">{currency}{holding.usdValue?.toFixed(2)} <span className="text-[9px] text-slate-400 font-normal">USD</span></td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-              <tfoot className="bg-slate-800/50">
-                <tr className="font-bold">
-                  <td className="px-2 py-2" colSpan="4">Total</td>
-                  <td className="px-2 py-2 text-right text-emerald-400">{currency}{metadata?.totalSpotValue?.toFixed(2)} <span className="text-[9px] text-slate-400 font-normal">USD</span></td>
-                </tr>
-              </tfoot>
-            </table>
+        return (
+          <div className="bg-slate-800/20 border border-slate-700/30 rounded-lg overflow-hidden">
+            <div className="px-3 py-2 border-b border-slate-700/30 bg-slate-800/30 flex items-center justify-between">
+              <h3 className="text-xs font-semibold text-slate-300 flex items-center gap-2">
+                <Layers className="w-3 h-3 text-emerald-400" />
+                Current Holdings
+                <span className="text-[10px] text-slate-500 font-normal ml-1">
+                  ({showAllHoldings ? sortedHoldings.length : `Top ${Math.min(5, sortedHoldings.length)} of ${sortedHoldings.length}`})
+                </span>
+              </h3>
+              {hasMore && (
+                <button
+                  onClick={() => setShowAllHoldings(!showAllHoldings)}
+                  className="text-[10px] text-purple-400 hover:text-purple-300 transition-colors flex items-center gap-1"
+                >
+                  {showAllHoldings ? (
+                    <>
+                      <ChevronUp className="w-3 h-3" />
+                      Show Less
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="w-3 h-3" />
+                      Show All
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-slate-800/30">
+                  <tr className="text-left text-[10px] text-slate-400">
+                    <th className="px-2 py-2">Asset</th>
+                    <th className="px-2 py-2">Exchange</th>
+                    <th className="px-2 py-2 text-right">Qty</th>
+                    <th className="px-2 py-2 text-right">Price</th>
+                    <th className="px-2 py-2 text-right">Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayedHoldings.map((holding, idx) => {
+                    // Get exchange name from holding or metadata
+                    const exchangeName = holding.exchange || metadata.exchanges?.[0] || 'Unknown'
+                    const exchangeIcon = exchangeName.toLowerCase() === 'binance' ? '🟡' : exchangeName.toLowerCase() === 'coindcx' ? '🇮🇳' : '🔷'
+
+                    return (
+                      <tr key={`${holding.asset}-${idx}`} className="border-b border-slate-800/30 hover:bg-slate-700/10">
+                        <td className="px-2 py-1.5 font-mono font-semibold">{holding.asset}</td>
+                        <td className="px-2 py-1.5">
+                          <span className="inline-flex items-center gap-1 text-[10px] text-slate-400">
+                            <span>{exchangeIcon}</span>
+                            <span className="capitalize">{exchangeName}</span>
+                          </span>
+                        </td>
+                        <td className="px-2 py-1.5 text-right font-mono text-slate-300">{formatNumber(holding.quantity || 0, 4)}</td>
+                        <td className="px-2 py-1.5 text-right font-mono text-slate-400">${formatNumber(holding.price || 0, 2)} <span className="text-[9px] text-slate-500">USD</span></td>
+                        <td className="px-2 py-1.5 text-right font-bold text-emerald-400">${formatNumber(holding.usdValue || 0, 2)} <span className="text-[9px] text-slate-400 font-normal">USD</span></td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+                <tfoot className="bg-slate-800/50">
+                  <tr className="font-bold">
+                    <td className="px-2 py-2" colSpan="4">Total</td>
+                    <td className="px-2 py-2 text-right text-emerald-400">${formatNumber(metadata?.totalSpotValue || 0, 2)} <span className="text-[9px] text-slate-400 font-normal">USD</span></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Premium Teaser - Portfolio Rebalancing */}
       <div className="bg-gradient-to-br from-emerald-500/5 to-cyan-500/5 border border-emerald-500/20 rounded-lg p-3 relative overflow-hidden">
