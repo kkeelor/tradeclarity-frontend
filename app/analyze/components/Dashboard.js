@@ -348,18 +348,18 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <header className="border-b border-slate-800/50 backdrop-blur-xl bg-slate-900/30 sticky top-0 z-10">
-          <div className="px-6 py-4 flex justify-between items-center">
+        <header className="border-b border-slate-800/50 backdrop-blur-xl bg-gradient-to-r from-slate-900/40 via-slate-900/30 to-slate-900/40 sticky top-0 z-10">
+          <div className="px-6 py-5 flex justify-between items-center">
             <div>
-              <h1 className="text-xl font-semibold text-slate-100">
+              <h1 className="text-xl font-bold text-slate-100 tracking-tight">
                 {getGreeting()}{user?.user_metadata?.name ? `, ${user.user_metadata.name.split(' ')[0]}` : ''}
               </h1>
-              <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
+              <p className="text-xs text-slate-400 mt-1 flex items-center gap-2">
                 {user?.email}
                 {tradesStats && tradesStats.totalTrades > 0 && (
                   <>
                     <span className="text-slate-600">•</span>
-                    <span className="text-slate-400">{tradesStats.totalTrades} trades analyzed</span>
+                    <span className="text-slate-400 font-medium">{tradesStats.totalTrades} trades analyzed</span>
                   </>
                 )}
               </p>
@@ -411,58 +411,76 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
             ) : tradesStats && tradesStats.totalTrades > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Stats Card */}
-                <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-4">
-                  <h3 className="text-xs font-medium text-slate-400 mb-3">Your Trading Overview</h3>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-500">Total Trades</span>
-                      <span className="text-sm font-semibold text-slate-200">{tradesStats.totalTrades.toLocaleString()}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-500">Exchanges Connected</span>
-                      <span className="text-sm font-semibold text-slate-200">{connectedExchanges.length}</span>
-                    </div>
-                    {tradesStats.oldestTrade && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-500">Data Range</span>
-                        <span className="text-xs text-slate-400">
-                          {new Date(tradesStats.oldestTrade).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - Present
-                        </span>
+                <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/40 to-slate-800/20 border border-slate-700/50 rounded-2xl p-5 backdrop-blur-sm hover:border-slate-600/50 transition-all">
+                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-cyan-500/5" />
+                  <div className="relative">
+                    <h3 className="text-xs font-semibold text-slate-300 mb-4 uppercase tracking-wider">Your Trading Overview</h3>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-2.5 rounded-lg bg-white/5">
+                        <span className="text-xs text-slate-400">Total Trades</span>
+                        <span className="text-sm font-bold text-slate-100">{tradesStats.totalTrades.toLocaleString()}</span>
                       </div>
-                    )}
+                      <div className="flex items-center justify-between p-2.5 rounded-lg bg-white/5">
+                        <span className="text-xs text-slate-400">Exchanges Connected</span>
+                        <span className="text-sm font-bold text-emerald-400">{connectedExchanges.length}</span>
+                      </div>
+                      {tradesStats.oldestTrade && (
+                        <div className="flex items-center justify-between p-2.5 rounded-lg bg-white/5">
+                          <span className="text-xs text-slate-400">Data Range</span>
+                          <span className="text-xs font-medium text-slate-300">
+                            {new Date(tradesStats.oldestTrade).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - Present
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
                 {/* Smart Recommendations */}
-                <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20 rounded-xl p-4">
-                  <h3 className="text-xs font-medium text-emerald-400 mb-2">What's Next</h3>
-                  {connectedExchanges.length === 1 ? (
-                    <p className="text-xs text-slate-300 leading-relaxed">
-                      Add another exchange to compare performance across platforms and get deeper insights
-                    </p>
-                  ) : (
-                    <p className="text-xs text-slate-300 leading-relaxed">
-                      View your combined analytics to see patterns across all {connectedExchanges.length} exchanges and discover hidden opportunities
-                    </p>
-                  )}
-                  <button
-                    onClick={() => connectedExchanges.length === 1 ? setShowConnectModal(true) : onViewAnalytics()}
-                    className="mt-3 text-xs text-emerald-400 hover:text-emerald-300 font-medium transition-colors inline-flex items-center gap-1"
-                  >
-                    {connectedExchanges.length === 1 ? 'Add Exchange' : 'View Combined Analytics'} →
-                  </button>
+                <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/30 rounded-2xl p-5 backdrop-blur-sm hover:border-emerald-500/50 hover:from-emerald-500/15 transition-all group">
+                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/5" />
+                  <div className="absolute -top-12 -right-12 w-32 h-32 bg-emerald-500/20 blur-2xl rounded-full opacity-50 group-hover:opacity-75 transition-opacity" />
+                  <div className="relative">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Sparkles className="w-4 h-4 text-emerald-400" />
+                      <h3 className="text-xs font-semibold text-emerald-300 uppercase tracking-wider">What's Next</h3>
+                    </div>
+                    {connectedExchanges.length === 1 ? (
+                      <p className="text-xs text-slate-300 leading-relaxed mb-4">
+                        Add another exchange to compare performance across platforms and get deeper insights
+                      </p>
+                    ) : (
+                      <p className="text-xs text-slate-300 leading-relaxed mb-4">
+                        View your combined analytics to see patterns across all {connectedExchanges.length} exchanges and discover hidden opportunities
+                      </p>
+                    )}
+                    <button
+                      onClick={() => connectedExchanges.length === 1 ? setShowConnectModal(true) : onViewAnalytics()}
+                      className="group/btn text-xs text-emerald-400 hover:text-emerald-300 font-semibold transition-all inline-flex items-center gap-1.5 hover:gap-2"
+                    >
+                      {connectedExchanges.length === 1 ? 'Add Exchange' : 'View Combined Analytics'}
+                      <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover/btn:translate-x-1" />
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : (
               /* First-time user experience */
-              <div className="bg-gradient-to-br from-slate-800/40 to-slate-800/20 border border-slate-700/30 rounded-xl p-5">
-                <h3 className="text-sm font-medium text-slate-200 mb-2">
-                  {user?.user_metadata?.name ? `Hey ${user.user_metadata.name.split(' ')[0]}` : 'Hey there'}, let's get started
-                </h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  Connect your first exchange to unlock powerful insights into your trading patterns, performance metrics, and psychology.
-                  Not ready to connect? Try the demo to see what's possible.
-                </p>
+              <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/40 via-slate-800/20 to-slate-800/10 border border-slate-700/40 rounded-2xl p-6 backdrop-blur-sm">
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-cyan-500/5" />
+                <div className="absolute -top-16 -right-16 w-40 h-40 bg-emerald-500/10 blur-3xl rounded-full" />
+                <div className="relative">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Sparkles className="w-4 h-4 text-emerald-400" />
+                    <h3 className="text-sm font-semibold text-slate-200">
+                      {user?.user_metadata?.name ? `Hey ${user.user_metadata.name.split(' ')[0]}` : 'Hey there'}, let's get started
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Connect your first exchange to unlock powerful insights into your trading patterns, performance metrics, and psychology.
+                    Not ready to connect? Try the demo to see what's possible.
+                  </p>
+                </div>
               </div>
             )}
 
@@ -470,109 +488,130 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
             {!loadingStats && criticalInsight && tradesStats && tradesStats.totalTrades > 0 && (
               <button
                 onClick={onViewAnalytics}
-                className={`w-full group flex items-center gap-3 px-4 py-3 rounded-lg border transition-all text-left ${
+                className={`w-full group relative overflow-hidden flex items-center gap-3 px-5 py-4 rounded-2xl border backdrop-blur-sm transition-all text-left ${
                   criticalInsight.type === 'weakness'
-                    ? 'bg-red-500/5 border-red-500/20 hover:border-red-500/40 hover:bg-red-500/10'
-                    : 'bg-emerald-500/5 border-emerald-500/20 hover:border-emerald-500/40 hover:bg-emerald-500/10'
+                    ? 'bg-gradient-to-br from-red-500/10 via-red-500/5 to-transparent border-red-500/30 hover:border-red-500/50 hover:from-red-500/15'
+                    : 'bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-500/30 hover:border-emerald-500/50 hover:from-emerald-500/15'
                 }`}
               >
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                <div className={`absolute inset-0 bg-gradient-to-br ${
                   criticalInsight.type === 'weakness'
-                    ? 'bg-red-500/10 text-red-400'
-                    : 'bg-emerald-500/10 text-emerald-400'
+                    ? 'from-red-500/5 via-transparent to-orange-500/5'
+                    : 'from-emerald-500/5 via-transparent to-cyan-500/5'
+                }`} />
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 backdrop-blur-sm ${
+                  criticalInsight.type === 'weakness'
+                    ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                    : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                 }`}>
-                  {criticalInsight.type === 'weakness' ? <AlertCircle className="w-4 h-4" /> : <Zap className="w-4 h-4" />}
+                  {criticalInsight.type === 'weakness' ? <AlertCircle className="w-5 h-5" /> : <Zap className="w-5 h-5" />}
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs font-medium ${
-                      criticalInsight.type === 'weakness' ? 'text-red-400' : 'text-emerald-400'
+                <div className="flex-1 min-w-0 relative">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`text-xs font-semibold ${
+                      criticalInsight.type === 'weakness' ? 'text-red-300' : 'text-emerald-300'
                     }`}>
                       {criticalInsight.title}
                     </span>
                     {criticalInsight.impact && (
                       <span className="flex items-center gap-0.5">
                         {[...Array(criticalInsight.impact)].map((_, i) => (
-                          <div key={i} className={`w-1 h-1 rounded-full ${
-                            criticalInsight.type === 'weakness' ? 'bg-red-400/60' : 'bg-emerald-400/60'
+                          <div key={i} className={`w-1.5 h-1.5 rounded-full ${
+                            criticalInsight.type === 'weakness' ? 'bg-red-400/70' : 'bg-emerald-400/70'
                           }`} />
                         ))}
                       </span>
                     )}
-                    <span className="text-xs text-slate-400 truncate">• {criticalInsight.message}</span>
+                    <span className="text-xs text-slate-300 truncate">• {criticalInsight.message}</span>
                   </div>
                 </div>
 
-                <ChevronRight className={`w-4 h-4 flex-shrink-0 transition-transform group-hover:translate-x-1 ${
-                  criticalInsight.type === 'weakness' ? 'text-red-400/60' : 'text-emerald-400/60'
+                <ChevronRight className={`w-5 h-5 flex-shrink-0 transition-transform group-hover:translate-x-1 ${
+                  criticalInsight.type === 'weakness' ? 'text-red-400/70' : 'text-emerald-400/70'
                 }`} />
               </button>
             )}
 
             {/* Quick Actions */}
             <section>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-4">
                 <button
                   onClick={() => setShowConnectModal(true)}
-                  className="group relative p-4 bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 hover:border-emerald-500/30 rounded-xl transition-all text-left"
+                  className="group relative overflow-hidden p-5 bg-gradient-to-br from-slate-800/50 to-slate-800/30 hover:from-slate-800/60 hover:to-slate-800/40 border border-slate-700/50 hover:border-emerald-500/40 rounded-2xl transition-all text-left backdrop-blur-sm"
                 >
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-9 h-9 bg-emerald-500/10 group-hover:bg-emerald-500/20 rounded-lg flex items-center justify-center transition-colors">
-                      <LinkIcon className="w-4 h-4 text-emerald-400" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute -top-8 -right-8 w-24 h-24 bg-emerald-500/10 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-10 h-10 bg-emerald-500/20 group-hover:bg-emerald-500/30 border border-emerald-500/30 rounded-xl flex items-center justify-center transition-all group-hover:scale-110">
+                        <LinkIcon className="w-5 h-5 text-emerald-400" />
+                      </div>
+                      <h3 className="text-sm font-semibold text-slate-200">Connect Exchange</h3>
                     </div>
-                    <h3 className="text-sm font-medium text-slate-200">Connect Exchange</h3>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Link via API or CSV
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-500 leading-relaxed">
-                    Link via API or CSV
-                  </p>
                 </button>
 
                 <button
                   onClick={onConnectWithCSV}
-                  className="group relative p-4 bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 hover:border-blue-500/30 rounded-xl transition-all text-left"
+                  className="group relative overflow-hidden p-5 bg-gradient-to-br from-slate-800/50 to-slate-800/30 hover:from-slate-800/60 hover:to-slate-800/40 border border-slate-700/50 hover:border-blue-500/40 rounded-2xl transition-all text-left backdrop-blur-sm"
                 >
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-9 h-9 bg-blue-500/10 group-hover:bg-blue-500/20 rounded-lg flex items-center justify-center transition-colors">
-                      <Upload className="w-4 h-4 text-blue-400" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute -top-8 -right-8 w-24 h-24 bg-blue-500/10 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-10 h-10 bg-blue-500/20 group-hover:bg-blue-500/30 border border-blue-500/30 rounded-xl flex items-center justify-center transition-all group-hover:scale-110">
+                        <Upload className="w-5 h-5 text-blue-400" />
+                      </div>
+                      <h3 className="text-sm font-semibold text-slate-200">Upload CSV</h3>
                     </div>
-                    <h3 className="text-sm font-medium text-slate-200">Upload CSV</h3>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Import trade history
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-500 leading-relaxed">
-                    Import trade history
-                  </p>
                 </button>
 
                 <button
                   onClick={onTryDemo}
-                  className="group relative p-4 bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 hover:border-purple-500/30 rounded-xl transition-all text-left"
+                  className="group relative overflow-hidden p-5 bg-gradient-to-br from-slate-800/50 to-slate-800/30 hover:from-slate-800/60 hover:to-slate-800/40 border border-slate-700/50 hover:border-purple-500/40 rounded-2xl transition-all text-left backdrop-blur-sm"
                 >
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-9 h-9 bg-purple-500/10 group-hover:bg-purple-500/20 rounded-lg flex items-center justify-center transition-colors">
-                      <Play className="w-4 h-4 text-purple-400" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute -top-8 -right-8 w-24 h-24 bg-purple-500/10 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-10 h-10 bg-purple-500/20 group-hover:bg-purple-500/30 border border-purple-500/30 rounded-xl flex items-center justify-center transition-all group-hover:scale-110">
+                        <Play className="w-5 h-5 text-purple-400" />
+                      </div>
+                      <h3 className="text-sm font-semibold text-slate-200">Try Demo</h3>
                     </div>
-                    <h3 className="text-sm font-medium text-slate-200">Try Demo</h3>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Explore sample data
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-500 leading-relaxed">
-                    Explore sample data
-                  </p>
                 </button>
               </div>
             </section>
 
             {/* Data Sources Section */}
             <section>
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <h2 className="text-sm font-medium text-slate-400 flex items-center gap-2">
-                    <Database className="w-4 h-4" />
-                    Data Sources ({connectedExchanges.length + unlinkedFiles.length})
-                  </h2>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-slate-800/50 border border-slate-700/50 flex items-center justify-center">
+                      <Database className="w-4 h-4 text-slate-400" />
+                    </div>
+                    <h2 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                      Data Sources ({connectedExchanges.length + unlinkedFiles.length})
+                    </h2>
+                  </div>
                   {(connectedExchanges.length > 0 || unlinkedFiles.length > 0) && (
                     <div className="flex items-center gap-2 text-xs">
                       <button
                         onClick={selectAll}
-                        className="text-emerald-400 hover:text-emerald-300 transition-colors"
+                        className="text-emerald-400 hover:text-emerald-300 transition-colors font-medium"
                       >
                         Select All
                       </button>
@@ -588,9 +627,9 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                 </div>
                 <button
                   onClick={() => setShowConnectModal(true)}
-                  className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1"
+                  className="group text-xs text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1.5 font-medium hover:gap-2"
                 >
-                  <Plus className="w-3 h-3" />
+                  <Plus className="w-3.5 h-3.5 transition-transform group-hover:rotate-90" />
                   Add
                 </button>
               </div>
@@ -598,31 +637,35 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
               {loadingExchanges || loadingFiles ? (
                 <DataSourceSkeleton count={2} />
               ) : connectedExchanges.length === 0 && unlinkedFiles.length === 0 ? (
-                <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-8 text-center">
-                  <div className="w-12 h-12 bg-slate-700/50 rounded-lg flex items-center justify-center mx-auto mb-3">
-                    <Database className="w-5 h-5 text-slate-500" />
-                  </div>
-                  <p className="text-sm text-slate-400 mb-1">
-                    No data sources yet
-                  </p>
-                  <p className="text-xs text-slate-500 mb-4">
-                    Connect an exchange or upload CSV files to get started
-                  </p>
-                  <div className="flex items-center justify-center gap-2">
-                    <button
-                      onClick={() => setShowConnectModal(true)}
-                      className="px-4 py-2 bg-emerald-500/90 hover:bg-emerald-500 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-1.5"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      Connect Exchange
-                    </button>
-                    <button
-                      onClick={onConnectWithCSV}
-                      className="px-4 py-2 bg-blue-500/90 hover:bg-blue-500 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-1.5"
-                    >
-                      <Upload className="w-3.5 h-3.5" />
-                      Upload CSV
-                    </button>
+                <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/40 via-slate-800/20 to-slate-800/10 border border-slate-700/50 rounded-2xl p-10 text-center backdrop-blur-sm">
+                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-cyan-500/5" />
+                  <div className="absolute -top-20 -right-20 w-48 h-48 bg-emerald-500/10 blur-3xl rounded-full" />
+                  <div className="relative">
+                    <div className="w-16 h-16 bg-gradient-to-br from-slate-700/50 to-slate-700/30 border border-slate-600/50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <Database className="w-8 h-8 text-slate-400" />
+                    </div>
+                    <p className="text-sm font-semibold text-slate-300 mb-2">
+                      No data sources yet
+                    </p>
+                    <p className="text-xs text-slate-400 mb-6 max-w-md mx-auto">
+                      Connect an exchange or upload CSV files to get started with powerful trading insights
+                    </p>
+                    <div className="flex items-center justify-center gap-3">
+                      <button
+                        onClick={() => setShowConnectModal(true)}
+                        className="group px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 rounded-xl text-sm font-semibold transition-all inline-flex items-center gap-2 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-105"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Connect Exchange
+                      </button>
+                      <button
+                        onClick={onConnectWithCSV}
+                        className="group px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 rounded-xl text-sm font-semibold transition-all inline-flex items-center gap-2 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 hover:scale-105"
+                      >
+                        <Upload className="w-4 h-4" />
+                        Upload CSV
+                      </button>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -630,7 +673,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                   {/* Connected Exchanges */}
                   {connectedExchanges.length > 0 && (
                     <div>
-                      <h3 className="text-xs font-medium text-slate-500 mb-2 px-1">API Connections</h3>
+                      <h3 className="text-xs font-semibold text-slate-400 mb-3 px-1 uppercase tracking-wider">API Connections</h3>
                       <div className="space-y-2">
                         {connectedExchanges.map(exchange => {
                           const selected = isSourceSelected('exchange', exchange.id)
@@ -639,63 +682,70 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                             <div
                               key={exchange.id}
                               onClick={() => toggleSource('exchange', exchange.id)}
-                              className={`group bg-slate-800/40 border rounded-xl p-4 transition-all cursor-pointer ${
+                              className={`group relative overflow-hidden bg-gradient-to-br ${
                                 selected
-                                  ? 'border-emerald-500/50 bg-emerald-500/5'
-                                  : 'border-slate-700/50 hover:border-slate-600/50'
-                              }`}
+                                  ? 'from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-500/40'
+                                  : 'from-slate-800/50 to-slate-800/30 border-slate-700/50 hover:border-slate-600/50'
+                              } border rounded-2xl p-4 transition-all cursor-pointer backdrop-blur-sm hover:scale-[1.02]`}
                             >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3 flex-1">
-                                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
-                                    selected
-                                      ? 'border-emerald-500 bg-emerald-500'
-                                      : 'border-slate-600 bg-transparent'
-                                  }`}>
-                                    {selected && <CheckSquare className="w-3 h-3 text-white" />}
-                                  </div>
-                                  <ExchangeIcon exchange={exchange.exchange} size={20} className="w-10 h-10 p-2" />
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <span className="text-sm font-medium text-slate-200">{exchange.name}</span>
+                              {selected && (
+                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/5" />
+                              )}
+                              <div className="relative">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3 flex-1">
+                                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                                      selected
+                                        ? 'border-emerald-500 bg-emerald-500 shadow-lg shadow-emerald-500/30'
+                                        : 'border-slate-600 bg-transparent group-hover:border-slate-500'
+                                    }`}>
+                                      {selected && <CheckSquare className="w-3 h-3 text-white" />}
                                     </div>
-                                    <div className="flex items-center gap-2 text-xs">
-                                      <div className="flex items-center gap-1.5">
-                                        <span className="relative flex h-2 w-2">
-                                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                                        </span>
-                                        <span className="text-slate-400">API</span>
+                                    <div className="w-12 h-12 rounded-xl bg-slate-700/30 border border-slate-600/50 flex items-center justify-center p-2">
+                                      <ExchangeIcon exchange={exchange.exchange} size={20} className="w-full h-full" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 mb-1.5">
+                                        <span className="text-sm font-semibold text-slate-200">{exchange.name}</span>
                                       </div>
-                                      {linkedCount > 0 && (
-                                        <>
-                                          <span className="text-slate-600">•</span>
-                                          <div className="flex items-center gap-1.5">
-                                            <span className="relative flex h-2 w-2">
-                                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                                            </span>
-                                            <span className="text-slate-400">{linkedCount} CSV file{linkedCount > 1 ? 's' : ''} linked</span>
-                                          </div>
-                                        </>
-                                      )}
+                                      <div className="flex items-center gap-2 text-xs">
+                                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                                          <span className="relative flex h-2 w-2">
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                          </span>
+                                          <span className="text-emerald-400 font-medium">API</span>
+                                        </div>
+                                        {linkedCount > 0 && (
+                                          <>
+                                            <span className="text-slate-600">•</span>
+                                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20">
+                                              <span className="relative flex h-2 w-2">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+                                              </span>
+                                              <span className="text-cyan-400 font-medium">{linkedCount} CSV{linkedCount > 1 ? 's' : ''}</span>
+                                            </div>
+                                          </>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                  <button
-                                    onClick={() => onViewAnalytics(exchange.id, exchange.name.toLowerCase())}
-                                    className="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 hover:border-emerald-500/30 rounded-lg text-xs font-medium text-emerald-400 transition-all"
-                                  >
-                                    View
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteClick(exchange)}
-                                    className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-700/50 rounded-lg transition-colors"
-                                    title="Disconnect exchange"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
+                                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                    <button
+                                      onClick={() => onViewAnalytics(exchange.id, exchange.name.toLowerCase())}
+                                      className="px-4 py-2 bg-gradient-to-r from-emerald-500/20 to-emerald-500/10 hover:from-emerald-500/30 hover:to-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 rounded-xl text-xs font-semibold text-emerald-400 transition-all hover:scale-105"
+                                    >
+                                      View
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteClick(exchange)}
+                                      className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all border border-transparent hover:border-red-500/30"
+                                      title="Disconnect exchange"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -708,7 +758,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                   {/* Uploaded CSV Files (Unlinked Only) */}
                   {unlinkedFiles.length > 0 && (
                     <div>
-                      <h3 className="text-xs font-medium text-slate-500 mb-2 px-1">Uploaded Files (Not Linked)</h3>
+                      <h3 className="text-xs font-semibold text-slate-400 mb-3 px-1 uppercase tracking-wider">Uploaded Files (Not Linked)</h3>
                       <div className="space-y-2">
                         {unlinkedFiles.map(file => {
                           const selected = isSourceSelected('csv', file.id)
@@ -716,37 +766,44 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                             <div
                               key={file.id}
                               onClick={() => toggleSource('csv', file.id)}
-                              className={`group bg-slate-800/40 border rounded-xl p-4 transition-all cursor-pointer ${
+                              className={`group relative overflow-hidden bg-gradient-to-br ${
                                 selected
-                                  ? 'border-emerald-500/50 bg-emerald-500/5'
-                                  : 'border-slate-700/50 hover:border-slate-600/50'
-                              }`}
+                                  ? 'from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-500/40'
+                                  : 'from-slate-800/50 to-slate-800/30 border-slate-700/50 hover:border-slate-600/50'
+                              } border rounded-2xl p-4 transition-all cursor-pointer backdrop-blur-sm hover:scale-[1.02]`}
                             >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3 flex-1">
-                                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
-                                    selected
-                                      ? 'border-emerald-500 bg-emerald-500'
-                                      : 'border-slate-600 bg-transparent'
-                                  }`}>
-                                    {selected && <CheckSquare className="w-3 h-3 text-white" />}
-                                  </div>
-                                  <div className="w-10 h-10 bg-slate-700/50 rounded-lg flex items-center justify-center">
-                                    <FileText className="w-5 h-5 text-blue-400" />
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-sm font-medium text-slate-200 truncate">
-                                        {file.label || file.filename}
-                                      </span>
-                                      <span className="px-2 py-0.5 bg-slate-700/50 text-slate-400 text-[10px] rounded">
-                                        {file.account_type}
-                                      </span>
-                                      <span className="text-xs text-slate-500">CSV</span>
+                              {selected && (
+                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/5" />
+                              )}
+                              <div className="relative">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3 flex-1">
+                                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                                      selected
+                                        ? 'border-emerald-500 bg-emerald-500 shadow-lg shadow-emerald-500/30'
+                                        : 'border-slate-600 bg-transparent group-hover:border-slate-500'
+                                    }`}>
+                                      {selected && <CheckSquare className="w-3 h-3 text-white" />}
                                     </div>
-                                    <p className="text-xs text-slate-500">
-                                      {file.trades_count || 0} trades • {(file.size / 1024).toFixed(1)} KB
-                                    </p>
+                                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500/20 to-blue-500/10 border border-blue-500/30 rounded-xl flex items-center justify-center">
+                                      <FileText className="w-6 h-6 text-blue-400" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                        <span className="text-sm font-semibold text-slate-200 truncate">
+                                          {file.label || file.filename}
+                                        </span>
+                                        <span className="px-2 py-0.5 bg-slate-700/50 border border-slate-600/50 text-slate-300 text-[10px] font-medium rounded-md">
+                                          {file.account_type}
+                                        </span>
+                                        <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-medium rounded-md">
+                                          CSV
+                                        </span>
+                                      </div>
+                                      <p className="text-xs text-slate-400">
+                                        {file.trades_count || 0} trades • {(file.size / 1024).toFixed(1)} KB
+                                      </p>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -759,14 +816,14 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
 
                   {/* Action Buttons */}
                   {(connectedExchanges.length > 0 || unlinkedFiles.length > 0) && (
-                    <div className="pt-2 flex items-center gap-3">
+                    <div className="pt-3 flex items-center gap-3">
                       <button
                         onClick={handleViewSelected}
                         disabled={selectedSources.length === 0}
-                        className={`flex-1 py-3 rounded-xl font-medium text-sm transition-all inline-flex items-center justify-center gap-2 ${
+                        className={`group flex-1 py-3.5 rounded-2xl font-semibold text-sm transition-all inline-flex items-center justify-center gap-2 ${
                           selectedSources.length > 0
-                            ? 'bg-emerald-500 hover:bg-emerald-400 text-white'
-                            : 'bg-slate-700/30 text-slate-500 cursor-not-allowed'
+                            ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-105'
+                            : 'bg-slate-700/30 text-slate-500 cursor-not-allowed border border-slate-700/50'
                         }`}
                       >
                         <Sparkles className="w-4 h-4" />
@@ -774,7 +831,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                       </button>
                       <button
                         onClick={() => onViewAnalytics()}
-                        className="flex-1 py-3 bg-slate-700/50 hover:bg-slate-700/70 rounded-xl font-medium text-sm text-slate-300 hover:text-white transition-all inline-flex items-center justify-center gap-2"
+                        className="group flex-1 py-3.5 bg-gradient-to-r from-slate-700/60 to-slate-700/40 hover:from-slate-700/80 hover:to-slate-700/60 border border-slate-600/50 hover:border-slate-600/70 rounded-2xl font-semibold text-sm text-slate-200 hover:text-white transition-all inline-flex items-center justify-center gap-2 hover:scale-105"
                       >
                         <BarChart3 className="w-4 h-4" />
                         View All Data

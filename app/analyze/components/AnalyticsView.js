@@ -1,7 +1,7 @@
 // app/analyze/components/AnalyticsView.js
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   DollarSign, TrendingUp, Target, Activity, Award, Brain,
   CheckCircle, AlertTriangle, Lightbulb, Clock, Calendar,
@@ -15,6 +15,7 @@ import { generatePerformanceAnalogies } from '../utils/performanceAnalogies'
 import { analyzeDrawdowns } from '../utils/drawdownAnalysis'
 import { analyzeTimeBasedPerformance } from '../utils/timeBasedAnalysis'
 import { analyzeSymbols } from '../utils/symbolAnalysis'
+import { convertAnalyticsForDisplay } from '../utils/currencyFormatter'
 import { ExchangeIcon } from '@/components/ui'
 import {
   AreaChart, Area, BarChart, Bar, LineChart as RechartsLineChart,
@@ -188,17 +189,17 @@ function HeroSection({ analytics, currSymbol, metadata }) {
           <div className="grid grid-cols-2 sm:grid-cols-2 gap-4 min-w-[220px]">
             <QuickStat
               label="Win Rate"
-              value={`${analytics.winRate.toFixed(1)}%`}
-              subtitle={`${analytics.winningTrades}W / ${analytics.losingTrades}L`}
+              value={`${(analytics.winRate ?? 0).toFixed(1)}%`}
+              subtitle={`${analytics.winningTrades || 0}W / ${analytics.losingTrades || 0}L`}
               icon={Target}
-              good={analytics.winRate >= 55}
+              good={(analytics.winRate ?? 0) >= 55}
             />
             <QuickStat
               label="Profit Factor"
-              value={analytics.profitFactor.toFixed(2)}
-              subtitle={analytics.profitFactor >= 2 ? 'Excellent' : 'Healthy'}
+              value={(analytics.profitFactor ?? 0).toFixed(2)}
+              subtitle={(analytics.profitFactor ?? 0) >= 2 ? 'Excellent' : 'Healthy'}
               icon={TrendingUp}
-              good={analytics.profitFactor >= 1.5}
+              good={(analytics.profitFactor ?? 0) >= 1.5}
             />
             <QuickStat
               label="Avg Win"
@@ -367,7 +368,11 @@ function LiveHoldings({ analytics, metadata, currSymbol }) {
                       <p className={`text-sm font-semibold ${(pos.unrealizedProfit || 0) >= 0 ? 'text-emerald-200' : 'text-rose-200'}`}>
                         {(pos.unrealizedProfit || 0) >= 0 ? '+' : ''}{currSymbol}{Math.abs(pos.unrealizedProfit || 0).toFixed(2)}
                       </p>
-                      <p className="text-[11px] text-slate-400">{(((pos.unrealizedProfit || 0) / (pos.margin || 1)) * 100).toFixed(1)}%</p>
+                      <p className="text-[11px] text-slate-400">
+                        {pos.margin && pos.margin > 0 
+                          ? (((pos.unrealizedProfit || 0) / pos.margin) * 100).toFixed(1) + '%'
+                          : 'N/A'}
+                      </p>
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-4 text-[11px] text-slate-400">
@@ -818,7 +823,7 @@ function HourlyPerformanceChart({ hourlyData }) {
               borderRadius: '8px',
               fontSize: '12px'
             }}
-            formatter={(value) => [`$${value.toFixed(2)}`, 'Avg P&L']}
+            formatter={(value) => [`${currSymbol || '$'}${value.toFixed(2)}`, 'Avg P&L']}
           />
           <Bar dataKey="avgPnL" radius={[4, 4, 0, 0]}>
             {chartData.map((entry, index) => (
@@ -868,7 +873,7 @@ function DayOfWeekChart({ dailyData }) {
               borderRadius: '8px',
               fontSize: '12px'
             }}
-            formatter={(value) => [`$${value.toFixed(2)}`, 'Total P&L']}
+            formatter={(value) => [`${currSymbol || '$'}${value.toFixed(2)}`, 'Total P&L']}
           />
           <Bar dataKey="totalPnL" radius={[4, 4, 0, 0]}>
             {chartData.map((entry, index) => (
@@ -881,7 +886,7 @@ function DayOfWeekChart({ dailyData }) {
   )
 }
 
-function MonthlyPerformanceChart({ monthlyData }) {
+function MonthlyPerformanceChart({ monthlyData, currSymbol }) {
   if (!monthlyData || monthlyData.length === 0) return null
 
   return (
@@ -916,7 +921,7 @@ function MonthlyPerformanceChart({ monthlyData }) {
               borderRadius: '8px',
               fontSize: '12px'
             }}
-            formatter={(value) => [`$${value.toFixed(2)}`, 'Total P&L']}
+            formatter={(value) => [`${currSymbol || '$'}${value.toFixed(2)}`, 'Total P&L']}
           />
           <Bar dataKey="totalPnL" radius={[4, 4, 0, 0]}>
             {monthlyData.map((entry, index) => (
@@ -1536,7 +1541,7 @@ function SymbolsTable({ symbols, filter, currSymbol }) {
 // TAB CONTENT COMPONENTS
 // ============================================
 
-function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
+function OverviewTab({ analytics, currSymbol, currency, metadata, setActiveTab }) {
   const [selectedInsight, setSelectedInsight] = useState(null)
   const [showCharts, setShowCharts] = useState(false)
   const [showSymbols, setShowSymbols] = useState(false)
@@ -1552,152 +1557,183 @@ function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
   const symbolAnalysis = analyzeSymbols(analytics.allTrades || [])
 
   const isProfitable = analytics.totalPnL >= 0
-  const hasFuturesData = (analytics.futuresPnL !== undefined && analytics.futuresPnL !== 0) || analytics.futuresOpenPositions?.length > 0
+  const hasFuturesData = (analytics.futuresTrades > 0) || (analytics.futuresPnL !== undefined && analytics.futuresPnL !== null) || (analytics.futuresOpenPositions?.length > 0)
 
   // Calculate summary metrics
   const totalTrades = (analytics.spotTrades || 0) + (analytics.futuresTrades || 0)
   const exchanges = metadata?.exchanges || []
   const dateRange = analytics.allTrades && analytics.allTrades.length > 0
-    ? {
-        start: new Date(Math.min(...analytics.allTrades.map(t => new Date(t.timestamp).getTime()))),
-        end: new Date(Math.max(...analytics.allTrades.map(t => new Date(t.timestamp).getTime())))
-      }
+    ? (() => {
+        // Filter out invalid timestamps before calculating
+        const validTimestamps = analytics.allTrades
+          .map(t => {
+            const timestamp = t.timestamp || t.time
+            if (!timestamp) return null
+            const time = new Date(timestamp).getTime()
+            return isNaN(time) ? null : time
+          })
+          .filter(t => t !== null)
+        
+        if (validTimestamps.length === 0) return null
+        
+        return {
+          start: new Date(Math.min(...validTimestamps)),
+          end: new Date(Math.max(...validTimestamps))
+        }
+      })()
     : null
 
   // Check if portfolio data is available (only present on live connections)
   const hasPortfolioData = metadata?.totalPortfolioValue !== undefined && metadata?.totalPortfolioValue !== null
 
   return (
-    <div className="space-y-3">
-      {/* Portfolio Overview Summary */}
-      <div className="bg-gradient-to-br from-slate-800/40 to-slate-800/20 border border-slate-700/50 rounded-xl p-4">
-        <h2 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
-          <BarChart3 className="w-5 h-5 text-emerald-400" />
-          Portfolio Overview
-        </h2>
-
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          {/* Total Portfolio Value - Only show if data available */}
-          {hasPortfolioData ? (
-            <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700/30">
-              <div className="text-xs text-slate-400 mb-1">Total Value</div>
-              <div className="text-xl font-bold text-white">
-                ${formatNumber(metadata?.totalPortfolioValue || 0, 2)} <span className="text-xs text-slate-400 font-normal">USD</span>
-              </div>
-              <div className="text-[10px] text-slate-500 mt-1">
-                Spot: ${formatNumber(metadata?.totalSpotValue || 0, 0)} ? Futures: ${formatNumber(metadata?.totalFuturesValue || 0, 0)}
-              </div>
+    <div className="space-y-4 md:space-y-6">
+      {/* Portfolio Overview Summary - Modernized */}
+      <div className="relative overflow-hidden rounded-2xl border border-white/5 bg-white/[0.03] shadow-lg shadow-emerald-500/5 backdrop-blur">
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-cyan-500/5" />
+        <div className="relative p-5 md:p-6">
+          <div className="flex items-center gap-2 mb-5">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+              <BarChart3 className="w-5 h-5 text-emerald-400" />
             </div>
-          ) : (
-            <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700/30">
-              <div className="text-xs text-slate-400 mb-1">Total Value</div>
-              <div className="text-sm font-bold text-slate-400">
-                Not Available
-              </div>
-              <div className="text-[10px] text-slate-500 mt-1">
-                Connect live to view portfolio
-              </div>
-            </div>
-          )}
-
-          {/* Total Trades */}
-          <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700/30">
-            <div className="text-xs text-slate-400 mb-1">Trades Analyzed</div>
-            <div className="text-xl font-bold text-white">{totalTrades.toLocaleString()}</div>
-            <div className="text-[10px] text-slate-500 mt-1">
-              {analytics.spotTrades || 0} Spot ? {analytics.futuresTrades || 0} Futures
-            </div>
+            <h2 className="text-lg md:text-xl font-bold text-white">Portfolio Overview</h2>
           </div>
 
-          {/* Exchanges */}
-          <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700/30">
-            <div className="text-xs text-slate-400 mb-1">Exchanges</div>
-            <div className="text-xl font-bold text-white">{exchanges.length}</div>
-            <div className="text-[10px] text-slate-500 mt-1 capitalize">
-              {exchanges.join(', ') || 'Unknown'}
-            </div>
-          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
+            {/* Total Portfolio Value - Only show if data available */}
+            {hasPortfolioData ? (
+              <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-emerald-400/30 hover:bg-emerald-500/5 transition-all duration-300">
+                <div className="text-xs text-slate-400 mb-2 font-medium">Total Value</div>
+                <div className="text-xl md:text-2xl font-bold text-white mb-1">
+                  {currSymbol}{formatNumber(metadata?.totalPortfolioValue || 0, 2)} <span className="text-xs text-slate-400 font-normal">{currency || 'USD'}</span>
+                </div>
+              <div className="text-xs text-slate-500">
+                Spot: {currSymbol}{formatNumber(metadata?.totalSpotValue || 0, 2)} + Futures: {currSymbol}{formatNumber(metadata?.totalFuturesValue || 0, 2)}
+              </div>
+              </div>
+            ) : (
+              <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-slate-600/30 transition-all duration-300">
+                <div className="text-xs text-slate-400 mb-2 font-medium">Total Value</div>
+                <div className="text-sm font-bold text-slate-400 mb-1">
+                  Not Available
+                </div>
+                <div className="text-xs text-slate-500">
+                  Connect live to view portfolio
+                </div>
+              </div>
+            )}
 
-          {/* Date Range */}
-          {dateRange && (
-            <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700/30">
-              <div className="text-xs text-slate-400 mb-1">Date Range</div>
-              <div className="text-sm font-bold text-white">
-                {dateRange.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: dateRange.start.getFullYear() !== dateRange.end.getFullYear() ? 'numeric' : undefined })} to {dateRange.end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            {/* Total Trades */}
+            <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-emerald-400/30 hover:bg-emerald-500/5 transition-all duration-300">
+              <div className="text-xs text-slate-400 mb-2 font-medium">Trades Analyzed</div>
+              <div className="text-xl md:text-2xl font-bold text-white mb-1">{totalTrades.toLocaleString()}</div>
+              <div className="text-xs text-slate-500">
+                {analytics.spotTrades || 0} Spot + {analytics.futuresTrades || 0} Futures
               </div>
             </div>
-          )}
 
-          {/* Account Type */}
-          <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700/30">
-            <div className="text-xs text-slate-400 mb-1">Account Type</div>
-            <div className="text-xl font-bold text-white capitalize">
-              {metadata?.accountType || 'Mixed'}
+            {/* Exchanges */}
+            <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-emerald-400/30 hover:bg-emerald-500/5 transition-all duration-300">
+              <div className="text-xs text-slate-400 mb-2 font-medium">Exchanges</div>
+              <div className="text-xl md:text-2xl font-bold text-white mb-1">{exchanges.length}</div>
+              <div className="text-xs text-slate-500 capitalize truncate">
+                {exchanges.join(', ') || 'Unknown'}
+              </div>
             </div>
-            <div className="text-[10px] text-slate-500 mt-1">
-              {metadata?.hasSpot && 'Spot '}
-              {metadata?.hasSpot && metadata?.hasFutures && '+ '}
-              {metadata?.hasFutures && 'Futures'}
+
+            {/* Date Range */}
+            {dateRange && (
+              <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-emerald-400/30 hover:bg-emerald-500/5 transition-all duration-300">
+                <div className="text-xs text-slate-400 mb-2 font-medium">Date Range</div>
+                <div className="text-sm font-bold text-white">
+                  {dateRange.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: dateRange.start.getFullYear() !== dateRange.end.getFullYear() ? 'numeric' : undefined })} to {dateRange.end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </div>
+              </div>
+            )}
+
+            {/* Account Type */}
+            <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-emerald-400/30 hover:bg-emerald-500/5 transition-all duration-300">
+              <div className="text-xs text-slate-400 mb-2 font-medium">Account Type</div>
+              <div className="text-xl md:text-2xl font-bold text-white mb-1 capitalize">
+                {metadata?.accountType || 'Mixed'}
+              </div>
+              <div className="text-xs text-slate-500">
+                {metadata?.hasSpot && 'Spot '}
+                {metadata?.hasSpot && metadata?.hasFutures && '+ '}
+                {metadata?.hasFutures && 'Futures'}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Compact P&L Metrics at Top */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        <div className={`rounded-md border ${isProfitable ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-red-500/20 bg-red-500/5'} p-2`}>
-          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Total P&L</div>
-          <div className={`text-lg font-bold ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`}>
-            {isProfitable ? '+' : ''}${formatNumber(Math.abs(analytics.totalPnL), 2)} <span className="text-[10px] text-slate-400 font-normal">USD</span>
+      {/* Enhanced P&L Metrics */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        <div className={`group relative overflow-hidden rounded-xl border p-4 transition-all duration-300 hover:scale-[1.02] ${
+          isProfitable 
+            ? 'border-emerald-400/30 bg-emerald-500/10 hover:border-emerald-400/50 hover:bg-emerald-500/15' 
+            : 'border-red-400/30 bg-red-500/10 hover:border-red-400/50 hover:bg-red-500/15'
+        }`}>
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="relative">
+            <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">Total P&L</div>
+            <div className={`text-xl md:text-2xl font-bold mb-1 ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`}>
+              {isProfitable ? '+' : ''}{currSymbol}{formatNumber(Math.abs(analytics.totalPnL), 2)} <span className="text-xs text-slate-400 font-normal">{currency || 'USD'}</span>
+            </div>
+            <div className="text-xs text-slate-500">{analytics.totalTrades} trades</div>
           </div>
-          <div className="text-[10px] text-slate-500">{analytics.totalTrades} trades</div>
         </div>
 
-        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
-          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Realized P&L</div>
-          <div className="text-lg font-bold text-white">
-            ${formatNumber((analytics.spotPnL || 0) + (analytics.futuresRealizedPnL || 0), 2)} <span className="text-[10px] text-slate-400 font-normal">USD</span>
+        <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-emerald-400/30 hover:bg-emerald-500/5 transition-all duration-300 hover:scale-[1.02]">
+          <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">Realized P&L</div>
+          <div className="text-xl md:text-2xl font-bold text-white mb-1">
+            {currSymbol}{formatNumber((analytics.spotPnL || 0) + (analytics.futuresRealizedPnL || 0), 2)} <span className="text-xs text-slate-400 font-normal">{currency || 'USD'}</span>
           </div>
-          <div className="text-[10px] text-slate-500">Closed positions</div>
+          <div className="text-xs text-slate-500">Closed positions</div>
         </div>
 
         {hasFuturesData && (
-          <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
-            <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Unrealized P&L</div>
-            <div className={`text-lg font-bold ${(analytics.futuresUnrealizedPnL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {currSymbol}{(analytics.futuresUnrealizedPnL || 0).toFixed(2)} <span className="text-[10px] text-slate-400 font-normal">USD</span>
+          <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-cyan-400/30 hover:bg-cyan-500/5 transition-all duration-300 hover:scale-[1.02]">
+            <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">Unrealized P&L</div>
+            <div className={`text-xl md:text-2xl font-bold mb-1 ${(analytics.futuresUnrealizedPnL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {currSymbol}{formatNumber(analytics.futuresUnrealizedPnL || 0, 2)} <span className="text-xs text-slate-400 font-normal">{currency || 'USD'}</span>
             </div>
-            <div className="text-[10px] text-slate-500">{analytics.futuresOpenPositions?.length || 0} open</div>
+            <div className="text-xs text-slate-500">{analytics.futuresOpenPositions?.length || 0} open</div>
           </div>
         )}
 
-        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
-          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Win Rate</div>
-          <div className="text-lg font-bold text-white">
-            {analytics.winRate.toFixed(1)}%
+        <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-emerald-400/30 hover:bg-emerald-500/5 transition-all duration-300 hover:scale-[1.02]">
+          <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">Win Rate</div>
+          <div className="text-xl md:text-2xl font-bold text-white mb-1">
+            {(analytics.winRate ?? 0).toFixed(1)}%
           </div>
-          <div className="text-[10px] text-slate-500">{analytics.winningTrades}W / {analytics.losingTrades}L</div>
+          <div className="text-xs text-slate-500">{analytics.winningTrades || 0}W / {analytics.losingTrades || 0}L</div>
         </div>
       </div>
 
-      {/* Quick Tab Teasers - Drive users to specific tabs */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+      {/* Enhanced Quick Tab Teasers */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
         {/* Spot Teaser */}
         {analytics.spotTrades > 0 && (
           <button
             onClick={() => setActiveTab('spot')}
-            className="group bg-emerald-500/5 hover:bg-emerald-500/10 border border-emerald-500/20 hover:border-emerald-500/40 rounded-lg p-3 text-left transition-all"
+            className="group relative overflow-hidden rounded-xl border border-emerald-400/20 bg-emerald-500/5 hover:border-emerald-400/40 hover:bg-emerald-500/10 p-4 md:p-5 text-left transition-all duration-300 hover:scale-[1.02]"
           >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Briefcase className="w-4 h-4 text-emerald-400" />
-                <span className="text-xs font-semibold text-emerald-400">Spot Trading</span>
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="relative">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 border border-emerald-400/30">
+                    <Briefcase className="w-4 h-4 text-emerald-400" />
+                  </div>
+                  <span className="text-sm font-semibold text-emerald-400">Spot Trading</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-emerald-400/50 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all duration-300" />
               </div>
-              <ChevronRight className="w-3 h-3 text-emerald-400/50 group-hover:text-emerald-400 transition-colors" />
+              <div className="text-xl md:text-2xl font-bold text-white mb-2">{currSymbol}{formatNumber(analytics.spotPnL || 0, 2)} <span className="text-xs text-slate-400 font-normal">{currency || 'USD'}</span></div>
+              <div className="text-xs text-slate-400 mb-2">{analytics.spotTrades || 0} trades ? {(analytics.spotWinRate ?? 0).toFixed(1)}% win rate</div>
+              <div className="text-xs text-emerald-400 font-medium group-hover:underline">See detailed breakdown ?</div>
             </div>
-            <div className="text-lg font-bold text-white mb-1">${formatNumber(analytics.spotPnL, 2)} <span className="text-[10px] text-slate-400 font-normal">USD</span></div>
-            <div className="text-[10px] text-slate-400">{analytics.spotTrades} trades ? {analytics.spotWinRate.toFixed(1)}% win rate</div>
-            <div className="text-[10px] text-emerald-400 mt-2 group-hover:underline">See detailed breakdown ?</div>
           </button>
         )}
 
@@ -1705,18 +1741,23 @@ function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
         {analytics.futuresTrades > 0 && (
           <button
             onClick={() => setActiveTab('futures')}
-            className="group bg-cyan-500/5 hover:bg-cyan-500/10 border border-cyan-500/20 hover:border-cyan-500/40 rounded-lg p-3 text-left transition-all"
+            className="group relative overflow-hidden rounded-xl border border-cyan-400/20 bg-cyan-500/5 hover:border-cyan-400/40 hover:bg-cyan-500/10 p-4 md:p-5 text-left transition-all duration-300 hover:scale-[1.02]"
           >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4 text-cyan-400" />
-                <span className="text-xs font-semibold text-cyan-400">Futures Trading</span>
+            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="relative">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500/20 border border-cyan-400/30">
+                    <Zap className="w-4 h-4 text-cyan-400" />
+                  </div>
+                  <span className="text-sm font-semibold text-cyan-400">Futures Trading</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-cyan-400/50 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all duration-300" />
               </div>
-              <ChevronRight className="w-3 h-3 text-cyan-400/50 group-hover:text-cyan-400 transition-colors" />
+              <div className="text-xl md:text-2xl font-bold text-white mb-2">{currSymbol}{formatNumber(analytics.futuresPnL || 0, 2)} <span className="text-xs text-slate-400 font-normal">{currency || 'USD'}</span></div>
+              <div className="text-xs text-slate-400 mb-2">{analytics.futuresOpenPositions?.length || 0} open ? {(analytics.futuresWinRate ?? 0).toFixed(1)}% win rate</div>
+              <div className="text-xs text-cyan-400 font-medium group-hover:underline">Analyze leverage impact ?</div>
             </div>
-            <div className="text-lg font-bold text-white mb-1">${formatNumber(analytics.futuresPnL, 2)} <span className="text-[10px] text-slate-400 font-normal">USD</span></div>
-            <div className="text-[10px] text-slate-400">{analytics.futuresOpenPositions?.length || 0} open ? {analytics.futuresWinRate.toFixed(1)}% win rate</div>
-            <div className="text-[10px] text-cyan-400 mt-2 group-hover:underline">Analyze leverage impact ?</div>
           </button>
         )}
 
@@ -1724,41 +1765,48 @@ function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
         {analytics.behavioral && analytics.behavioral.healthScore && (
           <button
             onClick={() => setActiveTab('behavioral')}
-            className="group bg-purple-500/5 hover:bg-purple-500/10 border border-purple-500/20 hover:border-purple-500/40 rounded-lg p-3 text-left transition-all"
+            className="group relative overflow-hidden rounded-xl border border-purple-400/20 bg-purple-500/5 hover:border-purple-400/40 hover:bg-purple-500/10 p-4 md:p-5 text-left transition-all duration-300 hover:scale-[1.02]"
           >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Brain className="w-4 h-4 text-purple-400" />
-                <span className="text-xs font-semibold text-purple-400">Psychology</span>
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="relative">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-500/20 border border-purple-400/30">
+                    <Brain className="w-4 h-4 text-purple-400" />
+                  </div>
+                  <span className="text-sm font-semibold text-purple-400">Psychology</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-purple-400/50 group-hover:text-purple-400 group-hover:translate-x-1 transition-all duration-300" />
               </div>
-              <ChevronRight className="w-3 h-3 text-purple-400/50 group-hover:text-purple-400 transition-colors" />
+              <div className="text-xl md:text-2xl font-bold text-white mb-2">{analytics.behavioral.healthScore}/100</div>
+              <div className="text-xs text-slate-400 mb-2">{analytics.behavioral.patterns?.filter(p => p.severity === 'high').length || 0} critical patterns detected</div>
+              <div className="text-xs text-purple-400 font-medium group-hover:underline">Fix your weaknesses ?</div>
             </div>
-            <div className="text-lg font-bold text-white mb-1">{analytics.behavioral.healthScore}/100</div>
-            <div className="text-[10px] text-slate-400">{analytics.behavioral.patterns?.filter(p => p.severity === 'high').length || 0} critical patterns detected</div>
-            <div className="text-[10px] text-purple-400 mt-2 group-hover:underline">Fix your weaknesses ?</div>
           </button>
         )}
       </div>
 
-      {/* Top 3 Critical Insights Only - Compact */}
+      {/* Enhanced Critical Patterns */}
       {patterns.length > 0 && (
-        <div className="space-y-1">
-          <h3 className="text-xs font-semibold text-slate-300 flex items-center gap-2">
-            <AlertTriangle className="w-3 h-3 text-orange-400" />
-            Critical Patterns
-          </h3>
-          <div className="space-y-1">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500/10 border border-orange-400/20">
+              <AlertTriangle className="w-4 h-4 text-orange-400" />
+            </div>
+            <h3 className="text-sm md:text-base font-semibold text-slate-300">Critical Patterns</h3>
+          </div>
+          <div className="space-y-2">
             {patterns.slice(0, 3).map((pattern, idx) => (
-              <div key={idx} className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2 hover:border-slate-600/50 transition-colors">
-                <div className="flex items-start justify-between gap-2">
+              <div key={idx} className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] hover:border-orange-400/30 hover:bg-orange-500/5 p-4 transition-all duration-300">
+                <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
-                    <div className="text-xs font-medium text-slate-200">{pattern.title}</div>
-                    <div className="text-[10px] text-slate-400 mt-0.5">{pattern.description}</div>
+                    <div className="text-sm font-semibold text-slate-200 mb-1">{pattern.title}</div>
+                    <div className="text-xs text-slate-400">{pattern.description}</div>
                   </div>
-                  <div className={`text-[10px] px-1.5 py-0.5 rounded ${
-                    pattern.severity === 'high' ? 'bg-red-500/10 text-red-400' :
-                    pattern.severity === 'medium' ? 'bg-orange-500/10 text-orange-400' :
-                    'bg-yellow-500/10 text-yellow-400'
+                  <div className={`text-xs px-2.5 py-1 rounded-lg font-medium ${
+                    pattern.severity === 'high' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                    pattern.severity === 'medium' ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20' :
+                    'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
                   }`}>
                     {pattern.severity}
                   </div>
@@ -1795,11 +1843,11 @@ function OverviewTab({ analytics, currSymbol, metadata, setActiveTab }) {
   )
 }
 
-function SpotTab({ analytics, currSymbol, metadata }) {
+function SpotTab({ analytics, currSymbol, currency, metadata }) {
   const [showAllHoldings, setShowAllHoldings] = useState(false)
   const spotAnalysis = analytics.spotAnalysis || {}
   const hasSpotData = analytics.spotTrades > 0
-  const currency = currSymbol || '$'
+  const displayCurrency = currency || 'USD'
 
   if (!hasSpotData) {
     return (
@@ -1813,30 +1861,34 @@ function SpotTab({ analytics, currSymbol, metadata }) {
   }
 
   return (
-    <div className="space-y-3">
-      {/* Compact Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
-          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Spot P&L</div>
-          <div className={`text-lg font-bold ${analytics.spotPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            ${formatNumber(analytics.spotPnL || 0, 2)} <span className="text-[10px] text-slate-400 font-normal">USD</span>
+    <div className="space-y-4 md:space-y-6">
+      {/* Enhanced Spot Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        <div className={`group relative overflow-hidden rounded-xl border p-4 transition-all duration-300 hover:scale-[1.02] ${
+          analytics.spotPnL >= 0 
+            ? 'border-emerald-400/30 bg-emerald-500/10 hover:border-emerald-400/50 hover:bg-emerald-500/15' 
+            : 'border-red-400/30 bg-red-500/10 hover:border-red-400/50 hover:bg-red-500/15'
+        }`}>
+          <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">Spot P&L</div>
+          <div className={`text-xl md:text-2xl font-bold mb-1 ${analytics.spotPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            {currSymbol}{formatNumber(analytics.spotPnL || 0, 2)} <span className="text-xs text-slate-400 font-normal">{currency || 'USD'}</span>
           </div>
-          <div className="text-[10px] text-slate-500">{analytics.spotRoi?.toFixed(1) || '0.0'}% ROI</div>
+          <div className="text-xs text-slate-500">{analytics.spotRoi?.toFixed(1) || '0.0'}% ROI</div>
         </div>
-        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
-          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Win Rate</div>
-          <div className="text-lg font-bold text-white">{analytics.spotWinRate?.toFixed(1) || '0.0'}%</div>
-          <div className="text-[10px] text-slate-500">{analytics.spotWins || 0}W / {analytics.spotLosses || 0}L</div>
+        <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-emerald-400/30 hover:bg-emerald-500/5 transition-all duration-300 hover:scale-[1.02]">
+          <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">Win Rate</div>
+          <div className="text-xl md:text-2xl font-bold text-white mb-1">{analytics.spotWinRate?.toFixed(1) || '0.0'}%</div>
+          <div className="text-xs text-slate-500">{analytics.spotWins || 0}W / {analytics.spotLosses || 0}L</div>
         </div>
-        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
-          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Invested</div>
-          <div className="text-lg font-bold text-white">${formatNumber(analytics.spotInvested || 0, 0)} <span className="text-[10px] text-slate-400 font-normal">USD</span></div>
-          <div className="text-[10px] text-slate-500">{analytics.spotTrades || 0} trades</div>
+        <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-emerald-400/30 hover:bg-emerald-500/5 transition-all duration-300 hover:scale-[1.02]">
+          <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">Invested</div>
+          <div className="text-xl md:text-2xl font-bold text-white mb-1">{currSymbol}{formatNumber(analytics.spotInvested || 0, 0)} <span className="text-xs text-slate-400 font-normal">{displayCurrency}</span></div>
+          <div className="text-xs text-slate-500">{analytics.spotTrades || 0} trades</div>
         </div>
-        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
-          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Best Win</div>
-          <div className="text-lg font-bold text-emerald-400">${formatNumber(spotAnalysis.largestWin || 0, 2)} <span className="text-[10px] text-slate-400 font-normal">USD</span></div>
-          <div className="text-[10px] text-slate-500">Max gain</div>
+        <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-emerald-400/30 hover:bg-emerald-500/5 transition-all duration-300 hover:scale-[1.02]">
+          <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">Best Win</div>
+          <div className="text-xl md:text-2xl font-bold text-emerald-400 mb-1">{currSymbol}{formatNumber(spotAnalysis.largestWin || 0, 2)} <span className="text-xs text-slate-400 font-normal">{displayCurrency}</span></div>
+          <div className="text-xs text-slate-500">Max gain</div>
         </div>
       </div>
 
@@ -1901,8 +1953,8 @@ function SpotTab({ analytics, currSymbol, metadata }) {
                           </span>
                         </td>
                         <td className="px-2 py-1.5 text-right font-mono text-slate-300">{formatNumber(holding.quantity || 0, 4)}</td>
-                        <td className="px-2 py-1.5 text-right font-mono text-slate-400">${formatNumber(holding.price || 0, 2)} <span className="text-[9px] text-slate-500">USD</span></td>
-                        <td className="px-2 py-1.5 text-right font-bold text-emerald-400">${formatNumber(holding.usdValue || 0, 2)} <span className="text-[9px] text-slate-400 font-normal">USD</span></td>
+                        <td className="px-2 py-1.5 text-right font-mono text-slate-400">{currSymbol}{formatNumber(holding.price || 0, 2)} <span className="text-[9px] text-slate-500">{displayCurrency}</span></td>
+                        <td className="px-2 py-1.5 text-right font-bold text-emerald-400">{currSymbol}{formatNumber(holding.usdValue || 0, 2)} <span className="text-[9px] text-slate-400 font-normal">{displayCurrency}</span></td>
                       </tr>
                     )
                   })}
@@ -1910,7 +1962,7 @@ function SpotTab({ analytics, currSymbol, metadata }) {
                 <tfoot className="bg-slate-800/50">
                   <tr className="font-bold">
                     <td className="px-2 py-2" colSpan="4">Total</td>
-                    <td className="px-2 py-2 text-right text-emerald-400">${formatNumber(metadata?.totalSpotValue || 0, 2)} <span className="text-[9px] text-slate-400 font-normal">USD</span></td>
+                    <td className="px-2 py-2 text-right text-emerald-400">{currSymbol}{formatNumber(metadata?.totalSpotValue || 0, 2)} <span className="text-[9px] text-slate-400 font-normal">{displayCurrency}</span></td>
                   </tr>
                 </tfoot>
               </table>
@@ -1940,82 +1992,210 @@ function SpotTab({ analytics, currSymbol, metadata }) {
   )
 }
 
-function FuturesTab({ analytics, currSymbol }) {
+function FuturesTab({ analytics, currSymbol, currency, metadata }) {
   const futuresAnalysis = analytics.futuresAnalysis || {}
   const hasFuturesData = analytics.futuresTrades > 0
-  const currency = currSymbol || '$'
+  const displayCurrency = currency || 'USD'
+  const [showAllTrades, setShowAllTrades] = useState(false)
 
   if (!hasFuturesData) {
     return <EmptyState icon={Zap} title="No Futures Trading Data" variant="info" />
   }
 
+  // Build trade history from income records (REALIZED_PNL entries)
+  const tradeHistory = (() => {
+    // Try multiple sources for income records
+    // 1. Check metadata first (if raw data was preserved)
+    // 2. Check analytics.allTrades for futures trades (normalized format)
+    
+    let incomeRecords = []
+    
+    // First, try metadata.futuresIncome (raw data from fetch)
+    if (Array.isArray(metadata?.futuresIncome) && metadata.futuresIncome.length > 0) {
+      console.log('?? Using metadata.futuresIncome:', metadata.futuresIncome.length, 'records')
+      incomeRecords = metadata.futuresIncome
+    } else if (Array.isArray(analytics?.futuresIncome) && analytics.futuresIncome.length > 0) {
+      console.log('?? Using analytics.futuresIncome:', analytics.futuresIncome.length, 'records')
+      incomeRecords = analytics.futuresIncome
+    } else if (Array.isArray(analytics.allTrades)) {
+      // Extract futures trades from normalized allTrades array
+      // Futures trades in allTrades have: type: 'futures', incomeType: 'REALIZED_PNL', realizedPnl, symbol, timestamp
+      const futuresTrades = analytics.allTrades.filter(trade => trade.type === 'futures' && trade.incomeType === 'REALIZED_PNL')
+      
+      console.log('?? Futures trades found in allTrades:', futuresTrades.length, 'out of', analytics.allTrades.length, 'total trades')
+      if (futuresTrades.length > 0) {
+        const pnlValues = futuresTrades.map(t => t.realizedPnl || t.pnl || 0)
+        const nonZeroCount = pnlValues.filter(p => Math.abs(p) > 0.0001).length
+        const zeroCount = pnlValues.filter(p => Math.abs(p) <= 0.0001).length
+        console.log(`?? PnL in allTrades: ${nonZeroCount} non-zero, ${zeroCount} zero`)
+        console.log('?? Sample futures trade:', {
+          symbol: futuresTrades[0].symbol,
+          realizedPnl: futuresTrades[0].realizedPnl,
+          pnl: futuresTrades[0].pnl,
+          incomeType: futuresTrades[0].incomeType,
+          timestamp: futuresTrades[0].timestamp
+        })
+        if (nonZeroCount > 0) {
+          const nonZeroTrades = futuresTrades.filter(t => Math.abs(t.realizedPnl || t.pnl || 0) > 0.0001)
+          console.log('?? Sample NON-ZERO trade:', {
+            symbol: nonZeroTrades[0].symbol,
+            realizedPnl: nonZeroTrades[0].realizedPnl,
+            pnl: nonZeroTrades[0].pnl
+          })
+        } else {
+          console.warn('?? ALL trades have zero realizedPnl! Checking first 3:', futuresTrades.slice(0, 3).map(t => ({ symbol: t.symbol, realizedPnl: t.realizedPnl, pnl: t.pnl, allKeys: Object.keys(t) })))
+        }
+      }
+      
+      incomeRecords = futuresTrades.map(trade => ({
+        symbol: trade.symbol,
+        income: trade.realizedPnl || trade.pnl || 0, // realizedPnl is already a number from normalization
+        incomeType: 'REALIZED_PNL',
+        time: trade.timestamp || trade.time, // timestamp is ISO string in normalized format
+        timestamp: trade.timestamp || trade.time, // Keep both for compatibility
+        tradeId: trade.tradeId || trade.id,
+        tranId: trade.tranId || trade.id,
+        id: trade.id
+      }))
+    }
+    
+    console.log('?? Total income records to process:', incomeRecords.length)
+    
+    // Filter for REALIZED_PNL entries only
+    const realizedTrades = incomeRecords
+      .filter(inc => inc && inc.incomeType === 'REALIZED_PNL')
+      .map(inc => {
+        // Handle both string and number income values
+        let pnl = 0
+        if (typeof inc.income === 'string') {
+          pnl = parseFloat(inc.income || 0)
+        } else if (typeof inc.income === 'number') {
+          pnl = inc.income
+        } else {
+          pnl = parseFloat(inc.income || 0)
+        }
+        
+        return {
+          symbol: inc.symbol || 'UNKNOWN',
+          pnl: pnl,
+          time: inc.time || inc.timestamp || Date.now(),
+          tradeId: inc.tradeId || inc.tranId || inc.id || null
+        }
+      })
+      .sort((a, b) => a.pnl - b.pnl) // Sort by worst PnL first
+    
+    console.log('? Final realized trades:', realizedTrades.length)
+    if (realizedTrades.length > 0) {
+      const pnlValues = realizedTrades.map(t => t.pnl)
+      const nonZeroCount = pnlValues.filter(p => Math.abs(p) > 0.0001).length
+      const zeroCount = pnlValues.filter(p => Math.abs(p) <= 0.0001).length
+      console.log(`?? Final PnL distribution: ${nonZeroCount} non-zero, ${zeroCount} zero`)
+      console.log('?? Sample realized trade:', {
+        symbol: realizedTrades[0].symbol,
+        pnl: realizedTrades[0].pnl,
+        time: realizedTrades[0].time
+      })
+      if (nonZeroCount > 0) {
+        const nonZeroTrades = realizedTrades.filter(t => Math.abs(t.pnl) > 0.0001)
+        console.log('?? Sample NON-ZERO final trade:', {
+          symbol: nonZeroTrades[0].symbol,
+          pnl: nonZeroTrades[0].pnl
+        })
+      } else {
+        console.warn('?? WARNING: ALL final trades have zero PnL!')
+        console.log('?? First 5 trades:', realizedTrades.slice(0, 5).map(t => ({ symbol: t.symbol, pnl: t.pnl })))
+      }
+    }
+    
+    return realizedTrades
+  })()
+
+  const displayedTrades = showAllTrades ? tradeHistory : tradeHistory.slice(0, 6)
+  const hasMoreTrades = tradeHistory.length > 6
+
   return (
-    <div className="space-y-3">
-      {/* Compact Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
-          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Net P&L</div>
-          <div className={`text-lg font-bold ${analytics.futuresPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            ${formatNumber(analytics.futuresPnL || 0, 2)} <span className="text-[10px] text-slate-400 font-normal">USD</span>
+    <div className="space-y-4 md:space-y-6">
+      {/* Enhanced Futures Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        <div className={`group relative overflow-hidden rounded-xl border p-4 transition-all duration-300 hover:scale-[1.02] ${
+          analytics.futuresPnL >= 0 
+            ? 'border-emerald-400/30 bg-emerald-500/10 hover:border-emerald-400/50 hover:bg-emerald-500/15' 
+            : 'border-red-400/30 bg-red-500/10 hover:border-red-400/50 hover:bg-red-500/15'
+        }`}>
+          <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">Net P&L</div>
+          <div className={`text-xl md:text-2xl font-bold mb-1 ${analytics.futuresPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            {currSymbol}{formatNumber(analytics.futuresPnL || 0, 2)} <span className="text-xs text-slate-400 font-normal">{displayCurrency}</span>
           </div>
-          <div className="text-[10px] text-slate-500">
+          <div className="text-xs text-slate-500">
             {analytics.futuresTrades || 0} trades
           </div>
         </div>
 
-        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
-          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Realized</div>
-          <div className={`text-lg font-bold ${analytics.futuresRealizedPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            ${formatNumber(analytics.futuresRealizedPnL || 0, 2)} <span className="text-[10px] text-slate-400 font-normal">USD</span>
+        <div className={`group relative overflow-hidden rounded-xl border p-4 transition-all duration-300 hover:scale-[1.02] ${
+          analytics.futuresRealizedPnL >= 0 
+            ? 'border-emerald-400/30 bg-emerald-500/10 hover:border-emerald-400/50 hover:bg-emerald-500/15' 
+            : 'border-red-400/30 bg-red-500/10 hover:border-red-400/50 hover:bg-red-500/15'
+        }`}>
+          <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">Realized</div>
+          <div className={`text-xl md:text-2xl font-bold mb-1 ${analytics.futuresRealizedPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            {currSymbol}{formatNumber(analytics.futuresRealizedPnL || 0, 2)} <span className="text-xs text-slate-400 font-normal">{displayCurrency}</span>
           </div>
-          <div className="text-[10px] text-slate-500">Closed positions</div>
+          <div className="text-xs text-slate-500">Closed positions</div>
         </div>
 
-        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
-          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Unrealized</div>
-          <div className={`text-lg font-bold ${analytics.futuresUnrealizedPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            ${formatNumber(analytics.futuresUnrealizedPnL || 0, 2)} <span className="text-[10px] text-slate-400 font-normal">USD</span>
+        <div className={`group relative overflow-hidden rounded-xl border p-4 transition-all duration-300 hover:scale-[1.02] ${
+          analytics.futuresUnrealizedPnL >= 0 
+            ? 'border-emerald-400/30 bg-emerald-500/10 hover:border-emerald-400/50 hover:bg-emerald-500/15' 
+            : 'border-red-400/30 bg-red-500/10 hover:border-red-400/50 hover:bg-red-500/15'
+        }`}>
+          <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">Unrealized</div>
+          <div className={`text-xl md:text-2xl font-bold mb-1 ${analytics.futuresUnrealizedPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            {currSymbol}{formatNumber(analytics.futuresUnrealizedPnL || 0, 2)} <span className="text-xs text-slate-400 font-normal">{displayCurrency}</span>
           </div>
-          <div className="text-[10px] text-slate-500">
+          <div className="text-xs text-slate-500">
             {analytics.futuresOpenPositions?.length || 0} open
           </div>
         </div>
 
-        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
-          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Win Rate</div>
-          <div className={`text-lg font-bold ${analytics.futuresWinRate >= 55 ? 'text-emerald-400' : 'text-slate-300'}`}>
+        <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-emerald-400/30 hover:bg-emerald-500/5 transition-all duration-300 hover:scale-[1.02]">
+          <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">Win Rate</div>
+          <div className={`text-xl md:text-2xl font-bold mb-1 ${analytics.futuresWinRate >= 55 ? 'text-emerald-400' : 'text-slate-300'}`}>
             {analytics.futuresWinRate?.toFixed(1) || '0.0'}%
           </div>
-          <div className="text-[10px] text-slate-500">
+          <div className="text-xs text-slate-500">
             {analytics.futuresWins || 0}W / {analytics.futuresLosses || 0}L
           </div>
         </div>
       </div>
 
-      {/* Funding & Commission - Compact Row */}
-      <div className="grid grid-cols-2 gap-2">
-        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
-          <div className="flex items-center gap-1.5 mb-1">
-            <Zap className="w-3 h-3 text-yellow-400" />
-            <span className="text-[10px] text-slate-400 uppercase tracking-wider">Funding Fees</span>
+      {/* Enhanced Funding & Commission */}
+      <div className="grid grid-cols-2 gap-3 md:gap-4">
+        <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-yellow-400/30 hover:bg-yellow-500/5 transition-all duration-300 hover:scale-[1.02]">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-yellow-500/10 border border-yellow-400/20">
+              <Zap className="w-3 h-3 text-yellow-400" />
+            </div>
+            <span className="text-xs text-slate-400 uppercase tracking-wider font-medium">Funding Fees</span>
           </div>
-          <div className={`text-lg font-bold ${(analytics.futuresFundingFees || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {(analytics.futuresFundingFees || 0) >= 0 ? '+' : ''}${formatNumber(Math.abs(analytics.futuresFundingFees || 0), 2)} <span className="text-[10px] text-slate-400 font-normal">USD</span>
+          <div className={`text-xl md:text-2xl font-bold mb-1 ${(analytics.futuresFundingFees || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            {(analytics.futuresFundingFees || 0) >= 0 ? '+' : ''}{currSymbol}{formatNumber(Math.abs(analytics.futuresFundingFees || 0), 2)} <span className="text-xs text-slate-400 font-normal">{displayCurrency}</span>
           </div>
-          <div className="text-[10px] text-slate-500">
+          <div className="text-xs text-slate-500">
             {(analytics.futuresFundingFees || 0) >= 0 ? 'Earned' : 'Paid'}
           </div>
         </div>
 
-        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
-          <div className="flex items-center gap-1.5 mb-1">
-            <DollarSign className="w-3 h-3 text-red-400" />
-            <span className="text-[10px] text-slate-400 uppercase tracking-wider">Commission</span>
+        <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-red-400/30 hover:bg-red-500/5 transition-all duration-300 hover:scale-[1.02]">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-red-500/10 border border-red-400/20">
+              <DollarSign className="w-3 h-3 text-red-400" />
+            </div>
+            <span className="text-xs text-slate-400 uppercase tracking-wider font-medium">Commission</span>
           </div>
-          <div className="text-lg font-bold text-red-400">
-            -${formatNumber(analytics.futuresCommission || 0, 2)} <span className="text-[10px] text-slate-400 font-normal">USD</span>
+          <div className="text-xl md:text-2xl font-bold text-red-400 mb-1">
+            -{currSymbol}{formatNumber(analytics.futuresCommission || 0, 2)} <span className="text-xs text-slate-400 font-normal">{displayCurrency}</span>
           </div>
-          <div className="text-[10px] text-slate-500">Trading fees</div>
+          <div className="text-xs text-slate-500">Trading fees</div>
         </div>
       </div>
 
@@ -2035,25 +2215,109 @@ function FuturesTab({ analytics, currSymbol }) {
                   <div>
                     <div className="font-mono font-bold text-xs">{pos.symbol}</div>
                     <div className="text-[10px] text-slate-400 mt-0.5">
-                      {pos.side} ? {pos.leverage}x ? Entry: {currency}{pos.entryPrice?.toFixed(2) || '0.00'} <span className="text-[9px] text-slate-500">USD</span>
+                      {pos.side} ? {pos.leverage}x ? Entry: {currSymbol}{pos.entryPrice?.toFixed(2) || '0.00'} <span className="text-[9px] text-slate-500">{displayCurrency}</span>
                     </div>
                   </div>
                   <div className="text-right">
                     <div className={`text-sm font-bold ${(pos.unrealizedProfit || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {(pos.unrealizedProfit || 0) >= 0 ? '+' : ''}{currency}{(pos.unrealizedProfit || 0).toFixed(2)} <span className="text-[9px] text-slate-400 font-normal">USD</span>
+                      {(pos.unrealizedProfit || 0) >= 0 ? '+' : ''}{currSymbol}{(pos.unrealizedProfit || 0).toFixed(2)} <span className="text-[9px] text-slate-400 font-normal">{displayCurrency}</span>
                     </div>
                     <div className="text-[10px] text-slate-400">
-                      {(((pos.unrealizedProfit || 0) / (pos.margin || 1)) * 100).toFixed(1)}%
+                      {pos.margin && pos.margin > 0
+                        ? (((pos.unrealizedProfit || 0) / pos.margin) * 100).toFixed(1) + '%'
+                        : 'N/A'}
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-700/20">
                   <span>Size: {Math.abs(pos.size || 0).toFixed(4)}</span>
-                  <span>Mark: {currency}{pos.markPrice?.toFixed(2) || '0.00'} <span className="text-[9px] text-slate-500">USD</span></span>
-                  <span>Margin: {currency}{pos.margin?.toFixed(2) || '0.00'} <span className="text-[9px] text-slate-500">USD</span></span>
+                  <span>Mark: {currSymbol}{pos.markPrice?.toFixed(2) || '0.00'} <span className="text-[9px] text-slate-500">{displayCurrency}</span></span>
+                  <span>Margin: {currSymbol}{pos.margin?.toFixed(2) || '0.00'} <span className="text-[9px] text-slate-500">{displayCurrency}</span></span>
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Past Trades History - Expandable */}
+      {tradeHistory.length > 0 && (
+        <div className="bg-slate-800/20 border border-slate-700/30 rounded-lg overflow-hidden">
+          <div className="px-3 py-2 border-b border-slate-700/30 bg-slate-800/30 flex items-center justify-between">
+            <h3 className="text-xs font-semibold text-slate-300 flex items-center gap-2">
+              <Clock className="w-3 h-3 text-cyan-400" />
+              Past Trades
+              <span className="text-[10px] text-slate-500 font-normal ml-1">
+                ({showAllTrades ? tradeHistory.length : `Top ${Math.min(6, tradeHistory.length)} of ${tradeHistory.length}`})
+              </span>
+            </h3>
+            {hasMoreTrades && (
+              <button
+                onClick={() => setShowAllTrades(!showAllTrades)}
+                className="text-[10px] text-purple-400 hover:text-purple-300 transition-colors flex items-center gap-1"
+              >
+                {showAllTrades ? (
+                  <>
+                    <ChevronUp className="w-3 h-3" />
+                    Show Less
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="w-3 h-3" />
+                    Show All
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-slate-800/30">
+                <tr className="text-left text-[10px] text-slate-400">
+                  <th className="px-2 py-2">Symbol</th>
+                  <th className="px-2 py-2 text-right">P&L</th>
+                  <th className="px-2 py-2 text-right">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayedTrades.map((trade, idx) => {
+                  const tradeDate = new Date(trade.time)
+                  const dateStr = isNaN(tradeDate.getTime())
+                    ? 'N/A'
+                    : tradeDate.toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric',
+                        year: tradeDate.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+                      })
+                  
+                  // Adaptive decimal places for small values - but filter out very small values
+                  const absPnl = Math.abs(trade.pnl)
+                  let decimals = 2
+                  // Only show meaningful precision for values >= 0.01
+                  if (absPnl > 0 && absPnl < 0.01) {
+                    // Very small values - show 4 decimals max
+                    decimals = 4
+                  } else if (absPnl > 0 && absPnl < 0.1) {
+                    decimals = 3
+                  } else if (absPnl > 0 && absPnl < 1) {
+                    decimals = 2
+                  }
+                  
+                  // Format PnL
+                  const formattedPnl = formatNumber(trade.pnl, decimals)
+                  
+                  return (
+                    <tr key={trade.tradeId || idx} className="border-b border-slate-800/30 hover:bg-slate-700/10">
+                      <td className="px-2 py-1.5 font-mono font-semibold">{trade.symbol}</td>
+                      <td className={`px-2 py-1.5 text-right font-bold ${trade.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {trade.pnl >= 0 ? '+' : ''}{currSymbol}{formattedPnl} <span className="text-[9px] text-slate-400 font-normal">{displayCurrency}</span>
+                      </td>
+                      <td className="px-2 py-1.5 text-right text-slate-400">{dateStr}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -2072,11 +2336,11 @@ function FuturesTab({ analytics, currSymbol }) {
           </div>
           <div className="flex justify-between">
             <span className="text-slate-400">Largest Win:</span>
-            <span className="text-emerald-400 font-medium">{currency}{futuresAnalysis.largestWin?.toFixed(2) || '0.00'}</span>
+            <span className="text-emerald-400 font-medium">{currSymbol}{futuresAnalysis.largestWin?.toFixed(2) || '0.00'}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-slate-400">Largest Loss:</span>
-            <span className="text-red-400 font-medium">{currency}{futuresAnalysis.largestLoss?.toFixed(2) || '0.00'}</span>
+            <span className="text-red-400 font-medium">{currSymbol}{futuresAnalysis.largestLoss?.toFixed(2) || '0.00'}</span>
           </div>
         </div>
       </div>
@@ -2108,9 +2372,9 @@ function FuturesTab({ analytics, currSymbol }) {
 // BEHAVIORAL TAB - DEEP INSIGHTS
 // ============================================
 
-function BehavioralTab({ analytics, currSymbol }) {
+function BehavioralTab({ analytics, currSymbol, currency }) {
   const behavioral = analytics.behavioral || {}
-  const currency = currSymbol || '$'
+  const displayCurrency = currency || 'USD'
 
   if (!behavioral.healthScore) {
     return <EmptyState icon={Brain} title="No Behavioral Data" variant="info" />
@@ -2125,54 +2389,56 @@ function BehavioralTab({ analytics, currSymbol }) {
   }
 
   return (
-    <div className="space-y-3">
-      {/* Compact Behavioral Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
-          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Behavioral Score</div>
-          <div className={`text-lg font-bold ${getScoreColor(healthScore)}`}>
-            {healthScore}<span className="text-xs text-slate-500">/100</span>
+    <div className="space-y-4 md:space-y-6">
+      {/* Enhanced Behavioral Metrics */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-emerald-400/30 hover:bg-emerald-500/5 transition-all duration-300 hover:scale-[1.02]">
+          <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">Behavioral Score</div>
+          <div className={`text-xl md:text-2xl font-bold mb-1 ${getScoreColor(healthScore)}`}>
+            {healthScore}<span className="text-xs text-slate-500 ml-1">/100</span>
           </div>
-          <div className="text-[10px] text-slate-500">
+          <div className="text-xs text-slate-500">
             {healthScore >= 80 ? 'Excellent' : healthScore >= 60 ? 'Good' : healthScore >= 40 ? 'Fair' : 'Needs work'}
           </div>
         </div>
 
-        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
-          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Panic Events</div>
-          <div className={`text-lg font-bold ${behavioral.panicPatterns?.detected ? 'text-red-400' : 'text-emerald-400'}`}>
+        <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-red-400/30 hover:bg-red-500/5 transition-all duration-300 hover:scale-[1.02]">
+          <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">Panic Events</div>
+          <div className={`text-xl md:text-2xl font-bold mb-1 ${behavioral.panicPatterns?.detected ? 'text-red-400' : 'text-emerald-400'}`}>
             {behavioral.panicPatterns?.count || 0}
           </div>
-          <div className="text-[10px] text-slate-500">Rapid-fire sells</div>
+          <div className="text-xs text-slate-500">Rapid-fire sells</div>
         </div>
 
-        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
-          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Fee Efficiency</div>
-          <div className={`text-lg font-bold ${(behavioral.feeAnalysis?.efficiency || 0) >= 70 ? 'text-emerald-400' : 'text-yellow-400'}`}>
+        <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-emerald-400/30 hover:bg-emerald-500/5 transition-all duration-300 hover:scale-[1.02]">
+          <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">Fee Efficiency</div>
+          <div className={`text-xl md:text-2xl font-bold mb-1 ${(behavioral.feeAnalysis?.efficiency || 0) >= 70 ? 'text-emerald-400' : 'text-yellow-400'}`}>
             {behavioral.feeAnalysis?.efficiency ? Number(behavioral.feeAnalysis.efficiency).toFixed(0) : 0}%
           </div>
-          <div className="text-[10px] text-slate-500">Maker/taker ratio</div>
+          <div className="text-xs text-slate-500">Maker/taker ratio</div>
         </div>
 
-        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
-          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Consistency</div>
-          <div className={`text-lg font-bold ${(behavioral.consistencyScore || 0) >= 70 ? 'text-emerald-400' : 'text-yellow-400'}`}>
+        <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-emerald-400/30 hover:bg-emerald-500/5 transition-all duration-300 hover:scale-[1.02]">
+          <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">Consistency</div>
+          <div className={`text-xl md:text-2xl font-bold mb-1 ${(behavioral.consistencyScore || 0) >= 70 ? 'text-emerald-400' : 'text-yellow-400'}`}>
             {behavioral.consistencyScore ? Number(behavioral.consistencyScore).toFixed(0) : 0}%
           </div>
-          <div className="text-[10px] text-slate-500">Position sizing</div>
+          <div className="text-xs text-slate-500">Position sizing</div>
         </div>
       </div>
 
-      {/* Top Critical Warnings Only */}
+      {/* Enhanced Critical Warnings */}
       {behavioral.warnings && behavioral.warnings.length > 0 && (
-        <div className="space-y-1.5">
+        <div className="space-y-3">
           {behavioral.warnings.slice(0, 2).map((warning, idx) => (
-            <div key={idx} className="bg-red-500/5 border border-red-500/20 rounded-md p-2">
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="w-3 h-3 text-red-400 flex-shrink-0 mt-0.5" />
+            <div key={idx} className="group relative overflow-hidden rounded-xl border border-red-400/30 bg-red-500/10 hover:border-red-400/50 hover:bg-red-500/15 p-4 transition-all duration-300">
+              <div className="flex items-start gap-3">
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-red-500/20 border border-red-400/30">
+                  <AlertTriangle className="w-4 h-4 text-red-400" />
+                </div>
                 <div className="flex-1">
-                  <div className="text-xs font-semibold text-red-400">{warning.title}</div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">{warning.message}</div>
+                  <div className="text-sm font-semibold text-red-400 mb-1">{warning.title}</div>
+                  <div className="text-xs text-slate-300">{warning.message}</div>
                 </div>
               </div>
             </div>
@@ -2282,9 +2548,17 @@ export default function AnalyticsView({
   const [selectedExchanges, setSelectedExchanges] = useState([])
   const [appliedExchanges, setAppliedExchanges] = useState([]) // Track what's currently applied
 
-  const hasFutures = analytics.futuresTrades > 0
-  const hasSpot = analytics.spotTrades > 0
-  const hasBehavioral = analytics.behavioral && analytics.behavioral.healthScore
+  // Convert analytics for display currency (USD -> INR conversion if needed)
+  const convertedAnalytics = useMemo(() => {
+    return convertAnalyticsForDisplay(analytics, currency)
+  }, [analytics, currency])
+
+  // Use converted analytics throughout the component
+  const displayAnalytics = convertedAnalytics || analytics
+
+  const hasFutures = displayAnalytics.futuresTrades > 0
+  const hasSpot = displayAnalytics.spotTrades > 0
+  const hasBehavioral = displayAnalytics.behavioral && displayAnalytics.behavioral.healthScore
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: BarChart3, show: true },
@@ -2444,12 +2718,30 @@ export default function AnalyticsView({
             </div>
           )}
 
-          {/* Tab Content */}
+          {/* Tab Content with Smooth Transitions */}
           <div className="p-3 md:p-4">
-            {activeTab === 'overview' && <OverviewTab analytics={analytics} currSymbol={currSymbol} metadata={currencyMetadata} setActiveTab={setActiveTab} />}
-            {activeTab === 'behavioral' && <BehavioralTab analytics={analytics} currSymbol={currSymbol} />}
-            {activeTab === 'spot' && <SpotTab analytics={analytics} currSymbol={currSymbol} metadata={currencyMetadata} />}
-            {activeTab === 'futures' && <FuturesTab analytics={analytics} currSymbol={currSymbol} />}
+            <div className="transition-all duration-300 ease-in-out">
+              {activeTab === 'overview' && (
+                <div className="animate-in fade-in duration-300">
+                  <OverviewTab analytics={analytics} currSymbol={currSymbol} metadata={currencyMetadata} setActiveTab={setActiveTab} />
+                </div>
+              )}
+              {activeTab === 'behavioral' && (
+                <div className="animate-in fade-in duration-300">
+                  <BehavioralTab analytics={analytics} currSymbol={currSymbol} />
+                </div>
+              )}
+              {activeTab === 'spot' && (
+                <div className="animate-in fade-in duration-300">
+                  <SpotTab analytics={analytics} currSymbol={currSymbol} metadata={currencyMetadata} />
+                </div>
+              )}
+              {activeTab === 'futures' && (
+                <div className="animate-in fade-in duration-300">
+                  <FuturesTab analytics={analytics} currSymbol={currSymbol} currency={currency} metadata={currencyMetadata} />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </main>
@@ -2551,18 +2843,25 @@ function detectHiddenPatterns(analytics, psychology) {
     })
   }
   
-  const commissionPercent = (analytics.totalCommission / Math.abs(analytics.totalPnL)) * 100
-  if (commissionPercent > 15) {
-    patterns.push({
-      icon: DollarSign,
-      title: 'High Commission Drag',
-      description: `Fees are eating ${commissionPercent.toFixed(1)}% of your profits.`,
-      severity: 'medium',
-      stats: {
-        'As % of P&L': `${commissionPercent.toFixed(1)}%`,
-        'Healthy Range': '<10%'
-      }
-    })
+  // Only calculate commission percentage if totalPnL is not zero
+  const totalCommission = Number(analytics.totalCommission || 0)
+  const totalPnL = Number(analytics.totalPnL || 0)
+  const absTotalPnL = Math.abs(totalPnL)
+  
+  if (absTotalPnL > 0 && totalCommission > 0) {
+    const commissionPercent = (totalCommission / absTotalPnL) * 100
+    if (commissionPercent > 15) {
+      patterns.push({
+        icon: DollarSign,
+        title: 'High Commission Drag',
+        description: `Fees are eating ${commissionPercent.toFixed(1)}% of your profits.`,
+        severity: 'medium',
+        stats: {
+          'As % of P&L': `${commissionPercent.toFixed(1)}%`,
+          'Healthy Range': '<10%'
+        }
+      })
+    }
   }
   
   if (analytics.hourPerformance && analytics.hourPerformance.length > 0) {

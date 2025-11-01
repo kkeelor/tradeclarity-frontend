@@ -309,7 +309,10 @@ export default function LoginForm({
           <StepProgress currentStep={0} totalSteps={2} />
 
           {/* Main Card */}
-          <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-8 space-y-6">
+          <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/50 via-slate-800/30 to-slate-800/20 border border-slate-700/50 rounded-2xl p-8 space-y-6 backdrop-blur-sm">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-cyan-500/5" />
+            <div className="absolute -top-24 -right-24 w-64 h-64 bg-emerald-500/10 blur-3xl rounded-full opacity-50" />
+            <div className="relative">
             <div className="text-center space-y-2">
               <h2 className="text-3xl font-bold">Which exchange do you trade on?</h2>
               <p className="text-slate-400">Select your trading platform to get started</p>
@@ -325,14 +328,23 @@ export default function LoginForm({
                     setExchange(ex.id)
                     setStep(2)
                   }}
-                  className={`group relative p-6 rounded-xl border-2 transition-all hover:scale-105 ${
+                  className={`group relative overflow-hidden p-6 rounded-2xl border-2 transition-all hover:scale-105 backdrop-blur-sm ${
                     exchange === ex.id
-                      ? 'bg-emerald-500/10 border-emerald-500'
-                      : 'bg-slate-700/30 border-slate-700 hover:border-slate-600'
+                      ? 'bg-gradient-to-br from-emerald-500/20 via-emerald-500/10 to-transparent border-emerald-500/50'
+                      : 'bg-gradient-to-br from-slate-800/50 to-slate-800/30 border-slate-700/50 hover:border-emerald-500/40'
                   }`}
                 >
-                  <div className="flex items-start gap-4">
-                    <ExchangeIcon exchange={ex.id} size={32} className="w-12 h-12 p-2" />
+                  {exchange === ex.id && (
+                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/5" />
+                  )}
+                  <div className="relative flex items-start gap-4">
+                    <div className={`w-14 h-14 rounded-xl flex items-center justify-center border ${
+                      exchange === ex.id 
+                        ? 'bg-emerald-500/20 border-emerald-500/30' 
+                        : 'bg-slate-700/30 border-slate-600/50'
+                    }`}>
+                      <ExchangeIcon exchange={ex.id} size={32} className="w-full h-full p-2" />
+                    </div>
                     <div className="flex-1 text-left">
                       <div className="font-bold text-xl mb-1">{ex.displayName}</div>
                       <div className="text-sm text-slate-400 mb-3">
@@ -340,29 +352,33 @@ export default function LoginForm({
                         {ex.id === 'coindcx' && 'India\'s #1 crypto exchange'}
                       </div>
                       {ex.id === 'binance' && (
-                        <div className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded-full text-xs font-medium">
+                        <div className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-emerald-500/20 to-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-full text-xs font-semibold">
                           <Sparkles className="w-3 h-3" />
                           Most Popular
                         </div>
                       )}
                     </div>
-                    <ChevronRight className="w-6 h-6 text-slate-400 group-hover:text-white transition-colors" />
+                    <ChevronRight className={`w-6 h-6 transition-colors group-hover:translate-x-1 ${
+                      exchange === ex.id ? 'text-emerald-400' : 'text-slate-400 group-hover:text-white'
+                    }`} />
                   </div>
                 </button>
               ))}
             </div>
             
             {/* Security Badge */}
-            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Shield className="w-5 h-5 text-emerald-400" />
+            <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/30 rounded-xl p-5 backdrop-blur-sm">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-cyan-500/5" />
+              <div className="relative flex items-center gap-3">
+                <div className="w-12 h-12 bg-emerald-500/20 border border-emerald-500/30 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Shield className="w-6 h-6 text-emerald-400" />
                 </div>
                 <div className="flex-1">
-                  <div className="font-semibold text-emerald-400 mb-1">Secure & Private</div>
+                  <div className="font-semibold text-emerald-300 mb-1">Secure & Private</div>
                   <div className="text-sm text-slate-300">Read-Only Access • Encrypted Storage • Industry-Standard Security</div>
                 </div>
               </div>
+            </div>
             </div>
           </div>
           
@@ -414,7 +430,9 @@ export default function LoginForm({
           
           <div className="grid md:grid-cols-2 gap-6">
             {/* Left: Form */}
-            <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-8 space-y-6">
+            <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/50 via-slate-800/30 to-slate-800/20 border border-slate-700/50 rounded-2xl p-8 space-y-6 backdrop-blur-sm">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-cyan-500/5" />
+              <div className="relative">
               <div className="space-y-2">
                 <h2 className="text-2xl font-bold">Connect {currentExchange.config.icon} {currentExchange.config.displayName}</h2>
                 <p className="text-slate-400">Enter your read-only API credentials</p>
@@ -443,10 +461,10 @@ export default function LoginForm({
                       validateApiKey(e.target.value)
                     }}
                     placeholder={`Paste your ${currentExchange.config.displayName} API key`} 
-                    className={`w-full px-4 py-3 bg-slate-900 border rounded-lg focus:outline-none focus:ring-2 transition-all text-white placeholder-slate-500 pr-10 ${
-                      apiKeyValid === true ? 'border-emerald-500 focus:ring-emerald-500/30' :
-                      apiKeyValid === false ? 'border-red-500 focus:ring-red-500/30' :
-                      'border-slate-700 focus:ring-emerald-500/30'
+                    className={`w-full px-4 py-3 bg-slate-900/80 border rounded-xl focus:outline-none focus:ring-2 transition-all text-white placeholder-slate-500 pr-10 backdrop-blur-sm ${
+                      apiKeyValid === true ? 'border-emerald-500/50 focus:ring-emerald-500/30' :
+                      apiKeyValid === false ? 'border-red-500/50 focus:ring-red-500/30' :
+                      'border-slate-700/50 focus:ring-emerald-500/30'
                     }`}
                     disabled={status === 'connecting'} 
                   />
@@ -492,10 +510,10 @@ export default function LoginForm({
                       validateApiSecret(e.target.value)
                     }}
                     placeholder="Paste your API secret" 
-                    className={`w-full px-4 py-3 bg-slate-900 border rounded-lg focus:outline-none focus:ring-2 transition-all text-white placeholder-slate-500 pr-20 ${
-                      apiSecretValid === true ? 'border-emerald-500 focus:ring-emerald-500/30' :
-                      apiSecretValid === false ? 'border-red-500 focus:ring-red-500/30' :
-                      'border-slate-700 focus:ring-emerald-500/30'
+                    className={`w-full px-4 py-3 bg-slate-900/80 border rounded-xl focus:outline-none focus:ring-2 transition-all text-white placeholder-slate-500 pr-20 backdrop-blur-sm ${
+                      apiSecretValid === true ? 'border-emerald-500/50 focus:ring-emerald-500/30' :
+                      apiSecretValid === false ? 'border-red-500/50 focus:ring-red-500/30' :
+                      'border-slate-700/50 focus:ring-emerald-500/30'
                     }`}
                     disabled={status === 'connecting'} 
                   />
@@ -554,7 +572,7 @@ export default function LoginForm({
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting || status === 'connecting' || !apiKey || !apiSecret || apiKeyValid === false || apiSecretValid === false}
-                className="w-full px-6 py-4 bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-700 disabled:cursor-not-allowed rounded-lg font-semibold transition-all text-lg flex items-center justify-center gap-2 group"
+                className="w-full px-6 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed rounded-xl font-semibold transition-all text-lg flex items-center justify-center gap-2 group shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-105 disabled:hover:scale-100 disabled:shadow-none"
               >
                 {(isSubmitting || status === 'connecting') ? (
                   <>
@@ -568,12 +586,15 @@ export default function LoginForm({
                   </>
                 )}
               </button>
+              </div>
             </div>
             
             {/* Right: Preview & Instructions */}
             <div className="space-y-6">
               {/* What Happens Next */}
-              <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 space-y-4">
+              <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/50 via-slate-800/30 to-slate-800/20 border border-slate-700/50 rounded-2xl p-6 space-y-4 backdrop-blur-sm">
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-pink-500/5" />
+                <div className="relative">
                 <h3 className="font-bold text-lg flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-purple-400" />
                   Almost there! You'll see your first insight in 30 seconds
@@ -626,11 +647,12 @@ export default function LoginForm({
                 </div>
                 <button
                   onClick={() => setShowHelpModal(true)}
-                  className="w-full px-4 py-3 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 rounded-lg font-medium transition-all flex items-center justify-center gap-2 group"
+                  className="w-full px-4 py-3 bg-gradient-to-r from-blue-500/20 to-blue-500/10 hover:from-blue-500/30 hover:to-blue-500/20 border border-blue-500/30 hover:border-blue-500/50 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 group hover:scale-105"
                 >
                   <Play className="w-4 h-4 group-hover:scale-110 transition-transform" />
                   Watch Step-by-Step Guide
                 </button>
+                </div>
               </div>
             </div>
           </div>

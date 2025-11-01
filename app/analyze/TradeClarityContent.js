@@ -810,18 +810,44 @@ export default function TradeClarityContent() {
           // View combined analytics for all exchanges
           handleViewAnalytics()
         }}
-        onFilterExchanges={(exchanges) => {
+        onFilterExchanges={async (exchanges) => {
           // Re-fetch data with filtered exchanges
-          console.log('🔍 Filtering by exchanges:', exchanges)
-          // Build selected sources array from exchange names
-          const selectedSources = exchanges.map(exchangeName => {
-            // Find matching connection for this exchange
-            const connection = connections.find(conn => conn.exchange.toLowerCase() === exchangeName.toLowerCase())
-            return connection ? { type: 'exchange', id: connection.id, name: exchangeName } : null
-          }).filter(Boolean)
+          console.log('🔍 [onFilterExchanges] Filtering by exchanges:', exchanges)
 
-          console.log('📊 Mapped to sources:', selectedSources)
-          handleViewAnalytics(selectedSources)
+          try {
+            // Fetch the connection list to map exchange names to connection IDs
+            console.log('📡 [onFilterExchanges] Fetching connection list...')
+            const response = await fetch('/api/exchange/list')
+            const data = await response.json()
+            console.log('✅ [onFilterExchanges] Connection list fetched:', data)
+
+            if (data.success && data.connections) {
+              // Build selected sources array from exchange names
+              const selectedSources = exchanges.map(exchangeName => {
+                // Find matching connection for this exchange
+                const connection = data.connections.find(conn =>
+                  conn.exchange.toLowerCase() === exchangeName.toLowerCase()
+                )
+                console.log(`🔍 [onFilterExchanges] Mapping ${exchangeName} -> connection:`, connection)
+                return connection ? { type: 'exchange', id: connection.id, name: exchangeName } : null
+              }).filter(Boolean)
+
+              console.log('📊 [onFilterExchanges] Final selectedSources:', selectedSources)
+
+              if (selectedSources.length === 0) {
+                console.warn('⚠️ [onFilterExchanges] No valid sources found! Exchanges:', exchanges, 'Connections:', data.connections)
+                return
+              }
+
+              await handleViewAnalytics(selectedSources)
+            } else {
+              console.error('❌ [onFilterExchanges] Failed to fetch connections:', data)
+            }
+          } catch (error) {
+            console.error('❌ [onFilterExchanges] Error:', error)
+            setError('Failed to apply exchange filter')
+            setStatus('connected') // Keep the current view
+          }
         }}
         setCurrency={setCurrency}
       />
