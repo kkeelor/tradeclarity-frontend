@@ -45,12 +45,12 @@ export async function GET(request) {
         status: exchangeError.status,
         name: exchangeError.name
       });
-      return NextResponse.redirect(`${requestUrl.origin}/analyze?error=exchange_failed&details=${encodeURIComponent(exchangeError.message)}`);
+      return NextResponse.redirect(`${requestUrl.origin}/dashboard?error=exchange_failed&details=${encodeURIComponent(exchangeError.message)}`);
     }
 
     if (!data.session || !data.user) {
       console.error('❌ No session or user in response');
-      return NextResponse.redirect(`${requestUrl.origin}/analyze?error=no_session`);
+      return NextResponse.redirect(`${requestUrl.origin}/dashboard?error=no_session`);
     }
 
     console.log('✅ Session created!', {
@@ -102,12 +102,12 @@ export async function GET(request) {
         .eq('id', data.user.id);
     }
 
-    console.log('🟢 Redirecting to /analyze...');
-    return NextResponse.redirect(`${requestUrl.origin}/analyze`);
+    console.log('🟢 Redirecting to /dashboard...');
+    return NextResponse.redirect(`${requestUrl.origin}/dashboard`);
 
   } catch (err) {
     console.error('❌ Callback route exception:', err);
     console.error('❌ Error stack:', err.stack);
-    return NextResponse.redirect(`${requestUrl.origin}/analyze?error=callback_exception&details=${encodeURIComponent(err.message)}`);
+    return NextResponse.redirect(`${requestUrl.origin}/dashboard?error=callback_exception&details=${encodeURIComponent(err.message)}`);
   }
 }

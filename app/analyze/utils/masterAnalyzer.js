@@ -239,7 +239,7 @@ export const analyzeData = async (allData) => {
   const allTrades = [...normalizedSpotTrades, ...normalizedFuturesTrades]
     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
 
-  console.log('📊 Standardized trades created:', allTrades.length, `(${normalizedSpotTrades.length} spot, ${normalizedFuturesTrades.length} futures)`)
+  console.log('?? Standardized trades created:', allTrades.length, `(${normalizedSpotTrades.length} spot, ${normalizedFuturesTrades.length} futures)`)
 
   console.log('\n=== MASTER ANALYSIS COMPLETE ===')
   console.log('Total P&L:', totalPnL.toFixed(2), `(Spot: ${spotAnalysis.totalPnL.toFixed(2)}, Futures: ${futuresAnalysis.netPnL.toFixed(2)})`)
@@ -248,6 +248,45 @@ export const analyzeData = async (allData) => {
   console.log('Win Rate:', completedTrades > 0 ? (winningTrades / completedTrades * 100).toFixed(2) + '%' : '0%')
   console.log('Psychology Score:', psychology.disciplineScore)
   console.log('Behavioral Health Score:', behavioral.healthScore)
+
+  // Calculate spot unrealized P&L if holdings data is available
+  // Match spotHoldings (current market prices) with openPositions (from trade history)
+  let spotUnrealizedPnL = 0
+  if (metadata?.spotHoldings && Array.isArray(metadata.spotHoldings) && spotAnalysis.openPositions && spotAnalysis.openPositions.length > 0) {
+    spotUnrealizedPnL = metadata.spotHoldings.reduce((total, holding) => {
+      // Find matching open position from trade history
+      const openPosition = spotAnalysis.openPositions.find(pos => {
+        // Match symbol - handle different formats (BTCUSDT vs BTC/USDT vs BTC)
+        const holdingSymbol = holding.asset?.toUpperCase()
+        const posSymbol = pos.symbol?.toUpperCase()
+        // Try exact match first
+        if (holdingSymbol === posSymbol) return true
+        // Try removing USDT suffix
+        if (holdingSymbol === posSymbol.replace('USDT', '')) return true
+        // Try adding USDT suffix
+        if (posSymbol === holdingSymbol + 'USDT') return true
+        // Try removing /USDT format
+        if (holdingSymbol === posSymbol.replace('/USDT', '')) return true
+        return false
+      })
+      
+      if (openPosition && holding.price && holding.quantity) {
+        const currentPrice = parseFloat(holding.price)
+        const avgEntryPrice = parseFloat(openPosition.avgEntryPrice)
+        const quantity = parseFloat(holding.quantity)
+        
+        // Calculate unrealized P&L: (currentPrice - avgEntryPrice) * quantity
+        if (!isNaN(currentPrice) && !isNaN(avgEntryPrice) && !isNaN(quantity) && avgEntryPrice > 0) {
+          const unrealizedPnL = (currentPrice - avgEntryPrice) * quantity
+          return total + unrealizedPnL
+        }
+      }
+      
+      return total
+    }, 0)
+    
+    console.log('Spot Unrealized P&L:', spotUnrealizedPnL.toFixed(2), `(from ${spotAnalysis.openPositions.length} open positions)`)
+  }
 
   return {
     // Currency info
@@ -299,6 +338,8 @@ export const analyzeData = async (allData) => {
     spotWinRate: spotAnalysis.winRate,
     spotInvested: spotAnalysis.totalInvested,
     spotRoi: spotAnalysis.roi,
+    spotUnrealizedPnL, // Calculated from holdings vs trade history
+    spotOpenPositions: spotAnalysis.openPositions || [],
     
     // Futures-specific metrics
     futuresPnL: futuresAnalysis.netPnL,
@@ -315,6 +356,9 @@ export const analyzeData = async (allData) => {
     futuresFundingBySymbol: futuresAnalysis.fundingBySymbol,
     futuresCommissionBySymbol: futuresAnalysis.commissionBySymbol,
     futuresIncomeByType: futuresAnalysis.incomeByType,
+    
+    // Combined unrealized P&L
+    totalUnrealizedPnL: spotUnrealizedPnL + (futuresAnalysis.unrealizedPnL || 0),
     
     // Psychology analysis
     psychology,

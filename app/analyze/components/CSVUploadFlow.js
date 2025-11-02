@@ -316,6 +316,13 @@ export default function CSVUploadFlow({ onBack }) {
 
       const storeData = await storeResponse.json()
 
+      console.log('📊 Store Response:', {
+        success: storeData.success,
+        tradesCount: storeData.tradesCount || 0,
+        alreadyExisted: storeData.alreadyExisted || 0,
+        error: storeData.error
+      })
+
       if (!storeResponse.ok || !storeData.success) {
         const errorMsg = storeData.error || 'Failed to store trades'
         updateConfig(configId, {
@@ -411,11 +418,11 @@ export default function CSVUploadFlow({ onBack }) {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'ready': return 'bg-slate-700/50 border-slate-600'
-      case 'processing': return 'bg-blue-500/10 border-blue-500/30'
-      case 'success': return 'bg-emerald-500/10 border-emerald-500/30'
-      case 'error': return 'bg-red-500/10 border-red-500/30'
-      default: return 'bg-slate-700/50 border-slate-600'
+      case 'ready': return 'bg-gradient-to-br from-slate-800/50 to-slate-800/30 border-slate-700/50'
+      case 'processing': return 'bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border-blue-500/30'
+      case 'success': return 'bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-500/30'
+      case 'error': return 'bg-gradient-to-br from-red-500/10 via-red-500/5 to-transparent border-red-500/30'
+      default: return 'bg-gradient-to-br from-slate-800/50 to-slate-800/30 border-slate-700/50'
     }
   }
 
@@ -483,68 +490,96 @@ export default function CSVUploadFlow({ onBack }) {
         <main className="flex-1 overflow-y-auto px-6 py-6">
           <div className="max-w-4xl mx-auto space-y-6">
             {/* Info banner */}
-            <div className="bg-slate-800/30 border border-slate-700/30 rounded-xl p-4">
-              <p className="text-xs text-slate-400">
-                Upload CSV files from your exchanges to analyze your trading data. You can optionally link files to connected exchanges.
-              </p>
+            <div className="relative overflow-hidden bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border border-blue-500/30 rounded-2xl p-5 backdrop-blur-sm">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-cyan-500/5" />
+              <div className="absolute -top-12 -right-12 w-32 h-32 bg-blue-500/10 blur-2xl rounded-full opacity-50" />
+              <div className="relative flex items-start gap-3">
+                <div className="w-10 h-10 bg-blue-500/20 border border-blue-500/30 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <FileText className="w-5 h-5 text-blue-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Upload CSV files from your exchanges to analyze your trading data. You can optionally link files to connected exchanges.
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Upload Area */}
             <div
-              className={`border-2 border-dashed rounded-xl p-6 text-center transition-all ${
+              className={`relative overflow-hidden border-2 border-dashed rounded-2xl p-8 text-center transition-all backdrop-blur-sm ${
                 dragActive
-                  ? 'border-emerald-500 bg-emerald-500/10'
-                  : 'border-slate-600 hover:border-emerald-500'
+                  ? 'border-emerald-500 bg-gradient-to-br from-emerald-500/20 via-emerald-500/10 to-transparent'
+                  : 'border-slate-600 hover:border-emerald-500/50 bg-gradient-to-br from-slate-800/40 to-slate-800/20'
               }`}
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}
               onDragOver={handleDrag}
               onDrop={handleDrop}
             >
-              <Upload className="w-8 h-8 text-slate-500 mx-auto mb-2" />
-              <p className="text-sm text-slate-300 font-medium mb-1">
-                Drop CSV files here or click to browse
-              </p>
-              <p className="text-xs text-slate-500 mb-3">
-                Max 10MB per file • CSV format only
-              </p>
-              <input
-                type="file"
-                multiple
-                accept=".csv"
-                onChange={(e) => handleFileSelect(e.target.files)}
-                className="hidden"
-                id="file-upload"
-              />
-              <label
-                htmlFor="file-upload"
-                className="inline-block px-4 py-2 rounded-lg font-medium text-sm cursor-pointer transition-all bg-emerald-500 hover:bg-emerald-400 text-white"
-              >
-                Select Files
-              </label>
+              {dragActive && (
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/5" />
+              )}
+              <div className="relative">
+                <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center transition-all ${
+                  dragActive 
+                    ? 'bg-emerald-500/30 border border-emerald-500/50' 
+                    : 'bg-slate-700/30 border border-slate-600/50'
+                }`}>
+                  <Upload className={`w-8 h-8 transition-colors ${
+                    dragActive ? 'text-emerald-400' : 'text-slate-400'
+                  }`} />
+                </div>
+                <p className="text-sm text-slate-200 font-semibold mb-1">
+                  Drop CSV files here or click to browse
+                </p>
+                <p className="text-xs text-slate-400 mb-4">
+                  Max 10MB per file • CSV format only
+                </p>
+                <input
+                  type="file"
+                  multiple
+                  accept=".csv"
+                  onChange={(e) => handleFileSelect(e.target.files)}
+                  className="hidden"
+                  id="file-upload"
+                />
+                <label
+                  htmlFor="file-upload"
+                  className="inline-block px-5 py-2.5 rounded-xl font-semibold text-sm cursor-pointer transition-all bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-105"
+                >
+                  Select Files
+                </label>
+              </div>
             </div>
 
             {/* File Config Cards */}
             {fileConfigs.length > 0 && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-slate-300">
-                    Files to Upload ({fileConfigs.length})
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-slate-800/50 border border-slate-700/50 flex items-center justify-center">
+                      <Upload className="w-4 h-4 text-slate-400" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-slate-300">
+                      Files to Upload ({fileConfigs.length})
+                    </h3>
+                  </div>
                   {hasReadyFiles && (
                     <button
                       onClick={handleUploadAll}
-                      className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 rounded-lg text-sm font-medium transition-all"
+                      className="group px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 rounded-xl text-sm font-semibold transition-all shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-105 inline-flex items-center gap-2"
                     >
+                      <Upload className="w-4 h-4 group-hover:scale-110 transition-transform" />
                       Upload All
                     </button>
                   )}
                   {allProcessed && (
                     <button
                       onClick={onBack}
-                      className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium transition-all flex items-center gap-2"
+                      className="group px-5 py-2.5 bg-gradient-to-r from-slate-700/60 to-slate-700/40 hover:from-slate-700/80 hover:to-slate-700/60 border border-slate-600/50 hover:border-slate-600/70 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 hover:scale-105"
                     >
-                      <ArrowLeft className="w-4 h-4" />
+                      <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
                       Back to Dashboard
                     </button>
                   )}
@@ -566,8 +601,11 @@ export default function CSVUploadFlow({ onBack }) {
             {/* Uploaded Files Section */}
             {loadingUploaded ? (
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-slate-300">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-slate-800/50 border border-slate-700/50 flex items-center justify-center">
+                    <FileText className="w-4 h-4 text-slate-400" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-slate-300">
                     Previously Uploaded Files
                   </h3>
                 </div>
@@ -575,8 +613,11 @@ export default function CSVUploadFlow({ onBack }) {
               </div>
             ) : uploadedFiles.length > 0 && (
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-slate-300">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-slate-800/50 border border-slate-700/50 flex items-center justify-center">
+                    <FileText className="w-4 h-4 text-slate-400" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-slate-300">
                     Previously Uploaded Files ({uploadedFiles.length})
                   </h3>
                 </div>
@@ -607,7 +648,9 @@ function FileConfigCard({ config, connectedExchanges, onUpdate, onRemove, getSta
   const selectedExchange = connectedExchanges.find(e => e.id === config.exchangeConnectionId)
 
   return (
-    <div className={`border rounded-xl p-4 transition-all ${getStatusColor(config.status)}`}>
+    <div className={`relative overflow-hidden border rounded-2xl p-5 transition-all backdrop-blur-sm ${getStatusColor(config.status)}`}>
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-800/40 via-slate-800/20 to-slate-800/10" />
+      <div className="relative">
       {/* File name and remove button */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2">
@@ -632,34 +675,34 @@ function FileConfigCard({ config, connectedExchanges, onUpdate, onRemove, getSta
       </div>
 
       {config.status === 'ready' && (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {/* Warning for duplicate filename */}
           {config.warning && (
-            <div className="flex items-start gap-2 text-xs text-yellow-400 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-2">
-              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+            <div className="relative overflow-hidden flex items-start gap-2 text-xs text-yellow-300 bg-gradient-to-br from-yellow-500/10 via-yellow-500/5 to-transparent border border-yellow-500/30 rounded-xl p-3 backdrop-blur-sm">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
               <span>{config.warning}</span>
             </div>
           )}
 
           {/* Label input */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Label (optional)</label>
+            <label className="block text-xs font-medium text-slate-300 mb-2">Label (optional)</label>
             <input
               type="text"
               value={config.label}
               onChange={(e) => onUpdate({ label: e.target.value })}
               placeholder="Binance January 2024"
-              className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600 rounded-lg text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+              className="w-full px-4 py-2.5 bg-slate-800/60 border border-slate-600/50 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 transition-all"
             />
           </div>
 
           {/* Exchange selector */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Link to Exchange (optional)</label>
+            <label className="block text-xs font-medium text-slate-300 mb-2">Link to Exchange (optional)</label>
             <div className="relative">
               <button
                 onClick={() => setShowExchangeDropdown(!showExchangeDropdown)}
-                className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600 rounded-lg text-sm text-left flex items-center justify-between hover:border-slate-500 transition-colors"
+                className="w-full px-4 py-2.5 bg-slate-800/60 border border-slate-600/50 rounded-xl text-sm text-left flex items-center justify-between hover:border-emerald-500/50 hover:bg-slate-800/80 transition-all"
               >
                 {selectedExchange ? (
                   <span className="flex items-center gap-2">
@@ -700,11 +743,11 @@ function FileConfigCard({ config, connectedExchanges, onUpdate, onRemove, getSta
 
           {/* Account type dropdown */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Account Type</label>
+            <label className="block text-xs font-medium text-slate-300 mb-2">Account Type</label>
             <select
               value={config.accountType}
               onChange={(e) => onUpdate({ accountType: e.target.value })}
-              className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
+              className="w-full px-4 py-2.5 bg-slate-800/60 border border-slate-600/50 rounded-xl text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 transition-all"
             >
               <option value="BOTH">Both (SPOT & FUTURES)</option>
               <option value="SPOT">SPOT Only</option>
@@ -715,41 +758,54 @@ function FileConfigCard({ config, connectedExchanges, onUpdate, onRemove, getSta
       )}
 
       {config.status === 'processing' && (
-        <div className="flex items-center gap-3 py-2">
-          <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
-          <span className="text-sm text-slate-300">{config.progress}</span>
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border border-blue-500/30 p-4 backdrop-blur-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-500/20 border border-blue-500/30 rounded-xl flex items-center justify-center">
+              <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
+            </div>
+            <span className="text-sm font-medium text-slate-200">{config.progress}</span>
+          </div>
         </div>
       )}
 
       {config.status === 'success' && (
-        <div className="flex items-start gap-3 py-2">
-          <Check className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="text-sm text-emerald-300">{config.message}</p>
-            {config.tradesCount !== null && (
-              <p className="text-xs text-slate-400 mt-1">
-                {config.tradesCount} trades imported
-                {config.duplicatesCount > 0 && ` • ${config.duplicatesCount} duplicates skipped`}
-              </p>
-            )}
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/30 p-4 backdrop-blur-sm">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 bg-emerald-500/20 border border-emerald-500/30 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Check className="w-5 h-5 text-emerald-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-emerald-300">{config.message}</p>
+              {config.tradesCount !== null && (
+                <p className="text-xs text-slate-300 mt-1.5">
+                  {config.tradesCount} trades imported
+                  {config.duplicatesCount > 0 && ` • ${config.duplicatesCount} duplicates skipped`}
+                </p>
+              )}
+            </div>
           </div>
         </div>
       )}
 
       {config.status === 'error' && (
-        <div className="flex items-start gap-3 py-2">
-          <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="text-sm text-red-300">{config.message}</p>
-            <button
-              onClick={() => onUpdate({ status: 'ready', message: '' })}
-              className="text-xs text-red-400 hover:text-red-300 font-medium mt-1"
-            >
-              Try Again →
-            </button>
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-red-500/10 via-red-500/5 to-transparent border border-red-500/30 p-4 backdrop-blur-sm">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 bg-red-500/20 border border-red-500/30 rounded-xl flex items-center justify-center flex-shrink-0">
+              <AlertCircle className="w-5 h-5 text-red-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-red-300">{config.message}</p>
+              <button
+                onClick={() => onUpdate({ status: 'ready', message: '' })}
+                className="text-xs text-red-400 hover:text-red-300 font-semibold mt-2 inline-flex items-center gap-1 transition-colors"
+              >
+                Try Again <ChevronRight className="w-3 h-3" />
+              </button>
+            </div>
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }
@@ -842,7 +898,9 @@ function UploadedFileCard({ file, connectedExchanges, onRefresh }) {
   }
 
   return (
-    <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-4">
+    <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/50 to-slate-800/30 border border-slate-700/50 rounded-2xl p-5 backdrop-blur-sm hover:border-slate-600/50 transition-all">
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-800/20 via-transparent to-transparent" />
+      <div className="relative">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2">
@@ -918,12 +976,13 @@ function UploadedFileCard({ file, connectedExchanges, onRefresh }) {
         <div className="flex items-center gap-2">
           <button
             onClick={handleDeleteClick}
-            className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-700/50 rounded-lg transition-colors"
+            className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all border border-transparent hover:border-red-500/30"
             title="Delete file"
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <Trash2 className="w-4 h-4" />
           </button>
         </div>
+      </div>
       </div>
 
       {/* Delete confirmation dialog */}

@@ -79,12 +79,15 @@ export default function AuthScreen({ onAuthSuccess }) {
         </div>
 
         {/* Main Auth Card */}
-        <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-8 space-y-6">
+        <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/50 via-slate-800/30 to-slate-800/20 border border-slate-700/50 rounded-2xl p-8 space-y-6 backdrop-blur-sm">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-cyan-500/5" />
+          <div className="absolute -top-24 -right-24 w-64 h-64 bg-emerald-500/10 blur-3xl rounded-full opacity-50" />
+          <div className="relative">
           {/* Google OAuth Button */}
           <button
             onClick={handleGoogleAuth}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white hover:bg-gray-100 text-gray-900 rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white hover:bg-gray-100 text-gray-900 rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl hover:scale-105 disabled:hover:scale-100"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -182,7 +185,7 @@ export default function AuthScreen({ onAuthSuccess }) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full px-4 py-3 bg-emerald-500 hover:bg-emerald-400 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full px-4 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-105 disabled:hover:scale-100 disabled:shadow-none"
             >
               {loading ? (
                 <>
@@ -216,16 +219,18 @@ export default function AuthScreen({ onAuthSuccess }) {
           </div>
 
           {/* Security Badge */}
-          <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+          <div className="relative overflow-hidden bg-gradient-to-br from-slate-900/60 to-slate-900/40 border border-slate-700/50 rounded-xl p-4 backdrop-blur-sm">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-cyan-500/5" />
+            <div className="relative flex items-start gap-3">
+              <div className="w-10 h-10 bg-emerald-500/20 border border-emerald-500/30 rounded-xl flex items-center justify-center flex-shrink-0">
                 <Shield className="w-5 h-5 text-emerald-400" />
               </div>
               <div className="flex-1">
-                <div className="font-semibold text-emerald-400 mb-1">Your Data is Secure</div>
-                <div className="text-xs text-slate-400">Industry-standard encryption • Secure key storage • Complete data privacy</div>
+                <div className="font-semibold text-emerald-300 mb-1">Your Data is Secure</div>
+                <div className="text-xs text-slate-300">Industry-standard encryption • Secure key storage • Complete data privacy</div>
               </div>
             </div>
+          </div>
           </div>
         </div>
       </div>

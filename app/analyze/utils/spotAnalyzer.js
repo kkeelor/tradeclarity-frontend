@@ -226,6 +226,16 @@ export const analyzeSpotTrades = (spotTrades) => {
   console.log('Win Rate:', completedTrades > 0 ? (winningTrades / completedTrades * 100).toFixed(2) + '%' : '0%')
   console.log('ROI:', totalInvested > 0 ? (totalPnL / totalInvested * 100).toFixed(2) + '%' : 'N/A')
 
+  // Extract open positions (symbols with position > 0) for unrealized P&L calculation
+  const openPositions = Object.entries(symbolAnalytics)
+    .filter(([symbol, data]) => data.position > 0)
+    .map(([symbol, data]) => ({
+      symbol,
+      quantity: data.position,
+      avgEntryPrice: data.avgPrice,
+      costBasis: data.position * data.avgPrice
+    }))
+
   return {
     totalPnL,
     totalInvested, // Now represents max capital at risk
@@ -246,6 +256,7 @@ export const analyzeSpotTrades = (spotTrades) => {
     symbols: symbolAnalytics,
     tradesByDay,
     tradesByHour,
-    monthlyPnL
+    monthlyPnL,
+    openPositions // For calculating unrealized P&L with current market prices
   }
 }

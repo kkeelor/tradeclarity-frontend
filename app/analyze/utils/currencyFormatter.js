@@ -1,6 +1,8 @@
 // app/analyze/utils/currencyFormatter.js
 // Currency formatting utilities
 
+import { convertCurrencySync } from './currencyConverter'
+
 /**
  * Format currency value based on the primary currency
  * @param {number} value - The numeric value to format
@@ -35,7 +37,13 @@ export function formatCurrency(value, currency = 'USD', short = false) {
     'USDC': '$',
     'INR': '₹',
     'EUR': '€',
-    'GBP': '£'
+    'GBP': '£',
+    'JPY': '¥',
+    'AUD': 'A$',
+    'CAD': 'C$',
+    'CNY': '¥',
+    'SGD': 'S$',
+    'CHF': 'CHF '
   }
 
   const symbol = symbols[currency] || '$'
@@ -57,7 +65,13 @@ export function getCurrencySymbol(currency = 'USD') {
     'USDC': '$',
     'INR': '₹',
     'EUR': '€',
-    'GBP': '£'
+    'GBP': '£',
+    'JPY': '¥',
+    'AUD': 'A$',
+    'CAD': 'C$',
+    'CNY': '¥',
+    'SGD': 'S$',
+    'CHF': 'CHF '
   }
   return symbols[currency] || '$'
 }
@@ -162,24 +176,27 @@ export function parseSymbolBaseCurrency(symbol) {
  * Convert analytics values for display in selected currency
  * Backend returns everything in USD, this converts for display
  * @param {object} analytics - Analytics object with USD values
- * @param {string} targetCurrency - Target display currency (USD or INR)
+ * @param {string} targetCurrency - Target display currency (USD, INR, EUR, etc.)
  * @returns {object} Analytics with converted values
  */
 export function convertAnalyticsForDisplay(analytics, targetCurrency) {
-  if (!analytics || targetCurrency === 'USD') {
-    // No conversion needed if displaying in USD (backend default)
+  if (!analytics) {
     return analytics
+  }
+  
+  if (targetCurrency === 'USD') {
+    // No conversion needed if displaying in USD (backend default)
+    // But still return a shallow copy to ensure React detects changes
+    return { ...analytics }
   }
 
-  if (targetCurrency !== 'INR') {
-    // Only USD and INR are supported
-    return analytics
-  }
+  console.log(`💱 Converting analytics from USD to ${targetCurrency}`)
 
   // Helper to convert a value
   const convert = (value) => {
     if (value === null || value === undefined || isNaN(value)) return value
-    return convertUSDtoINR(value)
+    const converted = convertCurrencySync(value, 'USD', targetCurrency)
+    return converted
   }
 
   // Whitelist of fields that contain MONETARY VALUES (should be converted)
@@ -190,7 +207,7 @@ export function convertAnalyticsForDisplay(analytics, targetCurrency) {
     'avgWin', 'avgLoss', 'largestWin', 'largestLoss',
 
     // Spot-specific monetary values
-    'spotPnL', 'spotInvested',
+    'spotPnL', 'spotInvested', 'spotUnrealizedPnL',
 
     // Futures-specific monetary values
     'futuresPnL', 'futuresRealizedPnL', 'futuresUnrealizedPnL',
@@ -211,10 +228,10 @@ export function convertAnalyticsForDisplay(analytics, targetCurrency) {
 
     // Portfolio values
     'totalPortfolioValue', 'totalSpotValue', 'totalFuturesValue',
-    'usdValue', 'accountBalance',
+    'usdValue', 'accountBalance', 'totalUnrealizedPnL',
 
     // Holdings values
-    'price', 'marketValue'
+    'price', 'marketValue', 'costBasis'
   ])
 
   // Helper to check if a field name indicates a monetary value
@@ -242,6 +259,7 @@ export function convertAnalyticsForDisplay(analytics, targetCurrency) {
     if (!obj || typeof obj !== 'object') return obj
 
     const converted = Array.isArray(obj) ? [] : {}
+    let hasChanges = false
 
     for (const key in obj) {
       const value = obj[key]
@@ -249,14 +267,22 @@ export function convertAnalyticsForDisplay(analytics, targetCurrency) {
       if (typeof value === 'number') {
         // ONLY convert if this is a monetary field
         if (isMonetaryField(key)) {
-          converted[key] = convert(value)
+          const convertedValue = convert(value)
+          converted[key] = convertedValue
+          if (convertedValue !== value) {
+            hasChanges = true
+          }
         } else {
           // Keep percentages, counts, ratios, scores unchanged
           converted[key] = value
         }
       } else if (typeof value === 'object' && value !== null) {
         // Recursively convert nested objects
-        converted[key] = convertObject(value, key)
+        const nestedConverted = convertObject(value, key)
+        converted[key] = nestedConverted
+        if (nestedConverted !== value) {
+          hasChanges = true
+        }
       } else {
         // Keep other values as-is
         converted[key] = value
@@ -266,6 +292,16 @@ export function convertAnalyticsForDisplay(analytics, targetCurrency) {
     return converted
   }
 
-  // Convert the entire analytics object
-  return convertObject(analytics)
+  // Convert the entire analytics object - always return a new object even if no changes
+  const result = convertObject(analytics)
+  
+  // Debug: Log some sample conversions
+  if (result.totalPnL !== undefined && analytics.totalPnL !== undefined) {
+    console.log(`✅ Conversion complete. Sample: totalPnL ${analytics.totalPnL} USD → ${result.totalPnL} ${targetCurrency}`)
+    if (result.totalPnL === analytics.totalPnL && targetCurrency !== 'USD') {
+      console.warn(`⚠️ Warning: totalPnL not converted! (${result.totalPnL} === ${analytics.totalPnL})`)
+    }
+  }
+  
+  return result
 }

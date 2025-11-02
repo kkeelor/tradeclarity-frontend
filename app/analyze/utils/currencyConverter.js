@@ -5,12 +5,72 @@
  * Works with both API-fetched data and CSV uploads
  */
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000'
+// Use Next.js API route instead of external backend
+// This allows the frontend to fetch rates without requiring a separate backend server
+const API_ROUTE = '/api/currency-rate'
 
 // Cache for exchange rates (client-side)
 let ratesCache = null
 let cacheTimestamp = null
-const CACHE_DURATION = 60 * 60 * 1000 // 1 hour in milliseconds
+// Cache duration: 15 minutes (in milliseconds)
+// Matches backend cache duration to ensure consistency
+// Provides reasonable freshness while preventing excessive API calls
+const CACHE_DURATION = 15 * 60 * 1000 // 15 minutes
+
+/**
+ * Get cached rates synchronously (returns fallback if cache not ready)
+ * @returns {Object} Rates object
+ */
+export function getCachedRatesSync() {
+  if (ratesCache) {
+    console.log('💱 Using cached rates for conversion:', Object.keys(ratesCache).length, 'currencies')
+    return ratesCache
+  }
+  // Return fallback rates if cache not ready
+  console.log('💱 Using fallback rates for conversion (cache not ready)')
+  const fallbackRates = {
+    'USD': 1.0,
+    'INR': 87.0,
+    'EUR': 0.92,
+    'GBP': 0.79,
+    'JPY': 149.5,
+    'AUD': 1.52,
+    'CAD': 1.36,
+    'CNY': 7.24,
+    'SGD': 1.34,
+    'CHF': 0.88
+  }
+  return fallbackRates
+}
+
+/**
+ * Convert amount from one currency to another (synchronous version using cache)
+ * @param {number} amount - Amount to convert
+ * @param {string} from - Source currency code (e.g., 'USD')
+ * @param {string} to - Target currency code (e.g., 'INR')
+ * @returns {number} Converted amount
+ */
+export function convertCurrencySync(amount, from, to) {
+  // No conversion needed if currencies are the same
+  if (from === to) {
+    return amount
+  }
+
+  // Get cached rates (or fallback)
+  const rates = getCachedRatesSync()
+
+  // All rates are relative to USD (base currency)
+  const fromRate = rates[from] || 1.0
+  const toRate = rates[to] || 1.0
+
+  // Convert: amount in FROM → USD → TO
+  const usdAmount = amount / fromRate
+  const convertedAmount = usdAmount * toRate
+
+  console.log(`💱 Converting ${amount} ${from} → ${convertedAmount.toFixed(2)} ${to} (rate: ${fromRate} → ${toRate})`)
+
+  return convertedAmount
+}
 
 /**
  * Fetch currency rates from backend
@@ -26,8 +86,8 @@ export async function getCurrencyRates() {
   }
 
   try {
-    console.log('💱 Fetching fresh exchange rates from backend...')
-    const response = await fetch(`${BACKEND_URL}/api/currency-rate`)
+    console.log('💱 Fetching fresh exchange rates from API...')
+    const response = await fetch(API_ROUTE)
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`)
@@ -52,7 +112,13 @@ export async function getCurrencyRates() {
       'USD': 1.0,
       'INR': 87.0,
       'EUR': 0.92,
-      'GBP': 0.79
+      'GBP': 0.79,
+      'JPY': 149.5,
+      'AUD': 1.52,
+      'CAD': 1.36,
+      'CNY': 7.24,
+      'SGD': 1.34,
+      'CHF': 0.88
     }
   }
 }
@@ -289,6 +355,33 @@ export async function autoConvertToUSD(tradeData) {
     futuresPositions: convertedFuturesPositions,
     futuresTrades: data.futuresTrades || [], // Pass through if exists
     metadata: convertedMetadata
+  }
+}
+
+/**
+ * Get cache status (useful for debugging and monitoring)
+ * @returns {Object} Cache status with age and validity info
+ */
+export function getRatesCacheStatus() {
+  if (!ratesCache || !cacheTimestamp) {
+    return {
+      cached: false,
+      message: 'No rates cached'
+    }
+  }
+
+  const now = Date.now()
+  const age = now - cacheTimestamp
+  const remainingMs = CACHE_DURATION - age
+  const remainingMinutes = Math.floor(remainingMs / 1000 / 60)
+  const ageMinutes = Math.floor(age / 1000 / 60)
+
+  return {
+    cached: true,
+    ageMinutes,
+    remainingMinutes: Math.max(0, remainingMinutes),
+    valid: age < CACHE_DURATION,
+    expiresAt: new Date(cacheTimestamp + CACHE_DURATION).toISOString()
   }
 }
 

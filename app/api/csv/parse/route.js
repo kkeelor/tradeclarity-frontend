@@ -242,6 +242,10 @@ function parseBinanceFutures(lines) {
 
     const futuresIncome = []
 
+    console.log('📋 Parsing Binance Futures CSV:')
+    console.log('   Headers:', header)
+    console.log('   Total rows:', lines.length - 1)
+
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i].trim()
       if (!line) continue
@@ -275,6 +279,28 @@ function parseBinanceFutures(lines) {
         tranId: `csv_${timestamp}_${Math.random()}`,
         id: `csv_${timestamp}_${Math.random()}`
       })
+    }
+
+    console.log(`✅ Parsed ${futuresIncome.length} futures income records`)
+    if (futuresIncome.length > 0) {
+      const sampleIncome = futuresIncome.slice(0, 5)
+      console.log('📊 Sample parsed income (first 5):', sampleIncome.map(inc => ({
+        symbol: inc.symbol,
+        income: inc.income,
+        incomeType: inc.incomeType,
+        asset: inc.asset
+      })))
+      const incomeValues = futuresIncome.map(inc => parseFloat(inc.income))
+      const nonZeroCount = incomeValues.filter(v => Math.abs(v) > 0.0001).length
+      console.log(`📊 Income values: ${nonZeroCount} non-zero out of ${futuresIncome.length} total`)
+      if (nonZeroCount > 0) {
+        const nonZeroIncomes = incomeValues.filter(v => Math.abs(v) > 0.0001)
+        console.log('📊 Income range:', {
+          min: Math.min(...nonZeroIncomes),
+          max: Math.max(...nonZeroIncomes),
+          avg: nonZeroIncomes.reduce((a, b) => a + b, 0) / nonZeroIncomes.length
+        })
+      }
     }
 
     return {
@@ -478,7 +504,35 @@ function parseWithAIMapping(lines, mapping, accountType) {
       if (isFutures) {
         // Parse as futures/income
         const realizedPnl = getValue('realizedPnl')
-        const income = realizedPnl ? parseFloat(realizedPnl) : (price * quantity)
+        const incomeRaw = realizedPnl || getValue('income') || getValue('pnl')
+        
+        // For futures, income should come from realizedPnl/income column, NOT price * quantity
+        let income = 0
+        if (incomeRaw) {
+          income = parseFloat(incomeRaw)
+          if (isNaN(income)) {
+            console.warn(`⚠️ Row ${i}: Invalid income value "${incomeRaw}" for symbol ${symbol}, skipping`)
+            skippedRows++
+            continue
+          }
+        } else {
+          // If no income column found, this is a problem - don't fall back to price*quantity
+          console.warn(`⚠️ Row ${i}: No income/realizedPnl column found for futures trade ${symbol}, skipping`)
+          skippedRows++
+          continue
+        }
+
+        if (i <= 3) {
+          console.log(`📊 AI Futures Row ${i}:`, {
+            symbol,
+            realizedPnl,
+            incomeRaw,
+            income,
+            price,
+            quantity,
+            mapping: mapping.mapping || mapping
+          })
+        }
 
         futuresIncome.push({
           symbol: symbol,
@@ -515,6 +569,20 @@ function parseWithAIMapping(lines, mapping, accountType) {
     console.log('   - Skipped rows:', skippedRows)
     console.log('   - Spot trades:', spotTrades.length)
     console.log('   - Futures income:', futuresIncome.length)
+    
+    if (futuresIncome.length > 0) {
+      const incomeValues = futuresIncome.map(inc => parseFloat(inc.income))
+      const nonZeroCount = incomeValues.filter(v => Math.abs(v) > 0.0001).length
+      console.log(`   - Futures income: ${nonZeroCount} non-zero out of ${futuresIncome.length} total`)
+      if (nonZeroCount > 0) {
+        const nonZeroIncomes = incomeValues.filter(v => Math.abs(v) > 0.0001)
+        console.log('   - Income range:', {
+          min: Math.min(...nonZeroIncomes),
+          max: Math.max(...nonZeroIncomes),
+          avg: nonZeroIncomes.reduce((a, b) => a + b, 0) / nonZeroIncomes.length
+        })
+      }
+    }
 
     return {
       success: true,

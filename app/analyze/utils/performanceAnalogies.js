@@ -294,6 +294,114 @@ export function getMostCriticalInsight(analytics, psychology) {
 }
 
 // ============================================
+// GET ALL INSIGHTS (for rotation)
+// ============================================
+
+export function getAllInsights(analytics, psychology) {
+  const insights = []
+
+  // High-impact negative insights (weaknesses)
+  if (psychology?.weaknesses) {
+    psychology.weaknesses.forEach(weakness => {
+      if (weakness.severity === 'high' || weakness.impact >= 3) {
+        insights.push({
+          type: 'weakness',
+          title: weakness.title || 'Trading Weakness Detected',
+          message: weakness.message,
+          impact: weakness.impact || 3,
+          actionable: weakness.actionable || true
+        })
+      }
+    })
+  }
+
+  // Win rate insights
+  if (analytics.winRate < 45) {
+    insights.push({
+      type: 'weakness',
+      title: 'Low Win Rate Alert',
+      message: `Your ${analytics.winRate.toFixed(1)}% win rate is below optimal. Focus on entry timing and risk management.`,
+      impact: 3,
+      actionable: true
+    })
+  } else if (analytics.winRate >= 60) {
+    insights.push({
+      type: 'strength',
+      title: 'Excellent Win Rate',
+      message: `${analytics.winRate.toFixed(1)}% win rate - You are outperforming most traders!`,
+      impact: 2,
+      actionable: false
+    })
+  }
+
+  // Profit Factor insights
+  if (analytics.profitFactor < 1) {
+    insights.push({
+      type: 'weakness',
+      title: 'Negative Profit Factor',
+      message: `You are losing more than you make. Review your strategy immediately.`,
+      impact: 4,
+      actionable: true
+    })
+  } else if (analytics.profitFactor >= 2) {
+    insights.push({
+      type: 'strength',
+      title: 'Strong Profit Factor',
+      message: `${analytics.profitFactor.toFixed(2)}x profit factor - Your strategy is working!`,
+      impact: 2,
+      actionable: false
+    })
+  }
+
+  // Loss management
+  if (analytics.avgLoss && analytics.avgWin) {
+    const lossToWinRatio = Math.abs(analytics.avgLoss) / analytics.avgWin
+    if (lossToWinRatio > 2) {
+      insights.push({
+        type: 'weakness',
+        title: 'Cut Losses Faster',
+        message: 'Your average loss is 2x your average win. You need tighter stop losses.',
+        impact: 3,
+        actionable: true
+      })
+    }
+  }
+
+  // Additional positive insights
+  if (analytics.winRate >= 50 && analytics.winRate < 60) {
+    insights.push({
+      type: 'strength',
+      title: 'Solid Win Rate',
+      message: `${analytics.winRate.toFixed(1)}% win rate - You're on the right track!`,
+      impact: 1,
+      actionable: false
+    })
+  }
+
+  // Total P&L insights
+  if (analytics.totalPnL > 0) {
+    const absPnL = Math.abs(analytics.totalPnL)
+    if (absPnL > 1000) {
+      insights.push({
+        type: 'strength',
+        title: 'Strong Overall Performance',
+        message: `Total P&L of $${absPnL.toFixed(0)} shows consistent profitability.`,
+        impact: 2,
+        actionable: false
+      })
+    }
+  }
+
+  // Sort by impact (highest first), then by type (weaknesses first)
+  const sorted = insights.sort((a, b) => {
+    if (b.impact !== a.impact) return b.impact - a.impact
+    return a.type === 'weakness' ? -1 : 1
+  })
+
+  return sorted.length > 0 ? sorted : null
+}
+
+// ============================================
 // MAIN ANALOGY GENERATOR
 // ============================================
 
