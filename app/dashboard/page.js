@@ -1,14 +1,14 @@
-// app/analyze/page.js
+// app/dashboard/page.js
 'use client'
 
 import { Suspense } from 'react'
-import AnalyticsContent from './AnalyticsContent'
+import DashboardContent from './DashboardContent'
 import { FullPageSkeleton } from '../components/LoadingSkeletons'
 
-export default function AnalyticsPage() {
+export default function DashboardPage() {
   return (
     <Suspense fallback={<FullPageSkeleton />}>
-      <AnalyticsContent />
+      <DashboardContent />
     </Suspense>
   )
 }

@@ -84,7 +84,13 @@ export default function Header({
 
           {isDemoMode && (
             <button
-              onClick={() => window.location.href = '/analyze'}
+              onClick={() => {
+                if (onNavigateDashboard) {
+                  onNavigateDashboard()
+                } else {
+                  window.location.href = '/dashboard'
+                }
+              }}
               className="hidden items-center gap-2 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 px-4 py-2 text-xs font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:from-emerald-300 hover:to-cyan-300 md:inline-flex"
             >
               Discover yours

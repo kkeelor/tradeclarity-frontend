@@ -2,6 +2,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   DollarSign, TrendingUp, Target, Activity, Award, Brain,
   CheckCircle, AlertTriangle, Lightbulb, Clock, Calendar,
@@ -17,6 +18,7 @@ import { analyzeTimeBasedPerformance } from '../utils/timeBasedAnalysis'
 import { analyzeSymbols } from '../utils/symbolAnalysis'
 import { convertAnalyticsForDisplay } from '../utils/currencyFormatter'
 import { generateValueFirstInsights } from '../utils/insights/valueFirstInsights'
+import { prioritizeInsights, enhanceInsightForDisplay } from '../utils/insights/insightsPrioritizationEngine'
 import AhaMomentsSection from './AhaMomentsSection'
 import { ExchangeIcon } from '@/components/ui'
 import {
@@ -1547,6 +1549,7 @@ function OverviewTab({ analytics, currSymbol, currency, metadata, setActiveTab }
   const [selectedInsight, setSelectedInsight] = useState(null)
   const [showCharts, setShowCharts] = useState(false)
   const [showSymbols, setShowSymbols] = useState(false)
+  const [showAllInsights, setShowAllInsights] = useState(false)
   const psychology = analytics.psychology || {}
 
   // Generate value-first insights with money calculations
@@ -1555,7 +1558,7 @@ function OverviewTab({ analytics, currSymbol, currency, metadata, setActiveTab }
     valueFirstInsights = generateValueFirstInsights(analytics, psychology, analytics.allTrades || [])
   } catch (error) {
     console.error('Error generating value-first insights:', error)
-    valueFirstInsights = { critical: [], opportunities: [], behavioral: [], all: [] }
+    valueFirstInsights = { critical: [], opportunities: [], behavioral: [], all: [], allScored: [] }
   }
   
   // Keep legacy insights for backward compatibility
@@ -1567,6 +1570,514 @@ function OverviewTab({ analytics, currSymbol, currency, metadata, setActiveTab }
   const drawdownAnalysis = analyzeDrawdowns(analytics.allTrades || [])
   const timeAnalysis = analyzeTimeBasedPerformance(analytics.allTrades || [])
   const symbolAnalysis = analyzeSymbols(analytics.allTrades || [])
+
+  // Collect ALL insights from various sources
+  const allAvailableInsights = []
+  
+  // 1. Value-first insights (already prioritized)
+  if (valueFirstInsights?.allScored) {
+    allAvailableInsights.push(...valueFirstInsights.allScored.map(insight => ({
+      ...insight,
+      source: 'value-first'
+    })))
+  } else if (valueFirstInsights?.all) {
+    allAvailableInsights.push(...valueFirstInsights.all.map(insight => ({
+      ...insight,
+      source: 'value-first'
+    })))
+  }
+
+  // 2. Enhanced insights
+  if (insights && insights.length > 0) {
+    allAvailableInsights.push(...insights.map(insight => ({
+      ...insight,
+      source: 'enhanced',
+      potentialSavings: insight.potentialSavings || 0,
+      impact: insight.impact || 2
+    })))
+  }
+
+  // 3. Drawdown insights - Generate insights from ALL drawdowns, not just worst
+  if (drawdownAnalysis?.worstDrawdowns && drawdownAnalysis.worstDrawdowns.length > 0) {
+    // Generate insights for top 5 worst drawdowns
+    drawdownAnalysis.worstDrawdowns.slice(0, 5).forEach((worst, idx) => {
+      if (worst.drawdownPercent < -5) {
+        allAvailableInsights.push({
+          type: 'weakness',
+          category: 'risk_management',
+          title: idx === 0 
+            ? `Worst Drawdown: ${Math.abs(worst.drawdownPercent).toFixed(1)}%`
+            : `Drawdown #${idx + 1}: ${Math.abs(worst.drawdownPercent).toFixed(1)}%`,
+          message: `Lost ${currSymbol}${Math.abs(worst.drawdownAmount).toFixed(0)} over ${worst.durationDays} days`,
+          summary: worst.recovered 
+            ? `Recovered in ${worst.recoveryDays} days` 
+            : 'Still in drawdown',
+          potentialSavings: Math.abs(worst.drawdownAmount) * 0.2, // Potential to avoid 20%
+          impact: worst.drawdownPercent < -20 ? 4 : worst.drawdownPercent < -10 ? 3 : 2,
+          source: 'drawdown',
+          actionDifficulty: worst.drawdownPercent < -20 ? 'medium' : 'easy',
+          dataPoints: worst.durationDays,
+          affectedTrades: worst.durationDays,
+          action: {
+            title: 'Reduce Position Size After Losses',
+            steps: [
+              'Cut position size by 50% after 3 consecutive losses',
+              'Wait for recovery before resuming normal size',
+              'Use smaller size during drawdown periods'
+            ],
+            expectedImpact: `Could reduce future drawdowns by ${Math.abs(worst.drawdownPercent * 0.3).toFixed(0)}%`
+          }
+        })
+      }
+    })
+
+    // Drawdown patterns
+    if (drawdownAnalysis.patterns && drawdownAnalysis.patterns.length > 0) {
+      drawdownAnalysis.patterns.forEach(pattern => {
+        allAvailableInsights.push({
+          type: 'weakness',
+          category: 'risk_management',
+          title: pattern.title,
+          message: pattern.message,
+          summary: pattern.recommendation,
+          impact: pattern.severity === 'high' ? 3 : pattern.severity === 'medium' ? 2 : 1,
+          source: 'drawdown-pattern',
+          actionDifficulty: pattern.severity === 'high' ? 'medium' : 'easy',
+          action: {
+            title: 'Improve Risk Management',
+            steps: pattern.recommendation ? [pattern.recommendation] : []
+          }
+        })
+      })
+    }
+
+    // Drawdown stats insights
+    if (drawdownAnalysis.stats) {
+      const stats = drawdownAnalysis.stats
+      if (stats.averageRecoveryTime > 0 && stats.averageRecoveryTime > stats.averageDrawdown * 2) {
+        allAvailableInsights.push({
+          type: 'weakness',
+          category: 'risk_management',
+          title: 'Slow Recovery Pattern',
+          message: `Your average recovery time (${stats.averageRecoveryTime.toFixed(0)} days) is ${(stats.averageRecoveryTime / stats.averageDrawdown).toFixed(1)}x longer than your average drawdown period`,
+          summary: 'Focus on preventing deep drawdowns rather than recovering from them',
+          potentialSavings: analytics.totalPnL < 0 ? Math.abs(analytics.totalPnL) * 0.1 : 0,
+          impact: 3,
+          source: 'drawdown-stats',
+          actionDifficulty: 'medium',
+          action: {
+            title: 'Prevent Deep Drawdowns',
+            steps: [
+              'Set maximum daily loss limit',
+              'Reduce position size after losses',
+              'Take breaks after drawdowns'
+            ]
+          }
+        })
+      }
+    }
+  }
+
+  // 4. Time-based insights - Generate MORE insights from time analysis
+  if (timeAnalysis?.insights && timeAnalysis.insights.length > 0) {
+    timeAnalysis.insights.forEach(insight => {
+      allAvailableInsights.push({
+        ...insight,
+        source: 'timing',
+        potentialSavings: insight.value ? Math.abs(insight.value) * 0.3 : 0,
+        impact: insight.severity === 'high' ? 3 : 2,
+        actionDifficulty: 'medium',
+        dataPoints: insight.trades || 0
+      })
+    })
+  }
+
+  // Additional time-based insights from bestWorstTimes
+  if (timeAnalysis?.bestWorstTimes) {
+    const { bestHour, worstHour, bestDay, worstDay } = timeAnalysis.bestWorstTimes
+    
+    if (bestHour && bestHour.trades >= 5) {
+      const potentialSavings = bestHour.totalPnL > 0 ? bestHour.totalPnL * 0.3 : 0
+      allAvailableInsights.push({
+        type: 'opportunity',
+        category: 'timing',
+        title: `Best Hour: ${bestHour.label}`,
+        message: `${bestHour.winRate.toFixed(0)}% win rate, ${currSymbol}${bestHour.avgPnL.toFixed(2)} avg per trade`,
+        summary: `Trade more during ${bestHour.label} for better results`,
+        potentialSavings: potentialSavings,
+        impact: bestHour.winRate > 60 ? 3 : 2,
+        source: 'timing-analysis',
+        actionDifficulty: 'easy',
+        dataPoints: bestHour.trades,
+        action: {
+          title: 'Optimize Trading Schedule',
+          steps: [
+            `Set trading alerts for ${bestHour.label}`,
+            'Focus trading activity during these hours',
+            'Avoid trading during worst performing hours'
+          ]
+        }
+      })
+    }
+
+    if (worstHour && worstHour.trades >= 5 && worstHour.totalPnL < 0) {
+      const potentialSavings = Math.abs(worstHour.totalPnL) * 0.5
+      allAvailableInsights.push({
+        type: 'weakness',
+        category: 'timing',
+        title: `Avoid ${worstHour.label}`,
+        message: `Only ${worstHour.winRate.toFixed(0)}% win rate, losing ${currSymbol}${Math.abs(worstHour.avgPnL).toFixed(2)} per trade`,
+        summary: `Consider avoiding trading during ${worstHour.label}`,
+        potentialSavings: potentialSavings,
+        impact: worstHour.winRate < 40 ? 3 : 2,
+        source: 'timing-analysis',
+        actionDifficulty: 'easy',
+        dataPoints: worstHour.trades,
+        action: {
+          title: 'Avoid Worst Hours',
+          steps: [
+            `Stop trading during ${worstHour.label}`,
+            'Focus on your best performing hours',
+            'Review why this hour performs poorly'
+          ]
+        }
+      })
+    }
+
+    if (bestDay && bestDay.trades >= 5) {
+      const potentialSavings = bestDay.totalPnL > 0 ? bestDay.totalPnL * 0.3 : 0
+      allAvailableInsights.push({
+        type: 'opportunity',
+        category: 'timing',
+        title: `Best Day: ${bestDay.dayName}`,
+        message: `${bestDay.winRate.toFixed(0)}% win rate on ${bestDay.dayName}s`,
+        summary: `Your strongest trading day of the week`,
+        potentialSavings: potentialSavings,
+        impact: bestDay.winRate > 60 ? 2 : 1,
+        source: 'timing-analysis',
+        actionDifficulty: 'medium',
+        dataPoints: bestDay.trades,
+        action: {
+          title: 'Leverage Best Day',
+          steps: [
+            `Plan more trades on ${bestDay.dayName}s`,
+            'Review what makes this day successful',
+            'Apply similar strategies to other days'
+          ]
+        }
+      })
+    }
+  }
+
+  // 5. Symbol insights - Generate insights for ALL symbols, not just top
+  // Only include if symbol has sufficient sample size and meaningful performance edge
+  if (symbolAnalysis?.recommendations && symbolAnalysis.recommendations.length > 0) {
+    symbolAnalysis.recommendations.forEach(rec => {
+      if (rec.type === 'focus' && rec.symbols.length > 0) {
+        const bestSymbol = rec.details?.[0]
+        
+        // Stricter validation: require at least 15 trades and meaningful performance
+        // Don't suggest focusing on symbols with low sample size or marginal performance
+        if (!bestSymbol || bestSymbol.trades < 15 || bestSymbol.winRate < 50) {
+          return // Skip this recommendation
+        }
+        
+        allAvailableInsights.push({
+          type: 'opportunity',
+          category: 'opportunity',
+          title: `Focus on ${rec.symbols[0]}`,
+          message: rec.message,
+          summary: bestSymbol ? `${rec.symbols[0]} has ${bestSymbol.winRate?.toFixed(0)}% win rate and ${currSymbol}${bestSymbol.totalPnL?.toFixed(0)} total P&L` : rec.message,
+          potentialSavings: bestSymbol?.totalPnL ? bestSymbol.totalPnL * 0.3 : 0,
+          impact: 3,
+          source: 'symbol',
+          actionDifficulty: 'medium',
+          dataPoints: bestSymbol?.trades || 0,
+          bestSymbol: rec.symbols[0],
+          action: {
+            title: 'Increase Focus',
+            steps: [
+              `Allocate 60-70% of capital to ${rec.symbols[0]}`,
+              'Study what makes this symbol work',
+              'Reduce exposure to underperforming symbols'
+            ],
+            expectedImpact: `Could increase returns by 30-40%`
+          }
+        })
+      } else if (rec.type === 'avoid' && rec.symbols.length > 0) {
+        allAvailableInsights.push({
+          type: 'weakness',
+          category: 'opportunity',
+          title: `Avoid ${rec.symbols.join(', ')}`,
+          message: rec.message,
+          summary: `These symbols consistently lose money`,
+          potentialSavings: rec.details?.reduce((sum, s) => sum + Math.abs(s.totalPnL || 0), 0) || 0,
+          impact: rec.severity === 'high' ? 3 : 2,
+          source: 'symbol',
+          actionDifficulty: 'easy',
+          dataPoints: rec.details?.reduce((sum, s) => sum + (s.trades || 0), 0) || 0,
+          action: {
+            title: 'Stop Trading These Symbols',
+            steps: [
+              `Remove ${rec.symbols.join(', ')} from your watchlist`,
+              'Focus on profitable symbols only',
+              'Re-enter only after analyzing why they failed'
+            ]
+          }
+        })
+      }
+    })
+  }
+
+  // Additional symbol insights from rankings
+  if (symbolAnalysis?.rankings && symbolAnalysis.rankings.length > 0) {
+    // Top 3 performing symbols
+    symbolAnalysis.rankings.slice(0, 3).forEach((symbol, idx) => {
+      if (symbol.trades >= 5 && symbol.totalPnL > 0) {
+        allAvailableInsights.push({
+          type: 'strength',
+          category: 'opportunity',
+          title: `#${idx + 1} Symbol: ${symbol.symbol}`,
+          message: `${symbol.winRate.toFixed(0)}% win rate, ${currSymbol}${symbol.totalPnL.toFixed(0)} total P&L`,
+          summary: `${symbol.trades} trades with ${symbol.profitFactor.toFixed(2)}x profit factor`,
+          potentialSavings: 0, // Strength, not a savings opportunity
+          impact: idx === 0 ? 2 : 1,
+          source: 'symbol-ranking',
+          actionDifficulty: 'hard',
+          dataPoints: symbol.trades,
+          action: {
+            title: 'Leverage Success',
+            steps: [
+              `Study ${symbol.symbol} trading patterns`,
+              'Replicate successful strategies',
+              'Consider increasing position size'
+            ]
+          }
+        })
+      }
+    })
+  }
+
+  // 6. Pattern insights - Enhanced with more details
+  if (patterns && patterns.length > 0) {
+    patterns.forEach(pattern => {
+      allAvailableInsights.push({
+        type: 'weakness',
+        category: 'behavioral',
+        title: pattern.title,
+        message: pattern.description,
+        summary: pattern.description,
+        impact: pattern.severity === 'high' ? 3 : pattern.severity === 'medium' ? 2 : 1,
+        source: 'pattern',
+        actionDifficulty: pattern.severity === 'high' ? 'medium' : 'easy',
+        dataPoints: pattern.affectedTrades || 0,
+        action: {
+          title: 'Address Pattern',
+          steps: ['Review your trading journal', 'Identify trigger conditions', 'Implement counter-strategy']
+        }
+      })
+    })
+  }
+
+  // 7. Performance insights (from analogies) - Generate MORE insights
+  if (analogies && Object.keys(analogies).length > 0) {
+    if (analogies.hourlyRate && analogies.hourlyRate.rate) {
+      const hourlyRate = analogies.hourlyRate.rate
+      if (hourlyRate > 0) {
+        allAvailableInsights.push({
+          type: 'strength',
+          category: 'performance',
+          title: 'Strong Hourly Rate',
+          message: `You're making ${currSymbol}${Math.abs(hourlyRate).toFixed(2)}/hour trading`,
+          summary: `Based on ${analogies.hourlyRate.totalHours} hours of trading`,
+          potentialSavings: 0,
+          impact: hourlyRate > 50 ? 2 : 1,
+          source: 'analogy',
+          actionDifficulty: 'hard',
+          dataPoints: analytics.totalTrades || 0,
+          action: {
+            title: 'Scale Up',
+            steps: [
+              'Consider increasing position sizes',
+              'Document your successful strategy',
+              'Maintain current approach'
+            ]
+          }
+        })
+      } else if (hourlyRate < -10) {
+        allAvailableInsights.push({
+          type: 'weakness',
+          category: 'performance',
+          title: 'Negative Hourly Rate',
+          message: `You're losing ${currSymbol}${Math.abs(hourlyRate).toFixed(2)}/hour while trading`,
+          summary: `Review your strategy - this suggests fundamental issues`,
+          potentialSavings: Math.abs(hourlyRate * analogies.hourlyRate.totalHours) * 0.5,
+          impact: hourlyRate < -20 ? 4 : 3,
+          source: 'analogy',
+          actionDifficulty: 'hard',
+          dataPoints: analytics.totalTrades || 0,
+          action: {
+            title: 'Fundamental Review',
+            steps: [
+              'Take a break from trading',
+              'Review your strategy and risk management',
+              'Consider paper trading to refine approach'
+            ]
+          }
+        })
+      }
+    }
+
+    if (analogies.profitFactor && analytics.profitFactor < 1) {
+      allAvailableInsights.push({
+        type: 'weakness',
+        category: 'performance',
+        title: 'Profit Factor Below 1.0',
+        message: `Your profit factor of ${analytics.profitFactor.toFixed(2)}x means you're losing more than you win`,
+        summary: 'Critical: This strategy is not profitable long-term',
+        potentialSavings: analytics.totalPnL < 0 ? Math.abs(analytics.totalPnL) * 0.5 : 0,
+        impact: 4,
+        source: 'analogy',
+        actionDifficulty: 'hard',
+        dataPoints: analytics.totalTrades || 0,
+        action: {
+          title: 'Stop and Reassess',
+          steps: [
+            'Stop trading this strategy immediately',
+            'Review why losses exceed wins',
+            'Rebuild strategy with proper risk/reward'
+          ]
+        }
+      })
+    }
+
+    if (analogies.moneyComparison) {
+      const comparison = analogies.moneyComparison
+      if (comparison.type === 'strength') {
+        allAvailableInsights.push({
+          type: 'strength',
+          category: 'performance',
+          title: comparison.title,
+          message: comparison.message,
+          summary: comparison.message,
+          potentialSavings: 0,
+          impact: 1,
+          source: 'analogy',
+          actionDifficulty: 'hard',
+          dataPoints: analytics.totalTrades || 0
+        })
+      }
+    }
+  }
+
+  // 8. Psychology insights from behavioral analysis
+  if (psychology?.weaknesses && psychology.weaknesses.length > 0) {
+    psychology.weaknesses.forEach(weakness => {
+      if (weakness.severity === 'high' || weakness.impact >= 3) {
+        allAvailableInsights.push({
+          type: 'weakness',
+          category: 'behavioral',
+          title: weakness.title || 'Behavioral Weakness',
+          message: weakness.message,
+          summary: weakness.message,
+          impact: weakness.impact || 3,
+          source: 'psychology',
+          actionDifficulty: 'medium',
+          dataPoints: weakness.affectedTrades || 0,
+          action: {
+            title: 'Address Behavior',
+            steps: weakness.actionable ? [
+              'Identify trigger conditions',
+              'Implement counter-strategy',
+              'Track progress in trading journal'
+            ] : ['Review trading patterns', 'Consider professional coaching']
+          }
+        })
+      }
+    })
+  }
+
+  if (psychology?.strengths && psychology.strengths.length > 0) {
+    psychology.strengths.slice(0, 3).forEach(strength => {
+      allAvailableInsights.push({
+        type: 'strength',
+        category: 'behavioral',
+        title: strength.title || 'Behavioral Strength',
+        message: strength.message,
+        summary: strength.message,
+        impact: 1,
+        source: 'psychology',
+        actionDifficulty: 'hard',
+        dataPoints: strength.affectedTrades || 0,
+        action: {
+          title: 'Maintain Strength',
+          steps: [
+            'Document what makes this work',
+            'Apply to other areas',
+            'Share strategy with others'
+          ]
+        }
+      })
+    })
+  }
+
+  // Now properly score ALL insights using the prioritization engine
+  const prioritizedInsights = prioritizeInsights(allAvailableInsights, analytics)
+  
+  // Enhance all insights for display
+  let sortedInsights = prioritizedInsights.allScored.map(insight => 
+    enhanceInsightForDisplay(insight, analytics)
+  )
+  
+  // Separate insights into improvements (left) and strengths (right) for balance sheet view
+  const weaknesses = sortedInsights.filter(i => i.type === 'weakness')
+  const opportunities = sortedInsights.filter(i => i.type === 'opportunity' || i.type === 'recommendation')
+  const strengths = sortedInsights.filter(i => i.type === 'strength')
+  
+  // Collect all improvements (weaknesses + opportunities)
+  const improvements = [...weaknesses, ...opportunities]
+  
+  // Deduplicate strengths by title to avoid showing the same insight multiple times
+  const uniqueStrengths = strengths.reduce((acc, strength) => {
+    // Check if we already have a strength with the same title
+    const existingIndex = acc.findIndex(s => s.title === strength.title)
+    if (existingIndex === -1) {
+      // New unique strength
+      acc.push(strength)
+    } else {
+      // Keep the one with higher score or impact
+      if ((strength.score || 0) > (acc[existingIndex].score || 0) || 
+          (strength.impact || 0) > (acc[existingIndex].impact || 0)) {
+        acc[existingIndex] = strength
+      }
+    }
+    return acc
+  }, [])
+  
+  // Collect meaningful strengths - only show genuine strengths, don't force it
+  const meaningfulStrengths = uniqueStrengths.filter(s => 
+    s.potentialSavings > 0 || 
+    (s.action && s.action.steps && s.action.steps.length > 0) ||
+    s.score >= 65 || // Only high-scoring strengths
+    s.impact >= 3 // Only high impact strengths
+  ) // No artificial limit - show what's actually there
+  
+  // Keep sortedInsights for backward compatibility (used in hero insight)
+  sortedInsights = [...improvements, ...meaningfulStrengths]
+
+  // Get tier status
+  const tradeCount = analytics.allTrades?.length || analytics.totalTrades || 0
+  const getUnlockTiers = () => [
+    { name: 'Getting Started', minTrades: 0, maxTrades: 10 },
+    { name: 'Pattern Detection', minTrades: 10, maxTrades: 30 },
+    { name: 'Behavioral Insights', minTrades: 30, maxTrades: 100 },
+    { name: 'Advanced Analytics', minTrades: 100 }
+  ]
+  const unlockTiers = getUnlockTiers()
+  const currentTier = unlockTiers.find(tier => 
+    tradeCount >= tier.minTrades && (!tier.maxTrades || tradeCount < tier.maxTrades)
+  ) || unlockTiers[unlockTiers.length - 1]
+  const nextTier = unlockTiers.find(tier => tradeCount < tier.minTrades)
 
   const isProfitable = analytics.totalPnL >= 0
   const hasFuturesData = (analytics.futuresTrades > 0) || (analytics.futuresPnL !== undefined && analytics.futuresPnL !== null) || (analytics.futuresOpenPositions?.length > 0)
@@ -1600,221 +2111,453 @@ function OverviewTab({ analytics, currSymbol, currency, metadata, setActiveTab }
 
   return (
     <div className="space-y-4 md:space-y-6">
-      {/* Portfolio Overview Summary - Modernized */}
-      <div className="relative overflow-hidden rounded-2xl border border-white/5 bg-white/[0.03] shadow-lg shadow-emerald-500/5 backdrop-blur">
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-cyan-500/5" />
-        <div className="relative p-5 md:p-6">
-          <div className="flex items-center gap-2 mb-5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-              <BarChart3 className="w-5 h-5 text-emerald-400" />
-            </div>
-            <h2 className="text-lg md:text-xl font-bold text-white">Portfolio Overview</h2>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
-            {/* Total Portfolio Value - Only show if data available */}
-            {hasPortfolioData ? (
-              <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-emerald-400/30 hover:bg-emerald-500/5 transition-all duration-300">
-                <div className="text-xs text-slate-400 mb-2 font-medium">Total Value</div>
-                <div className="text-xl md:text-2xl font-bold text-white mb-1">
-                  {currSymbol}{formatNumber(metadata?.totalPortfolioValue || 0, 2)} <span className="text-xs text-slate-400 font-normal">{currency || 'USD'}</span>
+      {/* TOP SECTION: Balanced Portfolio Overview + PnL Summary */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+        {/* Portfolio Overview - Left Column */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="relative overflow-hidden rounded-2xl border border-white/5 bg-white/[0.04] backdrop-blur">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-cyan-500/5" />
+            <div className="relative p-4 md:p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Layers className="w-5 h-5 text-emerald-400" />
+                <h3 className="text-base font-semibold text-slate-200">Portfolio Overview</h3>
+              </div>
+              
+              {/* Main P&L Display */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+                <div className={`rounded-xl border p-4 ${
+                  isProfitable 
+                    ? 'border-emerald-400/30 bg-emerald-500/10' 
+                    : 'border-red-400/30 bg-red-500/10'
+                }`}>
+                  <div className="text-xs text-slate-400 mb-1">Total P&L</div>
+                  <div className={`text-xl md:text-2xl font-bold ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {isProfitable ? '+' : ''}{currSymbol}{formatNumber(Math.abs(analytics.totalPnL), 2)}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">{analytics.totalTrades} trades</div>
                 </div>
-              <div className="text-xs text-slate-500">
-                Spot: {currSymbol}{formatNumber(metadata?.totalSpotValue || 0, 2)} + Futures: {currSymbol}{formatNumber(metadata?.totalFuturesValue || 0, 2)}
-              </div>
-              </div>
-            ) : (
-              <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-slate-600/30 transition-all duration-300">
-                <div className="text-xs text-slate-400 mb-2 font-medium">Total Value</div>
-                <div className="text-sm font-bold text-slate-400 mb-1">
-                  Not Available
+
+                <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4">
+                  <div className="text-xs text-slate-400 mb-1">Win Rate</div>
+                  <div className="text-xl md:text-2xl font-bold text-white">{(analytics.winRate ?? 0).toFixed(1)}%</div>
+                  <div className="text-xs text-slate-500 mt-1">{analytics.winningTrades || 0}W / {analytics.losingTrades || 0}L</div>
                 </div>
-                <div className="text-xs text-slate-500">
-                  Connect live to view portfolio
-                </div>
-              </div>
-            )}
 
-            {/* Total Trades */}
-            <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-emerald-400/30 hover:bg-emerald-500/5 transition-all duration-300">
-              <div className="text-xs text-slate-400 mb-2 font-medium">Trades Analyzed</div>
-              <div className="text-xl md:text-2xl font-bold text-white mb-1">{totalTrades.toLocaleString()}</div>
-              <div className="text-xs text-slate-500">
-                {analytics.spotTrades || 0} Spot + {analytics.futuresTrades || 0} Futures
-              </div>
-            </div>
-
-            {/* Exchanges */}
-            <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-emerald-400/30 hover:bg-emerald-500/5 transition-all duration-300">
-              <div className="text-xs text-slate-400 mb-2 font-medium">Exchanges</div>
-              <div className="text-xl md:text-2xl font-bold text-white mb-1">{exchanges.length}</div>
-              <div className="text-xs text-slate-500 capitalize truncate">
-                {exchanges.join(', ') || 'Unknown'}
-              </div>
-            </div>
-
-            {/* Date Range */}
-            {dateRange && (
-              <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-emerald-400/30 hover:bg-emerald-500/5 transition-all duration-300">
-                <div className="text-xs text-slate-400 mb-2 font-medium">Date Range</div>
-                <div className="text-sm font-bold text-white">
-                  {dateRange.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: dateRange.start.getFullYear() !== dateRange.end.getFullYear() ? 'numeric' : undefined })} to {dateRange.end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4">
+                  <div className="text-xs text-slate-400 mb-1">Total Trades</div>
+                  <div className="text-xl md:text-2xl font-bold text-white">{totalTrades.toLocaleString()}</div>
+                  <div className="text-xs text-slate-500 mt-1">{analytics.spotTrades || 0}S + {analytics.futuresTrades || 0}F</div>
                 </div>
               </div>
-            )}
 
-            {/* Account Type */}
-            <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-emerald-400/30 hover:bg-emerald-500/5 transition-all duration-300">
-              <div className="text-xs text-slate-400 mb-2 font-medium">Account Type</div>
-              <div className="text-xl md:text-2xl font-bold text-white mb-1 capitalize">
-                {metadata?.accountType || 'Mixed'}
+              {/* Secondary P&L Details */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
+                  <div className="text-[10px] text-slate-400 mb-1">Realized P&L</div>
+                  <div className="text-sm font-semibold text-white">
+                    {currSymbol}{formatNumber((analytics.spotPnL || 0) + (analytics.futuresRealizedPnL || 0), 2)}
+                  </div>
+                </div>
+
+                {hasFuturesData && (
+                  <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
+                    <div className="text-[10px] text-slate-400 mb-1">Unrealized P&L</div>
+                    <div className={`text-sm font-semibold ${(analytics.futuresUnrealizedPnL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {currSymbol}{formatNumber(analytics.futuresUnrealizedPnL || 0, 2)}
+                    </div>
+                  </div>
+                )}
+
+                {hasPortfolioData && (
+                  <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
+                    <div className="text-[10px] text-slate-400 mb-1">Portfolio Value</div>
+                    <div className="text-sm font-semibold text-white">
+                      {currSymbol}{formatNumber(metadata?.totalPortfolioValue || 0, 2)}
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="text-xs text-slate-500">
-                {metadata?.hasSpot && 'Spot '}
-                {metadata?.hasSpot && metadata?.hasFutures && '+ '}
-                {metadata?.hasFutures && 'Futures'}
+
+              {/* Quick Stats Row */}
+              <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-white/5">
+                <div className="text-center">
+                  <div className="text-xs text-slate-400 mb-1">Exchanges</div>
+                  <div className="text-sm font-semibold text-white">{exchanges.length}</div>
+                </div>
+                {dateRange && (
+                  <div className="text-center">
+                    <div className="text-xs text-slate-400 mb-1">Date Range</div>
+                    <div className="text-xs font-medium text-white">
+                      {dateRange.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {dateRange.end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </div>
+                  </div>
+                )}
+                <div className="text-center">
+                  <div className="text-xs text-slate-400 mb-1">Type</div>
+                  <div className="text-xs font-medium text-white capitalize">
+                    {metadata?.hasSpot && 'Spot'}
+                    {metadata?.hasSpot && metadata?.hasFutures && ' + '}
+                    {metadata?.hasFutures && 'Futures'}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Top Improvement Opportunity - Right Column */}
+        {sortedInsights.length > 0 && sortedInsights[0] && (() => {
+          const primaryInsight = sortedInsights.find(i => i.type === 'weakness' || i.type === 'opportunity') || sortedInsights[0]
+          const isPrimaryWeakness = primaryInsight.type === 'weakness'
+          
+          return (
+            <div className={`relative overflow-hidden rounded-2xl border backdrop-blur transition-all duration-300 ${
+              isPrimaryWeakness
+                ? 'border-amber-500/30 bg-amber-500/10 shadow-lg shadow-amber-500/5'
+                : 'border-orange-500/30 bg-orange-500/10 shadow-lg shadow-orange-500/5'
+            }`}>
+              <div className={`absolute inset-0 bg-gradient-to-br ${
+                isPrimaryWeakness
+                  ? 'from-amber-500/10 via-transparent to-orange-500/5'
+                  : 'from-orange-500/10 via-transparent to-amber-500/5'
+              }`} />
+              <div className="relative p-4 md:p-5">
+                <div className="flex items-start gap-3">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 border ${
+                    isPrimaryWeakness
+                      ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                      : 'bg-orange-500/20 text-orange-400 border-orange-500/30'
+                  }`}>
+                      {isPrimaryWeakness ? <AlertCircle className="w-6 h-6" /> : <Target className="w-6 h-6" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <span className={`text-xs font-semibold uppercase tracking-wider ${
+                          isPrimaryWeakness ? 'text-amber-300' : 'text-orange-300'
+                        }`}>
+                          Top Improvement
+                        </span>
+                        {primaryInsight.potentialSavings > 0 && (
+                          <span className={`text-sm font-bold ${
+                            isPrimaryWeakness ? 'text-amber-400' : 'text-orange-400'
+                          }`}>
+                            {currSymbol}{primaryInsight.potentialSavings.toFixed(0)} potential
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="text-lg font-bold text-white mb-2">{primaryInsight.title}</h3>
+                      <p className="text-xs text-slate-300 mb-3 leading-relaxed line-clamp-3">
+                        {primaryInsight.message || primaryInsight.summary}
+                      </p>
+                      {primaryInsight.action && (
+                        <button
+                          onClick={() => setSelectedInsight(primaryInsight)}
+                          className="text-xs text-slate-400 hover:text-orange-400 transition-colors flex items-center gap-1"
+                        >
+                          View details <ChevronRight className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
       </div>
 
-      {/* Aha Moments - Value-First Insights Hero Section */}
-      {valueFirstInsights && valueFirstInsights.critical.length > 0 && (
-        <AhaMomentsSection 
-          insights={valueFirstInsights} 
-          currency={currency}
-          currSymbol={currSymbol}
-        />
+      {/* TRADING BALANCE SHEET: Improvements vs Strengths */}
+      {(improvements.length > 0 || meaningfulStrengths.length > 0) ? (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-slate-400" />
+              <h3 className="text-lg font-semibold text-slate-200">Trading Balance Sheet</h3>
+            </div>
+            {currentTier && (
+              <div className="text-xs text-slate-400">
+                Tier: <span className="text-orange-400 font-medium">{currentTier.name}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+            {/* LEFT COLUMN: Areas for Improvement */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                  <Target className="w-4 h-4 text-amber-400" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-200">
+                    Areas for Improvement
+                  </h4>
+                  <p className="text-xs text-slate-500">{improvements.length} items</p>
+                </div>
+              </div>
+              
+              {improvements.length > 0 ? (
+                <div className="space-y-2">
+                  {(showAllInsights ? improvements : improvements.slice(0, 6)).map((insight, idx) => {
+                    const isWeakness = insight.type === 'weakness'
+                    const colorClasses = isWeakness 
+                      ? 'border-amber-500/20 bg-amber-500/5 hover:border-amber-500/30 hover:bg-amber-500/10'
+                      : 'border-orange-500/20 bg-orange-500/5 hover:border-orange-500/30 hover:bg-orange-500/10'
+                    
+                    return (
+                      <div 
+                        key={idx} 
+                        className={`group relative overflow-hidden rounded-lg border ${colorClasses} p-3 transition-all duration-200 cursor-pointer`}
+                        onClick={() => setSelectedInsight(insight)}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`w-1.5 h-full rounded-full ${
+                            isWeakness ? 'bg-amber-400' : 'bg-orange-400'
+                          }`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2 mb-1">
+                              <h5 className={`text-sm font-semibold ${
+                                isWeakness ? 'text-amber-300' : 'text-orange-300'
+                              }`}>
+                                {insight.title}
+                              </h5>
+                              {insight.potentialSavings > 0 && (
+                                <span className={`text-xs font-bold whitespace-nowrap ${
+                                  isWeakness ? 'text-amber-400' : 'text-orange-400'
+                                }`}>
+                                  {currSymbol}{insight.potentialSavings.toFixed(0)}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+                              {insight.message || insight.summary}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  
+                  {improvements.length > 6 && !showAllInsights && (
+                    <button
+                      onClick={() => setShowAllInsights(true)}
+                      className="w-full py-2 rounded-lg border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] text-xs font-medium text-slate-400 hover:text-slate-300 transition-all"
+                    >
+                      View {improvements.length - 6} more improvements
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-lg border border-white/5 bg-white/[0.02] p-6 text-center">
+                  <CheckCircle className="w-6 h-6 text-emerald-400 mx-auto mb-2" />
+                  <p className="text-xs text-slate-400">No major improvements needed!</p>
+                </div>
+              )}
+            </div>
+
+            {/* RIGHT COLUMN: What You're Doing Well */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                  <Trophy className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-200">
+                    What You're Doing Well
+                  </h4>
+                  <p className="text-xs text-slate-500">{meaningfulStrengths.length} items</p>
+                </div>
+              </div>
+              
+              {meaningfulStrengths.length > 0 ? (
+                <div className="space-y-2">
+                  {meaningfulStrengths.map((insight, idx) => {
+                    return (
+                      <div 
+                        key={idx} 
+                        className="group relative overflow-hidden rounded-lg border border-emerald-500/20 bg-emerald-500/5 hover:border-emerald-500/30 hover:bg-emerald-500/10 p-3 transition-all duration-200 cursor-pointer"
+                        onClick={() => setSelectedInsight(insight)}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="w-1.5 h-full rounded-full bg-emerald-400" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2 mb-1">
+                              <h5 className="text-sm font-semibold text-emerald-300">
+                                {insight.title}
+                              </h5>
+                              {insight.potentialSavings > 0 && (
+                                <span className="text-xs font-bold text-emerald-400 whitespace-nowrap">
+                                  {currSymbol}{insight.potentialSavings.toFixed(0)}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+                              {insight.message || insight.summary}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-lg border border-white/5 bg-white/[0.02] p-6 text-center">
+                  <Lightbulb className="w-6 h-6 text-slate-500 mx-auto mb-2 opacity-50" />
+                  <p className="text-xs text-slate-500">More data needed to identify strengths</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        // No insights available - Show encouragement and tier unlock
+        <div className="space-y-4">
+          <div className="relative overflow-hidden rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-500/10 via-transparent to-blue-500/10 backdrop-blur p-6">
+            <div className="flex items-start gap-4">
+              <Sparkles className="w-8 h-8 text-purple-400 flex-shrink-0" />
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-purple-300 mb-2">
+                  {tradeCount < 10 ? 'Start Trading to Unlock Insights' : 'Connect More Data for Insights'}
+                </h3>
+                <p className="text-sm text-slate-300 mb-4">
+                  {tradeCount < 10 
+                    ? 'Trade at least 10 times to see your first insights. Every trade reveals new patterns.'
+                    : 'Connect more exchanges or upload CSV files to unlock deeper insights about your trading patterns.'
+                  }
+                </p>
+                {nextTier && (
+                  <ProgressiveUnlockCard 
+                    unlockTier={nextTier}
+                    currentTrades={tradeCount}
+                    totalTrades={tradeCount}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
-      {/* Enhanced P&L Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        <div className={`group relative overflow-hidden rounded-xl border p-4 transition-all duration-300 hover:scale-[1.02] ${
-          isProfitable 
-            ? 'border-emerald-400/30 bg-emerald-500/10 hover:border-emerald-400/50 hover:bg-emerald-500/15' 
-            : 'border-red-400/30 bg-red-500/10 hover:border-red-400/50 hover:bg-red-500/15'
-        }`}>
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-          <div className="relative">
-            <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">Total P&L</div>
-            <div className={`text-xl md:text-2xl font-bold mb-1 ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`}>
-              {isProfitable ? '+' : ''}{currSymbol}{formatNumber(Math.abs(analytics.totalPnL), 2)} <span className="text-xs text-slate-400 font-normal">{currency || 'USD'}</span>
-            </div>
-            <div className="text-xs text-slate-500">{analytics.totalTrades} trades</div>
-          </div>
+      {/* Value-Focused Tab Navigation - Discover More Insights */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Eye className="w-4 h-4 text-slate-400" />
+          <h3 className="text-sm font-semibold text-slate-400">Explore Deeper Insights</h3>
         </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* Spot Tab - Value Teaser */}
+          {analytics.spotTrades > 0 && (() => {
+            const spotInsight = symbolAnalysis?.recommendations?.find(r => r.type === 'focus')
+            const spotValue = analytics.spotPnL || 0
+            const spotWinRate = analytics.spotWinRate ?? 0
+            
+            return (
+              <button
+                onClick={() => setActiveTab('spot')}
+                className="group relative overflow-hidden rounded-xl border border-emerald-500/20 bg-emerald-500/5 hover:border-emerald-500/40 hover:bg-emerald-500/10 p-4 text-left transition-all duration-300"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Briefcase className="w-5 h-5 text-emerald-400" />
+                      <span className="text-sm font-semibold text-emerald-400">Spot Trading</span>
+                    </div>
+                    <div className="text-xs text-slate-300 mb-1">
+                      {spotValue >= 0 ? `+${currSymbol}${formatNumber(spotValue, 2)} profit` : `${currSymbol}${formatNumber(Math.abs(spotValue), 2)} loss`}
+                    </div>
+                    {spotInsight ? (
+                      <div className="text-[10px] text-emerald-400 font-medium">
+                        {spotInsight.symbols[0]} showing {spotInsight.details?.[0]?.winRate?.toFixed(0)}% win rate ?
+                      </div>
+                    ) : (
+                      <div className="text-[10px] text-slate-400">
+                        {analytics.spotTrades} trades ? {spotWinRate.toFixed(1)}% win rate ? See holdings & breakdown ?
+                      </div>
+                    )}
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-emerald-400/50 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all duration-300 flex-shrink-0 mt-1" />
+                </div>
+              </button>
+            )
+          })()}
 
-        <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-emerald-400/30 hover:bg-emerald-500/5 transition-all duration-300 hover:scale-[1.02]">
-          <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">Realized P&L</div>
-          <div className="text-xl md:text-2xl font-bold text-white mb-1">
-            {currSymbol}{formatNumber((analytics.spotPnL || 0) + (analytics.futuresRealizedPnL || 0), 2)} <span className="text-xs text-slate-400 font-normal">{currency || 'USD'}</span>
-          </div>
-          <div className="text-xs text-slate-500">Closed positions</div>
-        </div>
+          {/* Futures Tab - Value Teaser */}
+          {analytics.futuresTrades > 0 && (() => {
+            const futuresValue = analytics.futuresPnL || 0
+            const futuresWinRate = analytics.futuresWinRate ?? 0
+            const openPositions = analytics.futuresOpenPositions?.length || 0
+            const unrealizedPnL = analytics.futuresUnrealizedPnL || 0
+            
+            return (
+              <button
+                onClick={() => setActiveTab('futures')}
+                className="group relative overflow-hidden rounded-xl border border-cyan-500/20 bg-cyan-500/5 hover:border-cyan-500/40 hover:bg-cyan-500/10 p-4 text-left transition-all duration-300"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Zap className="w-5 h-5 text-cyan-400" />
+                      <span className="text-sm font-semibold text-cyan-400">Futures Trading</span>
+                    </div>
+                    <div className="text-xs text-slate-300 mb-1">
+                      {futuresValue >= 0 ? `+${currSymbol}${formatNumber(futuresValue, 2)} realized` : `${currSymbol}${formatNumber(Math.abs(futuresValue), 2)} loss`}
+                      {openPositions > 0 && (
+                        <span className={`ml-1 ${unrealizedPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          ? {unrealizedPnL >= 0 ? '+' : ''}{currSymbol}{formatNumber(Math.abs(unrealizedPnL), 2)} unrealized
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-slate-400">
+                      {analytics.futuresTrades} trades ? {futuresWinRate.toFixed(1)}% win rate ? Analyze leverage impact ?
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-cyan-400/50 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all duration-300 flex-shrink-0 mt-1" />
+                </div>
+              </button>
+            )
+          })()}
 
-        {hasFuturesData && (
-          <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-cyan-400/30 hover:bg-cyan-500/5 transition-all duration-300 hover:scale-[1.02]">
-            <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">Unrealized P&L</div>
-            <div className={`text-xl md:text-2xl font-bold mb-1 ${(analytics.futuresUnrealizedPnL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {currSymbol}{formatNumber(analytics.futuresUnrealizedPnL || 0, 2)} <span className="text-xs text-slate-400 font-normal">{currency || 'USD'}</span>
-            </div>
-            <div className="text-xs text-slate-500">{analytics.futuresOpenPositions?.length || 0} open</div>
-          </div>
-        )}
-
-        <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-emerald-400/30 hover:bg-emerald-500/5 transition-all duration-300 hover:scale-[1.02]">
-          <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">Win Rate</div>
-          <div className="text-xl md:text-2xl font-bold text-white mb-1">
-            {(analytics.winRate ?? 0).toFixed(1)}%
-          </div>
-          <div className="text-xs text-slate-500">{analytics.winningTrades || 0}W / {analytics.losingTrades || 0}L</div>
+          {/* Behavioral Tab - Value Teaser */}
+          {analytics.behavioral && analytics.behavioral.healthScore && (() => {
+            const healthScore = analytics.behavioral.healthScore
+            const criticalPatterns = analytics.behavioral.patterns?.filter(p => p.severity === 'high').length || 0
+            const weaknesses = psychology.weaknesses?.length || 0
+            
+            return (
+              <button
+                onClick={() => setActiveTab('behavioral')}
+                className="group relative overflow-hidden rounded-xl border border-purple-500/20 bg-purple-500/5 hover:border-purple-500/40 hover:bg-purple-500/10 p-4 text-left transition-all duration-300"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Brain className="w-5 h-5 text-purple-400" />
+                      <span className="text-sm font-semibold text-purple-400">Trading Psychology</span>
+                    </div>
+                    <div className="text-xs text-slate-300 mb-1">
+                      Health Score: <span className={healthScore >= 70 ? 'text-emerald-400' : healthScore >= 50 ? 'text-yellow-400' : 'text-red-400'}>{healthScore}/100</span>
+                    </div>
+                    <div className="text-[10px] text-slate-400">
+                      {criticalPatterns > 0 && `${criticalPatterns} critical pattern${criticalPatterns > 1 ? 's' : ''} ? `}
+                      {weaknesses > 0 && `${weaknesses} weakness${weaknesses > 1 ? 'es' : ''} detected ? `}
+                      Fix your blind spots ?
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-purple-400/50 group-hover:text-purple-400 group-hover:translate-x-1 transition-all duration-300 flex-shrink-0 mt-1" />
+                </div>
+              </button>
+            )
+          })()}
         </div>
       </div>
 
-      {/* Enhanced Quick Tab Teasers */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
-        {/* Spot Teaser */}
-        {analytics.spotTrades > 0 && (
-          <button
-            onClick={() => setActiveTab('spot')}
-            className="group relative overflow-hidden rounded-xl border border-emerald-400/20 bg-emerald-500/5 hover:border-emerald-400/40 hover:bg-emerald-500/10 p-4 md:p-5 text-left transition-all duration-300 hover:scale-[1.02]"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="relative">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 border border-emerald-400/30">
-                    <Briefcase className="w-4 h-4 text-emerald-400" />
-                  </div>
-                  <span className="text-sm font-semibold text-emerald-400">Spot Trading</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-emerald-400/50 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all duration-300" />
-              </div>
-              <div className="text-xl md:text-2xl font-bold text-white mb-2">{currSymbol}{formatNumber(analytics.spotPnL || 0, 2)} <span className="text-xs text-slate-400 font-normal">{currency || 'USD'}</span></div>
-              <div className="text-xs text-slate-400 mb-2">{analytics.spotTrades || 0} trades ? {(analytics.spotWinRate ?? 0).toFixed(1)}% win rate</div>
-              <div className="text-xs text-emerald-400 font-medium group-hover:underline">See detailed breakdown ?</div>
-            </div>
-          </button>
-        )}
-
-        {/* Futures Teaser */}
-        {analytics.futuresTrades > 0 && (
-          <button
-            onClick={() => setActiveTab('futures')}
-            className="group relative overflow-hidden rounded-xl border border-cyan-400/20 bg-cyan-500/5 hover:border-cyan-400/40 hover:bg-cyan-500/10 p-4 md:p-5 text-left transition-all duration-300 hover:scale-[1.02]"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="relative">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500/20 border border-cyan-400/30">
-                    <Zap className="w-4 h-4 text-cyan-400" />
-                  </div>
-                  <span className="text-sm font-semibold text-cyan-400">Futures Trading</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-cyan-400/50 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all duration-300" />
-              </div>
-              <div className="text-xl md:text-2xl font-bold text-white mb-2">{currSymbol}{formatNumber(analytics.futuresPnL || 0, 2)} <span className="text-xs text-slate-400 font-normal">{currency || 'USD'}</span></div>
-              <div className="text-xs text-slate-400 mb-2">{analytics.futuresOpenPositions?.length || 0} open ? {(analytics.futuresWinRate ?? 0).toFixed(1)}% win rate</div>
-              <div className="text-xs text-cyan-400 font-medium group-hover:underline">Analyze leverage impact ?</div>
-            </div>
-          </button>
-        )}
-
-        {/* Behavioral Teaser */}
-        {analytics.behavioral && analytics.behavioral.healthScore && (
-          <button
-            onClick={() => setActiveTab('behavioral')}
-            className="group relative overflow-hidden rounded-xl border border-purple-400/20 bg-purple-500/5 hover:border-purple-400/40 hover:bg-purple-500/10 p-4 md:p-5 text-left transition-all duration-300 hover:scale-[1.02]"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="relative">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-500/20 border border-purple-400/30">
-                    <Brain className="w-4 h-4 text-purple-400" />
-                  </div>
-                  <span className="text-sm font-semibold text-purple-400">Psychology</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-purple-400/50 group-hover:text-purple-400 group-hover:translate-x-1 transition-all duration-300" />
-              </div>
-              <div className="text-xl md:text-2xl font-bold text-white mb-2">{analytics.behavioral.healthScore}/100</div>
-              <div className="text-xs text-slate-400 mb-2">{analytics.behavioral.patterns?.filter(p => p.severity === 'high').length || 0} critical patterns detected</div>
-              <div className="text-xs text-purple-400 font-medium group-hover:underline">Fix your weaknesses ?</div>
-            </div>
-          </button>
-        )}
-      </div>
-
-      {/* Enhanced Critical Patterns */}
-      {patterns.length > 0 && (
+      {/* Additional Critical Patterns - Only show if we already showed value-first insights */}
+      {valueFirstInsights && valueFirstInsights.critical.length > 0 && patterns.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500/10 border border-orange-400/20">
               <AlertTriangle className="w-4 h-4 text-orange-400" />
             </div>
-            <h3 className="text-sm md:text-base font-semibold text-slate-300">Critical Patterns</h3>
+            <h3 className="text-sm md:text-base font-semibold text-slate-300">Additional Patterns</h3>
           </div>
           <div className="space-y-2">
             {patterns.slice(0, 3).map((pattern, idx) => (
@@ -1825,7 +2568,7 @@ function OverviewTab({ analytics, currSymbol, currency, metadata, setActiveTab }
                     <div className="text-xs text-slate-400">{pattern.description}</div>
                   </div>
                   <div className={`text-xs px-2.5 py-1 rounded-lg font-medium ${
-                    pattern.severity === 'high' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                    pattern.severity === 'high' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
                     pattern.severity === 'medium' ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20' :
                     'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
                   }`}>
@@ -2562,6 +3305,7 @@ export default function AnalyticsView({
   isDemoMode = false,
   isAuthenticated = true
 }) {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState('overview')
   const [showFilters, setShowFilters] = useState(false)
 
@@ -2594,7 +3338,32 @@ export default function AnalyticsView({
     } catch (error) {
       console.error('Sign out error:', error)
     }
-    window.location.href = '/'
+    router.push('/')
+  }
+
+  // Navigation handlers that use router
+  const handleNavigateDashboard = () => {
+    if (onDisconnect) {
+      onDisconnect()
+    } else {
+      router.push('/dashboard')
+    }
+  }
+
+  const handleNavigateUpload = () => {
+    if (onUploadClick) {
+      onUploadClick()
+    } else {
+      router.push('/dashboard')
+    }
+  }
+
+  const handleNavigateAll = () => {
+    if (onViewAllExchanges) {
+      onViewAllExchanges()
+    } else {
+      router.push('/analyze')
+    }
   }
 
   return (
@@ -2607,10 +3376,10 @@ export default function AnalyticsView({
         currencyMetadata={currencyMetadata}
         currency={currency}
         setCurrency={setCurrency}
-        onDisconnect={onDisconnect}
-        onNavigateDashboard={onDisconnect}
-        onNavigateUpload={onUploadClick}
-        onNavigateAll={onViewAllExchanges}
+        onDisconnect={handleNavigateDashboard}
+        onNavigateDashboard={handleNavigateDashboard}
+        onNavigateUpload={handleNavigateUpload}
+        onNavigateAll={handleNavigateAll}
         onSignOut={handleSignOut}
         isDemoMode={isDemoMode}
       />
@@ -2774,6 +3543,19 @@ export default function AnalyticsView({
 function generateEnhancedInsights(analytics, psychology) {
   const insights = []
   
+  // Helper function to check if symbol is a stablecoin pair
+  const isStablecoinPair = (symbol) => {
+    if (!symbol || typeof symbol !== 'string') return false
+    const symbolUpper = symbol.toUpperCase()
+    const stablecoinPairs = [
+      'USDCUSDT', 'USDTUSDC', 'BUSDUSDT', 'USDTBUSD', 'USDTUSDT', 'USDCUSDC', 'BUSDBUSD',
+      'DAIUSDT', 'USDTDAI', 'TUSDUSDT', 'USDTTUSD', 'USDPUSDT', 'USDTUSDP',
+      'FDUSDUSDT', 'USDTFDUSD', 'USDCBUSD', 'BUSDUSDC', 'DAIUSDC', 'USDCDAI',
+      'PAXUSDT', 'USDTPAX', 'GUSDUSDT', 'USDTGUSD'
+    ]
+    return stablecoinPairs.includes(symbolUpper)
+  }
+  
   if (analytics.winRate >= 60) {
     insights.push({
       type: 'strength',
@@ -2813,7 +3595,7 @@ function generateEnhancedInsights(analytics, psychology) {
     })
   }
   
-  if (analytics.bestSymbol) {
+  if (analytics.bestSymbol && !isStablecoinPair(analytics.bestSymbol)) {
     const bestData = analytics.symbols[analytics.bestSymbol]
     insights.push({
       type: 'recommendation',

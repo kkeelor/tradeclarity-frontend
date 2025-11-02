@@ -21,7 +21,20 @@ export function prioritizeInsights(allInsights, analytics) {
     category: insight.category || categorizeInsight(insight)
   }))
 
-  const sorted = scored.sort((a, b) => b.score - a.score)
+  // Prioritize weaknesses and improvement opportunities over strengths
+  // Sort by: weaknesses first, then by score
+  const sorted = scored.sort((a, b) => {
+    // Weaknesses get priority boost
+    const aIsWeakness = a.type === 'weakness'
+    const bIsWeakness = b.type === 'weakness'
+    
+    // If one is weakness and other isn't, weakness wins
+    if (aIsWeakness && !bIsWeakness) return -1
+    if (!aIsWeakness && bIsWeakness) return 1
+    
+    // Both same type - sort by score
+    return b.score - a.score
+  })
 
   return {
     critical: sorted.filter(i => i.score >= 80).slice(0, 3),  // Top 3 urgent
@@ -55,9 +68,17 @@ function calculateInsightScore(insight, analytics) {
   else if (potentialSavings > 100) score += 20
   else if (potentialSavings > 0) score += 10
 
-  // Impact multiplier if negative (weaknesses are more urgent)
-  if (insight.type === 'weakness' && potentialSavings > 0) {
-    score += 5 // Bonus for actionable weaknesses
+  // MAJOR BOOST for weaknesses - they're more actionable and motivating
+  if (insight.type === 'weakness') {
+    score += 15 // Significant boost for weaknesses
+    if (potentialSavings > 0) {
+      score += 10 // Extra bonus for actionable weaknesses with savings potential
+    }
+  }
+  
+  // Penalize strengths - they're less actionable for improvement
+  if (insight.type === 'strength' && potentialSavings === 0) {
+    score -= 10 // Reduce score for non-actionable strengths
   }
 
   // Actionability (0-30 points)

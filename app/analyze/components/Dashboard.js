@@ -805,7 +805,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                                   </div>
                                   <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                     <button
-                                      onClick={() => onViewAnalytics(exchange.id, exchange.exchange.toLowerCase())}
+                                      onClick={() => onViewAnalytics([{ type: 'exchange', id: exchange.id }])}
                                       className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 hover:border-emerald-500/50 rounded-xl text-xs font-semibold text-emerald-400 transition-all duration-300 hover:scale-105"
                                     >
                                       View

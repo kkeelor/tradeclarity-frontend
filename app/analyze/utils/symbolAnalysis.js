@@ -6,6 +6,38 @@
  */
 
 // ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+/**
+ * Check if a symbol is a stablecoin pair (e.g., USDCUSDT, BUSDUSDT)
+ */
+function isStablecoinPair(symbol) {
+  if (!symbol || typeof symbol !== 'string') return false
+  
+  const symbolUpper = symbol.toUpperCase()
+  
+  // Common stablecoin pairs - these shouldn't generate significant trading profits
+  const stablecoinPairs = [
+    'USDCUSDT', 'USDTUSDC',
+    'BUSDUSDT', 'USDTBUSD',
+    'USDTUSDT', // Edge case
+    'USDCUSDC', // Edge case
+    'BUSDBUSD', // Edge case
+    'DAIUSDT', 'USDTDAI',
+    'TUSDUSDT', 'USDTTUSD',
+    'USDPUSDT', 'USDTUSDP',
+    'FDUSDUSDT', 'USDTFDUSD',
+    'USDCBUSD', 'BUSDUSDC',
+    'DAIUSDC', 'USDCDAI',
+    'PAXUSDT', 'USDTPAX',
+    'GUSDUSDT', 'USDTGUSD'
+  ]
+  
+  return stablecoinPairs.includes(symbolUpper)
+}
+
+// ============================================
 // SYMBOL PERFORMANCE ANALYSIS
 // ============================================
 
@@ -106,9 +138,9 @@ export function generateSymbolRecommendations(symbolData) {
   // Sort by expectancy (best overall metric)
   const sortedByExpectancy = [...symbolData].sort((a, b) => b.expectancy - a.expectancy)
 
-  // Best symbols to focus on
+  // Best symbols to focus on (exclude stablecoin pairs)
   const topSymbols = sortedByExpectancy
-    .filter(s => s.trades >= 10 && s.expectancy > 0) // Minimum 10 trades and positive expectancy
+    .filter(s => !isStablecoinPair(s.symbol) && s.trades >= 10 && s.expectancy > 0) // Filter out stablecoins, minimum 10 trades and positive expectancy
     .slice(0, 3)
 
   if (topSymbols.length > 0) {
@@ -128,9 +160,9 @@ export function generateSymbolRecommendations(symbolData) {
     })
   }
 
-  // Worst symbols to avoid
+  // Worst symbols to avoid (exclude stablecoin pairs)
   const worstSymbols = sortedByExpectancy
-    .filter(s => s.trades >= 10 && s.expectancy < 0) // Minimum 10 trades and negative expectancy
+    .filter(s => !isStablecoinPair(s.symbol) && s.trades >= 10 && s.expectancy < 0) // Filter out stablecoins, minimum 10 trades and negative expectancy
     .slice(-3)
     .reverse()
 
@@ -151,9 +183,9 @@ export function generateSymbolRecommendations(symbolData) {
     })
   }
 
-  // High volume but low profit
+  // High volume but low profit (exclude stablecoin pairs)
   const inefficientSymbols = symbolData
-    .filter(s => s.trades >= 15 && Math.abs(s.avgPnL) < 5)
+    .filter(s => !isStablecoinPair(s.symbol) && s.trades >= 15 && Math.abs(s.avgPnL) < 5)
 
   if (inefficientSymbols.length > 0) {
     recommendations.push({
@@ -184,8 +216,8 @@ export function generateSymbolRecommendations(symbolData) {
 export function rankSymbols(symbolData) {
   if (!symbolData || symbolData.length === 0) return []
 
-  // Filter symbols with minimum trade count
-  const qualifiedSymbols = symbolData.filter(s => s.trades >= 5)
+  // Filter symbols with minimum trade count (exclude stablecoin pairs)
+  const qualifiedSymbols = symbolData.filter(s => !isStablecoinPair(s.symbol) && s.trades >= 5)
 
   // Multi-factor ranking
   return qualifiedSymbols.map(symbol => {

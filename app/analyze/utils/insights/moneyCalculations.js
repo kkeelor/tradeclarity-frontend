@@ -157,13 +157,46 @@ export function calculateTimingEdge(trades) {
 }
 
 /**
+ * Check if a symbol is a stablecoin pair (e.g., USDCUSDT, BUSDUSDT)
+ */
+function isStablecoinPair(symbol) {
+  if (!symbol || typeof symbol !== 'string') return false
+  
+  const symbolUpper = symbol.toUpperCase()
+  
+  // Common stablecoin pairs - these shouldn't generate significant trading profits
+  const stablecoinPairs = [
+    'USDCUSDT', 'USDTUSDC',
+    'BUSDUSDT', 'USDTBUSD',
+    'USDTUSDT', // Edge case
+    'USDCUSDC', // Edge case
+    'BUSDBUSD', // Edge case
+    'DAIUSDT', 'USDTDAI',
+    'TUSDUSDT', 'USDTTUSD',
+    'USDPUSDT', 'USDTUSDP',
+    'FDUSDUSDT', 'USDTFDUSD',
+    'USDCBUSD', 'BUSDUSDC',
+    'DAIUSDC', 'USDCDAI',
+    'PAXUSDT', 'USDTPAX',
+    'GUSDUSDT', 'USDTGUSD'
+  ]
+  
+  return stablecoinPairs.includes(symbolUpper)
+}
+
+/**
  * Calculate potential savings from focusing on best performing symbols
+ * Only suggests if there's statistically significant evidence (multiple trades, consistent performance)
  */
 export function calculateSymbolFocusOpportunity(trades, symbolData) {
   if (!trades || !symbolData || Object.keys(symbolData).length === 0) return null
 
   const symbolEntries = Object.entries(symbolData)
-    .filter(([_, data]) => data.trades >= 3) // Lower threshold: 3+ trades per symbol (was 5+)
+    .filter(([symbol, data]) => {
+      // Filter out stablecoin pairs and ensure minimum trade count (increased from 3 to 15)
+      // Need sufficient sample size to make meaningful recommendations
+      return !isStablecoinPair(symbol) && data.trades >= 15
+    })
     .map(([symbol, data]) => ({
       symbol,
       pnl: data.realized || data.netPnL || 0,
@@ -173,9 +206,23 @@ export function calculateSymbolFocusOpportunity(trades, symbolData) {
     }))
     .sort((a, b) => b.avgPnL - a.avgPnL)
 
+  // Need at least 2 symbols with sufficient trades AND best symbol must significantly outperform
   if (symbolEntries.length < 2) return null
 
   const bestSymbol = symbolEntries[0]
+  
+  // Additional validation: Best symbol must have significantly better performance
+  // Check if it's at least 2x better than the average of other qualified symbols
+  const otherSymbols = symbolEntries.slice(1)
+  const avgOtherPnL = otherSymbols.reduce((sum, s) => sum + s.avgPnL, 0) / otherSymbols.length
+  
+  // Best symbol must be at least 2x better than average of others
+  if (bestSymbol.avgPnL <= avgOtherPnL * 2) return null
+  
+  // Check that best symbol has consistent positive performance (not just lucky trades)
+  // Must have positive avg P&L AND reasonable win rate (at least 50%)
+  if (bestSymbol.avgPnL <= 0 || bestSymbol.winRate < 50) return null
+
   const worstSymbols = symbolEntries.slice(-3)
   
   // Calculate what they'd make if they focused 70% on best symbol instead of spreading evenly
@@ -187,6 +234,9 @@ export function calculateSymbolFocusOpportunity(trades, symbolData) {
   const diversifiedPnL = currentAvgPnL * totalTrades
   
   const opportunity = focusedPnL - diversifiedPnL
+  
+  // Only return if opportunity is meaningful (at least $100 potential)
+  if (opportunity < 100) return null
 
   return {
     potentialSavings: opportunity,

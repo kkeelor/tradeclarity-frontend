@@ -124,10 +124,12 @@ export function generateValueFirstInsights(analytics, psychology, allTrades) {
     }
   }
 
-  // 4. Symbol Focus Opportunity - Lower threshold (need 3+ trades per symbol instead of 5+)
+  // 4. Symbol Focus Opportunity - Requires significant sample size and performance edge
+  // Only shows if best symbol has 15+ trades, 2x better than others, and 50%+ win rate
   if (analytics.symbols && Object.keys(analytics.symbols).length > 1) {
     const symbolInsight = calculateSymbolFocusOpportunity(allTrades, analytics.symbols)
-    const minSavings = analytics.totalPnL > 1000 ? 50 : 20
+    // Increased minimum savings threshold significantly (was 20-50, now 100+)
+    const minSavings = 100
     if (symbolInsight && symbolInsight.potentialSavings > minSavings) {
       insights.push({
         type: 'opportunity',

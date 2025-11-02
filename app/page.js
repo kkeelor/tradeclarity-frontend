@@ -70,7 +70,7 @@ export default function LandingPage() {
                     <button
                       onClick={() => {
                         setShowUserMenu(false)
-                        router.push('/analyze')
+                        router.push('/dashboard')
                       }}
                       className="w-full px-3 py-2 text-left text-xs text-slate-300 hover:text-white hover:bg-slate-700/50 transition-colors flex items-center gap-2"
                     >
@@ -135,7 +135,7 @@ export default function LandingPage() {
             <Button
               variant="outline"
               size="xl"
-              onClick={() => router.push('/analyze')}
+              onClick={() => router.push('/dashboard')}
               onMouseEnter={() => setIsSecondaryHovered(true)}
               onMouseLeave={() => setIsSecondaryHovered(false)}
             >
@@ -481,7 +481,7 @@ export default function LandingPage() {
             <Button
               variant="outline"
               size="lg"
-              onClick={() => router.push('/analyze')}
+              onClick={() => router.push('/dashboard')}
               className="hover:scale-105 hover:border-gold"
             >
               Connect My Exchange
@@ -505,7 +505,7 @@ export default function LandingPage() {
             <Twitter className="w-4 h-4 group-hover:text-cyan-400 transition-colors" />
             <span className="hidden sm:inline">@trdclrty</span>
           </a>
-          <span className="text-slate-700">•</span>
+          <span className="text-slate-700">?</span>
           <a
             href="https://www.linkedin.com/in/karankeelor/"
             target="_blank"
@@ -517,7 +517,7 @@ export default function LandingPage() {
           </a>
         </div>
         <p className="font-medium">Built for traders who are tired of guessing</p>
-        <p>© 2025 TradeClarity. Your data stays yours. Always.</p>
+        <p>? 2025 TradeClarity. Your data stays yours. Always.</p>
       </footer>
     </div>
   )
