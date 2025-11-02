@@ -1,7 +1,7 @@
 // app/analyze/AnalyticsContent.js
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/AuthContext'
 import AuthScreen from './components/AuthScreen'
@@ -297,10 +297,18 @@ export default function AnalyticsContent() {
   const [loadingComplete, setLoadingComplete] = useState(false)
   const [cachedData, setCachedData] = useState(null)
   const [progress, setProgress] = useState('Fetching your trading data...')
+  const hasLoadedRef = useRef(false) // Track if we've already loaded data to prevent double-loading
 
   // Load data on mount
   useEffect(() => {
     const loadData = async () => {
+      // If already loaded, don't reload (prevents double-loading in React Strict Mode)
+      if (hasLoadedRef.current) {
+        console.log('? [AnalyticsContent] Already loaded, skipping reload')
+        return
+      }
+      hasLoadedRef.current = true
+
       const demo = searchParams.get('demo')
       
       if (demo === 'true') {
@@ -354,10 +362,43 @@ export default function AnalyticsContent() {
           setStatus('error')
         }
       } else {
-        // Real mode - fetch from database
+        // Real mode - check for pre-analyzed data first (from DashboardContent connection flow)
         setStatus('loading')
         
         try {
+          // Check for pre-analyzed data from DashboardContent.handleConnect()
+          const preAnalyzedDataStr = sessionStorage.getItem('preAnalyzedData')
+          
+          if (preAnalyzedDataStr) {
+            console.log('? [AnalyticsContent] Using pre-analyzed data from DashboardContent')
+            const preAnalyzedData = JSON.parse(preAnalyzedDataStr)
+            
+            // Clear sessionStorage after reading (delayed to allow React Strict Mode double-mount)
+            // Use setTimeout to allow both mounts in React Strict Mode to access the data
+            setTimeout(() => {
+              sessionStorage.removeItem('preAnalyzedData')
+            }, 1000)
+            
+            // Use the pre-analyzed data directly
+            setAnalytics(preAnalyzedData.analytics)
+            setCurrencyMetadata(preAnalyzedData.currencyMetadata)
+            setCachedData(preAnalyzedData.data)
+            
+            // Use persisted currency or the one from preAnalyzedData
+            const savedCurrency = typeof window !== 'undefined' ? localStorage.getItem('tradeclarity_currency') : null
+            if (savedCurrency) {
+              setCurrency(savedCurrency)
+            } else {
+              setCurrency(preAnalyzedData.currency || 'USD')
+            }
+            
+            setProgress('Preparing your dashboard...')
+            await new Promise(resolve => setTimeout(resolve, 50))
+            // Loading screen will handle completion via onComplete callback
+            return
+          }
+          
+          // No pre-analyzed data - fetch from database (existing flow)
           // Start with fetching message
           setProgress('Fetching your trading data...')
           await new Promise(resolve => setTimeout(resolve, 100))
@@ -418,7 +459,7 @@ export default function AnalyticsContent() {
           // Ensure currency rates are cached before conversion
           try {
             await getCurrencyRates()
-            console.log('?? Currency rates cached for conversion')
+            console.log('? Currency rates cached for conversion')
           } catch (rateError) {
             console.warn('?? Could not fetch currency rates:', rateError.message)
           }
@@ -452,7 +493,7 @@ export default function AnalyticsContent() {
     }
 
     loadData()
-  }, [searchParams])
+  }, [searchParams]) // Only depend on searchParams, not analytics (to prevent infinite loops)
 
   // Handle filter changes (re-fetch with filters)
   const handleFilterExchanges = async (exchanges) => {
@@ -575,4 +616,3 @@ export default function AnalyticsContent() {
 
   return null
 }
-

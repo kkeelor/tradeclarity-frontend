@@ -200,6 +200,11 @@ export default function LoginForm({
     setSubmitError('')
     setLocalProgress('Connecting to exchange...')
 
+    // Show loader immediately by calling onConnect BEFORE API call
+    // This ensures the loading screen appears immediately
+    console.log('🟢 [LoginForm] Showing loader immediately...')
+    onConnect(apiKey, apiSecret, null) // Pass null to indicate data will come later
+
     try {
       // Call the new API endpoint to save credentials and fetch data
       console.log('🟡 [LoginForm] Calling /api/exchange/connect...', { exchange, apiKeyLength: apiKey.length })
@@ -233,27 +238,19 @@ export default function LoginForm({
 
       setLocalProgress('Preparing analytics...')
 
-      // Call the parent's onConnect with the pre-fetched data
-      console.log('🟢 [LoginForm] Connection successful, calling onConnect...', { hasData: !!data.data })
+      // Update the parent with the fetched data
+      // The parent already has status='connecting' and loader showing
       if (data.data) {
-        // New flow: pass the fetched data
-        setLocalProgress('Redirecting to analytics...')
-        // Small delay to ensure UI updates
-        await new Promise(resolve => setTimeout(resolve, 300))
-        console.log('🟢 [LoginForm] Calling onConnect with data')
+        console.log('🟢 [LoginForm] Data fetched, updating parent...')
+        // Call onConnect again with the actual data - this will trigger analysis
         onConnect(apiKey, apiSecret, data.data)
-      } else {
-        // Fallback: let parent fetch data
-        setLocalProgress('Redirecting to analytics...')
-        await new Promise(resolve => setTimeout(resolve, 300))
-        console.log('🟢 [LoginForm] Calling onConnect without data')
-        onConnect(apiKey, apiSecret)
       }
     } catch (err) {
       console.error('Connection error:', err)
       setSubmitError(err.message || 'Failed to connect to exchange. Please check your API credentials.')
       setIsSubmitting(false)
       setLocalProgress('')
+      // Note: Error handling is done in DashboardContent.handleConnect
     }
   }
   

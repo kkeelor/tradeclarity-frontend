@@ -127,6 +127,36 @@ export async function POST(request) {
       if (fetchResponse.ok) {
         fetchResult = await fetchResponse.json()
         console.log('✅ Data fetch completed:', fetchResult)
+        
+        // Store trades to database in background (don't wait for it)
+        if (fetchResult.success && fetchResult.spotTrades) {
+          try {
+            const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
+            const host = request.headers.get('host') || 'localhost:3000'
+            const baseUrl = `${protocol}://${host}`
+            
+            // Call /api/trades/store in background (fire and forget)
+            fetch(`${baseUrl}/api/trades/store`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                spotTrades: fetchResult.spotTrades || [],
+                futuresIncome: fetchResult.futuresIncome || [],
+                userId: user.id,
+                exchange: connectionData.exchange,
+                connectionId: connectionData.id,
+                metadata: fetchResult.metadata
+              })
+            }).catch(err => {
+              console.error('⚠️ Background storage failed (non-critical):', err)
+            })
+            
+            console.log('💾 [API] Triggered background storage of trades to database')
+          } catch (storageError) {
+            console.error('⚠️ Error triggering background storage:', storageError)
+            // Don't fail the connection if storage fails
+          }
+        }
       } else {
         const error = await fetchResponse.json()
         console.error('❌ Data fetch failed:', error)
