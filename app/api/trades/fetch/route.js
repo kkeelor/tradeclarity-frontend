@@ -36,7 +36,13 @@ async function getCurrencyRates() {
       'USD': 1.0,
       'INR': 87.0,
       'EUR': 0.92,
-      'GBP': 0.79
+      'GBP': 0.79,
+      'JPY': 149.5,
+      'AUD': 1.52,
+      'CAD': 1.36,
+      'CNY': 7.24,
+      'SGD': 1.34,
+      'CHF': 0.88
     }
   }
 }
@@ -181,8 +187,13 @@ export async function GET(request) {
       primaryCurrency = 'INR'
     }
 
+    // Enable currency switcher - always support all top 10 currencies
+    const availableCurrencies = ['USD', 'INR', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CNY', 'SGD', 'CHF']
+    const supportsCurrencySwitch = true // Always enable currency switching
+
     console.log(`📊 Fetched ${totalTrades} trades (${spotTrades.length} spot, ${futuresIncome.length} futures) ${connectionId ? `for connection ${connectionId}` : exchange ? `for ${exchange}` : 'from all exchanges'}`)
     console.log(`💱 Detected primary currency: ${primaryCurrency} based on exchanges: ${uniqueExchanges.join(', ')}`)
+    console.log(`💱 Currency switcher enabled: ${supportsCurrencySwitch}, Available currencies: ${availableCurrencies.join(', ')}`)
 
     // Try to fetch portfolio snapshot(s)
     let portfolioSnapshot = null
@@ -325,8 +336,8 @@ export async function GET(request) {
       futuresPositions: [],
       metadata: {
         primaryCurrency: primaryCurrency,
-        availableCurrencies: ['USD', 'INR'],
-        supportsCurrencySwitch: false,
+        availableCurrencies: availableCurrencies,
+        supportsCurrencySwitch: supportsCurrencySwitch,
         // Additional metadata
         exchanges: uniqueExchanges,
         totalTrades: totalTrades,

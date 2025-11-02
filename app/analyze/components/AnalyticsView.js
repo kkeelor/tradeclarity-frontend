@@ -1,7 +1,7 @@
 // app/analyze/components/AnalyticsView.js
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   DollarSign, TrendingUp, Target, Activity, Award, Brain,
@@ -10,13 +10,14 @@ import {
   BarChart3, PieChart, LineChart, ArrowUpRight, ArrowDownRight,
   AlertCircle, Sparkles, ChevronRight, ChevronLeft, ChevronDown, ChevronUp,
   Scissors, Shuffle, Coffee, Tv, Pizza, Fuel, Utensils,
-  Database, FileText, Briefcase, Filter, X
+  Database, FileText, Briefcase, Filter, X, Wallet, TrendingUp as TrendingUpIcon, Percent
 } from 'lucide-react'
 import { generatePerformanceAnalogies } from '../utils/performanceAnalogies'
 import { analyzeDrawdowns } from '../utils/drawdownAnalysis'
 import { analyzeTimeBasedPerformance } from '../utils/timeBasedAnalysis'
 import { analyzeSymbols } from '../utils/symbolAnalysis'
 import { convertAnalyticsForDisplay } from '../utils/currencyFormatter'
+import { getCurrencyRates } from '../utils/currencyConverter'
 import { generateValueFirstInsights } from '../utils/insights/valueFirstInsights'
 import { prioritizeInsights, enhanceInsightForDisplay } from '../utils/insights/insightsPrioritizationEngine'
 import AhaMomentsSection from './AhaMomentsSection'
@@ -56,6 +57,23 @@ const formatNumber = (num, decimals = 2) => {
   })
 }
 
+// Elegant separator component for text segments
+const SeparatorText = ({ segments, className = '', separator = '•' }) => {
+  const validSegments = segments.filter(Boolean)
+  if (validSegments.length === 0) return null
+  
+  return (
+    <span className={className}>
+      {validSegments.map((segment, idx) => (
+        <span key={idx}>
+          {idx > 0 && <span className="mx-1">{separator}</span>}
+          {segment}
+        </span>
+      ))}
+    </span>
+  )
+}
+
 // Icon mapper for string icon names to Lucide components
 const ICON_MAP = {
   Target,
@@ -90,10 +108,11 @@ const getIconComponent = (iconName) => {
 // HERO SECTION - REDESIGNED
 // ============================================
 
-function HeroSection({ analytics, currSymbol, metadata }) {
+function HeroSection({ analytics, currSymbol, currency, metadata }) {
   const isProfitable = analytics.totalPnL >= 0
   const tradeCount = analytics.totalTrades || 0
   const symbolCount = Object.keys(analytics.symbols || {}).length
+  const displayCurrency = currency || 'USD'
 
   const hasLimitedData = tradeCount > 0 && tradeCount < 20
   const hasGreatData = tradeCount >= 50
@@ -135,7 +154,7 @@ function HeroSection({ analytics, currSymbol, metadata }) {
                   <p className={`text-4xl font-semibold tracking-tight ${
                     isProfitable ? 'text-emerald-200' : 'text-rose-200'
                   }`}>
-                    {isProfitable ? '+' : '-'}{currSymbol}{Math.abs(analytics.totalPnL).toFixed(2)}
+                    {isProfitable ? '+' : '-'}{currSymbol}{Math.abs(analytics.totalPnL).toFixed(2)} <span className="text-xs text-slate-400 font-normal">{displayCurrency}</span>
                   </p>
                 </div>
               </div>
@@ -208,16 +227,18 @@ function HeroSection({ analytics, currSymbol, metadata }) {
             <QuickStat
               label="Avg Win"
               value={`${currSymbol}${Math.abs(analytics.avgWin || 0).toFixed(2)}`}
-              subtitle="Per winning trade"
+              subtitle={`Per winning trade`}
               icon={ArrowUpRight}
               good={analytics.avgWin >= Math.abs(analytics.avgLoss || 0)}
+              currency={currency}
             />
             <QuickStat
               label="Avg Loss"
               value={`${currSymbol}${Math.abs(analytics.avgLoss || 0).toFixed(2)}`}
-              subtitle="Per losing trade"
+              subtitle={`Per losing trade`}
               icon={ArrowDownRight}
               good={false}
+              currency={currency}
             />
           </div>
         </div>
@@ -229,6 +250,7 @@ function HeroSection({ analytics, currSymbol, metadata }) {
             pnl={analytics.spotPnL}
             winRate={analytics.spotWinRate}
             currSymbol={currSymbol}
+            currency={currency}
             icon={DollarSign}
             iconColor="emerald"
           />
@@ -238,6 +260,7 @@ function HeroSection({ analytics, currSymbol, metadata }) {
             pnl={analytics.futuresPnL}
             winRate={analytics.futuresWinRate}
             currSymbol={currSymbol}
+            currency={currency}
             icon={Zap}
             iconColor="cyan"
           />
@@ -248,22 +271,30 @@ function HeroSection({ analytics, currSymbol, metadata }) {
 }
 
 // QuickStat now uses the reusable MetricDisplay component
-function QuickStat({ label, value, subtitle, icon, good }) {
+function QuickStat({ label, value, subtitle, icon, good, currency }) {
   return (
-    <MetricDisplay
-      label={label}
-      value={value}
-      subtitle={subtitle}
-      icon={icon}
-      good={good}
-    />
+    <Card variant="glass" className="hover:border-slate-600/50 transition-all">
+      {(icon || label) && (
+        <div className="flex items-center gap-2 mb-2">
+          {icon && <IconBadge icon={icon} color={good === true ? 'emerald' : good === false ? 'red' : 'slate'} size="sm" />}
+          {label && (
+            <span className="text-xs text-slate-400 uppercase tracking-wider">{label}</span>
+          )}
+        </div>
+      )}
+      <div className={`text-2xl font-bold mb-1 ${good === true ? 'text-emerald-400' : good === false ? 'text-red-400' : 'text-white'}`}>
+        {value} {currency && <span className="text-xs text-slate-400 font-normal">{currency}</span>}
+      </div>
+      {subtitle && <div className="text-xs text-slate-500">{subtitle}</div>}
+    </Card>
   )
 }
 
-function AccountTypeCard({ type, trades, pnl, winRate, currSymbol, icon: Icon, iconColor }) {
+function AccountTypeCard({ type, trades, pnl, winRate, currSymbol, currency, icon: Icon, iconColor }) {
   if (trades === 0) return null
 
   const isProfitable = pnl >= 0
+  const displayCurrency = currency || 'USD'
 
   return (
     <Card variant="glass" className="hover:border-slate-600/50 transition-all">
@@ -276,7 +307,7 @@ function AccountTypeCard({ type, trades, pnl, winRate, currSymbol, icon: Icon, i
           </div>
         </div>
         <div className={`text-2xl font-bold ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`}>
-          {isProfitable ? '+' : ''}{currSymbol}{pnl.toFixed(2)}
+          {isProfitable ? '+' : ''}{currSymbol}{pnl.toFixed(2)} <span className="text-xs text-slate-400 font-normal">{displayCurrency}</span>
         </div>
       </div>
       <div className="flex items-center gap-4 text-sm text-slate-400">
@@ -1545,7 +1576,7 @@ function SymbolsTable({ symbols, filter, currSymbol }) {
 // TAB CONTENT COMPONENTS
 // ============================================
 
-function OverviewTab({ analytics, currSymbol, currency, metadata, setActiveTab }) {
+function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setActiveTab }) {
   const [selectedInsight, setSelectedInsight] = useState(null)
   const [showCharts, setShowCharts] = useState(false)
   const [showSymbols, setShowSymbols] = useState(false)
@@ -2130,21 +2161,30 @@ function OverviewTab({ analytics, currSymbol, currency, metadata, setActiveTab }
                     ? 'border-emerald-400/30 bg-emerald-500/10' 
                     : 'border-red-400/30 bg-red-500/10'
                 }`}>
-                  <div className="text-xs text-slate-400 mb-1">Total P&L</div>
+                  <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
+                    <DollarSign className="w-3.5 h-3.5" />
+                    <span>Total P&L</span>
+                  </div>
                   <div className={`text-xl md:text-2xl font-bold ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {isProfitable ? '+' : ''}{currSymbol}{formatNumber(Math.abs(analytics.totalPnL), 2)}
+                    {isProfitable ? '+' : ''}{currSymbol}{formatNumber(Math.abs(analytics.totalPnL), 2)} <span className="text-xs text-slate-400 font-normal">{currency || 'USD'}</span>
                   </div>
                   <div className="text-xs text-slate-500 mt-1">{analytics.totalTrades} trades</div>
                 </div>
 
                 <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4">
-                  <div className="text-xs text-slate-400 mb-1">Win Rate</div>
+                  <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
+                    <Target className="w-3.5 h-3.5" />
+                    <span>Win Rate</span>
+                  </div>
                   <div className="text-xl md:text-2xl font-bold text-white">{(analytics.winRate ?? 0).toFixed(1)}%</div>
                   <div className="text-xs text-slate-500 mt-1">{analytics.winningTrades || 0}W / {analytics.losingTrades || 0}L</div>
                 </div>
 
                 <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4">
-                  <div className="text-xs text-slate-400 mb-1">Total Trades</div>
+                  <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
+                    <Activity className="w-3.5 h-3.5" />
+                    <span>Total Trades</span>
+                  </div>
                   <div className="text-xl md:text-2xl font-bold text-white">{totalTrades.toLocaleString()}</div>
                   <div className="text-xs text-slate-500 mt-1">{analytics.spotTrades || 0}S + {analytics.futuresTrades || 0}F</div>
                 </div>
@@ -2153,27 +2193,51 @@ function OverviewTab({ analytics, currSymbol, currency, metadata, setActiveTab }
               {/* Secondary P&L Details */}
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
-                  <div className="text-[10px] text-slate-400 mb-1">Realized P&L</div>
+                  <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mb-1">
+                    <CheckCircle className="w-3 h-3" />
+                    <span>Realized P&L</span>
+                  </div>
                   <div className="text-sm font-semibold text-white">
-                    {currSymbol}{formatNumber((analytics.spotPnL || 0) + (analytics.futuresRealizedPnL || 0), 2)}
+                    {currSymbol}{formatNumber((analytics.spotPnL || 0) + (analytics.futuresRealizedPnL || 0), 2)} <span className="text-xs text-slate-400 font-normal">{currency || 'USD'}</span>
                   </div>
                 </div>
 
-                {hasFuturesData && (
+                {(hasFuturesData || analytics.spotUnrealizedPnL) && (
                   <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
-                    <div className="text-[10px] text-slate-400 mb-1">Unrealized P&L</div>
-                    <div className={`text-sm font-semibold ${(analytics.futuresUnrealizedPnL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {currSymbol}{formatNumber(analytics.futuresUnrealizedPnL || 0, 2)}
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mb-1">
+                      <TrendingUpIcon className="w-3 h-3" />
+                      <span>Unrealized P&L</span>
                     </div>
+                    <div className={`text-sm font-semibold ${(analytics.totalUnrealizedPnL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {(analytics.totalUnrealizedPnL || 0) >= 0 ? '+' : ''}{currSymbol}{formatNumber(analytics.totalUnrealizedPnL || 0, 2)} <span className="text-xs text-slate-400 font-normal">{currency || 'USD'}</span>
+                    </div>
+                    {(analytics.spotUnrealizedPnL || analytics.futuresUnrealizedPnL) && (
+                      <div className="text-[9px] text-slate-500 mt-0.5">
+                        {analytics.spotUnrealizedPnL ? `Spot: ${currSymbol}${formatNumber(analytics.spotUnrealizedPnL, 2)}` : ''}
+                        {analytics.spotUnrealizedPnL && analytics.futuresUnrealizedPnL ? ' ? ' : ''}
+                        {analytics.futuresUnrealizedPnL ? `Futures: ${currSymbol}${formatNumber(analytics.futuresUnrealizedPnL, 2)}` : ''}
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {hasPortfolioData && (
-                  <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
-                    <div className="text-[10px] text-slate-400 mb-1">Portfolio Value</div>
-                    <div className="text-sm font-semibold text-white">
-                      {currSymbol}{formatNumber(metadata?.totalPortfolioValue || 0, 2)}
+                {hasPortfolioData ? (
+                  <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3">
+                    <div className="flex items-center gap-1.5 text-[10px] text-blue-400 mb-1">
+                      <Wallet className="w-3 h-3" />
+                      <span>Total Portfolio Value</span>
                     </div>
+                    <div className="text-sm font-semibold text-blue-300">
+                      {currSymbol}{formatNumber(metadata?.totalPortfolioValue || 0, 2)} <span className="text-xs text-slate-400 font-normal">{currency || 'USD'}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mb-1">
+                      <Wallet className="w-3 h-3" />
+                      <span>Portfolio Value</span>
+                    </div>
+                    <div className="text-xs text-slate-500">Not available</div>
                   </div>
                 )}
               </div>
@@ -2465,13 +2529,21 @@ function OverviewTab({ analytics, currSymbol, currency, metadata, setActiveTab }
                       {spotValue >= 0 ? `+${currSymbol}${formatNumber(spotValue, 2)} profit` : `${currSymbol}${formatNumber(Math.abs(spotValue), 2)} loss`}
                     </div>
                     {spotInsight ? (
-                      <div className="text-[10px] text-emerald-400 font-medium">
-                        {spotInsight.symbols[0]} showing {spotInsight.details?.[0]?.winRate?.toFixed(0)}% win rate ?
-                      </div>
+                      <SeparatorText
+                        segments={[
+                          `${spotInsight.symbols[0]} showing ${spotInsight.details?.[0]?.winRate?.toFixed(0)}% win rate`
+                        ]}
+                        className="text-[10px] text-emerald-400 font-medium"
+                      />
                     ) : (
-                      <div className="text-[10px] text-slate-400">
-                        {analytics.spotTrades} trades ? {spotWinRate.toFixed(1)}% win rate ? See holdings & breakdown ?
-                      </div>
+                      <SeparatorText
+                        segments={[
+                          `${analytics.spotTrades} trades`,
+                          `${spotWinRate.toFixed(1)}% win rate`,
+                          'See holdings & breakdown'
+                        ]}
+                        className="text-[10px] text-slate-400"
+                      />
                     )}
                   </div>
                   <ChevronRight className="w-4 h-4 text-emerald-400/50 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all duration-300 flex-shrink-0 mt-1" />
@@ -2502,13 +2574,19 @@ function OverviewTab({ analytics, currSymbol, currency, metadata, setActiveTab }
                       {futuresValue >= 0 ? `+${currSymbol}${formatNumber(futuresValue, 2)} realized` : `${currSymbol}${formatNumber(Math.abs(futuresValue), 2)} loss`}
                       {openPositions > 0 && (
                         <span className={`ml-1 ${unrealizedPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                          ? {unrealizedPnL >= 0 ? '+' : ''}{currSymbol}{formatNumber(Math.abs(unrealizedPnL), 2)} unrealized
+                          <span className="mx-1">•</span>
+                          {unrealizedPnL >= 0 ? '+' : ''}{currSymbol}{formatNumber(Math.abs(unrealizedPnL), 2)} unrealized
                         </span>
                       )}
                     </div>
-                    <div className="text-[10px] text-slate-400">
-                      {analytics.futuresTrades} trades ? {futuresWinRate.toFixed(1)}% win rate ? Analyze leverage impact ?
-                    </div>
+                    <SeparatorText
+                      segments={[
+                        `${analytics.futuresTrades} trades`,
+                        `${futuresWinRate.toFixed(1)}% win rate`,
+                        'Analyze leverage impact'
+                      ]}
+                      className="text-[10px] text-slate-400"
+                    />
                   </div>
                   <ChevronRight className="w-4 h-4 text-cyan-400/50 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all duration-300 flex-shrink-0 mt-1" />
                 </div>
@@ -2536,11 +2614,14 @@ function OverviewTab({ analytics, currSymbol, currency, metadata, setActiveTab }
                     <div className="text-xs text-slate-300 mb-1">
                       Health Score: <span className={healthScore >= 70 ? 'text-emerald-400' : healthScore >= 50 ? 'text-yellow-400' : 'text-red-400'}>{healthScore}/100</span>
                     </div>
-                    <div className="text-[10px] text-slate-400">
-                      {criticalPatterns > 0 && `${criticalPatterns} critical pattern${criticalPatterns > 1 ? 's' : ''} ? `}
-                      {weaknesses > 0 && `${weaknesses} weakness${weaknesses > 1 ? 'es' : ''} detected ? `}
-                      Fix your blind spots ?
-                    </div>
+                    <SeparatorText
+                      segments={[
+                        criticalPatterns > 0 && `${criticalPatterns} critical pattern${criticalPatterns > 1 ? 's' : ''}`,
+                        weaknesses > 0 && `${weaknesses} weakness${weaknesses > 1 ? 'es' : ''} detected`,
+                        'Fix your blind spots'
+                      ]}
+                      className="text-[10px] text-slate-400"
+                    />
                   </div>
                   <ChevronRight className="w-4 h-4 text-purple-400/50 group-hover:text-purple-400 group-hover:translate-x-1 transition-all duration-300 flex-shrink-0 mt-1" />
                 </div>
@@ -3313,9 +3394,32 @@ export default function AnalyticsView({
   const [selectedExchanges, setSelectedExchanges] = useState([])
   const [appliedExchanges, setAppliedExchanges] = useState([]) // Track what's currently applied
 
-  // Convert analytics for display currency (USD -> INR conversion if needed)
+  // Ensure currency rates are cached when currency changes
+  useEffect(() => {
+    if (currency && currency !== 'USD') {
+      getCurrencyRates().catch(err => {
+        console.warn('?? Could not fetch currency rates:', err.message)
+      })
+    }
+  }, [currency])
+
+  // Convert analytics for display currency (USD -> other currency conversion)
   const convertedAnalytics = useMemo(() => {
-    return convertAnalyticsForDisplay(analytics, currency)
+    if (!analytics) return null
+    
+    console.log('?? Converting analytics for currency:', currency)
+    const converted = convertAnalyticsForDisplay(analytics, currency)
+    
+    // Debug: Log a sample conversion to verify it's working
+    if (converted && analytics.totalPnL !== undefined) {
+      console.log('?? Sample conversion:', {
+        original: analytics.totalPnL,
+        converted: converted.totalPnL,
+        currency
+      })
+    }
+    
+    return converted
   }, [analytics, currency])
 
   // Use converted analytics throughout the component
@@ -3513,22 +3617,22 @@ export default function AnalyticsView({
             <div className="transition-all duration-300 ease-in-out">
               {activeTab === 'overview' && (
                 <div className="animate-in fade-in duration-300">
-                  <OverviewTab analytics={analytics} currSymbol={currSymbol} currency={currency} metadata={currencyMetadata} setActiveTab={setActiveTab} />
+                  <OverviewTab analytics={displayAnalytics} currSymbol={currSymbol} currency={currency} metadata={currencyMetadata} setActiveTab={setActiveTab} />
                 </div>
               )}
               {activeTab === 'behavioral' && (
                 <div className="animate-in fade-in duration-300">
-                  <BehavioralTab analytics={analytics} currSymbol={currSymbol} />
+                  <BehavioralTab analytics={displayAnalytics} currSymbol={currSymbol} currency={currency} />
                 </div>
               )}
               {activeTab === 'spot' && (
                 <div className="animate-in fade-in duration-300">
-                  <SpotTab analytics={analytics} currSymbol={currSymbol} metadata={currencyMetadata} />
+                  <SpotTab analytics={displayAnalytics} currSymbol={currSymbol} currency={currency} metadata={currencyMetadata} />
                 </div>
               )}
               {activeTab === 'futures' && (
                 <div className="animate-in fade-in duration-300">
-                  <FuturesTab analytics={analytics} currSymbol={currSymbol} currency={currency} metadata={currencyMetadata} />
+                  <FuturesTab analytics={displayAnalytics} currSymbol={currSymbol} currency={currency} metadata={currencyMetadata} />
                 </div>
               )}
             </div>

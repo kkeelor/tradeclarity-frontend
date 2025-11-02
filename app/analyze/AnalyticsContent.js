@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/AuthContext'
 import AuthScreen from './components/AuthScreen'
 import { analyzeData } from './utils/masterAnalyzer'
 import { getCurrencySymbol } from './utils/currencyFormatter'
+import { getCurrencyRates } from './utils/currencyConverter'
 import AnalyticsView from './components/AnalyticsView'
 import demoFuturesData from './demo-data/demo-futures-data.json'
 import demoSpotData from './demo-data/demo-spot-data.json'
@@ -329,8 +330,8 @@ export default function AnalyticsContent() {
             futuresPositions: demoFuturesData.positions,
             metadata: {
               primaryCurrency: 'USD',
-              availableCurrencies: ['USD'],
-              supportsCurrencySwitch: false,
+              availableCurrencies: ['USD', 'INR', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CNY', 'SGD', 'CHF'],
+              supportsCurrencySwitch: true,
               accountType: 'MIXED',
               hasFutures: true,
               futuresPositions: demoFuturesData.positions.length,
@@ -342,6 +343,11 @@ export default function AnalyticsContent() {
           const analysis = await analyzeData(demoData)
           setAnalytics(analysis)
           setCurrencyMetadata(demoData.metadata)
+          // Load saved currency preference from localStorage
+          const savedCurrency = typeof window !== 'undefined' ? localStorage.getItem('tradeclarity_currency') : null
+          if (savedCurrency) {
+            setCurrency(savedCurrency)
+          }
           setLoadingComplete(true)
         } catch (err) {
           console.error('Demo loading error:', err)
@@ -409,16 +415,23 @@ export default function AnalyticsContent() {
           setProgress('Analyzing patterns and calculating insights...')
           await new Promise(resolve => setTimeout(resolve, 100))
           
+          // Ensure currency rates are cached before conversion
+          try {
+            await getCurrencyRates()
+            console.log('?? Currency rates cached for conversion')
+          } catch (rateError) {
+            console.warn('?? Could not fetch currency rates:', rateError.message)
+          }
+          
           const analysis = await analyzeData(data)
           setAnalytics(analysis)
           setCurrencyMetadata(data.metadata)
           
-          // Determine currency
-          let displayCurrency = 'USD'
-          if (data.metadata?.primaryCurrency === 'INR') {
-            displayCurrency = 'INR'
+          // Use persisted currency or default to USD
+          const savedCurrency = typeof window !== 'undefined' ? localStorage.getItem('tradeclarity_currency') : null
+          if (savedCurrency) {
+            setCurrency(savedCurrency)
           }
-          setCurrency(displayCurrency)
           
           // Always set progress to "Preparing" to trigger 100% animation
           // Use setTimeout to ensure state update propagates before component might unmount
@@ -467,9 +480,21 @@ export default function AnalyticsContent() {
         const fetchData = await fetchResponse.json()
 
         if (fetchData.success) {
+          // Ensure currency rates are cached before conversion
+          try {
+            await getCurrencyRates()
+          } catch (rateError) {
+            console.warn('?? Could not fetch currency rates:', rateError.message)
+          }
+          
           const analysis = await analyzeData(fetchData)
           setAnalytics(analysis)
           setCurrencyMetadata(fetchData.metadata)
+          // Preserve currency preference from localStorage
+          const savedCurrency = typeof window !== 'undefined' ? localStorage.getItem('tradeclarity_currency') : null
+          if (savedCurrency) {
+            setCurrency(savedCurrency)
+          }
         }
       }
     } catch (error) {
@@ -550,3 +575,4 @@ export default function AnalyticsContent() {
 
   return null
 }
+

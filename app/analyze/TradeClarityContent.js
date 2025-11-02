@@ -343,10 +343,13 @@ export default function TradeClarityContent() {
   const [currentConnectionId, setCurrentConnectionId] = useState(null) // Track which exchange is shown
   const [loadingComplete, setLoadingComplete] = useState(false) // Track when loading animation completes
 
-  const exchangeList = getExchangeList()
-  const currentExchange = EXCHANGES[exchange]
-
-  // Background effect: Store trades to database after analytics loads
+  // Persist currency changes to localStorage
+  const handleCurrencyChange = (newCurrency) => {
+    setCurrency(newCurrency)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('tradeclarity_currency', newCurrency)
+    }
+  }
   useEffect(() => {
     if (pendingTradeStorage && status === 'connected' && !isDemoMode) {
       const { spotTrades, futuresIncome, userId, exchange: exchangeName, connectionId, metadata } = pendingTradeStorage
@@ -433,8 +436,8 @@ export default function TradeClarityContent() {
           futuresPositions: demoFuturesData.positions,
           metadata: {
             primaryCurrency: 'USD',
-            availableCurrencies: ['USD'],
-            supportsCurrencySwitch: false,
+            availableCurrencies: ['USD', 'INR', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CNY', 'SGD', 'CHF'],
+            supportsCurrencySwitch: true,
             accountType: 'MIXED',
             hasFutures: true,
             futuresPositions: demoFuturesData.positions.length,
@@ -452,6 +455,11 @@ export default function TradeClarityContent() {
 
         setAnalytics(analysis)
         setCurrencyMetadata(demoData.metadata)
+        // Load saved currency preference from localStorage
+        const savedCurrency = typeof window !== 'undefined' ? localStorage.getItem('tradeclarity_currency') : null
+        if (savedCurrency) {
+          setCurrency(savedCurrency)
+        }
         // Don't set connected yet - wait for loading animation
       }, 1000)
     } catch (err) {
@@ -609,32 +617,8 @@ export default function TradeClarityContent() {
       setAnalytics(analysis)
       setCurrencyMetadata(data.metadata)
       
-      // Determine currency: INR only if viewing CoinDCX from dashboard
-      let displayCurrency = 'USD' // Default to USD
-      if (safeExchangeName === 'coindcx') {
-        displayCurrency = 'INR'
-      } else if (selectedSources) {
-        // Check if any selected exchange is CoinDCX
-        const exchangeIds = selectedSources.filter(s => s.type === 'exchange').map(s => s.id)
-        if (exchangeIds.length > 0) {
-          // Fetch exchange list to check if any is CoinDCX
-          try {
-            const exchangeListResponse = await fetch('/api/exchange/list')
-            const exchangeListData = await exchangeListResponse.json()
-            if (exchangeListData.success && exchangeListData.connections) {
-              const hasCoinDCX = exchangeListData.connections.some(
-                conn => exchangeIds.includes(conn.id) && conn.exchange === 'coindcx'
-              )
-              if (hasCoinDCX) {
-                displayCurrency = 'INR'
-              }
-            }
-          } catch (err) {
-            console.error('Error checking exchange type:', err)
-          }
-        }
-      }
-      setCurrency(displayCurrency)
+      // Always default to USD - currency switcher allows user to switch to INR if CoinDCX data is available
+      setCurrency('USD')
       setProgress('Analysis complete! Preparing dashboard...')
       // Don't set connected yet - wait for loading animation
     } catch (err) {
@@ -704,8 +688,11 @@ export default function TradeClarityContent() {
 
       setAnalytics(analysis)
       setCurrencyMetadata(data.metadata)
-      // Default to USD - currency is set based on exchange type when viewing from dashboard
-      setCurrency('USD')
+      // Preserve currency preference from localStorage
+      const savedCurrency = typeof window !== 'undefined' ? localStorage.getItem('tradeclarity_currency') : null
+      if (savedCurrency) {
+        setCurrency(savedCurrency)
+      }
 
       // Trigger background storage if we have fetched data (not demo mode)
       if (preFetchedData && preFetchedData.userId && preFetchedData.connectionId) {
@@ -818,7 +805,7 @@ export default function TradeClarityContent() {
         currency={currency}
         currSymbol={getCurrencySymbol(currency)}
         currencyMetadata={currencyMetadata}
-        setCurrency={setCurrency}
+        setCurrency={handleCurrencyChange}
         isDemoMode={isDemoMode}
         isAuthenticated={!!user}
         exchangeConfig={currentExchange}
@@ -892,6 +879,14 @@ export default function TradeClarityContent() {
             console.error('? [onFilterExchanges] Error:', error)
             setError('Failed to apply exchange filter')
             setStatus('connected') // Keep the current view
+          }
+        }}
+      />
+    )
+  }
+
+  return null
+}'connected') // Keep the current view
           }
         }}
       />

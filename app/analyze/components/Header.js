@@ -1,7 +1,9 @@
 // app/analyze/components/Header.js
 
-import { TrendingUp, ArrowRight, LayoutDashboard, Upload, BarChart3, LogOut } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { TrendingUp, ArrowRight, LayoutDashboard, Upload, BarChart3, LogOut, ChevronDown } from 'lucide-react'
 import ThemeToggle from '../../components/ThemeToggle'
+import { getCurrencySymbol } from '../utils/currencyFormatter'
 
 function NavButton({ icon: Icon, label, onClick }) {
   if (!onClick) return null
@@ -14,6 +16,76 @@ function NavButton({ icon: Icon, label, onClick }) {
       <Icon className="h-4 w-4 text-slate-500 transition-colors group-hover:text-emerald-300" />
       {label}
     </button>
+  )
+}
+
+function CurrencyDropdown({ currencies, selectedCurrency, onSelectCurrency }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const dropdownRef = useRef(null)
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false)
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isOpen])
+
+  const currencyNames = {
+    'USD': 'US Dollar',
+    'INR': 'Indian Rupee',
+    'EUR': 'Euro',
+    'GBP': 'British Pound',
+    'JPY': 'Japanese Yen',
+    'AUD': 'Australian Dollar',
+    'CAD': 'Canadian Dollar',
+    'CNY': 'Chinese Yuan',
+    'SGD': 'Singapore Dollar',
+    'CHF': 'Swiss Franc'
+  }
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-1.5 rounded-full border border-white/5 bg-white/[0.02] px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white"
+      >
+        <span>{getCurrencySymbol(selectedCurrency)}</span>
+        <span>{selectedCurrency}</span>
+        <ChevronDown className={`h-3 w-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-48 bg-slate-800/95 backdrop-blur-xl border border-slate-700/50 rounded-lg shadow-2xl z-50 overflow-hidden max-h-80 overflow-y-auto">
+          {currencies.map((curr) => (
+            <button
+              key={curr}
+              onClick={() => {
+                onSelectCurrency(curr)
+                setIsOpen(false)
+              }}
+              className={`w-full px-3 py-2 text-left text-xs transition flex items-center gap-2 ${
+                selectedCurrency === curr
+                  ? 'bg-emerald-400/20 text-emerald-300 font-medium'
+                  : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+              }`}
+            >
+              <span className="w-8 text-right">{getCurrencySymbol(curr)}</span>
+              <span className="flex-1">{curr}</span>
+              <span className="text-[10px] text-slate-500">{currencyNames[curr] || ''}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -64,22 +136,12 @@ export default function Header({
             </span>
           )}
 
-          {!isDemoMode && currencyMetadata?.supportsCurrencySwitch && currencyMetadata.availableCurrencies.length > 1 && (
-            <div className="flex items-center gap-1 rounded-full border border-white/5 bg-white/[0.02] p-1">
-              {currencyMetadata.availableCurrencies.map((curr) => (
-                <button
-                  key={curr}
-                  onClick={() => setCurrency(curr)}
-                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                    currency === curr
-                      ? 'bg-emerald-400 text-slate-900'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {curr}
-                </button>
-              ))}
-            </div>
+          {currencyMetadata?.supportsCurrencySwitch && currencyMetadata.availableCurrencies.length > 1 && (
+            <CurrencyDropdown
+              currencies={currencyMetadata.availableCurrencies}
+              selectedCurrency={currency}
+              onSelectCurrency={setCurrency}
+            />
           )}
 
           {isDemoMode && (
