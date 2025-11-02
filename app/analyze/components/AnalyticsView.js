@@ -3384,11 +3384,19 @@ export default function AnalyticsView({
   onViewAllExchanges,
   onFilterExchanges, // Callback to re-fetch data with filtered exchanges
   isDemoMode = false,
-  isAuthenticated = true
+  isAuthenticated = true,
+  initialTab = 'overview' // New prop to set initial tab from URL
 }) {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState('overview')
+  const [activeTab, setActiveTab] = useState(initialTab)
   const [showFilters, setShowFilters] = useState(false)
+
+  // Update activeTab when initialTab prop changes (e.g., from URL parameter)
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab)
+    }
+  }, [initialTab])
 
   // Filter state - Only data source filtering
   const [selectedExchanges, setSelectedExchanges] = useState([])

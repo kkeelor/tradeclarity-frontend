@@ -298,6 +298,18 @@ export default function AnalyticsContent() {
   const [cachedData, setCachedData] = useState(null)
   const [progress, setProgress] = useState('Fetching your trading data...')
   const hasLoadedRef = useRef(false) // Track if we've already loaded data to prevent double-loading
+  const [activeTabFromUrl, setActiveTabFromUrl] = useState('overview')
+
+  // Watch for URL tab parameter changes
+  useEffect(() => {
+    const tabParam = searchParams.get('tab')
+    const validTabs = ['overview', 'behavioral', 'spot', 'futures']
+    if (tabParam && validTabs.includes(tabParam)) {
+      setActiveTabFromUrl(tabParam)
+    } else {
+      setActiveTabFromUrl('overview')
+    }
+  }, [searchParams])
 
   // Load data on mount
   useEffect(() => {
@@ -596,6 +608,9 @@ export default function AnalyticsContent() {
   }
 
   if (status === 'connected' && analytics) {
+    // Use tab from URL state (updated via useEffect)
+    const currentTab = activeTabFromUrl || 'overview'
+
     return (
       <AnalyticsView
         analytics={analytics}
@@ -610,6 +625,8 @@ export default function AnalyticsContent() {
         onUploadClick={() => router.push('/dashboard')}
         onViewAllExchanges={() => router.push('/analyze')}
         onFilterExchanges={handleFilterExchanges}
+        initialTab={currentTab}
+        key={currentTab} // Force re-render when tab changes
       />
     )
   }

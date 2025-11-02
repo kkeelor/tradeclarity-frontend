@@ -2,7 +2,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, LogOut, BarChart3, Sparkles, Database, CheckSquare, Square, Loader2, ChevronRight, Zap } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, LogOut, BarChart3, Sparkles, Database, CheckSquare, Square, Loader2, ChevronRight, Zap, Brain, Clock, DollarSign, PieChart, TrendingDown } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { toast } from 'sonner'
 import ThemeToggle from '@/app/components/ThemeToggle'
@@ -23,6 +24,7 @@ import { DashboardStatsSkeleton, DataSourceSkeleton } from '@/app/components/Loa
 import ConnectExchangeModal from './ConnectExchangeModal'
 
 export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithCSV, onViewAnalytics }) {
+  const router = useRouter()
   const { user } = useAuth()
   const [uploadedFiles, setUploadedFiles] = useState([])
   const [connectedExchanges, setConnectedExchanges] = useState([])
@@ -501,22 +503,138 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                       <Sparkles className="w-4 h-4 text-emerald-400" />
                       <h3 className="text-xs font-semibold text-emerald-300 uppercase tracking-wider">What's Next</h3>
                     </div>
-                    {connectedExchanges.length === 1 ? (
-                      <p className="text-xs text-slate-300 leading-relaxed mb-4">
-                        Add another exchange to compare performance across platforms and get deeper insights
-                      </p>
+                    
+                    {tradesStats && tradesStats.totalTrades > 0 ? (
+                      <div className="space-y-4">
+                        <p className="text-xs text-slate-300 leading-relaxed">
+                          Explore deeper insights into your trading patterns:
+                        </p>
+                        <div className="grid grid-cols-2 gap-3">
+                          {/* Overview CTA */}
+                          <button
+                            onClick={() => router.push('/analyze?tab=overview')}
+                            className="text-left text-xs text-slate-300 hover:text-emerald-300 font-medium transition-colors duration-200 flex items-start gap-2 p-2 rounded-lg hover:bg-white/5"
+                          >
+                            <BarChart3 className="w-4 h-4 text-emerald-400/70 flex-shrink-0 mt-0.5" />
+                            <span>View complete trading overview</span>
+                          </button>
+                          
+                          {/* Spot Trading CTA */}
+                          {tradesStats.spotTrades > 0 && (
+                            <button
+                              onClick={() => router.push('/analyze?tab=spot')}
+                              className="text-left text-xs text-slate-300 hover:text-emerald-300 font-medium transition-colors duration-200 flex items-start gap-2 p-2 rounded-lg hover:bg-white/5"
+                            >
+                              <PieChart className="w-4 h-4 text-emerald-400/70 flex-shrink-0 mt-0.5" />
+                              <span>Analyze {tradesStats.spotTrades} spot trades</span>
+                            </button>
+                          )}
+                          
+                          {/* Futures Trading CTA */}
+                          {(tradesStats.futuresIncome > 0 || tradesStats.futuresPositions > 0) && (
+                            <button
+                              onClick={() => router.push('/analyze?tab=futures')}
+                              className="text-left text-xs text-slate-300 hover:text-emerald-300 font-medium transition-colors duration-200 flex items-start gap-2 p-2 rounded-lg hover:bg-white/5"
+                            >
+                              <Zap className="w-4 h-4 text-emerald-400/70 flex-shrink-0 mt-0.5" />
+                              <span>Review futures performance</span>
+                            </button>
+                          )}
+                          
+                          {/* Time-based Analysis CTA */}
+                          {tradesStats.totalTrades > 10 && (
+                            <button
+                              onClick={() => router.push('/analyze?tab=overview')}
+                              className="text-left text-xs text-slate-300 hover:text-emerald-300 font-medium transition-colors duration-200 flex items-start gap-2 p-2 rounded-lg hover:bg-white/5"
+                            >
+                              <Clock className="w-4 h-4 text-emerald-400/70 flex-shrink-0 mt-0.5" />
+                              <span>Discover peak trading hours</span>
+                            </button>
+                          )}
+                          
+                          {/* Symbol Analysis CTA */}
+                          {tradesStats.spotTrades > 5 && (
+                            <button
+                              onClick={() => router.push('/analyze?tab=spot')}
+                              className="text-left text-xs text-slate-300 hover:text-emerald-300 font-medium transition-colors duration-200 flex items-start gap-2 p-2 rounded-lg hover:bg-white/5"
+                            >
+                              <TrendingUp className="w-4 h-4 text-emerald-400/70 flex-shrink-0 mt-0.5" />
+                              <span>Find most profitable coins</span>
+                            </button>
+                          )}
+                          
+                          {/* Behavioral CTA */}
+                          {criticalInsight && (
+                            <button
+                              onClick={() => router.push('/analyze?tab=behavioral')}
+                              className="text-left text-xs text-slate-300 hover:text-emerald-300 font-medium transition-colors duration-200 flex items-start gap-2 p-2 rounded-lg hover:bg-white/5"
+                            >
+                              <Brain className="w-4 h-4 text-emerald-400/70 flex-shrink-0 mt-0.5" />
+                              <span>Discover trading psychology score</span>
+                            </button>
+                          )}
+                          
+                          {/* Fee Analysis CTA */}
+                          {criticalInsight && tradesStats.totalTrades > 20 && (
+                            <button
+                              onClick={() => router.push('/analyze?tab=behavioral')}
+                              className="text-left text-xs text-slate-300 hover:text-emerald-300 font-medium transition-colors duration-200 flex items-start gap-2 p-2 rounded-lg hover:bg-white/5"
+                            >
+                              <DollarSign className="w-4 h-4 text-emerald-400/70 flex-shrink-0 mt-0.5" />
+                              <span>Optimize trading fees</span>
+                            </button>
+                          )}
+                          
+                          {/* Combined Analytics CTA */}
+                          {connectedExchanges.length > 1 && (
+                            <button
+                              onClick={() => onViewAnalytics()}
+                              className="text-left text-xs text-slate-300 hover:text-emerald-300 font-medium transition-colors duration-200 flex items-start gap-2 p-2 rounded-lg hover:bg-white/5"
+                            >
+                              <LinkIcon className="w-4 h-4 text-emerald-400/70 flex-shrink-0 mt-0.5" />
+                              <span>Compare all {connectedExchanges.length} exchanges</span>
+                            </button>
+                          )}
+                          
+                          {/* Add Exchange CTA */}
+                          {connectedExchanges.length === 1 && (
+                            <button
+                              onClick={() => setShowConnectModal(true)}
+                              className="text-left text-xs text-slate-300 hover:text-emerald-300 font-medium transition-colors duration-200 flex items-start gap-2 p-2 rounded-lg hover:bg-white/5"
+                            >
+                              <Plus className="w-4 h-4 text-emerald-400/70 flex-shrink-0 mt-0.5" />
+                              <span>Add another exchange</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ) : connectedExchanges.length === 1 ? (
+                      <div className="space-y-3">
+                        <p className="text-xs text-slate-300 leading-relaxed mb-2">
+                          Add another exchange to compare performance across platforms and get deeper insights
+                        </p>
+                        <button
+                          onClick={() => setShowConnectModal(true)}
+                          className="group/btn text-xs text-emerald-400 hover:text-emerald-300 font-semibold transition-all duration-300 inline-flex items-center gap-1.5 hover:gap-2"
+                        >
+                          Add Exchange
+                          <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover/btn:translate-x-1" />
+                        </button>
+                      </div>
                     ) : (
-                      <p className="text-xs text-slate-300 leading-relaxed mb-4">
-                        View your combined analytics to see patterns across all {connectedExchanges.length} exchanges and discover hidden opportunities
-                      </p>
+                      <div className="space-y-3">
+                        <p className="text-xs text-slate-300 leading-relaxed mb-2">
+                          View your combined analytics to see patterns across all {connectedExchanges.length} exchanges and discover hidden opportunities
+                        </p>
+                        <button
+                          onClick={() => onViewAnalytics()}
+                          className="group/btn text-xs text-emerald-400 hover:text-emerald-300 font-semibold transition-all duration-300 inline-flex items-center gap-1.5 hover:gap-2"
+                        >
+                          View Combined Analytics
+                          <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover/btn:translate-x-1" />
+                        </button>
+                      </div>
                     )}
-                    <button
-                      onClick={() => connectedExchanges.length === 1 ? setShowConnectModal(true) : onViewAnalytics()}
-                      className="group/btn text-xs text-emerald-400 hover:text-emerald-300 font-semibold transition-all duration-300 inline-flex items-center gap-1.5 hover:gap-2"
-                    >
-                      {connectedExchanges.length === 1 ? 'Add Exchange' : 'View Combined Analytics'}
-                      <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover/btn:translate-x-1" />
-                    </button>
                   </div>
                 </div>
               </div>
