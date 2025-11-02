@@ -192,13 +192,19 @@ export default function LoginForm({
   const [apiSecretValid, setApiSecretValid] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
+  const [localProgress, setLocalProgress] = useState('')
 
   const handleSubmit = async () => {
+    console.log('🔵 [LoginForm] Connect button clicked')
     setIsSubmitting(true)
     setSubmitError('')
+    setLocalProgress('Connecting to exchange...')
 
     try {
       // Call the new API endpoint to save credentials and fetch data
+      console.log('🟡 [LoginForm] Calling /api/exchange/connect...', { exchange, apiKeyLength: apiKey.length })
+      setLocalProgress('Saving credentials...')
+      
       const response = await fetch('/api/exchange/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -209,9 +215,12 @@ export default function LoginForm({
         })
       })
 
+      console.log('🟡 [LoginForm] Response received:', { ok: response.ok, status: response.status })
+
       const data = await response.json()
 
       if (!response.ok) {
+        console.error('❌ [LoginForm] API error:', data)
         throw new Error(data.error || 'Failed to connect exchange')
       }
 
@@ -222,18 +231,29 @@ export default function LoginForm({
         console.log('📊 NORMALIZED TRADES (samples before DB insert):', data.data.normalizedSamples)
       }
 
+      setLocalProgress('Preparing analytics...')
+
       // Call the parent's onConnect with the pre-fetched data
+      console.log('🟢 [LoginForm] Connection successful, calling onConnect...', { hasData: !!data.data })
       if (data.data) {
         // New flow: pass the fetched data
+        setLocalProgress('Redirecting to analytics...')
+        // Small delay to ensure UI updates
+        await new Promise(resolve => setTimeout(resolve, 300))
+        console.log('🟢 [LoginForm] Calling onConnect with data')
         onConnect(apiKey, apiSecret, data.data)
       } else {
         // Fallback: let parent fetch data
+        setLocalProgress('Redirecting to analytics...')
+        await new Promise(resolve => setTimeout(resolve, 300))
+        console.log('🟢 [LoginForm] Calling onConnect without data')
         onConnect(apiKey, apiSecret)
       }
     } catch (err) {
       console.error('Connection error:', err)
       setSubmitError(err.message || 'Failed to connect to exchange. Please check your API credentials.')
       setIsSubmitting(false)
+      setLocalProgress('')
     }
   }
   
@@ -550,10 +570,10 @@ export default function LoginForm({
                 </div>
               )}
 
-              {(progress && !submitError && isSubmitting) && (
+              {((isSubmitting || status === 'connecting') && !submitError && !error) && (
                 <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
                   <Loader2 className="w-5 h-5 text-emerald-400 animate-spin flex-shrink-0" />
-                  <p className="text-emerald-400 text-sm">{progress}</p>
+                  <p className="text-emerald-400 text-sm">{localProgress || progress || 'Connecting...'}</p>
                 </div>
               )}
 
@@ -577,12 +597,12 @@ export default function LoginForm({
                 {(isSubmitting || status === 'connecting') ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    Connecting & Fetching Your Trades...
+                    Connecting...
                   </>
                 ) : (
                   <>
                     <Zap className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                    Discover My Patterns
+                    Connect Exchange
                   </>
                 )}
               </button>

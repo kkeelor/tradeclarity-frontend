@@ -130,8 +130,12 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
       if (data.success && data.metadata) {
         setTradesStats(data.metadata)
 
-        // Analyze data to get critical insight
-        if (data.spotTrades || data.futuresIncome) {
+        // Analyze data to get critical insight - only if we have actual trades
+        const hasTrades = (data.spotTrades && data.spotTrades.length > 0) || 
+                          (data.futuresIncome && data.futuresIncome.length > 0) ||
+                          (data.futuresUserTrades && data.futuresUserTrades.length > 0)
+        
+        if (hasTrades) {
           try {
             // analyzeData is now async due to currency conversion
             const analytics = await analyzeData(data)
@@ -144,6 +148,10 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
           } catch (error) {
             console.error('Error analyzing trades for insight:', error)
           }
+        } else {
+          // No trades - clear insights
+          setCriticalInsight(null)
+          setAllInsights([])
         }
       }
     } catch (error) {

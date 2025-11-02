@@ -4,19 +4,25 @@ import { NextResponse } from 'next/server'
 import { encrypt } from '@/lib/encryption'
 
 export async function POST(request) {
+  console.log('📡 [API] /api/exchange/connect called')
   try {
     const supabase = createClient()
 
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
+      console.error('❌ [API] Auth error:', authError)
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    console.log('✅ [API] User authenticated:', user.id)
+
     const { exchange, apiKey, apiSecret } = await request.json()
+    console.log('📥 [API] Request data:', { exchange, hasApiKey: !!apiKey, hasApiSecret: !!apiSecret })
 
     // Validate inputs
     if (!exchange || !apiKey || !apiSecret) {
+      console.error('❌ [API] Missing required fields')
       return NextResponse.json(
         { error: 'Exchange, API key, and API secret are required' },
         { status: 400 }
@@ -69,6 +75,7 @@ export async function POST(request) {
       connectionData = data
     } else {
       // Create new connection
+      console.log('📝 [API] Creating new connection...')
       const { data, error: insertError } = await supabase
         .from('exchange_connections')
         .insert({
@@ -90,16 +97,20 @@ export async function POST(request) {
       }
 
       connectionData = data
+      console.log('✅ [API] Connection created:', connectionData.id)
     }
 
     // Trigger data fetch and wait for completion
     // Pass credentials directly instead of querying database again
     let fetchResult = null
+    console.log('📡 [API] Starting data fetch...')
     try {
       // Auto-detect the correct URL based on the request
       const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
       const host = request.headers.get('host') || 'localhost:3000'
       const baseUrl = `${protocol}://${host}`
+
+      console.log('🌐 [API] Fetching from:', `${baseUrl}/api/exchange/fetch-data`)
 
       const fetchResponse = await fetch(`${baseUrl}/api/exchange/fetch-data`, {
         method: 'POST',
@@ -125,6 +136,7 @@ export async function POST(request) {
       // Don't fail the connection save if background fetch fails
     }
 
+    console.log('✅ [API] Returning success response')
     return NextResponse.json({
       success: true,
       connection: {

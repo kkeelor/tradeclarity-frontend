@@ -9,7 +9,6 @@ import Dashboard from '../analyze/components/Dashboard'
 import LoginForm from '../analyze/components/LoginForm'
 import CSVUploadFlow from '../analyze/components/CSVUploadFlow'
 import { EXCHANGES, getExchangeList } from '../analyze/utils/exchanges'
-import { analyzeData } from '../analyze/utils/masterAnalyzer'
 
 export default function DashboardContent() {
   const router = useRouter()
@@ -25,42 +24,29 @@ export default function DashboardContent() {
   const currentExchange = EXCHANGES[exchange]
 
   const handleConnect = async (apiKey, apiSecret, preFetchedData = null) => {
+    console.log('?? handleConnect called', { hasData: !!preFetchedData })
     setStatus('connecting')
     setError('')
-    setProgress('Connecting to exchange...')
+    setProgress('Connection successful! Redirecting to analytics...')
 
     try {
-      let data
-
-      if (preFetchedData) {
-        data = preFetchedData
-      } else {
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
-        const endpoint = `${backendUrl}/api/${exchange}/fetch-all`
-
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ apiKey, apiSecret })
-        })
-
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || `HTTP ${response.status}`)
-        }
-
-        const responseData = await response.json()
-        data = responseData.data || responseData
-      }
-
-      setProgress('Analyzing your trading data...')
+      // Note: LoginForm already calls /api/exchange/connect which:
+      // 1. Saves encrypted credentials to database
+      // 2. Fetches and stores trade data in database
+      // So we don't need to fetch data here - just navigate to /analyze
+      // The /analyze page will fetch data from the database
       
-      // Navigate to analytics page - it will handle data fetching
+      // Small delay to show success message and ensure UI updates
+      await new Promise(resolve => setTimeout(resolve, 800))
+      
+      console.log('?? Navigating to /analyze...')
+      // Navigate to analytics page - it will fetch data from database
       router.push('/analyze')
     } catch (err) {
-      console.error('Connection error:', err)
+      console.error('? Connection error:', err)
       setError(err.message || 'Failed to connect to exchange')
       setStatus('error')
+      setProgress('')
     }
   }
 
