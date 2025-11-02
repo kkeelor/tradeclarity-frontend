@@ -16,6 +16,8 @@ import { analyzeDrawdowns } from '../utils/drawdownAnalysis'
 import { analyzeTimeBasedPerformance } from '../utils/timeBasedAnalysis'
 import { analyzeSymbols } from '../utils/symbolAnalysis'
 import { convertAnalyticsForDisplay } from '../utils/currencyFormatter'
+import { generateValueFirstInsights } from '../utils/insights/valueFirstInsights'
+import AhaMomentsSection from './AhaMomentsSection'
 import { ExchangeIcon } from '@/components/ui'
 import {
   AreaChart, Area, BarChart, Bar, LineChart as RechartsLineChart,
@@ -1547,6 +1549,16 @@ function OverviewTab({ analytics, currSymbol, currency, metadata, setActiveTab }
   const [showSymbols, setShowSymbols] = useState(false)
   const psychology = analytics.psychology || {}
 
+  // Generate value-first insights with money calculations
+  let valueFirstInsights = null
+  try {
+    valueFirstInsights = generateValueFirstInsights(analytics, psychology, analytics.allTrades || [])
+  } catch (error) {
+    console.error('Error generating value-first insights:', error)
+    valueFirstInsights = { critical: [], opportunities: [], behavioral: [], all: [] }
+  }
+  
+  // Keep legacy insights for backward compatibility
   const insights = generateEnhancedInsights(analytics, psychology)
   const patterns = detectHiddenPatterns(analytics, psychology)
   const analogies = generatePerformanceAnalogies(analytics)
@@ -1666,6 +1678,15 @@ function OverviewTab({ analytics, currSymbol, currency, metadata, setActiveTab }
           </div>
         </div>
       </div>
+
+      {/* Aha Moments - Value-First Insights Hero Section */}
+      {valueFirstInsights && valueFirstInsights.critical.length > 0 && (
+        <AhaMomentsSection 
+          insights={valueFirstInsights} 
+          currency={currency}
+          currSymbol={currSymbol}
+        />
+      )}
 
       {/* Enhanced P&L Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
@@ -2723,7 +2744,7 @@ export default function AnalyticsView({
             <div className="transition-all duration-300 ease-in-out">
               {activeTab === 'overview' && (
                 <div className="animate-in fade-in duration-300">
-                  <OverviewTab analytics={analytics} currSymbol={currSymbol} metadata={currencyMetadata} setActiveTab={setActiveTab} />
+                  <OverviewTab analytics={analytics} currSymbol={currSymbol} currency={currency} metadata={currencyMetadata} setActiveTab={setActiveTab} />
                 </div>
               )}
               {activeTab === 'behavioral' && (

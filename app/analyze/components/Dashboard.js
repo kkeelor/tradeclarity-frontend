@@ -6,7 +6,7 @@ import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileTe
 import { useAuth } from '@/lib/AuthContext'
 import { toast } from 'sonner'
 import ThemeToggle from '@/app/components/ThemeToggle'
-import { getMostCriticalInsight } from '../utils/performanceAnalogies'
+import { getMostCriticalInsight, getAllInsights } from '../utils/performanceAnalogies'
 import { analyzeData } from '../utils/masterAnalyzer'
 import {
   AlertDialog,
@@ -21,7 +21,6 @@ import {
 import { ExchangeIcon } from '@/components/ui'
 import { DashboardStatsSkeleton, DataSourceSkeleton } from '@/app/components/LoadingSkeletons'
 import ConnectExchangeModal from './ConnectExchangeModal'
-import Sidebar from './Sidebar'
 
 export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithCSV, onViewAnalytics }) {
   const { user } = useAuth()
@@ -34,6 +33,8 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
   const [loadingStats, setLoadingStats] = useState(true)
   const [tradesStats, setTradesStats] = useState(null)
   const [criticalInsight, setCriticalInsight] = useState(null)
+  const [allInsights, setAllInsights] = useState([])
+  const [currentInsightIndex, setCurrentInsightIndex] = useState(0)
   const [selectedSources, setSelectedSources] = useState([]) // Array of {type: 'exchange'|'csv', id: string}
 
   // Exchange deletion state
@@ -57,6 +58,17 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
     fetchUploadedFiles()
     fetchTradesStats()
   }, [])
+
+  // Rotate through insights every 6 seconds
+  useEffect(() => {
+    if (!allInsights || allInsights.length <= 1) return // Don't rotate if there's only one or no insights
+
+    const interval = setInterval(() => {
+      setCurrentInsightIndex((prev) => (prev + 1) % allInsights.length)
+    }, 6000) // Change insight every 6 seconds
+
+    return () => clearInterval(interval)
+  }, [allInsights])
 
   const fetchConnectedExchanges = async () => {
     const startTime = Date.now()
@@ -125,7 +137,10 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
             const analytics = await analyzeData(data)
             const psychology = analytics.psychology || {}
             const insight = getMostCriticalInsight(analytics, psychology)
+            const insights = getAllInsights(analytics, psychology)
             setCriticalInsight(insight)
+            setAllInsights(insights || [])
+            setCurrentInsightIndex(0) // Reset to first insight
           } catch (error) {
             console.error('Error analyzing trades for insight:', error)
           }
@@ -335,44 +350,59 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex">
-      <Sidebar
-        activePage="dashboard"
-        onDashboardClick={() => {}}
-        onUploadClick={onConnectWithCSV}
-        onMyPatternsClick={() => onViewAnalytics()}
-        onSignOutClick={handleSignOut}
-        isMyPatternsDisabled={connectedExchanges.length === 0 && !loadingExchanges}
-      />
+    <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(46,204,149,0.08),_transparent_60%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom,_rgba(59,130,246,0.06),_transparent_55%)]" />
+      
+      {/* Header */}
+      <header className="sticky top-0 z-30 border-b border-white/5 bg-slate-950/70 backdrop-blur-xl">
+        <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-4 px-4 py-4">
+          <div className="flex items-center gap-8">
+            <button
+              onClick={() => window.location.href = '/'}
+              className="flex items-center gap-2 rounded-full border border-white/5 bg-white/[0.03] px-3 py-1 text-sm font-semibold text-white/90 transition-all duration-300 hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white"
+            >
+              <TrendingUp className="h-5 w-5 text-emerald-300" />
+              TradeClarity
+            </button>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <header className="border-b border-slate-800/50 backdrop-blur-xl bg-gradient-to-r from-slate-900/40 via-slate-900/30 to-slate-900/40 sticky top-0 z-10">
-          <div className="px-6 py-5 flex justify-between items-center">
-            <div>
-              <h1 className="text-xl font-bold text-slate-100 tracking-tight">
-                {getGreeting()}{user?.user_metadata?.name ? `, ${user.user_metadata.name.split(' ')[0]}` : ''}
-              </h1>
-              <p className="text-xs text-slate-400 mt-1 flex items-center gap-2">
-                {user?.email}
-                {tradesStats && tradesStats.totalTrades > 0 && (
-                  <>
-                    <span className="text-slate-600">•</span>
-                    <span className="text-slate-400 font-medium">{tradesStats.totalTrades} trades analyzed</span>
-                  </>
-                )}
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <ThemeToggle />
-              <div className="relative">
-                <button
-                  onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-400 flex items-center justify-center text-slate-900 font-semibold text-sm hover:shadow-lg hover:shadow-emerald-500/20 transition-all"
-                >
-                  {user?.user_metadata?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
-                </button>
+            <nav className="hidden items-center gap-2 md:flex">
+              <button
+                onClick={onConnectWithCSV}
+                className="group inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium text-slate-300 transition-all duration-300 hover:text-white"
+              >
+                <Upload className="h-4 w-4 text-slate-500 transition-colors group-hover:text-emerald-300" />
+                Upload Files
+              </button>
+              <button
+                onClick={() => onViewAnalytics()}
+                disabled={connectedExchanges.length === 0 && !loadingExchanges}
+                className={`group inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-300 ${
+                  connectedExchanges.length === 0 && !loadingExchanges
+                    ? 'text-slate-500 cursor-not-allowed'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                <Sparkles className={`h-4 w-4 transition-colors ${
+                  connectedExchanges.length === 0 && !loadingExchanges
+                    ? 'text-slate-600'
+                    : 'text-slate-500 group-hover:text-emerald-300'
+                }`} />
+                My Patterns
+              </button>
+            </nav>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            
+            <div className="relative">
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-400 flex items-center justify-center text-slate-900 font-semibold text-sm hover:shadow-lg hover:shadow-emerald-500/20 transition-all duration-300"
+              >
+                {user?.user_metadata?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
+              </button>
 
               {showUserMenu && (
                 <>
@@ -398,34 +428,52 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                   </div>
                 </>
               )}
-              </div>
             </div>
           </div>
-        </header>
+        </div>
+      </header>
 
-        <main className="flex-1 overflow-y-auto px-6 py-6">
-          <div className="max-w-5xl mx-auto space-y-6">
+      {/* Main Content */}
+      <main className="relative mx-auto w-full max-w-[1400px] px-4 pb-16 pt-10 space-y-10">
+        {/* Greeting Section */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-100 tracking-tight">
+              {getGreeting()}{user?.user_metadata?.name ? `, ${user.user_metadata.name.split(' ')[0]}` : ''}
+            </h1>
+            <p className="text-xs text-slate-400 mt-1 flex items-center gap-2">
+              {user?.email}
+              {tradesStats && tradesStats.totalTrades > 0 && (
+                <>
+                  <span className="text-slate-600">•</span>
+                  <span className="text-slate-400 font-medium">{tradesStats.totalTrades} trades analyzed</span>
+                </>
+              )}
+            </p>
+          </div>
+        </div>
             {/* Stats Overview & Smart Recommendations */}
             {loadingStats ? (
               <DashboardStatsSkeleton />
             ) : tradesStats && tradesStats.totalTrades > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 {/* Stats Card */}
-                <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/40 to-slate-800/20 border border-slate-700/50 rounded-2xl p-5 backdrop-blur-sm hover:border-slate-600/50 transition-all">
-                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-cyan-500/5" />
+                <div className="relative overflow-hidden rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-emerald-500/5 backdrop-blur p-5 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:border-white/10">
+                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10" />
+                  <div className="absolute -top-24 -right-20 w-72 h-72 bg-emerald-500/20 blur-3xl rounded-full opacity-50" />
                   <div className="relative">
                     <h3 className="text-xs font-semibold text-slate-300 mb-4 uppercase tracking-wider">Your Trading Overview</h3>
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between p-2.5 rounded-lg bg-white/5">
+                      <div className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.05] backdrop-blur-sm">
                         <span className="text-xs text-slate-400">Total Trades</span>
                         <span className="text-sm font-bold text-slate-100">{tradesStats.totalTrades.toLocaleString()}</span>
                       </div>
-                      <div className="flex items-center justify-between p-2.5 rounded-lg bg-white/5">
+                      <div className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.05] backdrop-blur-sm">
                         <span className="text-xs text-slate-400">Exchanges Connected</span>
                         <span className="text-sm font-bold text-emerald-400">{connectedExchanges.length}</span>
                       </div>
                       {tradesStats.oldestTrade && (
-                        <div className="flex items-center justify-between p-2.5 rounded-lg bg-white/5">
+                        <div className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.05] backdrop-blur-sm">
                           <span className="text-xs text-slate-400">Data Range</span>
                           <span className="text-xs font-medium text-slate-300">
                             {new Date(tradesStats.oldestTrade).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - Present
@@ -437,9 +485,9 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                 </div>
 
                 {/* Smart Recommendations */}
-                <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/30 rounded-2xl p-5 backdrop-blur-sm hover:border-emerald-500/50 hover:from-emerald-500/15 transition-all group">
-                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/5" />
-                  <div className="absolute -top-12 -right-12 w-32 h-32 bg-emerald-500/20 blur-2xl rounded-full opacity-50 group-hover:opacity-75 transition-opacity" />
+                <div className="relative overflow-hidden rounded-3xl border border-emerald-500/20 bg-emerald-500/5 shadow-lg shadow-emerald-500/10 backdrop-blur p-5 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:border-emerald-500/40 hover:bg-emerald-500/10 group">
+                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10" />
+                  <div className="absolute -top-12 -right-12 w-32 h-32 bg-emerald-500/20 blur-2xl rounded-full opacity-50 group-hover:opacity-75 transition-opacity duration-300" />
                   <div className="relative">
                     <div className="flex items-center gap-2 mb-3">
                       <Sparkles className="w-4 h-4 text-emerald-400" />
@@ -456,7 +504,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                     )}
                     <button
                       onClick={() => connectedExchanges.length === 1 ? setShowConnectModal(true) : onViewAnalytics()}
-                      className="group/btn text-xs text-emerald-400 hover:text-emerald-300 font-semibold transition-all inline-flex items-center gap-1.5 hover:gap-2"
+                      className="group/btn text-xs text-emerald-400 hover:text-emerald-300 font-semibold transition-all duration-300 inline-flex items-center gap-1.5 hover:gap-2"
                     >
                       {connectedExchanges.length === 1 ? 'Add Exchange' : 'View Combined Analytics'}
                       <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover/btn:translate-x-1" />
@@ -466,8 +514,8 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
               </div>
             ) : (
               /* First-time user experience */
-              <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/40 via-slate-800/20 to-slate-800/10 border border-slate-700/40 rounded-2xl p-6 backdrop-blur-sm">
-                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-cyan-500/5" />
+              <div className="relative overflow-hidden rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-emerald-500/5 backdrop-blur p-6 md:p-8">
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10" />
                 <div className="absolute -top-16 -right-16 w-40 h-40 bg-emerald-500/10 blur-3xl rounded-full" />
                 <div className="relative">
                   <div className="flex items-center gap-2 mb-3">
@@ -484,67 +532,91 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
               </div>
             )}
 
-            {/* Compact Active Insight Banner */}
-            {!loadingStats && criticalInsight && tradesStats && tradesStats.totalTrades > 0 && (
-              <button
-                onClick={onViewAnalytics}
-                className={`w-full group relative overflow-hidden flex items-center gap-3 px-5 py-4 rounded-2xl border backdrop-blur-sm transition-all text-left ${
-                  criticalInsight.type === 'weakness'
-                    ? 'bg-gradient-to-br from-red-500/10 via-red-500/5 to-transparent border-red-500/30 hover:border-red-500/50 hover:from-red-500/15'
-                    : 'bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-500/30 hover:border-emerald-500/50 hover:from-emerald-500/15'
-                }`}
-              >
-                <div className={`absolute inset-0 bg-gradient-to-br ${
-                  criticalInsight.type === 'weakness'
-                    ? 'from-red-500/5 via-transparent to-orange-500/5'
-                    : 'from-emerald-500/5 via-transparent to-cyan-500/5'
-                }`} />
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 backdrop-blur-sm ${
-                  criticalInsight.type === 'weakness'
-                    ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                    : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                }`}>
-                  {criticalInsight.type === 'weakness' ? <AlertCircle className="w-5 h-5" /> : <Zap className="w-5 h-5" />}
-                </div>
+            {/* Dynamic Trading Insight Card - Rotates through insights */}
+            {!loadingStats && allInsights.length > 0 && tradesStats && tradesStats.totalTrades > 0 && (() => {
+              const currentInsight = allInsights[currentInsightIndex]
+              if (!currentInsight) return null
 
-                <div className="flex-1 min-w-0 relative">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`text-xs font-semibold ${
-                      criticalInsight.type === 'weakness' ? 'text-red-300' : 'text-emerald-300'
-                    }`}>
-                      {criticalInsight.title}
-                    </span>
-                    {criticalInsight.impact && (
-                      <span className="flex items-center gap-0.5">
-                        {[...Array(criticalInsight.impact)].map((_, i) => (
-                          <div key={i} className={`w-1.5 h-1.5 rounded-full ${
-                            criticalInsight.type === 'weakness' ? 'bg-red-400/70' : 'bg-emerald-400/70'
-                          }`} />
-                        ))}
-                      </span>
-                    )}
-                    <span className="text-xs text-slate-300 truncate">• {criticalInsight.message}</span>
+              const isWeakness = currentInsight.type === 'weakness'
+
+              return (
+                <button
+                  onClick={onViewAnalytics}
+                  className={`w-full group relative overflow-hidden flex items-center gap-3 px-5 py-4 rounded-3xl border backdrop-blur transition-all duration-500 hover:scale-[1.02] text-left ${
+                    isWeakness
+                      ? 'border-red-500/20 bg-red-500/5 shadow-lg shadow-red-500/5 hover:border-red-500/40 hover:bg-red-500/10'
+                      : 'border-emerald-500/20 bg-emerald-500/5 shadow-lg shadow-emerald-500/5 hover:border-emerald-500/40 hover:bg-emerald-500/10'
+                  }`}
+                  key={currentInsightIndex} // Key helps React animate the transition
+                >
+                  <div className={`absolute inset-0 bg-gradient-to-br transition-opacity duration-500 ${
+                    isWeakness
+                      ? 'from-red-500/10 via-transparent to-orange-500/10'
+                      : 'from-emerald-500/10 via-transparent to-cyan-500/10'
+                  }`} />
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 backdrop-blur-sm border transition-all duration-500 ${
+                    isWeakness
+                      ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                      : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                  }`}>
+                    {isWeakness ? <AlertCircle className="w-5 h-5" /> : <Zap className="w-5 h-5" />}
                   </div>
-                </div>
 
-                <ChevronRight className={`w-5 h-5 flex-shrink-0 transition-transform group-hover:translate-x-1 ${
-                  criticalInsight.type === 'weakness' ? 'text-red-400/70' : 'text-emerald-400/70'
-                }`} />
-              </button>
-            )}
+                  <div className="flex-1 min-w-0 relative">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-xs font-semibold transition-colors duration-500 ${
+                        isWeakness ? 'text-red-300' : 'text-emerald-300'
+                      }`}>
+                        {currentInsight.title}
+                      </span>
+                      {currentInsight.impact && (
+                        <span className="flex items-center gap-0.5">
+                          {[...Array(currentInsight.impact)].map((_, i) => (
+                            <div key={i} className={`w-1.5 h-1.5 rounded-full transition-colors duration-500 ${
+                              isWeakness ? 'bg-red-400/70' : 'bg-emerald-400/70'
+                            }`} />
+                          ))}
+                        </span>
+                      )}
+                      <span className="text-xs text-slate-300 truncate">• {currentInsight.message}</span>
+                    </div>
+                    {allInsights.length > 1 && (
+                      <div className="flex items-center gap-1 mt-2">
+                        {allInsights.map((_, index) => (
+                          <div
+                            key={index}
+                            className={`h-1 rounded-full transition-all duration-300 ${
+                              index === currentInsightIndex
+                                ? isWeakness
+                                  ? 'bg-red-400 w-2'
+                                  : 'bg-emerald-400 w-2'
+                                : 'bg-slate-600 w-1'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <ChevronRight className={`w-5 h-5 flex-shrink-0 transition-transform duration-300 group-hover:translate-x-1 ${
+                    isWeakness ? 'text-red-400/70' : 'text-emerald-400/70'
+                  }`} />
+                </button>
+              )
+            })()}
 
             {/* Quick Actions */}
             <section>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-4 md:gap-6">
                 <button
                   onClick={() => setShowConnectModal(true)}
-                  className="group relative overflow-hidden p-5 bg-gradient-to-br from-slate-800/50 to-slate-800/30 hover:from-slate-800/60 hover:to-slate-800/40 border border-slate-700/50 hover:border-emerald-500/40 rounded-2xl transition-all text-left backdrop-blur-sm"
+                  className="group relative overflow-hidden p-5 md:p-6 rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-emerald-500/5 backdrop-blur hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all duration-300 hover:scale-[1.02] text-left"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="absolute -top-8 -right-8 w-24 h-24 bg-emerald-500/10 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div className="absolute -top-8 -right-8 w-24 h-24 bg-emerald-500/10 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <div className="relative">
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="w-10 h-10 bg-emerald-500/20 group-hover:bg-emerald-500/30 border border-emerald-500/30 rounded-xl flex items-center justify-center transition-all group-hover:scale-110">
+                      <div className="w-10 h-10 bg-emerald-500/20 group-hover:bg-emerald-500/30 border border-emerald-500/30 rounded-xl flex items-center justify-center transition-all duration-300 group-hover:scale-110">
                         <LinkIcon className="w-5 h-5 text-emerald-400" />
                       </div>
                       <h3 className="text-sm font-semibold text-slate-200">Connect Exchange</h3>
@@ -557,13 +629,13 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
 
                 <button
                   onClick={onConnectWithCSV}
-                  className="group relative overflow-hidden p-5 bg-gradient-to-br from-slate-800/50 to-slate-800/30 hover:from-slate-800/60 hover:to-slate-800/40 border border-slate-700/50 hover:border-blue-500/40 rounded-2xl transition-all text-left backdrop-blur-sm"
+                  className="group relative overflow-hidden p-5 md:p-6 rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-blue-500/5 backdrop-blur hover:border-blue-500/40 hover:bg-blue-500/5 transition-all duration-300 hover:scale-[1.02] text-left"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="absolute -top-8 -right-8 w-24 h-24 bg-blue-500/10 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div className="absolute -top-8 -right-8 w-24 h-24 bg-blue-500/10 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <div className="relative">
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="w-10 h-10 bg-blue-500/20 group-hover:bg-blue-500/30 border border-blue-500/30 rounded-xl flex items-center justify-center transition-all group-hover:scale-110">
+                      <div className="w-10 h-10 bg-blue-500/20 group-hover:bg-blue-500/30 border border-blue-500/30 rounded-xl flex items-center justify-center transition-all duration-300 group-hover:scale-110">
                         <Upload className="w-5 h-5 text-blue-400" />
                       </div>
                       <h3 className="text-sm font-semibold text-slate-200">Upload CSV</h3>
@@ -576,13 +648,13 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
 
                 <button
                   onClick={onTryDemo}
-                  className="group relative overflow-hidden p-5 bg-gradient-to-br from-slate-800/50 to-slate-800/30 hover:from-slate-800/60 hover:to-slate-800/40 border border-slate-700/50 hover:border-purple-500/40 rounded-2xl transition-all text-left backdrop-blur-sm"
+                  className="group relative overflow-hidden p-5 md:p-6 rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-purple-500/5 backdrop-blur hover:border-purple-500/40 hover:bg-purple-500/5 transition-all duration-300 hover:scale-[1.02] text-left"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="absolute -top-8 -right-8 w-24 h-24 bg-purple-500/10 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div className="absolute -top-8 -right-8 w-24 h-24 bg-purple-500/10 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <div className="relative">
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="w-10 h-10 bg-purple-500/20 group-hover:bg-purple-500/30 border border-purple-500/30 rounded-xl flex items-center justify-center transition-all group-hover:scale-110">
+                      <div className="w-10 h-10 bg-purple-500/20 group-hover:bg-purple-500/30 border border-purple-500/30 rounded-xl flex items-center justify-center transition-all duration-300 group-hover:scale-110">
                         <Play className="w-5 h-5 text-purple-400" />
                       </div>
                       <h3 className="text-sm font-semibold text-slate-200">Try Demo</h3>
@@ -637,11 +709,11 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
               {loadingExchanges || loadingFiles ? (
                 <DataSourceSkeleton count={2} />
               ) : connectedExchanges.length === 0 && unlinkedFiles.length === 0 ? (
-                <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/40 via-slate-800/20 to-slate-800/10 border border-slate-700/50 rounded-2xl p-10 text-center backdrop-blur-sm">
-                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-cyan-500/5" />
+                <div className="relative overflow-hidden rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-emerald-500/5 backdrop-blur p-10 md:p-12 text-center">
+                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10" />
                   <div className="absolute -top-20 -right-20 w-48 h-48 bg-emerald-500/10 blur-3xl rounded-full" />
                   <div className="relative">
-                    <div className="w-16 h-16 bg-gradient-to-br from-slate-700/50 to-slate-700/30 border border-slate-600/50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <div className="w-16 h-16 bg-white/[0.05] border border-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
                       <Database className="w-8 h-8 text-slate-400" />
                     </div>
                     <p className="text-sm font-semibold text-slate-300 mb-2">
@@ -653,14 +725,14 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                     <div className="flex items-center justify-center gap-3">
                       <button
                         onClick={() => setShowConnectModal(true)}
-                        className="group px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 rounded-xl text-sm font-semibold transition-all inline-flex items-center gap-2 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-105"
+                        className="group px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 rounded-xl text-sm font-semibold transition-all duration-300 inline-flex items-center gap-2 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-105"
                       >
                         <Plus className="w-4 h-4" />
                         Connect Exchange
                       </button>
                       <button
                         onClick={onConnectWithCSV}
-                        className="group px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 rounded-xl text-sm font-semibold transition-all inline-flex items-center gap-2 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 hover:scale-105"
+                        className="group px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 rounded-xl text-sm font-semibold transition-all duration-300 inline-flex items-center gap-2 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 hover:scale-105"
                       >
                         <Upload className="w-4 h-4" />
                         Upload CSV
@@ -682,14 +754,14 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                             <div
                               key={exchange.id}
                               onClick={() => toggleSource('exchange', exchange.id)}
-                              className={`group relative overflow-hidden bg-gradient-to-br ${
+                              className={`group relative overflow-hidden rounded-3xl border ${
                                 selected
-                                  ? 'from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-500/40'
-                                  : 'from-slate-800/50 to-slate-800/30 border-slate-700/50 hover:border-slate-600/50'
-                              } border rounded-2xl p-4 transition-all cursor-pointer backdrop-blur-sm hover:scale-[1.02]`}
+                                  ? 'border-emerald-500/40 bg-emerald-500/10 shadow-lg shadow-emerald-500/10'
+                                  : 'border-white/5 bg-white/[0.03] shadow-lg shadow-emerald-500/5'
+                              } backdrop-blur p-4 transition-all duration-300 cursor-pointer hover:scale-[1.02] hover:border-white/10`}
                             >
                               {selected && (
-                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/5" />
+                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10" />
                               )}
                               <div className="relative">
                                 <div className="flex items-center justify-between">
@@ -701,7 +773,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                                     }`}>
                                       {selected && <CheckSquare className="w-3 h-3 text-white" />}
                                     </div>
-                                    <div className="w-12 h-12 rounded-xl bg-slate-700/30 border border-slate-600/50 flex items-center justify-center p-2">
+                                    <div className="w-12 h-12 rounded-xl bg-white/[0.05] border border-white/10 flex items-center justify-center p-2">
                                       <ExchangeIcon exchange={exchange.exchange} size={20} className="w-full h-full" />
                                     </div>
                                     <div className="flex-1 min-w-0">
@@ -733,14 +805,14 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                                   </div>
                                   <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                     <button
-                                      onClick={() => onViewAnalytics(exchange.id, exchange.name.toLowerCase())}
-                                      className="px-4 py-2 bg-gradient-to-r from-emerald-500/20 to-emerald-500/10 hover:from-emerald-500/30 hover:to-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 rounded-xl text-xs font-semibold text-emerald-400 transition-all hover:scale-105"
+                                      onClick={() => onViewAnalytics(exchange.id, exchange.exchange.toLowerCase())}
+                                      className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 hover:border-emerald-500/50 rounded-xl text-xs font-semibold text-emerald-400 transition-all duration-300 hover:scale-105"
                                     >
                                       View
                                     </button>
                                     <button
                                       onClick={() => handleDeleteClick(exchange)}
-                                      className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all border border-transparent hover:border-red-500/30"
+                                      className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all duration-300 border border-transparent hover:border-red-500/30"
                                       title="Disconnect exchange"
                                     >
                                       <Trash2 className="w-4 h-4" />
@@ -766,26 +838,26 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                             <div
                               key={file.id}
                               onClick={() => toggleSource('csv', file.id)}
-                              className={`group relative overflow-hidden bg-gradient-to-br ${
+                              className={`group relative overflow-hidden rounded-3xl border ${
                                 selected
-                                  ? 'from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-500/40'
-                                  : 'from-slate-800/50 to-slate-800/30 border-slate-700/50 hover:border-slate-600/50'
-                              } border rounded-2xl p-4 transition-all cursor-pointer backdrop-blur-sm hover:scale-[1.02]`}
+                                  ? 'border-emerald-500/40 bg-emerald-500/10 shadow-lg shadow-emerald-500/10'
+                                  : 'border-white/5 bg-white/[0.03] shadow-lg shadow-blue-500/5'
+                              } backdrop-blur p-4 transition-all duration-300 cursor-pointer hover:scale-[1.02] hover:border-white/10`}
                             >
                               {selected && (
-                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/5" />
+                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10" />
                               )}
                               <div className="relative">
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-3 flex-1">
-                                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all duration-300 ${
                                       selected
                                         ? 'border-emerald-500 bg-emerald-500 shadow-lg shadow-emerald-500/30'
-                                        : 'border-slate-600 bg-transparent group-hover:border-slate-500'
+                                        : 'border-white/20 bg-transparent group-hover:border-white/30'
                                     }`}>
                                       {selected && <CheckSquare className="w-3 h-3 text-white" />}
                                     </div>
-                                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500/20 to-blue-500/10 border border-blue-500/30 rounded-xl flex items-center justify-center">
+                                    <div className="w-12 h-12 bg-blue-500/20 border border-blue-500/30 rounded-xl flex items-center justify-center">
                                       <FileText className="w-6 h-6 text-blue-400" />
                                     </div>
                                     <div className="flex-1 min-w-0">
@@ -793,7 +865,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                                         <span className="text-sm font-semibold text-slate-200 truncate">
                                           {file.label || file.filename}
                                         </span>
-                                        <span className="px-2 py-0.5 bg-slate-700/50 border border-slate-600/50 text-slate-300 text-[10px] font-medium rounded-md">
+                                        <span className="px-2 py-0.5 bg-white/[0.05] border border-white/10 text-slate-300 text-[10px] font-medium rounded-md">
                                           {file.account_type}
                                         </span>
                                         <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-medium rounded-md">
@@ -820,10 +892,10 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                       <button
                         onClick={handleViewSelected}
                         disabled={selectedSources.length === 0}
-                        className={`group flex-1 py-3.5 rounded-2xl font-semibold text-sm transition-all inline-flex items-center justify-center gap-2 ${
+                        className={`group flex-1 py-3.5 rounded-3xl font-semibold text-sm transition-all duration-300 inline-flex items-center justify-center gap-2 ${
                           selectedSources.length > 0
                             ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-105'
-                            : 'bg-slate-700/30 text-slate-500 cursor-not-allowed border border-slate-700/50'
+                            : 'bg-white/[0.03] text-slate-500 cursor-not-allowed border border-white/5'
                         }`}
                       >
                         <Sparkles className="w-4 h-4" />
@@ -831,7 +903,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                       </button>
                       <button
                         onClick={() => onViewAnalytics()}
-                        className="group flex-1 py-3.5 bg-gradient-to-r from-slate-700/60 to-slate-700/40 hover:from-slate-700/80 hover:to-slate-700/60 border border-slate-600/50 hover:border-slate-600/70 rounded-2xl font-semibold text-sm text-slate-200 hover:text-white transition-all inline-flex items-center justify-center gap-2 hover:scale-105"
+                        className="group flex-1 py-3.5 bg-white/[0.03] hover:bg-white/[0.05] border border-white/5 hover:border-white/10 rounded-3xl font-semibold text-sm text-slate-200 hover:text-white transition-all duration-300 inline-flex items-center justify-center gap-2 hover:scale-105"
                       >
                         <BarChart3 className="w-4 h-4" />
                         View All Data
@@ -841,9 +913,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                 </div>
               )}
             </section>
-          </div>
         </main>
-      </div>
 
       {/* Connect Exchange Modal */}
       <ConnectExchangeModal

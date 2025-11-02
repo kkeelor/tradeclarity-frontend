@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/AuthContext' // NEW: Auth context
 import AuthScreen from './components/AuthScreen' // NEW: Auth screen
 import { analyzeData } from './utils/masterAnalyzer'
 import { EXCHANGES, getExchangeList } from './utils/exchanges'
+import { getCurrencySymbol } from './utils/currencyFormatter'
 import LoginForm from './components/LoginForm'
 import Dashboard from './components/Dashboard'
 import CSVUploadFlow from './components/CSVUploadFlow'
@@ -350,7 +351,7 @@ export default function TradeClarityContent() {
     if (pendingTradeStorage && status === 'connected' && !isDemoMode) {
       const { spotTrades, futuresIncome, userId, exchange: exchangeName, connectionId, metadata } = pendingTradeStorage
 
-      console.log('📥 [Background] Storing trades to database...', {
+      console.log('?? [Background] Storing trades to database...', {
         spotTrades: spotTrades?.length || 0,
         futuresIncome: futuresIncome?.length || 0,
         hasPortfolioData: !!metadata?.spotHoldings
@@ -371,13 +372,13 @@ export default function TradeClarityContent() {
       })
         .then(res => res.json())
         .then(data => {
-          console.log('✅ [Background] Trades stored:', data)
+          console.log('? [Background] Trades stored:', data)
           if (data.portfolioSnapshotStored) {
-            console.log('📊 Portfolio snapshot saved successfully')
+            console.log('?? Portfolio snapshot saved successfully')
           }
         })
         .catch(err => {
-          console.error('❌ [Background] Failed to store trades:', err)
+          console.error('? [Background] Failed to store trades:', err)
           // Don't show error to user, this is background operation
         })
 
@@ -386,16 +387,7 @@ export default function TradeClarityContent() {
     }
   }, [pendingTradeStorage, status, isDemoMode])
 
-  const getCurrencySymbol = (curr) => {
-    const symbols = {
-      'USD': '$',
-      'USDT': '$',
-      'INR': '₹',
-      'EUR': '€',
-      'GBP': '£'
-    }
-    return symbols[curr] || '$'
-  }
+  // getCurrencySymbol is imported from currencyFormatter
 
   useEffect(() => {
     const demo = searchParams.get('demo')
@@ -413,7 +405,7 @@ export default function TradeClarityContent() {
 
     try {
       setTimeout(async () => {
-        console.log('📊 Loading demo data...')
+        console.log('?? Loading demo data...')
 
         const spotData = require('./demo-data/demo-spot-data.json')
 
@@ -454,7 +446,7 @@ export default function TradeClarityContent() {
         setProgress('Analyzing demo data...')
         const analysis = await analyzeData(demoData)
 
-        console.log('✅ Demo analysis complete:', analysis)
+        console.log('? Demo analysis complete:', analysis)
         console.log('Spot trades:', analysis.spotTrades)
         console.log('Futures trades:', analysis.futuresTrades)
 
@@ -486,12 +478,12 @@ export default function TradeClarityContent() {
       if (Array.isArray(connectionIdOrSources)) {
         // New pattern: array of selected sources
         selectedSources = connectionIdOrSources
-        console.log('🔍 [handleViewAnalytics] Called with selectedSources:', selectedSources)
+        console.log('?? [handleViewAnalytics] Called with selectedSources:', selectedSources)
       } else {
         // Legacy pattern: single connection ID or exchange name
         safeConnectionId = connectionIdOrSources && typeof connectionIdOrSources === 'string' ? connectionIdOrSources : null
         safeExchangeName = exchangeName && typeof exchangeName === 'string' ? exchangeName.toLowerCase() : null
-        console.log('🔍 [handleViewAnalytics] Called with:', {
+        console.log('?? [handleViewAnalytics] Called with:', {
           raw: { connectionId: connectionIdOrSources, exchangeName },
           safe: { safeConnectionId, safeExchangeName }
         })
@@ -506,13 +498,39 @@ export default function TradeClarityContent() {
       }
 
       if (cachedData && currentConnectionId === cacheKey) {
-        console.log('✅ Using cached data for:', cacheKey)
+        console.log('? Using cached data for:', cacheKey)
         setProgress('Analyzing your trading data...')
 
         const analysis = await analyzeData(cachedData)
         setAnalytics(analysis)
         setCurrencyMetadata(cachedData.metadata)
-        setCurrency(cachedData.metadata?.primaryCurrency || 'USD')
+        
+        // Determine currency: INR only if viewing CoinDCX from dashboard
+        let displayCurrency = 'USD' // Default to USD
+        if (safeExchangeName === 'coindcx') {
+          displayCurrency = 'INR'
+        } else if (selectedSources) {
+          // Check if any selected exchange is CoinDCX
+          const exchangeIds = selectedSources.filter(s => s.type === 'exchange').map(s => s.id)
+          if (exchangeIds.length > 0) {
+            // Fetch exchange list to check if any is CoinDCX
+            try {
+              const exchangeListResponse = await fetch('/api/exchange/list')
+              const exchangeListData = await exchangeListResponse.json()
+              if (exchangeListData.success && exchangeListData.connections) {
+                const hasCoinDCX = exchangeListData.connections.some(
+                  conn => exchangeIds.includes(conn.id) && conn.exchange === 'coindcx'
+                )
+                if (hasCoinDCX) {
+                  displayCurrency = 'INR'
+                }
+              }
+            } catch (err) {
+              console.error('Error checking exchange type:', err)
+            }
+          }
+        }
+        setCurrency(displayCurrency)
         setProgress('Analysis complete! Preparing dashboard...')
         // Don't set connected yet - wait for loading animation
         return
@@ -533,21 +551,21 @@ export default function TradeClarityContent() {
           .map(s => s.id)
 
         if (exchangeIds.length > 0) {
-          console.log('📎 Adding connectionIds to params:', exchangeIds)
+          console.log('?? Adding connectionIds to params:', exchangeIds)
           params.append('connectionIds', exchangeIds.join(','))
         }
 
         if (csvIds.length > 0) {
-          console.log('📄 Adding csvIds to params:', csvIds)
+          console.log('?? Adding csvIds to params:', csvIds)
           params.append('csvIds', csvIds.join(','))
         }
       } else if (safeConnectionId) {
         // Legacy: single connection
-        console.log('📎 Adding connectionId to params:', safeConnectionId)
+        console.log('?? Adding connectionId to params:', safeConnectionId)
         params.append('connectionId', safeConnectionId)
       } else if (safeExchangeName) {
         // Legacy: single exchange
-        console.log('📎 Adding exchange to params:', safeExchangeName)
+        console.log('?? Adding exchange to params:', safeExchangeName)
         params.append('exchange', safeExchangeName)
       }
       // If no filters, fetch ALL trades (combined analytics)
@@ -556,7 +574,7 @@ export default function TradeClarityContent() {
         url += '?' + params.toString()
       }
 
-      console.log(`📡 Fetching trades from DB: ${url}`)
+      console.log(`?? Fetching trades from DB: ${url}`)
 
       // Fetch saved trades from database
       const response = await fetch(url)
@@ -571,7 +589,7 @@ export default function TradeClarityContent() {
         throw new Error('No trading data available')
       }
 
-      console.log('✅ Saved trades loaded:', {
+      console.log('? Saved trades loaded:', {
         spotTrades: data.spotTrades?.length || 0,
         futuresIncome: data.futuresIncome?.length || 0,
         exchange: exchangeName || 'all',
@@ -586,11 +604,37 @@ export default function TradeClarityContent() {
 
       const analysis = await analyzeData(data)
 
-      console.log('📊 Analysis complete:', analysis)
+      console.log('?? Analysis complete:', analysis)
 
       setAnalytics(analysis)
       setCurrencyMetadata(data.metadata)
-      setCurrency(data.metadata?.primaryCurrency || 'USD')
+      
+      // Determine currency: INR only if viewing CoinDCX from dashboard
+      let displayCurrency = 'USD' // Default to USD
+      if (safeExchangeName === 'coindcx') {
+        displayCurrency = 'INR'
+      } else if (selectedSources) {
+        // Check if any selected exchange is CoinDCX
+        const exchangeIds = selectedSources.filter(s => s.type === 'exchange').map(s => s.id)
+        if (exchangeIds.length > 0) {
+          // Fetch exchange list to check if any is CoinDCX
+          try {
+            const exchangeListResponse = await fetch('/api/exchange/list')
+            const exchangeListData = await exchangeListResponse.json()
+            if (exchangeListData.success && exchangeListData.connections) {
+              const hasCoinDCX = exchangeListData.connections.some(
+                conn => exchangeIds.includes(conn.id) && conn.exchange === 'coindcx'
+              )
+              if (hasCoinDCX) {
+                displayCurrency = 'INR'
+              }
+            }
+          } catch (err) {
+            console.error('Error checking exchange type:', err)
+          }
+        }
+      }
+      setCurrency(displayCurrency)
       setProgress('Analysis complete! Preparing dashboard...')
       // Don't set connected yet - wait for loading animation
     } catch (err) {
@@ -611,7 +655,7 @@ export default function TradeClarityContent() {
 
       // If data was already fetched (from new flow), use it
       if (preFetchedData) {
-        console.log('✅ Using pre-fetched data:', {
+        console.log('? Using pre-fetched data:', {
           spotTrades: preFetchedData.spotTrades?.length || 0,
           futuresIncome: preFetchedData.futuresIncome?.length || 0,
           metadata: preFetchedData.metadata
@@ -622,7 +666,7 @@ export default function TradeClarityContent() {
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
         const endpoint = `${backendUrl}/api/${exchange}/fetch-all`
 
-        console.log(`📡 Connecting to: ${endpoint}`)
+        console.log(`?? Connecting to: ${endpoint}`)
 
         const response = await fetch(endpoint, {
           method: 'POST',
@@ -640,8 +684,8 @@ export default function TradeClarityContent() {
         const responseData = await response.json()
         data = responseData.data || responseData // Handle both {data: ...} and direct response
 
-        console.log('✅ Data received from backend:', data)
-        console.log('📊 Data structure:', {
+        console.log('? Data received from backend:', data)
+        console.log('?? Data structure:', {
           success: responseData.success,
           hasDataKey: !!responseData.data,
           spotTrades: data.spotTrades?.length || 0,
@@ -656,11 +700,12 @@ export default function TradeClarityContent() {
 
       const analysis = await analyzeData(data)
 
-      console.log('📊 Analysis complete:', analysis)
+      console.log('?? Analysis complete:', analysis)
 
       setAnalytics(analysis)
       setCurrencyMetadata(data.metadata)
-      setCurrency(data.metadata?.primaryCurrency || 'USD')
+      // Default to USD - currency is set based on exchange type when viewing from dashboard
+      setCurrency('USD')
 
       // Trigger background storage if we have fetched data (not demo mode)
       if (preFetchedData && preFetchedData.userId && preFetchedData.connectionId) {
@@ -771,9 +816,9 @@ export default function TradeClarityContent() {
       <AnalyticsView
         analytics={analytics}
         currency={currency}
-        currencySymbol={getCurrencySymbol(currency)}
+        currSymbol={getCurrencySymbol(currency)}
         currencyMetadata={currencyMetadata}
-        onCurrencyChange={setCurrency}
+        setCurrency={setCurrency}
         isDemoMode={isDemoMode}
         isAuthenticated={!!user}
         exchangeConfig={currentExchange}
@@ -812,14 +857,14 @@ export default function TradeClarityContent() {
         }}
         onFilterExchanges={async (exchanges) => {
           // Re-fetch data with filtered exchanges
-          console.log('🔍 [onFilterExchanges] Filtering by exchanges:', exchanges)
+          console.log('?? [onFilterExchanges] Filtering by exchanges:', exchanges)
 
           try {
             // Fetch the connection list to map exchange names to connection IDs
-            console.log('📡 [onFilterExchanges] Fetching connection list...')
+            console.log('?? [onFilterExchanges] Fetching connection list...')
             const response = await fetch('/api/exchange/list')
             const data = await response.json()
-            console.log('✅ [onFilterExchanges] Connection list fetched:', data)
+            console.log('? [onFilterExchanges] Connection list fetched:', data)
 
             if (data.success && data.connections) {
               // Build selected sources array from exchange names
@@ -828,28 +873,27 @@ export default function TradeClarityContent() {
                 const connection = data.connections.find(conn =>
                   conn.exchange.toLowerCase() === exchangeName.toLowerCase()
                 )
-                console.log(`🔍 [onFilterExchanges] Mapping ${exchangeName} -> connection:`, connection)
+                console.log(`?? [onFilterExchanges] Mapping ${exchangeName} -> connection:`, connection)
                 return connection ? { type: 'exchange', id: connection.id, name: exchangeName } : null
               }).filter(Boolean)
 
-              console.log('📊 [onFilterExchanges] Final selectedSources:', selectedSources)
+              console.log('?? [onFilterExchanges] Final selectedSources:', selectedSources)
 
               if (selectedSources.length === 0) {
-                console.warn('⚠️ [onFilterExchanges] No valid sources found! Exchanges:', exchanges, 'Connections:', data.connections)
+                console.warn('?? [onFilterExchanges] No valid sources found! Exchanges:', exchanges, 'Connections:', data.connections)
                 return
               }
 
               await handleViewAnalytics(selectedSources)
             } else {
-              console.error('❌ [onFilterExchanges] Failed to fetch connections:', data)
+              console.error('? [onFilterExchanges] Failed to fetch connections:', data)
             }
           } catch (error) {
-            console.error('❌ [onFilterExchanges] Error:', error)
+            console.error('? [onFilterExchanges] Error:', error)
             setError('Failed to apply exchange filter')
             setStatus('connected') // Keep the current view
           }
         }}
-        setCurrency={setCurrency}
       />
     )
   }
