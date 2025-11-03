@@ -11,10 +11,11 @@ function NavButton({ icon: Icon, label, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="group inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium text-slate-300 transition-colors hover:text-white"
+      className="group inline-flex items-center justify-center gap-1 md:gap-2 rounded-full px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium text-slate-300 transition-colors hover:text-white flex-shrink-0 whitespace-nowrap min-w-[32px] md:min-w-auto"
+      style={{ minHeight: '32px' }}
     >
-      <Icon className="h-4 w-4 text-slate-500 transition-colors group-hover:text-emerald-300" />
-      {label}
+      <Icon className="h-3 w-3 md:h-4 md:w-4 text-slate-500 transition-colors group-hover:text-emerald-300 flex-shrink-0" />
+      <span className="hidden sm:inline">{label}</span>
     </button>
   )
 }
@@ -22,10 +23,12 @@ function NavButton({ icon: Icon, label, onClick }) {
 function CurrencyDropdown({ currencies, selectedCurrency, onSelectCurrency }) {
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef(null)
+  const buttonRef = useRef(null)
 
   useEffect(() => {
     function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target) && 
+          buttonRef.current && !buttonRef.current.contains(event.target)) {
         setIsOpen(false)
       }
     }
@@ -52,19 +55,41 @@ function CurrencyDropdown({ currencies, selectedCurrency, onSelectCurrency }) {
     'CHF': 'Swiss Franc'
   }
 
+  // Calculate position for fixed dropdown
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 })
+
+  useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect()
+      setDropdownPosition({
+        top: rect.bottom + 8,
+        right: window.innerWidth - rect.right
+      })
+    }
+  }, [isOpen])
+
   return (
-    <div className="relative" ref={dropdownRef}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 rounded-full border border-white/5 bg-white/[0.02] px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white"
-      >
-        <span>{getCurrencySymbol(selectedCurrency)}</span>
-        <span>{selectedCurrency}</span>
-        <ChevronDown className={`h-3 w-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
+    <>
+      <div className="relative" ref={buttonRef}>
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex items-center gap-1.5 rounded-full border border-white/5 bg-white/[0.02] px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white"
+        >
+          <span>{getCurrencySymbol(selectedCurrency)}</span>
+          <span>{selectedCurrency}</span>
+          <ChevronDown className={`h-3 w-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 bg-slate-800/95 backdrop-blur-xl border border-slate-700/50 rounded-lg shadow-2xl z-50 overflow-hidden max-h-80 overflow-y-auto">
+        <div 
+          ref={dropdownRef}
+          className="fixed w-48 bg-slate-800/95 backdrop-blur-xl border border-slate-700/50 rounded-lg shadow-2xl z-[100] overflow-hidden max-h-80 overflow-y-auto scrollbar-hide"
+          style={{
+            top: `${dropdownPosition.top}px`,
+            right: `${dropdownPosition.right}px`
+          }}
+        >
           {currencies.map((curr) => (
             <button
               key={curr}
@@ -85,7 +110,7 @@ function CurrencyDropdown({ currencies, selectedCurrency, onSelectCurrency }) {
           ))}
         </div>
       )}
-    </div>
+    </>
   )
 }
 
@@ -139,13 +164,13 @@ export default function Header({
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-white/5 bg-slate-950/70 backdrop-blur-xl">
-        <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-4 px-4 py-4">
-          <div className="flex items-center gap-4 lg:gap-8">
+        <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-2 sm:gap-4 px-2 sm:px-4 py-3 sm:py-4 overflow-hidden">
+          <div className="flex items-center gap-1 sm:gap-2 md:gap-4 lg:gap-8 min-w-0 flex-1">
             {/* Mobile Menu Button */}
             {navItems.length > 0 && (
               <button
                 onClick={() => setIsMobileMenuOpen(true)}
-                className="lg:hidden p-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
+                className="md:hidden p-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
                 aria-label="Open navigation menu"
               >
                 <Menu className="h-5 w-5" />
@@ -154,14 +179,14 @@ export default function Header({
 
             <button
               onClick={() => window.location.href = '/'}
-              className="flex items-center gap-2 rounded-full border border-white/5 bg-white/[0.03] px-3 py-1 text-sm font-semibold text-white/90 transition hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white"
+              className="flex items-center gap-1 sm:gap-2 rounded-full border border-white/5 bg-white/[0.03] px-2 sm:px-3 py-1 text-sm font-semibold text-white/90 transition hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white flex-shrink-0"
             >
-              <TrendingUp className="h-5 w-5 text-emerald-300" />
+              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-300" />
               <span className="hidden sm:inline">TradeClarity</span>
             </button>
 
             {navItems.length > 0 && (
-              <nav className="hidden items-center gap-2 md:flex">
+              <nav className="hidden md:flex items-center gap-1 md:gap-2 overflow-x-auto scrollbar-hide min-w-0">
                 {navItems.map(item => (
                   <NavButton key={item.label} {...item} />
                 ))}
@@ -169,7 +194,7 @@ export default function Header({
             )}
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1 sm:gap-2 md:gap-3 flex-shrink-0">
             {exchangeConfig && (
               <span className="hidden items-center gap-2 rounded-full border border-white/5 bg-white/[0.02] px-3 py-1 text-xs text-slate-300/80 sm:inline-flex">
                 {exchangeConfig.icon}
@@ -231,12 +256,12 @@ export default function Header({
         <>
           {/* Backdrop */}
           <div
-            className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity"
+            className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity"
             onClick={() => setIsMobileMenuOpen(false)}
           />
 
           {/* Mobile Menu Drawer */}
-          <div className="lg:hidden fixed inset-y-0 left-0 w-64 bg-slate-900/95 backdrop-blur-xl border-r border-white/5 z-50 transform transition-transform duration-300 ease-in-out">
+          <div className="md:hidden fixed inset-y-0 left-0 w-64 bg-slate-900/95 backdrop-blur-xl border-r border-white/5 z-50 transform transition-transform duration-300 ease-in-out">
             <div className="flex flex-col h-full">
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-white/5">
