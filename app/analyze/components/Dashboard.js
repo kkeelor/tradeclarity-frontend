@@ -509,7 +509,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                         <p className="text-xs text-slate-300 leading-relaxed">
                           Explore deeper insights into your trading patterns:
                         </p>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {/* Overview CTA */}
                           <button
                             onClick={() => router.push('/analyze?tab=overview')}
@@ -733,7 +733,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
 
             {/* Quick Actions */}
             <section>
-              <div className="grid grid-cols-3 gap-4 md:gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
                 <button
                   onClick={() => setShowConnectModal(true)}
                   className="group relative overflow-hidden p-5 md:p-6 rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-emerald-500/5 backdrop-blur hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all duration-300 hover:scale-[1.02] text-left"

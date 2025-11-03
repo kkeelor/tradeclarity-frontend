@@ -35,20 +35,21 @@ export function Modal({
       onClick={onClose}
     >
       <div
-        className={`bg-slate-900 border border-slate-700 rounded-2xl ${maxWidthClasses[maxWidth]} w-full p-8 shadow-2xl ${className}`}
+        className={`bg-slate-900 border border-slate-700 rounded-2xl ${maxWidthClasses[maxWidth]} w-full max-h-[90vh] overflow-y-auto p-4 md:p-8 shadow-2xl ${className}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-start justify-between mb-6">
-          <div className="flex items-center gap-4">
+        <div className="flex items-start justify-between mb-4 md:mb-6">
+          <div className="flex items-center gap-2 md:gap-4">
             {icon && <IconBadge icon={icon} color={iconColor} size="lg" />}
-            <h3 className="text-2xl font-bold">{title}</h3>
+            <h3 className="text-xl md:text-2xl font-bold">{title}</h3>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors"
+            className="text-slate-400 hover:text-white transition-colors p-1"
+            aria-label="Close modal"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5 md:w-6 md:h-6" />
           </button>
         </div>
 
@@ -67,7 +68,7 @@ export function ModalSection({ children, className = "" }) {
 }
 
 export function ModalDescription({ children, className = "" }) {
-  return <p className={`text-slate-300 leading-relaxed text-lg ${className}`}>{children}</p>
+  return <p className={`text-slate-300 leading-relaxed text-base md:text-lg ${className}`}>{children}</p>
 }
 
 export function ModalMetrics({ data, title = "Key Metrics" }) {
