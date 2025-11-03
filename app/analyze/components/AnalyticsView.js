@@ -3384,11 +3384,19 @@ export default function AnalyticsView({
   onViewAllExchanges,
   onFilterExchanges, // Callback to re-fetch data with filtered exchanges
   isDemoMode = false,
-  isAuthenticated = true
+  isAuthenticated = true,
+  initialTab = 'overview' // New prop to set initial tab from URL
 }) {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState('overview')
+  const [activeTab, setActiveTab] = useState(initialTab)
   const [showFilters, setShowFilters] = useState(false)
+
+  // Update activeTab when initialTab prop changes (e.g., from URL parameter)
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab)
+    }
+  }, [initialTab])
 
   // Filter state - Only data source filtering
   const [selectedExchanges, setSelectedExchanges] = useState([])
@@ -3490,14 +3498,17 @@ export default function AnalyticsView({
 
       {isDemoMode && (
         <div className="mx-auto mt-6 w-full max-w-[1400px] px-4">
-          <div className="relative overflow-hidden rounded-2xl border border-purple-400/20 bg-purple-500/10 px-5 py-4 backdrop-blur">
+          <div className="relative overflow-hidden rounded-2xl border border-purple-400/30 bg-gradient-to-r from-purple-500/15 via-purple-500/10 to-purple-500/15 px-5 py-4 backdrop-blur shadow-lg shadow-purple-500/10">
             <div className="absolute -top-10 right-0 h-24 w-24 rounded-full bg-purple-400/20 blur-3xl" />
             <div className="relative flex items-start gap-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/10">
-                <Eye className="h-5 w-5 text-purple-200" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-full border border-purple-400/30 bg-purple-500/20 shadow-lg shadow-purple-500/20">
+                <Eye className="h-5 w-5 text-purple-300" />
               </div>
               <div className="space-y-1 text-sm">
-                <p className="font-medium text-purple-100">Demo mode ? sample Binance data</p>
+                <p className="font-semibold text-purple-200 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-purple-300" />
+                  Demo Mode • Sample Binance Data
+                </p>
                 <p className="text-slate-300/80">
                   Explore how TradeClarity surfaces patterns, then connect your exchange to uncover your own.
                 </p>

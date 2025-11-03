@@ -64,7 +64,8 @@ function DemoLoadingScreen({ progress, onComplete }) {
       <div className="max-w-md w-full space-y-8">
         <div className="text-center space-y-3">
           <h1 className="text-3xl font-bold">TradeClarity</h1>
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-500/10 border border-purple-500/30 rounded-full text-purple-400 text-sm font-medium">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500/20 to-purple-600/20 border-2 border-purple-400/40 rounded-full text-purple-200 text-sm font-semibold shadow-lg shadow-purple-500/20">
+            <Sparkles className="w-4 h-4 text-purple-300" />
             Demo Mode
           </div>
         </div>
@@ -298,6 +299,18 @@ export default function AnalyticsContent() {
   const [cachedData, setCachedData] = useState(null)
   const [progress, setProgress] = useState('Fetching your trading data...')
   const hasLoadedRef = useRef(false) // Track if we've already loaded data to prevent double-loading
+  const [activeTabFromUrl, setActiveTabFromUrl] = useState('overview')
+
+  // Watch for URL tab parameter changes
+  useEffect(() => {
+    const tabParam = searchParams.get('tab')
+    const validTabs = ['overview', 'behavioral', 'spot', 'futures']
+    if (tabParam && validTabs.includes(tabParam)) {
+      setActiveTabFromUrl(tabParam)
+    } else {
+      setActiveTabFromUrl('overview')
+    }
+  }, [searchParams])
 
   // Load data on mount
   useEffect(() => {
@@ -344,7 +357,25 @@ export default function AnalyticsContent() {
               hasFutures: true,
               futuresPositions: demoFuturesData.positions.length,
               spotTrades: normalizedSpotTrades.length,
-              futuresIncome: demoFuturesData.income.length
+              futuresIncome: demoFuturesData.income.length,
+              spotHoldings: [
+                { asset: 'BTC', quantity: 0.3971906, usdValue: 18296.45, exchange: 'binance' },
+                { asset: 'USDT', quantity: 3872.19, usdValue: 3872.19, exchange: 'binance' },
+                { asset: 'DOT', quantity: 275.43, usdValue: 1960.30, exchange: 'binance' },
+                { asset: 'AVAX', quantity: 27.00, usdValue: 1003.91, exchange: 'binance' },
+                { asset: 'ARB', quantity: 620.54, usdValue: 813.91, exchange: 'binance' },
+                { asset: 'ETH', quantity: 0.185, usdValue: 444.00, exchange: 'binance' },
+                { asset: 'SOL', quantity: 2.85, usdValue: 370.50, exchange: 'binance' },
+                { asset: 'LINK', quantity: 18.75, usdValue: 300.00, exchange: 'binance' },
+                { asset: 'ADA', quantity: 2850.0, usdValue: 1710.00, exchange: 'binance' },
+                { asset: 'BNB', quantity: 0.85, usdValue: 280.50, exchange: 'binance' },
+                { asset: 'XRP', quantity: 1200.0, usdValue: 660.00, exchange: 'binance' },
+                { asset: 'MATIC', quantity: 450.0, usdValue: 382.50, exchange: 'binance' },
+                { asset: 'DOGE', quantity: 8500.0, usdValue: 1275.00, exchange: 'binance' }
+              ],
+              totalPortfolioValue: 30468.27,
+              totalSpotValue: 30468.27,
+              totalFuturesValue: 0
             }
           }
 
@@ -596,6 +627,9 @@ export default function AnalyticsContent() {
   }
 
   if (status === 'connected' && analytics) {
+    // Use tab from URL state (updated via useEffect)
+    const currentTab = activeTabFromUrl || 'overview'
+
     return (
       <AnalyticsView
         analytics={analytics}
@@ -610,6 +644,8 @@ export default function AnalyticsContent() {
         onUploadClick={() => router.push('/dashboard')}
         onViewAllExchanges={() => router.push('/analyze')}
         onFilterExchanges={handleFilterExchanges}
+        initialTab={currentTab}
+        key={currentTab} // Force re-render when tab changes
       />
     )
   }
