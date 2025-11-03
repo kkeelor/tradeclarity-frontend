@@ -1,7 +1,7 @@
 // app/analyze/components/Header.js
 
 import { useState, useRef, useEffect } from 'react'
-import { TrendingUp, ArrowRight, LayoutDashboard, Upload, BarChart3, LogOut, ChevronDown } from 'lucide-react'
+import { TrendingUp, ArrowRight, LayoutDashboard, Upload, BarChart3, LogOut, ChevronDown, Menu, X } from 'lucide-react'
 import ThemeToggle from '../../components/ThemeToggle'
 import { getCurrencySymbol } from '../utils/currencyFormatter'
 
@@ -101,87 +101,188 @@ export default function Header({
   onSignOut,
   isDemoMode = false
 }) {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const navItems = [
     { label: 'Dashboard', icon: LayoutDashboard, onClick: onNavigateDashboard },
     { label: 'Upload CSV', icon: Upload, onClick: onNavigateUpload },
     { label: 'All Data', icon: BarChart3, onClick: onNavigateAll }
   ].filter(item => Boolean(item.onClick))
 
+  // Close mobile menu on ESC key
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && isMobileMenuOpen) {
+        setIsMobileMenuOpen(false)
+      }
+    }
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [isMobileMenuOpen])
+
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [isMobileMenuOpen])
+
+  const handleNavClick = (callback) => {
+    setIsMobileMenuOpen(false)
+    if (callback) callback()
+  }
+
   return (
-    <header className="sticky top-0 z-30 border-b border-white/5 bg-slate-950/70 backdrop-blur-xl">
-      <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-4 px-4 py-4">
-        <div className="flex items-center gap-8">
-          <button
-            onClick={() => window.location.href = '/'}
-            className="flex items-center gap-2 rounded-full border border-white/5 bg-white/[0.03] px-3 py-1 text-sm font-semibold text-white/90 transition hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white"
-          >
-            <TrendingUp className="h-5 w-5 text-emerald-300" />
-            TradeClarity
-          </button>
+    <>
+      <header className="sticky top-0 z-30 border-b border-white/5 bg-slate-950/70 backdrop-blur-xl">
+        <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-4 px-4 py-4">
+          <div className="flex items-center gap-4 lg:gap-8">
+            {/* Mobile Menu Button */}
+            {navItems.length > 0 && (
+              <button
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="lg:hidden p-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
+                aria-label="Open navigation menu"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+            )}
 
-          {navItems.length > 0 && (
-            <nav className="hidden items-center gap-2 md:flex">
-              {navItems.map(item => (
-                <NavButton key={item.label} {...item} />
-              ))}
-            </nav>
-          )}
+            <button
+              onClick={() => window.location.href = '/'}
+              className="flex items-center gap-2 rounded-full border border-white/5 bg-white/[0.03] px-3 py-1 text-sm font-semibold text-white/90 transition hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white"
+            >
+              <TrendingUp className="h-5 w-5 text-emerald-300" />
+              <span className="hidden sm:inline">TradeClarity</span>
+            </button>
+
+            {navItems.length > 0 && (
+              <nav className="hidden items-center gap-2 md:flex">
+                {navItems.map(item => (
+                  <NavButton key={item.label} {...item} />
+                ))}
+              </nav>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-3">
+            {exchangeConfig && (
+              <span className="hidden items-center gap-2 rounded-full border border-white/5 bg-white/[0.02] px-3 py-1 text-xs text-slate-300/80 sm:inline-flex">
+                {exchangeConfig.icon}
+                <span className="hidden md:inline">{exchangeConfig.displayName}</span>
+              </span>
+            )}
+
+            {currencyMetadata?.supportsCurrencySwitch && currencyMetadata.availableCurrencies.length > 1 && (
+              <CurrencyDropdown
+                currencies={currencyMetadata.availableCurrencies}
+                selectedCurrency={currency}
+                onSelectCurrency={setCurrency}
+              />
+            )}
+
+            {isDemoMode && (
+              <button
+                onClick={() => {
+                  if (onNavigateDashboard) {
+                    onNavigateDashboard()
+                  } else {
+                    window.location.href = '/dashboard'
+                  }
+                }}
+                className="hidden items-center gap-2 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 px-4 py-2 text-xs font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:from-emerald-300 hover:to-cyan-300 md:inline-flex"
+              >
+                <span className="hidden lg:inline">Discover yours</span>
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            )}
+
+            <ThemeToggle />
+
+            {!isDemoMode && (
+              <button
+                onClick={onDisconnect}
+                className="rounded-full border border-white/5 px-3 py-1 text-xs font-medium text-slate-400 transition hover:border-rose-400/50 hover:bg-rose-400/10 hover:text-rose-200"
+              >
+                <span className="hidden sm:inline">Disconnect</span>
+                <span className="sm:hidden">DC</span>
+              </button>
+            )}
+
+            {onSignOut && (
+              <button
+                onClick={onSignOut}
+                className="hidden items-center gap-2 rounded-full border border-white/5 px-3 py-1 text-xs font-medium text-slate-500 transition hover:border-white/10 hover:bg-white/10 hover:text-white md:inline-flex"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden lg:inline">Sign out</span>
+              </button>
+            )}
+          </div>
         </div>
+      </header>
 
-        <div className="flex items-center gap-3">
-          {exchangeConfig && (
-            <span className="hidden items-center gap-2 rounded-full border border-white/5 bg-white/[0.02] px-3 py-1 text-xs text-slate-300/80 sm:inline-flex">
-              {exchangeConfig.icon}
-              {exchangeConfig.displayName}
-            </span>
-          )}
+      {/* Mobile Navigation Menu */}
+      {isMobileMenuOpen && navItems.length > 0 && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
 
-          {currencyMetadata?.supportsCurrencySwitch && currencyMetadata.availableCurrencies.length > 1 && (
-            <CurrencyDropdown
-              currencies={currencyMetadata.availableCurrencies}
-              selectedCurrency={currency}
-              onSelectCurrency={setCurrency}
-            />
-          )}
+          {/* Mobile Menu Drawer */}
+          <div className="lg:hidden fixed inset-y-0 left-0 w-64 bg-slate-900/95 backdrop-blur-xl border-r border-white/5 z-50 transform transition-transform duration-300 ease-in-out">
+            <div className="flex flex-col h-full">
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b border-white/5">
+                <span className="text-lg font-bold text-white">Navigation</span>
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                  aria-label="Close menu"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
 
-          {isDemoMode && (
-            <button
-              onClick={() => {
-                if (onNavigateDashboard) {
-                  onNavigateDashboard()
-                } else {
-                  window.location.href = '/dashboard'
-                }
-              }}
-              className="hidden items-center gap-2 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 px-4 py-2 text-xs font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:from-emerald-300 hover:to-cyan-300 md:inline-flex"
-            >
-              Discover yours
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          )}
+              {/* Navigation Items */}
+              <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+                {navItems.map(item => {
+                  const Icon = item.icon
+                  return (
+                    <button
+                      key={item.label}
+                      onClick={() => handleNavClick(item.onClick)}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left text-slate-300 hover:bg-white/10 hover:text-white transition-all duration-300"
+                    >
+                      <Icon className="h-5 w-5 text-slate-400" />
+                      <span>{item.label}</span>
+                    </button>
+                  )
+                })}
+              </nav>
 
-          <ThemeToggle />
-
-          {!isDemoMode && (
-            <button
-              onClick={onDisconnect}
-              className="rounded-full border border-white/5 px-3 py-1 text-xs font-medium text-slate-400 transition hover:border-rose-400/50 hover:bg-rose-400/10 hover:text-rose-200"
-            >
-              Disconnect
-            </button>
-          )}
-
-          {onSignOut && (
-            <button
-              onClick={onSignOut}
-              className="hidden items-center gap-2 rounded-full border border-white/5 px-3 py-1 text-xs font-medium text-slate-500 transition hover:border-white/10 hover:bg-white/10 hover:text-white md:inline-flex"
-            >
-              <LogOut className="h-4 w-4" />
-              Sign out
-            </button>
-          )}
-        </div>
-      </div>
-    </header>
+              {/* Footer Actions */}
+              {onSignOut && (
+                <div className="p-4 border-t border-white/5">
+                  <button
+                    onClick={() => handleNavClick(onSignOut)}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all duration-300"
+                  >
+                    <LogOut className="h-5 w-5" />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </>
   )
 }
