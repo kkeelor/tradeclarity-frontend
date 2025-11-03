@@ -636,7 +636,7 @@ function UnderwaterEquityCurve({ underwaterData }) {
   }))
 
   return (
-    <div className="bg-slate-800/20 border border-slate-700/30 rounded-xl p-6">
+    <div className="bg-slate-800/20 border border-slate-700/30 rounded-xl p-4 md:p-6">
       <div className="mb-4">
         <h3 className="text-sm font-medium text-slate-300 flex items-center gap-2">
           <TrendingDown className="w-4 h-4 text-red-400" />
@@ -701,46 +701,46 @@ function WorstDrawdownsTable({ drawdowns, currSymbol }) {
         <p className="text-xs text-slate-500 mt-1">Your most challenging trading periods</p>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full">
+      <div className="overflow-x-auto -mx-4 px-4">
+        <table className="w-full min-w-[600px]">
           <thead className="bg-slate-800/30">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-400">Rank</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-400">Start Date</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-400">Drawdown</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-400">Amount</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-400">Duration</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-400">Recovery</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-400">Status</th>
+              <th className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-medium text-slate-400 whitespace-nowrap">Rank</th>
+              <th className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-medium text-slate-400 whitespace-nowrap">Start Date</th>
+              <th className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-medium text-slate-400 whitespace-nowrap">Drawdown</th>
+              <th className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-medium text-slate-400 whitespace-nowrap">Amount</th>
+              <th className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-medium text-slate-400 whitespace-nowrap">Duration</th>
+              <th className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-medium text-slate-400 whitespace-nowrap">Recovery</th>
+              <th className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-medium text-slate-400 whitespace-nowrap">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-700/30">
             {drawdowns.map((dd) => (
               <tr key={dd.rank} className="hover:bg-slate-800/30 transition-colors">
-                <td className="px-4 py-3">
+                <td className="px-3 py-2.5 md:px-4 md:py-3">
                   <span className="text-sm font-bold text-amber-400">#{dd.rank}</span>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-3 py-2.5 md:px-4 md:py-3">
                   <span className="text-sm text-slate-300">
                     {new Date(dd.startDate).toLocaleDateString()}
                   </span>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-3 py-2.5 md:px-4 md:py-3">
                   <span className="text-sm font-bold text-red-400">
                     {Math.abs(dd.drawdownPercent).toFixed(1)}%
                   </span>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-3 py-2.5 md:px-4 md:py-3">
                   <span className="text-sm text-red-400">
                     -{currSymbol}{Math.abs(dd.drawdownAmount).toFixed(2)}
                   </span>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-3 py-2.5 md:px-4 md:py-3">
                   <span className="text-sm text-slate-400">
                     {dd.drawdownDays} days
                   </span>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-3 py-2.5 md:px-4 md:py-3">
                   {dd.recovered ? (
                     <span className="text-sm text-emerald-400">
                       {dd.recoveryDays} days
@@ -749,7 +749,7 @@ function WorstDrawdownsTable({ drawdowns, currSymbol }) {
                     <span className="text-sm text-amber-400">-</span>
                   )}
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-3 py-2.5 md:px-4 md:py-3">
                   {dd.recovered ? (
                     <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs">
                       <CheckCircle className="w-3 h-3" />
@@ -827,7 +827,7 @@ function HourlyPerformanceChart({ hourlyData }) {
   const chartData = hourlyData.filter(h => h.trades > 0)
 
   return (
-    <div className="bg-slate-800/20 border border-slate-700/30 rounded-xl p-6">
+    <div className="bg-slate-800/20 border border-slate-700/30 rounded-xl p-4 md:p-6">
       <div className="mb-4">
         <h3 className="text-sm font-medium text-slate-300 flex items-center gap-2">
           <Clock className="w-4 h-4 text-cyan-400" />
@@ -877,7 +877,7 @@ function DayOfWeekChart({ dailyData }) {
   const chartData = dailyData.filter(d => d.trades > 0)
 
   return (
-    <div className="bg-slate-800/20 border border-slate-700/30 rounded-xl p-6">
+    <div className="bg-slate-800/20 border border-slate-700/30 rounded-xl p-4 md:p-6">
       <div className="mb-4">
         <h3 className="text-sm font-medium text-slate-300 flex items-center gap-2">
           <Calendar className="w-4 h-4 text-purple-400" />
@@ -925,7 +925,7 @@ function MonthlyPerformanceChart({ monthlyData, currSymbol }) {
   if (!monthlyData || monthlyData.length === 0) return null
 
   return (
-    <div className="bg-slate-800/20 border border-slate-700/30 rounded-xl p-6">
+    <div className="bg-slate-800/20 border border-slate-700/30 rounded-xl p-4 md:p-6">
       <div className="mb-4">
         <h3 className="text-sm font-medium text-slate-300 flex items-center gap-2">
           <BarChart3 className="w-4 h-4 text-emerald-400" />
@@ -1092,23 +1092,23 @@ function SymbolRankingsTable({ rankings, currSymbol }) {
         <p className="text-[10px] text-slate-500 mt-0.5">Multi-factor scoring: win rate, profit factor, total P&L</p>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full">
+      <div className="overflow-x-auto -mx-4 px-4">
+        <table className="w-full min-w-[700px]">
           <thead className="bg-slate-800/30">
             <tr>
-              <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-400">Rank</th>
-              <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-400">Symbol</th>
-              <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-400">Score</th>
-              <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-400">Win Rate</th>
-              <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-400">PF</th>
-              <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-400">Total P&L</th>
-              <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-400">Trades</th>
+              <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-400 whitespace-nowrap">Rank</th>
+              <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-400 whitespace-nowrap">Symbol</th>
+              <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-400 whitespace-nowrap">Score</th>
+              <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-400 whitespace-nowrap">Win Rate</th>
+              <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-400 whitespace-nowrap">PF</th>
+              <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-400 whitespace-nowrap">Total P&L</th>
+              <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-400 whitespace-nowrap">Trades</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-700/30">
             {topSymbols.map((symbol) => (
               <tr key={symbol.symbol} className="hover:bg-slate-800/30 transition-colors">
-                <td className="px-2 py-1.5">
+                <td className="px-2 py-2">
                   <div className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold ${
                     symbol.rank === 1
                       ? 'bg-amber-500/20 text-amber-400'
@@ -1121,10 +1121,10 @@ function SymbolRankingsTable({ rankings, currSymbol }) {
                     {symbol.rank}
                   </div>
                 </td>
-                <td className="px-2 py-1.5">
-                  <span className="text-xs font-bold text-slate-200">{symbol.symbol}</span>
+                <td className="px-2 py-2">
+                  <span className="text-xs font-bold text-slate-200 whitespace-nowrap">{symbol.symbol}</span>
                 </td>
-                <td className="px-2 py-1.5">
+                <td className="px-2 py-2">
                   <div className="flex items-center gap-1.5">
                     <div className="w-12 bg-slate-700/30 rounded-full h-1.5">
                       <div
@@ -1132,22 +1132,22 @@ function SymbolRankingsTable({ rankings, currSymbol }) {
                         style={{ width: `${symbol.score}%` }}
                       />
                     </div>
-                    <span className="text-[10px] text-slate-400">{symbol.score.toFixed(0)}</span>
+                    <span className="text-[10px] text-slate-400 whitespace-nowrap">{symbol.score.toFixed(0)}</span>
                   </div>
                 </td>
-                <td className="px-2 py-1.5">
-                  <span className="text-xs text-slate-300">{symbol.winRate.toFixed(1)}%</span>
+                <td className="px-2 py-2">
+                  <span className="text-xs text-slate-300 whitespace-nowrap">{symbol.winRate.toFixed(1)}%</span>
                 </td>
-                <td className="px-2 py-1.5">
-                  <span className="text-xs text-slate-300">{symbol.profitFactor.toFixed(2)}</span>
+                <td className="px-2 py-2">
+                  <span className="text-xs text-slate-300 whitespace-nowrap">{symbol.profitFactor.toFixed(2)}</span>
                 </td>
-                <td className="px-2 py-1.5">
-                  <span className={`text-xs font-medium ${symbol.totalPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                <td className="px-2 py-2">
+                  <span className={`text-xs font-medium whitespace-nowrap ${symbol.totalPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                     {symbol.totalPnL >= 0 ? '+' : ''}{currSymbol}{symbol.totalPnL.toFixed(2)}
                   </span>
                 </td>
-                <td className="px-2 py-1.5">
-                  <span className="text-xs text-slate-400">{symbol.trades}</span>
+                <td className="px-2 py-2">
+                  <span className="text-xs text-slate-400 whitespace-nowrap">{symbol.trades}</span>
                 </td>
               </tr>
             ))}
@@ -1523,36 +1523,36 @@ function SymbolsTable({ symbols, filter, currSymbol }) {
           Top Performing Symbols
         </h3>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full">
+      <div className="overflow-x-auto -mx-4 px-4">
+        <table className="w-full min-w-[600px]">
           <thead>
             <tr className="text-left text-sm text-slate-400 border-b border-slate-700/50">
-              <th className="p-4 font-medium">Symbol</th>
-              <th className="p-4 text-right font-medium">P&L</th>
-              <th className="p-4 text-right font-medium">Trades</th>
-              <th className="p-4 text-right font-medium">Win Rate</th>
-              <th className="p-4 text-right font-medium">W/L</th>
+              <th className="p-3 md:p-4 font-medium whitespace-nowrap">Symbol</th>
+              <th className="p-3 md:p-4 text-right font-medium whitespace-nowrap">P&L</th>
+              <th className="p-3 md:p-4 text-right font-medium whitespace-nowrap">Trades</th>
+              <th className="p-3 md:p-4 text-right font-medium whitespace-nowrap">Win Rate</th>
+              <th className="p-3 md:p-4 text-right font-medium whitespace-nowrap">W/L</th>
             </tr>
           </thead>
           <tbody>
             {filteredSymbols.map(([symbol, data], idx) => (
               <tr key={symbol} className="border-b border-slate-800/30 hover:bg-slate-700/20 transition-colors">
-                <td className="p-4">
+                <td className="p-3 md:p-4">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-lg bg-slate-700/50 flex items-center justify-center text-xs font-bold">
                       {idx + 1}
                     </div>
-                    <span className="font-mono font-semibold">{symbol}</span>
+                    <span className="font-mono font-semibold whitespace-nowrap">{symbol}</span>
                   </div>
                 </td>
-                <td className={`p-4 text-right font-bold text-lg ${
+                <td className={`p-3 md:p-4 text-right font-bold text-base md:text-lg whitespace-nowrap ${
                   (data.realized || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
                 }`}>
                   {(data.realized || 0) >= 0 ? '+' : ''}{currSymbol}{(data.realized || 0).toFixed(2)}
                 </td>
-                <td className="p-4 text-right text-slate-300 font-semibold">{data.trades}</td>
-                <td className="p-4 text-right">
-                  <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                <td className="p-3 md:p-4 text-right text-slate-300 font-semibold whitespace-nowrap">{data.trades}</td>
+                <td className="p-3 md:p-4 text-right">
+                  <span className={`px-3 py-1 rounded-full text-sm font-semibold whitespace-nowrap ${
                     data.winRate >= 60 ? 'bg-emerald-500/20 text-emerald-400' :
                     data.winRate >= 50 ? 'bg-yellow-500/20 text-yellow-400' :
                     'bg-red-500/20 text-red-400'
@@ -1560,7 +1560,7 @@ function SymbolsTable({ symbols, filter, currSymbol }) {
                     {data.winRate.toFixed(0)}%
                   </span>
                 </td>
-                <td className="p-4 text-right text-slate-400 text-sm font-medium">
+                <td className="p-3 md:p-4 text-right text-slate-400 text-sm font-medium whitespace-nowrap">
                   {data.wins}W / {data.losses}L
                 </td>
               </tr>
@@ -2772,15 +2772,15 @@ function SpotTab({ analytics, currSymbol, currency, metadata }) {
                 </button>
               )}
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
+            <div className="overflow-x-auto -mx-4 px-4">
+              <table className="w-full text-xs min-w-[500px]">
                 <thead className="bg-slate-800/30">
                   <tr className="text-left text-[10px] text-slate-400">
-                    <th className="px-2 py-2">Asset</th>
-                    <th className="px-2 py-2">Exchange</th>
-                    <th className="px-2 py-2 text-right">Qty</th>
-                    <th className="px-2 py-2 text-right">Price</th>
-                    <th className="px-2 py-2 text-right">Value</th>
+                    <th className="px-2 py-2 whitespace-nowrap">Asset</th>
+                    <th className="px-2 py-2 whitespace-nowrap">Exchange</th>
+                    <th className="px-2 py-2 text-right whitespace-nowrap">Qty</th>
+                    <th className="px-2 py-2 text-right whitespace-nowrap">Price</th>
+                    <th className="px-2 py-2 text-right whitespace-nowrap">Value</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2790,16 +2790,16 @@ function SpotTab({ analytics, currSymbol, currency, metadata }) {
 
                     return (
                       <tr key={`${holding.asset}-${idx}`} className="border-b border-slate-800/30 hover:bg-slate-700/10">
-                        <td className="px-2 py-1.5 font-mono font-semibold">{holding.asset}</td>
-                        <td className="px-2 py-1.5">
-                          <span className="inline-flex items-center gap-1 text-[10px] text-slate-400">
+                        <td className="px-2 py-2 font-mono font-semibold whitespace-nowrap">{holding.asset}</td>
+                        <td className="px-2 py-2">
+                          <span className="inline-flex items-center gap-1 text-[10px] text-slate-400 whitespace-nowrap">
                             <ExchangeIcon exchange={exchangeName} size={10} className="w-4 h-4 p-0.5" />
                             <span className="capitalize">{exchangeName}</span>
                           </span>
                         </td>
-                        <td className="px-2 py-1.5 text-right font-mono text-slate-300">{formatNumber(holding.quantity || 0, 4)}</td>
-                        <td className="px-2 py-1.5 text-right font-mono text-slate-400">{currSymbol}{formatNumber(holding.price || 0, 2)} <span className="text-[9px] text-slate-500">{displayCurrency}</span></td>
-                        <td className="px-2 py-1.5 text-right font-bold text-emerald-400">{currSymbol}{formatNumber(holding.usdValue || 0, 2)} <span className="text-[9px] text-slate-400 font-normal">{displayCurrency}</span></td>
+                        <td className="px-2 py-2 text-right font-mono text-slate-300 whitespace-nowrap">{formatNumber(holding.quantity || 0, 4)}</td>
+                        <td className="px-2 py-2 text-right font-mono text-slate-400 whitespace-nowrap">{currSymbol}{formatNumber(holding.price || 0, 2)} <span className="text-[9px] text-slate-500">{displayCurrency}</span></td>
+                        <td className="px-2 py-2 text-right font-bold text-emerald-400 whitespace-nowrap">{currSymbol}{formatNumber(holding.usdValue || 0, 2)} <span className="text-[9px] text-slate-400 font-normal">{displayCurrency}</span></td>
                       </tr>
                     )
                   })}
@@ -2807,7 +2807,7 @@ function SpotTab({ analytics, currSymbol, currency, metadata }) {
                 <tfoot className="bg-slate-800/50">
                   <tr className="font-bold">
                     <td className="px-2 py-2" colSpan="4">Total</td>
-                    <td className="px-2 py-2 text-right text-emerald-400">{currSymbol}{formatNumber(metadata?.totalSpotValue || 0, 2)} <span className="text-[9px] text-slate-400 font-normal">{displayCurrency}</span></td>
+                    <td className="px-2 py-2 text-right text-emerald-400 whitespace-nowrap">{currSymbol}{formatNumber(metadata?.totalSpotValue || 0, 2)} <span className="text-[9px] text-slate-400 font-normal">{displayCurrency}</span></td>
                   </tr>
                 </tfoot>
               </table>
@@ -3115,13 +3115,13 @@ function FuturesTab({ analytics, currSymbol, currency, metadata }) {
               </button>
             )}
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+          <div className="overflow-x-auto -mx-4 px-4">
+            <table className="w-full text-xs min-w-[500px]">
               <thead className="bg-slate-800/30">
                 <tr className="text-left text-[10px] text-slate-400">
-                  <th className="px-2 py-2">Symbol</th>
-                  <th className="px-2 py-2 text-right">P&L</th>
-                  <th className="px-2 py-2 text-right">Date</th>
+                  <th className="px-2 py-2 whitespace-nowrap">Symbol</th>
+                  <th className="px-2 py-2 text-right whitespace-nowrap">P&L</th>
+                  <th className="px-2 py-2 text-right whitespace-nowrap">Date</th>
                 </tr>
               </thead>
               <tbody>
@@ -3153,11 +3153,11 @@ function FuturesTab({ analytics, currSymbol, currency, metadata }) {
                   
                   return (
                     <tr key={trade.tradeId || idx} className="border-b border-slate-800/30 hover:bg-slate-700/10">
-                      <td className="px-2 py-1.5 font-mono font-semibold">{trade.symbol}</td>
-                      <td className={`px-2 py-1.5 text-right font-bold ${trade.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      <td className="px-2 py-2 font-mono font-semibold whitespace-nowrap">{trade.symbol}</td>
+                      <td className={`px-2 py-2 text-right font-bold whitespace-nowrap ${trade.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                         {trade.pnl >= 0 ? '+' : ''}{currSymbol}{formattedPnl} <span className="text-[9px] text-slate-400 font-normal">{displayCurrency}</span>
                       </td>
-                      <td className="px-2 py-1.5 text-right text-slate-400">{dateStr}</td>
+                      <td className="px-2 py-2 text-right text-slate-400 whitespace-nowrap">{dateStr}</td>
                     </tr>
                   )
                 })}

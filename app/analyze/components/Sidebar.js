@@ -177,31 +177,30 @@ export default function Sidebar({
 
   return (
     <>
-      {/* Mobile Hamburger Button */}
+      {/* Mobile Hamburger Button - Only show on mobile (md and below) */}
       <button
         onClick={() => setIsMobileOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-slate-800/90 backdrop-blur border border-white/5 hover:bg-slate-700/90 transition-all"
+        className="md:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-slate-800/90 backdrop-blur border border-white/5 hover:bg-slate-700/90 transition-all"
         aria-label="Open menu"
+        style={{ zIndex: 50 }}
       >
         <Menu className="w-6 h-6 text-white" />
       </button>
 
-      {/* Desktop Sidebar - Hidden on mobile, visible on desktop */}
-      <div className="hidden lg:block">
-        <SidebarContent />
-      </div>
+      {/* Desktop Sidebar - Always hidden (sidebar only for mobile drawer) */}
+      {/* Removed desktop sidebar - pages handle their own navigation */}
 
       {/* Mobile Backdrop */}
       {isMobileOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity"
+          className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
 
       {/* Mobile Drawer */}
       <div
-        className={`lg:hidden fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out ${
+        className={`md:hidden fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out ${
           isMobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >

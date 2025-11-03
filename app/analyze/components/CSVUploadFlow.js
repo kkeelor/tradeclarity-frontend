@@ -431,22 +431,25 @@ export default function CSVUploadFlow({ onBack }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex">
-      <Sidebar
-        activePage="upload"
-        onDashboardClick={onBack}
-        onUploadClick={() => {}}
-        onMyPatternsClick={onBack}
-        onSignOutClick={handleSignOut}
-        isMyPatternsDisabled={false}
-      />
+      {/* Mobile-only Sidebar */}
+      <div className="md:hidden">
+        <Sidebar
+          activePage="upload"
+          onDashboardClick={onBack}
+          onUploadClick={() => {}}
+          onMyPatternsClick={onBack}
+          onSignOutClick={handleSignOut}
+          isMyPatternsDisabled={false}
+        />
+      </div>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <header className="border-b border-slate-800/50 backdrop-blur-xl bg-slate-900/30 sticky top-0 z-10">
-          <div className="px-6 py-4 flex justify-between items-center">
-            <div>
-              <h1 className="text-xl font-semibold text-slate-100">Upload CSV Files</h1>
+        <header className="border-b border-slate-800/50 backdrop-blur-xl bg-slate-900/30 sticky top-0 z-20 md:z-10">
+          <div className="px-4 sm:px-6 py-4 flex justify-between items-center pl-14 md:pl-4">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg sm:text-xl font-semibold text-slate-100">Upload CSV Files</h1>
               <p className="text-xs text-slate-500 mt-0.5">
                 Import trade history from your exchanges
               </p>
@@ -487,7 +490,7 @@ export default function CSVUploadFlow({ onBack }) {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto px-6 py-6">
+        <main className="flex-1 overflow-y-auto px-4 sm:px-6 py-6">
           <div className="max-w-4xl mx-auto space-y-6">
             {/* Info banner */}
             <div className="relative overflow-hidden bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border border-blue-500/30 rounded-2xl p-5 backdrop-blur-sm">

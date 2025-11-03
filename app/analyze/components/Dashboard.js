@@ -22,6 +22,7 @@ import {
 import { ExchangeIcon } from '@/components/ui'
 import { DashboardStatsSkeleton, DataSourceSkeleton } from '@/app/components/LoadingSkeletons'
 import ConnectExchangeModal from './ConnectExchangeModal'
+import Sidebar from './Sidebar'
 
 export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithCSV, onViewAnalytics }) {
   const router = useRouter()
@@ -360,91 +361,109 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(46,204,149,0.08),_transparent_60%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom,_rgba(59,130,246,0.06),_transparent_55%)]" />
-      
-      {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-white/5 bg-slate-950/70 backdrop-blur-xl">
-        <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-4 px-4 py-4">
-          <div className="flex items-center gap-8">
-            <button
-              onClick={() => window.location.href = '/'}
-              className="flex items-center gap-2 rounded-full border border-white/5 bg-white/[0.03] px-3 py-1 text-sm font-semibold text-white/90 transition-all duration-300 hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white"
-            >
-              <TrendingUp className="h-5 w-5 text-emerald-300" />
-              TradeClarity
-            </button>
-
-            <nav className="hidden items-center gap-2 md:flex">
-              <button
-                onClick={onConnectWithCSV}
-                className="group inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium text-slate-300 transition-all duration-300 hover:text-white"
-              >
-                <Upload className="h-4 w-4 text-slate-500 transition-colors group-hover:text-emerald-300" />
-                Upload Files
-              </button>
-              <button
-                onClick={() => onViewAnalytics()}
-                disabled={connectedExchanges.length === 0 && !loadingExchanges}
-                className={`group inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-300 ${
-                  connectedExchanges.length === 0 && !loadingExchanges
-                    ? 'text-slate-500 cursor-not-allowed'
-                    : 'text-slate-300 hover:text-white'
-                }`}
-              >
-                <Sparkles className={`h-4 w-4 transition-colors ${
-                  connectedExchanges.length === 0 && !loadingExchanges
-                    ? 'text-slate-600'
-                    : 'text-slate-500 group-hover:text-emerald-300'
-                }`} />
-                My Patterns
-              </button>
-            </nav>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <ThemeToggle />
-            
-            <div className="relative">
-              <button
-                onClick={() => setShowUserMenu(!showUserMenu)}
-                className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-400 flex items-center justify-center text-slate-900 font-semibold text-sm hover:shadow-lg hover:shadow-emerald-500/20 transition-all duration-300"
-              >
-                {user?.user_metadata?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
-              </button>
-
-              {showUserMenu && (
-                <>
-                  <div
-                    className="fixed inset-0 z-10"
-                    onClick={() => setShowUserMenu(false)}
-                  />
-                  <div className="absolute right-0 mt-2 w-48 bg-slate-800/95 backdrop-blur-xl border border-slate-700/50 rounded-lg shadow-2xl z-20 overflow-hidden">
-                    <div className="p-2.5 border-b border-slate-700/50">
-                      <p className="text-[10px] text-slate-500 mb-0.5">Signed in as</p>
-                      <p className="text-xs text-slate-300 truncate">{user?.email}</p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setShowUserMenu(false)
-                        handleSignOut()
-                      }}
-                      className="w-full px-3 py-2 text-left text-xs text-slate-400 hover:text-red-400 hover:bg-slate-700/50 transition-colors flex items-center gap-2"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                      Sign Out
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex">
+      {/* Mobile-only Sidebar */}
+      <div className="md:hidden">
+        <Sidebar
+          activePage="dashboard"
+          onDashboardClick={() => {}}
+          onUploadClick={onConnectWithCSV}
+          onMyPatternsClick={() => {
+            if (connectedExchanges.length > 0 || !loadingExchanges) {
+              onViewAnalytics()
+            }
+          }}
+          onSignOutClick={handleSignOut}
+          isMyPatternsDisabled={connectedExchanges.length === 0 && !loadingExchanges}
+          isDemoMode={false}
+        />
+      </div>
 
       {/* Main Content */}
-      <main className="relative mx-auto w-full max-w-[1400px] px-4 pb-16 pt-10 space-y-10">
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header */}
+        <header className="sticky top-0 z-30 border-b border-white/5 bg-slate-950/70 backdrop-blur-xl">
+          <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-2 sm:gap-4 px-2 sm:px-4 py-3 sm:py-4 pl-14 md:pl-4">
+            <div className="flex items-center gap-1 sm:gap-2 md:gap-4 lg:gap-8 min-w-0 flex-1">
+              <button
+                onClick={() => window.location.href = '/'}
+                className="flex items-center gap-1 sm:gap-2 rounded-full border border-white/5 bg-white/[0.03] px-2 sm:px-3 py-1 text-sm font-semibold text-white/90 transition-all duration-300 hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white flex-shrink-0"
+              >
+                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-300" />
+                <span className="hidden sm:inline">TradeClarity</span>
+              </button>
+
+              <nav className="hidden md:flex items-center gap-1 md:gap-2 overflow-x-auto scrollbar-hide min-w-0">
+                <button
+                  onClick={onConnectWithCSV}
+                  className="group inline-flex items-center justify-center gap-1 md:gap-2 rounded-full px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium text-slate-300 transition-all duration-300 hover:text-white flex-shrink-0 whitespace-nowrap"
+                  style={{ minHeight: '32px', minWidth: '32px' }}
+                >
+                  <Upload className="h-3 w-3 md:h-4 md:w-4 text-slate-500 transition-colors group-hover:text-emerald-300 flex-shrink-0" />
+                  <span className="hidden sm:inline">Upload Files</span>
+                </button>
+                <button
+                  onClick={() => onViewAnalytics()}
+                  disabled={connectedExchanges.length === 0 && !loadingExchanges}
+                  className={`group inline-flex items-center justify-center gap-1 md:gap-2 rounded-full px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium transition-all duration-300 flex-shrink-0 whitespace-nowrap ${
+                    connectedExchanges.length === 0 && !loadingExchanges
+                      ? 'text-slate-500 cursor-not-allowed'
+                      : 'text-slate-300 hover:text-white'
+                  }`}
+                  style={{ minHeight: '32px', minWidth: '32px' }}
+                >
+                  <Sparkles className={`h-3 w-3 md:h-4 md:w-4 transition-colors flex-shrink-0 ${
+                    connectedExchanges.length === 0 && !loadingExchanges
+                      ? 'text-slate-600'
+                      : 'text-slate-500 group-hover:text-emerald-300'
+                  }`} />
+                  <span className="hidden sm:inline">My Patterns</span>
+                </button>
+              </nav>
+            </div>
+
+            <div className="flex items-center gap-1 sm:gap-2 md:gap-3 flex-shrink-0">
+              <ThemeToggle />
+              
+              <div className="relative">
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-400 flex items-center justify-center text-slate-900 font-semibold text-sm hover:shadow-lg hover:shadow-emerald-500/20 transition-all duration-300"
+                >
+                  {user?.user_metadata?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
+                </button>
+
+                {showUserMenu && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setShowUserMenu(false)}
+                    />
+                    <div className="absolute right-0 mt-2 w-48 bg-slate-800/95 backdrop-blur-xl border border-slate-700/50 rounded-lg shadow-2xl z-20 overflow-hidden">
+                      <div className="p-2.5 border-b border-slate-700/50">
+                        <p className="text-[10px] text-slate-500 mb-0.5">Signed in as</p>
+                        <p className="text-xs text-slate-300 truncate">{user?.email}</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setShowUserMenu(false)
+                          handleSignOut()
+                        }}
+                        className="w-full px-3 py-2 text-left text-xs text-slate-400 hover:text-red-400 hover:bg-slate-700/50 transition-colors flex items-center gap-2"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        Sign Out
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <main className="relative mx-auto w-full max-w-[1400px] px-4 sm:px-6 pb-16 pt-10 space-y-10">
         {/* Greeting Section */}
         <div className="flex items-center justify-between">
           <div>
@@ -466,7 +485,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
             {loadingStats ? (
               <DashboardStatsSkeleton />
             ) : tradesStats && tradesStats.totalTrades > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 px-1">
                 {/* Stats Card */}
                 <div className="relative overflow-hidden rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-emerald-500/5 backdrop-blur p-5 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:border-white/10">
                   <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10" />
@@ -733,7 +752,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
 
             {/* Quick Actions */}
             <section>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 px-1">
                 <button
                   onClick={() => setShowConnectModal(true)}
                   className="group relative overflow-hidden p-5 md:p-6 rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-emerald-500/5 backdrop-blur hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all duration-300 hover:scale-[1.02] text-left"
@@ -1138,6 +1157,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      </div>
     </div>
   )
 }
