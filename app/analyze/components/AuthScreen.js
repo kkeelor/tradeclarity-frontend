@@ -1,8 +1,8 @@
 // app/analyze/components/AuthScreen.js
 'use client';
 
-import { useState } from 'react';
-import { TrendingUp, Lock, Loader2, AlertCircle, Eye, EyeOff, Mail, Shield, Sparkles } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { TrendingUp, Lock, Loader2, AlertCircle, Eye, EyeOff, Mail, Shield, Sparkles, X, User, ChevronRight, Plus } from 'lucide-react';
 import { signUpWithEmail, signInWithEmail, signInWithGoogle } from '@/lib/auth';
 import { toast } from 'sonner';
 
@@ -14,6 +14,30 @@ export default function AuthScreen({ onAuthSuccess }) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showGoogleEmailModal, setShowGoogleEmailModal] = useState(false);
+  const [cachedEmail, setCachedEmail] = useState(null);
+  const [previousGoogleAccounts, setPreviousGoogleAccounts] = useState([]);
+  const [showAccountPicker, setShowAccountPicker] = useState(false);
+
+  // Check for cached emails on mount
+  useEffect(() => {
+    const cached = localStorage.getItem('lastGoogleEmail');
+    const previousAccounts = localStorage.getItem('previousGoogleAccounts');
+    
+    if (cached) {
+      setCachedEmail(cached);
+    }
+    
+    if (previousAccounts) {
+      try {
+        const accounts = JSON.parse(previousAccounts);
+        // Filter out cached email from previous accounts for the first modal
+        setPreviousGoogleAccounts(accounts.filter(acc => acc !== cached));
+      } catch (e) {
+        console.error('Error parsing previous accounts:', e);
+      }
+    }
+  }, []);
 
   const handleEmailAuth = async (e) => {
     e.preventDefault();
@@ -45,18 +69,70 @@ export default function AuthScreen({ onAuthSuccess }) {
     }
   };
 
-  const handleGoogleAuth = async () => {
+  const handleGoogleAuth = async (forceAccountSelection = false) => {
     setError('');
     setLoading(true);
+    setShowGoogleEmailModal(false);
 
     try {
-      const { data, error } = await signInWithGoogle();
+      const { data, error } = await signInWithGoogle(forceAccountSelection);
       if (error) throw error;
       // Google redirects automatically, so we don't need to handle success here
     } catch (err) {
       setError(err.message || 'Google signin failed');
       setLoading(false);
     }
+  };
+
+  const handleGoogleButtonClick = () => {
+    if (cachedEmail || previousGoogleAccounts.length > 0) {
+      setShowGoogleEmailModal(true);
+    } else {
+      handleGoogleAuth(false);
+    }
+  };
+
+  const handleUseCachedEmail = () => {
+    handleGoogleAuth(false);
+  };
+
+  const handleChooseAnother = () => {
+    setShowGoogleEmailModal(false);
+    // Get all accounts to check if there are multiple
+    const allAccounts = [];
+    if (cachedEmail) allAccounts.push(cachedEmail);
+    const previousAccountsStr = localStorage.getItem('previousGoogleAccounts');
+    if (previousAccountsStr) {
+      try {
+        const previous = JSON.parse(previousAccountsStr);
+        previous.forEach(email => {
+          if (!allAccounts.includes(email)) allAccounts.push(email);
+        });
+      } catch (e) {
+        console.error('Error parsing accounts:', e);
+      }
+    }
+    
+    // If only one account exists, go straight to Google account picker
+    if (allAccounts.length <= 1) {
+      handleGoogleAuth(true); // Force account selection
+    } else {
+      setShowAccountPicker(true);
+    }
+  };
+
+  const handleSelectPreviousAccount = (email) => {
+    // Update cached email to the selected one
+    localStorage.setItem('lastGoogleEmail', email);
+    setCachedEmail(email);
+    setShowAccountPicker(false);
+    handleGoogleAuth(false);
+  };
+
+  const handleAddNewAccount = () => {
+    // Clear current cached email hint so Google shows account picker
+    setShowAccountPicker(false);
+    handleGoogleAuth(true); // Force account selection
   };
 
   return (
@@ -85,7 +161,7 @@ export default function AuthScreen({ onAuthSuccess }) {
           <div className="relative">
           {/* Google OAuth Button */}
           <button
-            onClick={handleGoogleAuth}
+            onClick={handleGoogleButtonClick}
             disabled={loading}
             className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white hover:bg-gray-100 text-gray-900 rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl hover:scale-105 disabled:hover:scale-100"
           >
@@ -97,6 +173,198 @@ export default function AuthScreen({ onAuthSuccess }) {
             </svg>
             Continue with Google
           </button>
+
+          {/* Google Email Selection Modal */}
+          {showGoogleEmailModal && (cachedEmail || previousGoogleAccounts.length > 0) && (
+            <>
+              <div 
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+                onClick={() => setShowGoogleEmailModal(false)}
+              />
+              <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+                <div className="relative bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+                  <button
+                    onClick={() => setShowGoogleEmailModal(false)}
+                    className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                  
+                  <div className="mb-4">
+                    <h3 className="text-lg font-semibold text-slate-100 mb-2">Choose Account</h3>
+                    <p className="text-sm text-slate-400">Select which account you'd like to sign in with:</p>
+                  </div>
+
+                  <div className="space-y-3">
+                    {/* Cached Email Option */}
+                    {cachedEmail && (
+                      <button
+                        onClick={handleUseCachedEmail}
+                        disabled={loading}
+                        className="w-full flex items-center gap-3 px-4 py-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
+                          <User className="w-5 h-5 text-emerald-400" />
+                        </div>
+                        <div className="flex-1 text-left">
+                          <div className="text-sm font-semibold text-slate-100">Continue with</div>
+                          <div className="text-xs text-emerald-400">{cachedEmail}</div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </button>
+                    )}
+
+                    {/* Previous Accounts */}
+                    {previousGoogleAccounts.map((email, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleSelectPreviousAccount(email)}
+                        disabled={loading}
+                        className="w-full flex items-center gap-3 px-4 py-3 bg-slate-700/50 hover:bg-slate-700/70 border border-slate-600 hover:border-slate-500 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-slate-600/50 border border-slate-500 flex items-center justify-center flex-shrink-0">
+                          <User className="w-5 h-5 text-slate-400" />
+                        </div>
+                        <div className="flex-1 text-left">
+                          <div className="text-sm font-semibold text-slate-100">Sign in with</div>
+                          <div className="text-xs text-slate-400">{email}</div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </button>
+                    ))}
+
+                    {/* Choose Another Option */}
+                    <button
+                      onClick={handleChooseAnother}
+                      disabled={loading}
+                      className="w-full flex items-center gap-3 px-4 py-3 bg-white/[0.05] hover:bg-white/[0.08] border border-white/10 hover:border-white/20 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-slate-700/50 border border-slate-600 flex items-center justify-center flex-shrink-0">
+                        <svg className="w-5 h-5 text-slate-400" viewBox="0 0 24 24">
+                          <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                          <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                          <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                          <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                        </svg>
+                      </div>
+                      <div className="flex-1 text-left">
+                        <div className="text-sm font-semibold text-slate-100">Use a different account</div>
+                        <div className="text-xs text-slate-400">Sign in with another Google account</div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Account Picker Modal - Shows when "Use a different account" is clicked */}
+          {showAccountPicker && (() => {
+            // Get all accounts (cached + previous, removing duplicates)
+            const allAccounts = [];
+            if (cachedEmail) {
+              allAccounts.push(cachedEmail);
+            }
+            const previousAccountsStr = localStorage.getItem('previousGoogleAccounts');
+            if (previousAccountsStr) {
+              try {
+                const previous = JSON.parse(previousAccountsStr);
+                previous.forEach(email => {
+                  if (!allAccounts.includes(email)) {
+                    allAccounts.push(email);
+                  }
+                });
+              } catch (e) {
+                console.error('Error parsing accounts:', e);
+              }
+            }
+            // Remove duplicates and sort (cached first)
+            const uniqueAccounts = [...new Set(allAccounts)];
+            
+            return (
+              <>
+                <div 
+                  className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+                  onClick={() => setShowAccountPicker(false)}
+                />
+                <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+                  <div className="relative bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+                    <button
+                      onClick={() => setShowAccountPicker(false)}
+                      className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                    
+                    <div className="mb-4">
+                      <h3 className="text-lg font-semibold text-slate-100 mb-2">All Google Accounts</h3>
+                      <p className="text-sm text-slate-400">Select an account or add a new one:</p>
+                    </div>
+
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                      {/* All Accounts */}
+                      {uniqueAccounts.map((email, idx) => {
+                        const isLastUsed = email === cachedEmail;
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => handleSelectPreviousAccount(email)}
+                            disabled={loading}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed group ${
+                              isLastUsed
+                                ? 'bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50'
+                                : 'bg-slate-700/50 hover:bg-slate-700/70 border border-slate-600 hover:border-slate-500'
+                            }`}
+                          >
+                            <div className={`w-10 h-10 rounded-full border flex items-center justify-center flex-shrink-0 ${
+                              isLastUsed
+                                ? 'bg-emerald-500/20 border-emerald-500/30'
+                                : 'bg-slate-600/50 border-slate-500'
+                            }`}>
+                              <User className={`w-5 h-5 ${isLastUsed ? 'text-emerald-400' : 'text-slate-400'}`} />
+                            </div>
+                            <div className="flex-1 text-left">
+                              <div className="text-sm font-semibold text-slate-100">{email}</div>
+                              {isLastUsed && (
+                                <div className="text-xs text-emerald-400">Last used</div>
+                              )}
+                            </div>
+                            <ChevronRight className={`w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity ${
+                              isLastUsed ? 'text-emerald-400' : 'text-slate-400'
+                            }`} />
+                          </button>
+                        );
+                      })}
+
+                      {/* Show message if no accounts */}
+                      {uniqueAccounts.length === 0 && (
+                        <div className="text-center py-4 text-sm text-slate-400">
+                          No previous accounts found
+                        </div>
+                      )}
+
+                      {/* Add New Account */}
+                      <button
+                        onClick={handleAddNewAccount}
+                        disabled={loading}
+                        className="w-full flex items-center gap-3 px-4 py-3 bg-white/[0.05] hover:bg-white/[0.08] border-2 border-dashed border-white/20 hover:border-white/30 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed group mt-4"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-slate-700/50 border border-slate-600 flex items-center justify-center flex-shrink-0">
+                          <Plus className="w-5 h-5 text-slate-400" />
+                        </div>
+                        <div className="flex-1 text-left">
+                          <div className="text-sm font-semibold text-slate-100">Add new Google account</div>
+                          <div className="text-xs text-slate-400">Sign in with a different account</div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
@@ -154,7 +422,7 @@ export default function AuthScreen({ onAuthSuccess }) {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="????????"
                   className="w-full pl-10 pr-12 py-3 bg-slate-900 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/30 text-white placeholder-slate-500"
                   required
                   disabled={loading}
@@ -227,7 +495,7 @@ export default function AuthScreen({ onAuthSuccess }) {
               </div>
               <div className="flex-1">
                 <div className="font-semibold text-emerald-300 mb-1">Your Data is Secure</div>
-                <div className="text-xs text-slate-300">Industry-standard encryption • Secure key storage • Complete data privacy</div>
+                <div className="text-xs text-slate-300">Industry-standard encryption ? Secure key storage ? Complete data privacy</div>
               </div>
             </div>
           </div>

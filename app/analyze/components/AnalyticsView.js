@@ -3219,6 +3219,7 @@ function FuturesTab({ analytics, currSymbol, currency, metadata }) {
 
 function BehavioralTab({ analytics, currSymbol, currency }) {
   const behavioral = analytics.behavioral || {}
+  const psychology = analytics.psychology || {}
   const displayCurrency = currency || 'USD'
 
   if (!behavioral.healthScore) {
@@ -3233,49 +3234,480 @@ function BehavioralTab({ analytics, currSymbol, currency }) {
     return 'text-red-400'
   }
 
+  const getScoreBgColor = (score) => {
+    if (score >= 80) return 'bg-emerald-500/20 border-emerald-500/30'
+    if (score >= 60) return 'bg-yellow-500/20 border-yellow-500/30'
+    if (score >= 40) return 'bg-orange-500/20 border-orange-500/30'
+    return 'bg-red-500/20 border-red-500/30'
+  }
+
+  // Calculate score breakdown (simplified)
+  const scoreBreakdown = {
+    panicScore: behavioral.panicPatterns?.score || 0,
+    consistencyScore: behavioral.consistencyScore || 0,
+    feeEfficiency: behavioral.feeAnalysis?.efficiency || 0,
+    emotionalScore: behavioral.emotionalState?.emotionalScore || 0
+  }
+
   return (
     <div className="space-y-4 md:space-y-6">
-      {/* Enhanced Behavioral Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-emerald-400/30 hover:bg-emerald-500/5 transition-all duration-300 hover:scale-[1.02]">
-          <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">Behavioral Score</div>
-          <div className={`text-xl md:text-2xl font-bold mb-1 ${getScoreColor(healthScore)}`}>
-            {healthScore}<span className="text-xs text-slate-500 ml-1">/100</span>
+      {/* Behavioral Score Overview */}
+      <div className="relative overflow-hidden rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-emerald-500/5 backdrop-blur p-5 md:p-6">
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Brain className="w-5 h-5 text-emerald-400" />
+              <h2 className="text-lg font-semibold text-slate-200">Behavioral Health Score</h2>
+            </div>
+            <p className="text-xs text-slate-400">Your overall trading psychology and discipline assessment</p>
           </div>
-          <div className="text-xs text-slate-500">
-            {healthScore >= 80 ? 'Excellent' : healthScore >= 60 ? 'Good' : healthScore >= 40 ? 'Fair' : 'Needs work'}
+          <div className={`rounded-2xl border ${getScoreBgColor(healthScore)} px-4 py-3 text-center`}>
+            <div className={`text-3xl md:text-4xl font-bold ${getScoreColor(healthScore)}`}>
+              {healthScore}
+            </div>
+            <div className="text-xs text-slate-400 mt-1">/100</div>
           </div>
         </div>
 
-        <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-red-400/30 hover:bg-red-500/5 transition-all duration-300 hover:scale-[1.02]">
-          <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">Panic Events</div>
-          <div className={`text-xl md:text-2xl font-bold mb-1 ${behavioral.panicPatterns?.detected ? 'text-red-400' : 'text-emerald-400'}`}>
-            {behavioral.panicPatterns?.count || 0}
+        {/* Score Breakdown */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+          <div className="bg-slate-800/30 rounded-xl p-3 border border-slate-700/30">
+            <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-2">Panic Control</div>
+            <div className={`text-xl font-bold ${getScoreColor(100 - scoreBreakdown.panicScore)}`}>
+              {Math.max(0, 100 - scoreBreakdown.panicScore).toFixed(0)}
+            </div>
+            <div className="text-[10px] text-slate-500 mt-1">
+              {behavioral.panicPatterns?.count || 0} panic events detected
+            </div>
           </div>
-          <div className="text-xs text-slate-500">Rapid-fire sells</div>
-        </div>
-
-        <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-emerald-400/30 hover:bg-emerald-500/5 transition-all duration-300 hover:scale-[1.02]">
-          <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">Fee Efficiency</div>
-          <div className={`text-xl md:text-2xl font-bold mb-1 ${(behavioral.feeAnalysis?.efficiency || 0) >= 70 ? 'text-emerald-400' : 'text-yellow-400'}`}>
-            {behavioral.feeAnalysis?.efficiency ? Number(behavioral.feeAnalysis.efficiency).toFixed(0) : 0}%
+          <div className="bg-slate-800/30 rounded-xl p-3 border border-slate-700/30">
+            <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-2">Consistency</div>
+            <div className={`text-xl font-bold ${getScoreColor(scoreBreakdown.consistencyScore)}`}>
+              {scoreBreakdown.consistencyScore.toFixed(0)}
+            </div>
+            <div className="text-[10px] text-slate-500 mt-1">
+              {behavioral.positionSizing?.label || 'Position sizing'}
+            </div>
           </div>
-          <div className="text-xs text-slate-500">Maker/taker ratio</div>
-        </div>
-
-        <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-emerald-400/30 hover:bg-emerald-500/5 transition-all duration-300 hover:scale-[1.02]">
-          <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">Consistency</div>
-          <div className={`text-xl md:text-2xl font-bold mb-1 ${(behavioral.consistencyScore || 0) >= 70 ? 'text-emerald-400' : 'text-yellow-400'}`}>
-            {behavioral.consistencyScore ? Number(behavioral.consistencyScore).toFixed(0) : 0}%
+          <div className="bg-slate-800/30 rounded-xl p-3 border border-slate-700/30">
+            <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-2">Fee Efficiency</div>
+            <div className={`text-xl font-bold ${getScoreColor(scoreBreakdown.feeEfficiency)}`}>
+              {scoreBreakdown.feeEfficiency.toFixed(0)}%
+            </div>
+            <div className="text-[10px] text-slate-500 mt-1">
+              {behavioral.tradingStyle?.makerPercent?.toFixed(0) || 0}% maker orders
+            </div>
           </div>
-          <div className="text-xs text-slate-500">Position sizing</div>
+          <div className="bg-slate-800/30 rounded-xl p-3 border border-slate-700/30">
+            <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-2">Emotional Control</div>
+            <div className={`text-xl font-bold ${getScoreColor(100 - scoreBreakdown.emotionalScore)}`}>
+              {Math.max(0, 100 - scoreBreakdown.emotionalScore).toFixed(0)}
+            </div>
+            <div className="text-[10px] text-slate-500 mt-1">
+              {behavioral.emotionalState?.detected ? 'Emotional trading detected' : 'Stable'}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Enhanced Critical Warnings */}
+      {/* Trading Psychology Profile */}
+      {(psychology.strengths?.length > 0 || psychology.weaknesses?.length > 0) && (
+        <div className="grid md:grid-cols-2 gap-4 md:gap-6">
+          {/* Strengths */}
+          {psychology.strengths && psychology.strengths.length > 0 && (
+            <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 md:p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <Trophy className="w-5 h-5 text-emerald-400" />
+                <h3 className="text-sm font-semibold text-emerald-300">Your Strengths</h3>
+              </div>
+              <div className="space-y-3">
+                {psychology.strengths.slice(0, 4).map((strength, idx) => (
+                  <div key={idx} className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <div className="text-xs font-medium text-emerald-300 mb-1">
+                          {strength.type === 'patience' ? 'Patient Trader' :
+                           strength.type === 'win_rate' ? 'High Win Rate' :
+                           strength.type === 'profit_factor' ? 'Strong Profit Factor' :
+                           strength.type === 'symbol_mastery' ? 'Symbol Mastery' :
+                           strength.type === 'loss_cutting' ? 'Quick Loss Cutting' : 'Strength'}
+                        </div>
+                        <div className="text-[11px] text-slate-300">{strength.message}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Weaknesses */}
+          {psychology.weaknesses && psychology.weaknesses.length > 0 && (
+            <div className="relative overflow-hidden rounded-2xl border border-red-500/20 bg-red-500/5 p-4 md:p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <AlertTriangle className="w-5 h-5 text-red-400" />
+                <h3 className="text-sm font-semibold text-red-300">Areas to Improve</h3>
+              </div>
+              <div className="space-y-3">
+                {psychology.weaknesses.slice(0, 4).map((weakness, idx) => (
+                  <div key={idx} className={`bg-red-500/10 border rounded-lg p-3 ${
+                    weakness.severity === 'high' ? 'border-red-500/30 bg-red-500/15' : 'border-red-500/20'
+                  }`}>
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-medium text-red-300">
+                            {weakness.type === 'holding_losers' ? 'Holding Losers Too Long' :
+                             weakness.type === 'revenge_trading' ? 'Revenge Trading' :
+                             weakness.type === 'weekend_trading' ? 'Weekend Trading' :
+                             weakness.type === 'overleveraging' ? 'Over-Leveraging' :
+                             weakness.type === 'fomo_trading' ? 'FOMO Trading' :
+                             weakness.type === 'overconfidence' ? 'Overconfidence' : 'Weakness'}
+                          </span>
+                          {weakness.severity === 'high' && (
+                            <span className="text-[10px] px-1.5 py-0.5 bg-red-500/30 text-red-300 rounded uppercase">High</span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-slate-300">{weakness.message}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Emotional State Analysis */}
+      {(behavioral.emotionalState || behavioral.panicPatterns?.detected) && (
+        <div className="relative overflow-hidden rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4 md:p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Flame className="w-5 h-5 text-orange-400" />
+            <h3 className="text-sm font-semibold text-orange-300">Emotional State Analysis</h3>
+          </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            {/* Panic Patterns */}
+            {behavioral.panicPatterns?.detected && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertTriangle className="w-4 h-4 text-red-400" />
+                  <span className="text-xs font-semibold text-red-300">Panic Selling Detected</span>
+                </div>
+                <div className="text-sm font-bold text-red-400 mb-1">
+                  {behavioral.panicPatterns.count} panic events
+                </div>
+                <div className="text-[11px] text-slate-300">
+                  Rapid-fire sells detected within 10 minutes indicate emotional decision-making. 
+                  {behavioral.panicPatterns.severity === 'high' && ' This is a critical issue affecting your performance.'}
+                </div>
+                {behavioral.panicPatterns.events && behavioral.panicPatterns.events.length > 0 && (
+                  <div className="mt-3 text-[10px] text-slate-400">
+                    Most recent: {new Date(behavioral.panicPatterns.events[0].timestamp).toLocaleDateString()}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Revenge Trading */}
+            {behavioral.emotionalState?.revengeTrading && behavioral.emotionalState.revengeTrading > 0 && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Zap className="w-4 h-4 text-red-400" />
+                  <span className="text-xs font-semibold text-red-300">Revenge Trading</span>
+                </div>
+                <div className="text-sm font-bold text-red-400 mb-1">
+                  {behavioral.emotionalState.revengeTrading} sessions detected
+                </div>
+                <div className="text-[11px] text-slate-300">
+                  Rapid trades after losses suggest emotional decision-making. Consider taking breaks after losses.
+                </div>
+              </div>
+            )}
+
+            {/* Chasing */}
+            {behavioral.emotionalState?.chasing && behavioral.emotionalState.chasing > 0 && (
+              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingUp className="w-4 h-4 text-yellow-400" />
+                  <span className="text-xs font-semibold text-yellow-300">Chasing Trades</span>
+                </div>
+                <div className="text-sm font-bold text-yellow-400 mb-1">
+                  {behavioral.emotionalState.chasing} instances
+                </div>
+                <div className="text-[11px] text-slate-300">
+                  Buying into momentum after missing entry points often leads to poor entries.
+                </div>
+              </div>
+            )}
+
+            {/* Overall Emotional Score */}
+            {behavioral.emotionalState && (
+              <div className={`rounded-lg p-4 border ${
+                behavioral.emotionalState.isEmotional 
+                  ? 'bg-red-500/10 border-red-500/30' 
+                  : 'bg-emerald-500/10 border-emerald-500/30'
+              }`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <Brain className="w-4 h-4 text-slate-400" />
+                  <span className="text-xs font-semibold text-slate-300">Overall Emotional State</span>
+                </div>
+                <div className={`text-sm font-bold mb-1 ${
+                  behavioral.emotionalState.isEmotional ? 'text-red-400' : 'text-emerald-400'
+                }`}>
+                  {behavioral.emotionalState.isEmotional ? 'Emotional Trading Detected' : 'Stable & Disciplined'}
+                </div>
+                <div className="text-[11px] text-slate-300">
+                  {behavioral.emotionalState.isEmotional 
+                    ? 'Your trading shows signs of emotional influence. Focus on sticking to your strategy.'
+                    : 'You maintain discipline even during drawdowns. Keep up the good work!'}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Trading Patterns - After Wins/Losses */}
+      {psychology.behavioralPatterns && (
+        <div className="relative overflow-hidden rounded-2xl border border-purple-500/20 bg-purple-500/5 p-4 md:p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart3 className="w-5 h-5 text-purple-400" />
+            <h3 className="text-sm font-semibold text-purple-300">Trading Patterns After Wins & Losses</h3>
+          </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            {/* After Wins */}
+            {psychology.behavioralPatterns.afterWins.count > 0 && (
+              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4">
+                <div className="text-xs font-semibold text-emerald-300 mb-3">After Wins</div>
+                <div className="space-y-2 text-[11px]">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Win Rate</span>
+                    <span className="text-emerald-400 font-medium">
+                      {psychology.behavioralPatterns.afterWins.winRate?.toFixed(1) || 0}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Avg Position Size</span>
+                    <span className="text-slate-300 font-medium">
+                      {currSymbol}{(psychology.behavioralPatterns.afterWins.avgSize || 0).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Trades Analyzed</span>
+                    <span className="text-slate-300 font-medium">
+                      {psychology.behavioralPatterns.afterWins.count}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* After Losses */}
+            {psychology.behavioralPatterns.afterLosses.count > 0 && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                <div className="text-xs font-semibold text-red-300 mb-3">After Losses</div>
+                <div className="space-y-2 text-[11px]">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Win Rate</span>
+                    <span className="text-red-400 font-medium">
+                      {psychology.behavioralPatterns.afterLosses.winRate?.toFixed(1) || 0}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Avg Position Size</span>
+                    <span className="text-slate-300 font-medium">
+                      {currSymbol}{(psychology.behavioralPatterns.afterLosses.avgSize || 0).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Trades Analyzed</span>
+                    <span className="text-slate-300 font-medium">
+                      {psychology.behavioralPatterns.afterLosses.count}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Overconfidence Detection */}
+          {psychology.behavioralPatterns.overconfidenceRatio && (
+            <div className={`mt-4 rounded-lg p-4 border ${
+              psychology.behavioralPatterns.isOverconfident 
+                ? 'bg-yellow-500/10 border-yellow-500/30' 
+                : psychology.behavioralPatterns.isFearBased
+                ? 'bg-blue-500/10 border-blue-500/30'
+                : 'bg-slate-800/30 border-slate-700/30'
+            }`}>
+              <div className="flex items-center gap-2 mb-2">
+                <Target className="w-4 h-4 text-slate-400" />
+                <span className="text-xs font-semibold text-slate-300">
+                  {psychology.behavioralPatterns.isOverconfident 
+                    ? 'Overconfidence Detected' 
+                    : psychology.behavioralPatterns.isFearBased
+                    ? 'Fear-Based Trading Detected'
+                    : 'Balanced Position Sizing'}
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-300">
+                {psychology.behavioralPatterns.isOverconfident 
+                  ? `Position sizes increase ${((psychology.behavioralPatterns.overconfidenceRatio - 1) * 100).toFixed(0)}% after wins. This suggests overconfidence. Consider maintaining consistent position sizes.`
+                  : psychology.behavioralPatterns.isFearBased
+                  ? `Position sizes decrease after losses, indicating fear-based trading. Stick to your strategy regardless of recent outcomes.`
+                  : 'Your position sizing remains consistent regardless of recent wins or losses. Good discipline!'}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Time-Based Insights */}
+      {psychology.timeBasedInsights && (
+        <div className="relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-4 md:p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Clock className="w-5 h-5 text-cyan-400" />
+            <h3 className="text-sm font-semibold text-cyan-300">Time-Based Performance</h3>
+          </div>
+          
+          {/* Best Hours */}
+          {psychology.timeBasedInsights.bestHours && psychology.timeBasedInsights.bestHours.length > 0 && (
+            <div className="mb-4">
+              <div className="text-xs font-semibold text-emerald-300 mb-2 flex items-center gap-2">
+                <Trophy className="w-3 h-3" />
+                Your Best Trading Hours
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {psychology.timeBasedInsights.bestHours.map((hour, idx) => (
+                  <div key={idx} className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-2">
+                    <div className="text-xs font-medium text-emerald-300">{hour.hourRange}</div>
+                    <div className="text-[11px] text-slate-300 mt-1">
+                      {hour.winRate?.toFixed(0) || 0}% win rate • {hour.trades} trades
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Worst Hours */}
+          {psychology.timeBasedInsights.worstHours && psychology.timeBasedInsights.worstHours.length > 0 && (
+            <div>
+              <div className="text-xs font-semibold text-red-300 mb-2 flex items-center gap-2">
+                <AlertTriangle className="w-3 h-3" />
+                Hours to Avoid
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {psychology.timeBasedInsights.worstHours.map((hour, idx) => (
+                  <div key={idx} className="bg-red-500/10 border border-red-500/30 rounded-lg p-2">
+                    <div className="text-xs font-medium text-red-300">{hour.hourRange}</div>
+                    <div className="text-[11px] text-slate-300 mt-1">
+                      {hour.winRate?.toFixed(0) || 0}% win rate • {hour.trades} trades
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Actionable Recommendations */}
+      {psychology.recommendations && psychology.recommendations.length > 0 && (
+        <div className="relative overflow-hidden rounded-2xl border border-blue-500/20 bg-blue-500/5 p-4 md:p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Lightbulb className="w-5 h-5 text-blue-400" />
+            <h3 className="text-sm font-semibold text-blue-300">Actionable Recommendations</h3>
+          </div>
+          <div className="space-y-3">
+            {psychology.recommendations.map((rec, idx) => (
+              <div key={idx} className={`bg-blue-500/10 border rounded-lg p-4 ${
+                rec.priority === 'high' ? 'border-blue-500/40 bg-blue-500/15' : 'border-blue-500/20'
+              }`}>
+                <div className="flex items-start gap-3">
+                  <div className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                    rec.priority === 'high' ? 'bg-blue-500/30 border border-blue-500/50' : 'bg-blue-500/20 border border-blue-500/30'
+                  }`}>
+                    <span className="text-xs font-bold text-blue-300">{idx + 1}</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-semibold text-blue-300">{rec.title}</span>
+                      {rec.priority === 'high' && (
+                        <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/30 text-blue-300 rounded uppercase">High Priority</span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-slate-300">{rec.message}</div>
+                    <div className="text-[10px] text-slate-400 mt-2">
+                      {rec.type === 'timing' && '⏰ Timing Recommendation'}
+                      {rec.type === 'symbol' && '🎯 Symbol Focus'}
+                      {rec.type === 'risk_management' && '🛡️ Risk Management'}
+                      {rec.type === 'leverage' && '⚡ Leverage Advice'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Symbol Behavior */}
+      {psychology.symbolBehavior && psychology.symbolBehavior.length > 0 && (
+        <div className="relative overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-800/20 p-4 md:p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <PieChart className="w-5 h-5 text-slate-400" />
+            <h3 className="text-sm font-semibold text-slate-300">Symbol-Specific Behavior</h3>
+          </div>
+          <div className="grid md:grid-cols-2 gap-3">
+            {psychology.symbolBehavior.slice(0, 6).map((symbol, idx) => (
+              <div key={idx} className={`rounded-lg p-3 border ${
+                symbol.category === 'strength' ? 'bg-emerald-500/10 border-emerald-500/30' :
+                symbol.category === 'weakness' ? 'bg-red-500/10 border-red-500/30' :
+                symbol.category === 'fomo' ? 'bg-yellow-500/10 border-yellow-500/30' :
+                'bg-slate-800/30 border-slate-700/30'
+              }`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-slate-200">{symbol.symbol}</span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded ${
+                    symbol.category === 'strength' ? 'bg-emerald-500/30 text-emerald-300' :
+                    symbol.category === 'weakness' ? 'bg-red-500/30 text-red-300' :
+                    symbol.category === 'fomo' ? 'bg-yellow-500/30 text-yellow-300' :
+                    'bg-slate-700/50 text-slate-400'
+                  }`}>
+                    {symbol.category === 'strength' ? 'Strength' :
+                     symbol.category === 'weakness' ? 'Weakness' :
+                     symbol.category === 'fomo' ? 'FOMO' : 'Neutral'}
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-400 mb-1">{symbol.message}</div>
+                <div className="flex items-center gap-3 text-[10px] text-slate-500">
+                  <span>{symbol.winRate?.toFixed(0) || 0}% WR</span>
+                  <span>•</span>
+                  <span>{symbol.trades} trades</span>
+                  {symbol.avgHoldTime && (
+                    <>
+                      <span>•</span>
+                      <span>Avg hold: {symbol.avgHoldTime}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Critical Warnings */}
       {behavioral.warnings && behavioral.warnings.length > 0 && (
         <div className="space-y-3">
-          {behavioral.warnings.slice(0, 2).map((warning, idx) => (
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-red-400" />
+            <h3 className="text-sm font-semibold text-red-300">Critical Warnings</h3>
+          </div>
+          {behavioral.warnings.map((warning, idx) => (
             <div key={idx} className="group relative overflow-hidden rounded-xl border border-red-400/30 bg-red-500/10 hover:border-red-400/50 hover:bg-red-500/15 p-4 transition-all duration-300">
               <div className="flex items-start gap-3">
                 <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-red-500/20 border border-red-400/30">
@@ -3291,79 +3723,44 @@ function BehavioralTab({ analytics, currSymbol, currency }) {
         </div>
       )}
 
-      {/* Fee Analysis - Compact */}
+      {/* Fee Analysis */}
       {behavioral.feeAnalysis && (
-        <div className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <DollarSign className="w-3 h-3 text-orange-400" />
-            <span className="text-[10px] text-slate-400 uppercase tracking-wider">Fee Analysis</span>
+        <div className="relative overflow-hidden rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4 md:p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <DollarSign className="w-5 h-5 text-orange-400" />
+            <h3 className="text-sm font-semibold text-orange-300">Fee Efficiency Analysis</h3>
           </div>
-          <div className="grid grid-cols-2 gap-2 text-[10px]">
+          <div className="grid md:grid-cols-3 gap-4">
             <div>
-              <div className="text-slate-400 mb-0.5">Total Fees Paid</div>
-              <div className="text-sm font-bold text-red-400">
+              <div className="text-[10px] text-slate-400 mb-1">Total Fees Paid</div>
+              <div className="text-xl font-bold text-red-400">
                 -{currency}{behavioral.feeAnalysis.totalFees ? Number(behavioral.feeAnalysis.totalFees).toFixed(2) : '0.00'}
               </div>
             </div>
             <div>
-              <div className="text-slate-400 mb-0.5">Could Have Saved</div>
-              <div className="text-sm font-bold text-yellow-400">
+              <div className="text-[10px] text-slate-400 mb-1">Potential Savings</div>
+              <div className="text-xl font-bold text-yellow-400">
                 {currency}{behavioral.feeAnalysis.potentialSavings ? Math.abs(Number(behavioral.feeAnalysis.potentialSavings)).toFixed(2) : '0.00'}
               </div>
             </div>
-          </div>
-          <div className="text-[10px] text-slate-500 mt-1.5 flex items-start gap-1">
-            <Lightbulb className="w-2.5 h-2.5 text-yellow-400 flex-shrink-0 mt-0.5" />
-            <span>Use limit orders (maker) instead of market orders (taker) to save on fees</span>
-          </div>
-        </div>
-      )}
-
-      {/* Top Actionable Insights - Compact */}
-      {behavioral.insights && behavioral.insights.length > 0 && (
-        <div className="space-y-1.5">
-          <div className="text-xs font-semibold text-slate-300 flex items-center gap-2">
-            <Lightbulb className="w-3 h-3 text-yellow-400" />
-            Top Insights
-          </div>
-          {behavioral.insights.slice(0, 2).map((insight, idx) => {
-            const colorMap = {
-              critical: { text: 'text-red-400' },
-              warning: { text: 'text-yellow-400' },
-              info: { text: 'text-blue-400' },
-              success: { text: 'text-emerald-400' }
-            }
-            const colors = colorMap[insight.severity] || colorMap.info
-
-            return (
-              <div key={idx} className="bg-slate-800/20 border border-slate-700/30 rounded-md p-2">
-                <div className={`text-xs font-semibold ${colors.text}`}>{insight.title}</div>
-                <div className="text-[10px] text-slate-400 mt-0.5">{insight.message}</div>
+            <div>
+              <div className="text-[10px] text-slate-400 mb-1">Efficiency Score</div>
+              <div className={`text-xl font-bold ${getScoreColor(behavioral.feeAnalysis.efficiency || 0)}`}>
+                {behavioral.feeAnalysis.efficiency?.toFixed(0) || 0}%
               </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Premium Teaser - Deep Behavioral Analysis */}
-      <div className="bg-gradient-to-br from-purple-500/5 to-pink-500/5 border border-purple-500/20 rounded-lg p-3 relative overflow-hidden">
-        <div className="absolute top-0 right-0 bg-purple-500/10 px-2 py-0.5 rounded-bl-lg">
-          <span className="text-[10px] font-bold text-purple-400">PRO</span>
-        </div>
-        <div className="flex items-start gap-3">
-          <Brain className="w-4 h-4 text-purple-400 mt-0.5" />
-          <div className="flex-1">
-            <h4 className="text-xs font-semibold text-slate-200 mb-1">Deep Behavioral Analysis</h4>
-            <p className="text-[10px] text-slate-400 mb-2">
-              Unlock detailed panic pattern detection, position sizing consistency analysis, and personalized action steps.
-            </p>
-            <div className="flex items-center gap-2 text-[10px] text-purple-400">
-              <Sparkles className="w-3 h-3" />
-              <span>Get AI-powered psychology insights with Pro</span>
+            </div>
+          </div>
+          <div className="mt-4 bg-slate-800/30 rounded-lg p-3 border border-slate-700/30">
+            <div className="flex items-start gap-2">
+              <Lightbulb className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" />
+              <div className="text-[11px] text-slate-300">
+                <strong className="text-yellow-400">Tip:</strong> Use limit orders (maker) instead of market orders (taker) to save on fees. 
+                Maker orders typically have lower fees and can save you {currency}{behavioral.feeAnalysis.potentialSavings ? Math.abs(Number(behavioral.feeAnalysis.potentialSavings)).toFixed(2) : '0.00'} over time.
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
