@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, LogOut, BarChart3, Sparkles, Database, CheckSquare, Square, Loader2, ChevronRight, Zap, Brain, Clock, DollarSign, PieChart, TrendingDown } from 'lucide-react'
+import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, LogOut, BarChart3, Sparkles, Database, CheckSquare, Square, Loader2, ChevronRight, Zap, Brain, Clock, DollarSign, PieChart, TrendingDown, Target, Lightbulb } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { toast } from 'sonner'
 import ThemeToggle from '@/app/components/ThemeToggle'
@@ -658,21 +658,142 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                 </div>
               </div>
             ) : (
-              /* First-time user experience */
-              <div className="relative overflow-hidden rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-emerald-500/5 backdrop-blur p-6 md:p-8">
-                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10" />
-                <div className="absolute -top-16 -right-16 w-40 h-40 bg-emerald-500/10 blur-3xl rounded-full" />
-                <div className="relative">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Sparkles className="w-4 h-4 text-emerald-400" />
-                    <h3 className="text-sm font-semibold text-slate-200">
-                      {user?.user_metadata?.name ? `Hey ${user.user_metadata.name.split(' ')[0]}` : 'Hey there'}, let's get started
-                    </h3>
+              /* First-time user experience - Enhanced */
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+                {/* Main CTA Card */}
+                <div className="lg:col-span-2 relative overflow-hidden rounded-3xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent shadow-lg shadow-emerald-500/10 backdrop-blur p-6 md:p-8">
+                  <div className="absolute -top-20 -right-20 w-64 h-64 bg-emerald-500/20 blur-3xl rounded-full opacity-50" />
+                  <div className="relative">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
+                        <Sparkles className="w-5 h-5 text-emerald-400" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg md:text-xl font-semibold text-slate-100">
+                          {user?.user_metadata?.name ? `Welcome, ${user.user_metadata.name.split(' ')[0]}!` : 'Welcome to TradeClarity!'}
+                        </h2>
+                        <p className="text-xs text-slate-400 mt-0.5">Your trading blind spots, finally revealed</p>
+                      </div>
+                    </div>
+                    
+                    <p className="text-sm text-slate-300 leading-relaxed mb-6">
+                      Connect your exchange or upload CSV files to unlock powerful insights into your trading patterns, 
+                      psychology, and hidden opportunities. See what's really affecting your performance.
+                    </p>
+
+                    <div className="flex flex-col sm:flex-row gap-3 mb-6">
+                      <button
+                        onClick={() => setShowConnectModal(true)}
+                        className="group flex-1 px-5 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 rounded-xl text-sm font-semibold text-white transition-all duration-300 inline-flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-105"
+                      >
+                        <LinkIcon className="w-4 h-4" />
+                        Connect Exchange
+                        <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                      </button>
+                      <button
+                        onClick={onConnectWithCSV}
+                        className="group flex-1 px-5 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 rounded-xl text-sm font-semibold text-white transition-all duration-300 inline-flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 hover:scale-105"
+                      >
+                        <Upload className="w-4 h-4" />
+                        Upload CSV
+                        <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                      </button>
+                      <button
+                        onClick={onTryDemo}
+                        className="group px-5 py-3 bg-white/[0.05] hover:bg-white/[0.08] border border-white/10 hover:border-white/20 rounded-xl text-sm font-semibold text-slate-300 hover:text-white transition-all duration-300 inline-flex items-center justify-center gap-2 hover:scale-105"
+                      >
+                        <Play className="w-4 h-4" />
+                        Try Demo
+                      </button>
+                    </div>
+
+                    {/* Value Props */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-white/10">
+                      <div className="flex items-start gap-2">
+                        <div className="w-6 h-6 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Brain className="w-3.5 h-3.5 text-emerald-400" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold text-slate-200">Psychology Insights</div>
+                          <div className="text-[10px] text-slate-400">Discover your hidden patterns</div>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <div className="w-6 h-6 rounded-lg bg-blue-500/20 border border-blue-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <BarChart3 className="w-3.5 h-3.5 text-blue-400" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold text-slate-200">Performance Analysis</div>
+                          <div className="text-[10px] text-slate-400">Find what's really working</div>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <div className="w-6 h-6 rounded-lg bg-purple-500/20 border border-purple-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Lightbulb className="w-3.5 h-3.5 text-purple-400" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold text-slate-200">Actionable Tips</div>
+                          <div className="text-[10px] text-slate-400">Get personalized recommendations</div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Connect your first exchange to unlock powerful insights into your trading patterns, performance metrics, and psychology.
-                    Not ready to connect? Try the demo to see what's possible.
-                  </p>
+                </div>
+
+                {/* Quick Start Guide */}
+                <div className="relative overflow-hidden rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-emerald-500/5 backdrop-blur p-5 md:p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Target className="w-5 h-5 text-emerald-400" />
+                    <h3 className="text-sm font-semibold text-slate-200">Quick Start</h3>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="text-xs font-bold text-emerald-400">1</span>
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-xs font-semibold text-slate-200 mb-1">Connect or Upload</div>
+                        <div className="text-[11px] text-slate-400 leading-relaxed">
+                          Link your exchange via API or upload CSV files with your trade history
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-lg bg-blue-500/20 border border-blue-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="text-xs font-bold text-blue-400">2</span>
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-xs font-semibold text-slate-200 mb-1">Analyze Your Data</div>
+                        <div className="text-[11px] text-slate-400 leading-relaxed">
+                          We'll analyze your trades and identify patterns you never knew existed
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-lg bg-purple-500/20 border border-purple-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="text-xs font-bold text-purple-400">3</span>
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-xs font-semibold text-slate-200 mb-1">Discover Insights</div>
+                        <div className="text-[11px] text-slate-400 leading-relaxed">
+                          Get actionable recommendations to improve your trading performance
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 pt-4 border-t border-white/10">
+                    <button
+                      onClick={onTryDemo}
+                      className="w-full text-xs text-emerald-400 hover:text-emerald-300 font-medium transition-colors inline-flex items-center justify-center gap-1.5"
+                    >
+                      <Play className="w-3.5 h-3.5" />
+                      Watch demo walkthrough
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -750,9 +871,10 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
               )
             })()}
 
-            {/* Quick Actions */}
-            <section>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 px-1">
+            {/* Quick Actions - Only show for users with data */}
+            {tradesStats && tradesStats.totalTrades > 0 && (
+              <section>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 px-1">
                 <button
                   onClick={() => setShowConnectModal(true)}
                   className="group relative overflow-hidden p-5 md:p-6 rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-emerald-500/5 backdrop-blur hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all duration-300 hover:scale-[1.02] text-left"
@@ -811,6 +933,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                 </button>
               </div>
             </section>
+            )}
 
             {/* Data Sources Section */}
             <section>
