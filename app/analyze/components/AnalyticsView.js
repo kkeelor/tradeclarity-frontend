@@ -134,7 +134,7 @@ function HeroSection({ analytics, currSymbol, currency, metadata }) {
       <div className="absolute -top-24 -right-20 w-72 h-72 bg-emerald-500/20 blur-3xl rounded-full" />
       <div className="absolute -bottom-32 -left-12 w-60 h-60 bg-cyan-500/10 blur-3xl rounded-full" />
 
-      <div className="relative p-6 sm:p-8 lg:p-10 space-y-8">
+      <div className="relative p-4 sm:p-6 md:p-8 lg:p-10 space-y-6 md:space-y-8">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
           <div className="space-y-6 max-w-xl">
             <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-300/80">
