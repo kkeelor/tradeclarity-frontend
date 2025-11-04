@@ -3,11 +3,12 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { CreditCard, Calendar, CheckCircle, XCircle, AlertCircle, ArrowLeft, Loader2 } from 'lucide-react'
+import { CreditCard, Calendar, CheckCircle, XCircle, AlertCircle, ArrowLeft, Loader2, Download, FileText } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
-import { getTierDisplayName, getRemainingQuota } from '@/lib/featureGates'
+import { getTierDisplayName } from '@/lib/featureGates'
 import { toast } from 'sonner'
 import Footer from '../components/Footer'
+import UsageLimits from '../components/UsageLimits'
 
 export default function BillingPage() {
   const router = useRouter()
@@ -16,10 +17,13 @@ export default function BillingPage() {
   const [loading, setLoading] = useState(true)
   const [canceling, setCanceling] = useState(false)
   const [reactivating, setReactivating] = useState(false)
+  const [paymentHistory, setPaymentHistory] = useState([])
+  const [loadingHistory, setLoadingHistory] = useState(true)
 
   useEffect(() => {
     if (user) {
       fetchSubscription()
+      fetchPaymentHistory()
     } else {
       router.push('/auth/login?redirect=/billing')
     }
@@ -40,6 +44,45 @@ export default function BillingPage() {
     }
   }
 
+  const fetchPaymentHistory = async () => {
+    try {
+      setLoadingHistory(true)
+      const response = await fetch(`/api/subscriptions/payment-history?userId=${user?.id}`)
+      if (response.ok) {
+        const data = await response.json()
+        setPaymentHistory(data.invoices || [])
+      }
+    } catch (error) {
+      console.error('Error fetching payment history:', error)
+      toast.error('Failed to load payment history')
+    } finally {
+      setLoadingHistory(false)
+    }
+  }
+
+  const handleDownloadInvoice = async (invoiceId) => {
+    try {
+      const response = await fetch(`/api/subscriptions/invoice-pdf?userId=${user?.id}&invoiceId=${invoiceId}`)
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `invoice-${invoiceId}.html`
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+        toast.success('Invoice downloaded')
+      } else {
+        toast.error('Failed to download invoice')
+      }
+    } catch (error) {
+      console.error('Error downloading invoice:', error)
+      toast.error('Failed to download invoice')
+    }
+  }
+
   const handleCancelSubscription = async () => {
     if (!confirm('Are you sure you want to cancel your subscription? You\'ll continue to have access until the end of your billing period.')) {
       return
@@ -56,8 +99,8 @@ export default function BillingPage() {
       const data = await response.json()
       
       if (response.ok) {
-        toast.success('Subscription canceled successfully')
-        await fetchSubscription()
+      toast.success('Subscription canceled successfully. You\'ll continue to have access until the end of your billing period.')
+      await fetchSubscription()
       } else {
         toast.error(data.error || 'Failed to cancel subscription')
       }
@@ -109,7 +152,6 @@ export default function BillingPage() {
     )
   }
 
-  const quota = subscription ? getRemainingQuota(subscription) : null
   const isActive = subscription?.status === 'active'
   const isCanceled = subscription?.status === 'canceled'
   const isPastDue = subscription?.status === 'past_due'
@@ -199,7 +241,7 @@ export default function BillingPage() {
                     onClick={handleManageBilling}
                     className="text-xs text-amber-400 hover:text-amber-300 font-medium"
                   >
-                    Update Payment Method →
+                    Update Payment Method ?
                   </button>
                 </div>
               </div>
@@ -220,7 +262,7 @@ export default function BillingPage() {
                     disabled={reactivating}
                     className="text-xs text-emerald-400 hover:text-emerald-300 font-medium"
                   >
-                    {reactivating ? 'Reactivating...' : 'Reactivate Subscription →'}
+                    {reactivating ? 'Reactivating...' : 'Reactivate Subscription ?'}
                   </button>
                 </div>
               </div>
@@ -229,29 +271,9 @@ export default function BillingPage() {
         </div>
 
         {/* Usage */}
-        {quota && subscription?.tier !== 'free' && (
+        {subscription?.tier !== 'free' && (
           <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4">Usage This Month</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Exchange Connections</p>
-                <p className="text-2xl font-bold text-slate-200">
-                  {subscription.exchanges_connected} / {quota.connections === 'Unlimited' ? '∞' : typeof quota.connections === 'number' ? subscription.exchanges_connected + quota.connections : quota.connections}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Trades Analyzed</p>
-                <p className="text-2xl font-bold text-slate-200">
-                  {subscription.trades_analyzed_this_month} / {quota.trades === 'Unlimited' ? '∞' : typeof quota.trades === 'number' ? subscription.trades_analyzed_this_month + quota.trades : quota.trades}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-slate-400 mb-1">Reports Generated</p>
-                <p className="text-2xl font-bold text-slate-200">
-                  {subscription.reports_generated_this_month} / {quota.reports === 'Unlimited' ? '∞' : typeof quota.reports === 'number' ? subscription.reports_generated_this_month + quota.reports : quota.reports}
-                </p>
-              </div>
-            </div>
+            <UsageLimits subscription={subscription} />
           </div>
         )}
 
@@ -299,7 +321,7 @@ export default function BillingPage() {
         )}
 
         {subscription?.tier === 'free' && (
-          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-6 text-center">
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-6 text-center mb-6">
             <h2 className="text-xl font-semibold mb-2">Ready to unlock more?</h2>
             <p className="text-sm text-slate-400 mb-4">
               Upgrade to Trader or Pro to get unlimited analytics, historical tracking, and more.
@@ -310,6 +332,82 @@ export default function BillingPage() {
             >
               View Plans
             </button>
+          </div>
+        )}
+
+        {/* Payment History */}
+        {(subscription?.tier !== 'free' || paymentHistory.length > 0) && (
+          <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-6">
+            <h2 className="text-xl font-semibold mb-4">Payment History</h2>
+            {loadingHistory ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
+              </div>
+            ) : paymentHistory.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">
+                <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p className="text-sm">No payment history yet</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {paymentHistory.map((invoice) => (
+                  <div
+                    key={invoice.id}
+                    className="flex items-center justify-between p-4 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] transition-colors"
+                  >
+                    <div className="flex items-center gap-4 flex-1">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                        invoice.status === 'paid' 
+                          ? 'bg-emerald-500/20 text-emerald-400' 
+                          : 'bg-slate-500/20 text-slate-400'
+                      }`}>
+                        {invoice.status === 'paid' ? (
+                          <CheckCircle className="w-5 h-5" />
+                        ) : (
+                          <XCircle className="w-5 h-5" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-semibold text-white">
+                            {invoice.description || `Invoice #${invoice.invoice_number || invoice.id}`}
+                          </p>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                            invoice.status === 'paid'
+                              ? 'bg-emerald-500/20 text-emerald-400'
+                              : 'bg-slate-500/20 text-slate-400'
+                          }`}>
+                            {invoice.status === 'paid' ? 'Paid' : 'Pending'}
+                          </span>
+                        </div>
+                        <p className="text-sm text-slate-400">
+                          {new Date(invoice.created_at).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                          {invoice.billing_period && ` ? ${invoice.billing_period}`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className="font-semibold text-white">
+                          {invoice.currency || 'INR'} {((invoice.amount || 0) / 100).toFixed(2)}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleDownloadInvoice(invoice.id)}
+                        className="p-2 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                        title="Download Invoice"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

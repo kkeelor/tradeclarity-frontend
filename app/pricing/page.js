@@ -99,7 +99,7 @@ export default function PricingPage() {
 
   const fetchUserSubscription = async () => {
     try {
-      const response = await fetch('/api/subscriptions/current')
+      const response = await fetch(`/api/subscriptions/current?userId=${user?.id}`)
       if (response.ok) {
         const data = await response.json()
         if (data.subscription) {
