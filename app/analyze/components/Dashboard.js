@@ -2,8 +2,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, LogOut, BarChart3, Sparkles, Database, CheckSquare, Square, Loader2, ChevronRight, Zap, Brain, Clock, DollarSign, PieChart, TrendingDown, Target, Lightbulb } from 'lucide-react'
+import { useRouter, usePathname } from 'next/navigation'
+import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, LogOut, BarChart3, Sparkles, Database, CheckSquare, Square, Loader2, ChevronRight, Zap, Brain, Clock, DollarSign, PieChart, TrendingDown, Target, Lightbulb, LayoutDashboard } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { toast } from 'sonner'
 import ThemeToggle from '@/app/components/ThemeToggle'
@@ -205,6 +205,7 @@ function generateCombinedInsights(analytics, psychology, spotTrades, futuresInco
 
 export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithCSV, onViewAnalytics }) {
   const router = useRouter()
+  const pathname = usePathname()
   const { user } = useAuth()
   const [uploadedFiles, setUploadedFiles] = useState([])
   const [connectedExchanges, setConnectedExchanges] = useState([])
@@ -559,7 +560,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
         <Sidebar
           activePage="dashboard"
           onDashboardClick={() => {}}
-          onUploadClick={onConnectWithCSV}
+          onUploadClick={() => router.push('/data')}
           onMyPatternsClick={() => {
             if (connectedExchanges.length > 0 || !loadingExchanges) {
               onViewAnalytics()
@@ -587,12 +588,36 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
 
               <nav className="hidden md:flex items-center gap-1 md:gap-2 overflow-x-auto scrollbar-hide min-w-0">
                 <button
-                  onClick={onConnectWithCSV}
-                  className="group inline-flex items-center justify-center gap-1 md:gap-2 rounded-full px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium text-slate-300 transition-all duration-300 hover:text-white flex-shrink-0 whitespace-nowrap"
+                  onClick={() => router.push('/dashboard')}
+                  className={`group inline-flex items-center justify-center gap-1 md:gap-2 rounded-full px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium transition-all duration-300 flex-shrink-0 whitespace-nowrap ${
+                    pathname === '/dashboard' || pathname?.startsWith('/dashboard')
+                      ? 'text-white'
+                      : 'text-slate-300 hover:text-white'
+                  }`}
                   style={{ minHeight: '32px', minWidth: '32px' }}
                 >
-                  <Database className="h-3 w-3 md:h-4 md:w-4 text-slate-500 transition-colors group-hover:text-emerald-300 flex-shrink-0" />
-                  <span className="hidden sm:inline">Data Sources</span>
+                  <LayoutDashboard className={`h-3 w-3 md:h-4 md:w-4 transition-colors flex-shrink-0 ${
+                    pathname === '/dashboard' || pathname?.startsWith('/dashboard')
+                      ? 'text-emerald-300'
+                      : 'text-slate-500 group-hover:text-emerald-300'
+                  }`} />
+                  <span className="hidden sm:inline">Dashboard</span>
+                </button>
+                <button
+                  onClick={() => router.push('/data')}
+                  className={`group inline-flex items-center justify-center gap-1 md:gap-2 rounded-full px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium transition-all duration-300 flex-shrink-0 whitespace-nowrap ${
+                    pathname === '/data'
+                      ? 'text-white'
+                      : 'text-slate-300 hover:text-white'
+                  }`}
+                  style={{ minHeight: '32px', minWidth: '32px' }}
+                >
+                  <Database className={`h-3 w-3 md:h-4 md:w-4 transition-colors flex-shrink-0 ${
+                    pathname === '/data'
+                      ? 'text-emerald-300'
+                      : 'text-slate-500 group-hover:text-emerald-300'
+                  }`} />
+                  <span className="hidden sm:inline">Your Data</span>
                 </button>
                 <button
                   onClick={() => onViewAnalytics()}
@@ -600,6 +625,8 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                   className={`group inline-flex items-center justify-center gap-1 md:gap-2 rounded-full px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium transition-all duration-300 flex-shrink-0 whitespace-nowrap ${
                     connectedExchanges.length === 0 && !loadingExchanges
                       ? 'text-slate-500 cursor-not-allowed'
+                      : pathname === '/analyze' || pathname?.startsWith('/analyze')
+                      ? 'text-white'
                       : 'text-slate-300 hover:text-white'
                   }`}
                   style={{ minHeight: '32px', minWidth: '32px' }}
@@ -607,6 +634,8 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                   <BarChart3 className={`h-3 w-3 md:h-4 md:w-4 transition-colors flex-shrink-0 ${
                     connectedExchanges.length === 0 && !loadingExchanges
                       ? 'text-slate-600'
+                      : pathname === '/analyze' || pathname?.startsWith('/analyze')
+                      ? 'text-emerald-300'
                       : 'text-slate-500 group-hover:text-emerald-300'
                   }`} />
                   <span className="hidden sm:inline">Analytics</span>
@@ -691,7 +720,21 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                       </div>
                       <div className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.05] backdrop-blur-sm">
                         <span className="text-xs text-slate-400">Exchanges Connected</span>
-                        <span className="text-sm font-bold text-emerald-400">{connectedExchanges.length}</span>
+                        <span className="text-sm font-bold text-emerald-400 flex items-center gap-1">
+                          {connectedExchanges.length}
+                          {connectedExchanges.length > 0 && (
+                            <span className="text-slate-500 font-normal ml-1 flex items-center">
+                              (
+                              {connectedExchanges.map((exchange, index) => (
+                                <span key={exchange.id} className="inline-flex items-center">
+                                  <ExchangeIcon exchange={exchange.exchange} size={12} className="w-3 h-3" />
+                                  {index < connectedExchanges.length - 1 && <span className="mx-0.5">,</span>}
+                                </span>
+                              ))}
+                              )
+                            </span>
+                          )}
+                        </span>
                       </div>
                       {tradesStats.oldestTrade && (
                         <div className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.05] backdrop-blur-sm">
@@ -883,7 +926,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                         <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                       </button>
                       <button
-                        onClick={onConnectWithCSV}
+                        onClick={() => router.push('/data')}
                         className="group flex-1 px-5 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 rounded-xl text-sm font-semibold text-white transition-all duration-300 inline-flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 hover:scale-105"
                       >
                         <Upload className="w-4 h-4" />
@@ -1139,7 +1182,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                 </button>
 
                 <button
-                  onClick={onConnectWithCSV}
+                  onClick={() => router.push('/data')}
                   className="group relative overflow-hidden p-5 md:p-6 rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-blue-500/5 backdrop-blur hover:border-blue-500/40 hover:bg-blue-500/5 transition-all duration-300 hover:scale-[1.02] text-left"
                 >
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -1243,7 +1286,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                         Connect Exchange
                       </button>
                       <button
-                        onClick={onConnectWithCSV}
+                        onClick={() => router.push('/data')}
                         className="group px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 rounded-xl text-sm font-semibold transition-all duration-300 inline-flex items-center gap-2 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 hover:scale-105"
                       >
                         <Upload className="w-4 h-4" />
@@ -1525,6 +1568,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
         </AlertDialogContent>
       </AlertDialog>
       </div>
+      <Footer />
     </div>
   )
 }

@@ -4756,6 +4756,7 @@ export default function AnalyticsView({
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   )
 }

@@ -10,7 +10,6 @@ import { EXCHANGES, getExchangeList } from './utils/exchanges'
 import { getCurrencySymbol } from './utils/currencyFormatter'
 import LoginForm from './components/LoginForm'
 import Dashboard from './components/Dashboard'
-import CSVUploadFlow from './components/CSVUploadFlow'
 import AnalyticsView from './components/AnalyticsView'
 import demoFuturesData from './demo-data/demo-futures-data.json'
 import demoSpotData from './demo-data/demo-spot-data.json'
@@ -782,21 +781,20 @@ export default function TradeClarityContent() {
       )
     }
 
-    // Show CSV upload form if user selected CSV method
-    if (showCSVUpload) {
-      return (
-        <CSVUploadFlow
-          onBack={() => setShowCSVUpload(false)}
-        />
-      )
-    }
-
-    // Otherwise show dashboard
+    // CSV upload is now handled by routing to /data page
+    // Removed CSVUploadFlow conditional rendering
+    
+    // Show dashboard
     return (
       <Dashboard
         onConnectExchange={() => setShowAPIConnection(true)}
         onTryDemo={handleTryDemo}
-        onConnectWithCSV={() => setShowCSVUpload(true)}
+        onConnectWithCSV={() => {
+          // Route to /data page instead of showing CSVUploadFlow
+          if (typeof window !== 'undefined') {
+            window.location.href = '/data'
+          }
+        }}
         onViewAnalytics={handleViewAnalytics}
       />
     )
@@ -849,12 +847,10 @@ export default function TradeClarityContent() {
             window.location.href = '/analyze'
             return
           }
-          // Navigate to CSV upload
-          setStatus('idle')
-          setAnalytics(null)
-          setShowAPIConnection(false)
-          setShowCSVUpload(true)
-          setLoadingComplete(false)
+          // Navigate to /data page for CSV upload
+          if (typeof window !== 'undefined') {
+            window.location.href = '/data'
+          }
         }}
         onViewAllExchanges={() => {
           // View combined analytics for all exchanges

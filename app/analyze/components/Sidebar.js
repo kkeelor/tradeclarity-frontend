@@ -122,7 +122,7 @@ export default function Sidebar({
           }`}
         >
           <Database className="w-5 h-5" />
-          <span>Data Sources</span>
+          <span>Your Data</span>
         </button>
 
         <button
