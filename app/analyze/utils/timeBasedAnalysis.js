@@ -78,11 +78,14 @@ export function analyzeByDayOfWeek(trades) {
     }
   })
 
-  return dayBuckets.map(bucket => ({
-    ...bucket,
-    winRate: bucket.trades > 0 ? (bucket.wins / bucket.trades) * 100 : 0,
-    avgPnL: bucket.trades > 0 ? bucket.totalPnL / bucket.trades : 0
-  }))
+  return dayBuckets.map(bucket => {
+    const completedTrades = bucket.wins + bucket.losses
+    return {
+      ...bucket,
+      winRate: completedTrades > 0 ? (bucket.wins / completedTrades) * 100 : 0,
+      avgPnL: bucket.trades > 0 ? bucket.totalPnL / bucket.trades : 0
+    }
+  })
 }
 
 // ============================================
@@ -123,12 +126,15 @@ export function analyzeByMonth(trades) {
   })
 
   return Object.values(monthBuckets)
-    .map(bucket => ({
-      ...bucket,
-      winRate: bucket.trades > 0 ? (bucket.wins / bucket.trades) * 100 : 0,
-      avgPnL: bucket.trades > 0 ? bucket.totalPnL / bucket.trades : 0,
-      monthName: new Date(bucket.year, bucket.monthNum - 1).toLocaleString('default', { month: 'short' })
-    }))
+    .map(bucket => {
+      const completedTrades = bucket.wins + bucket.losses
+      return {
+        ...bucket,
+        winRate: completedTrades > 0 ? (bucket.wins / completedTrades) * 100 : 0,
+        avgPnL: bucket.trades > 0 ? bucket.totalPnL / bucket.trades : 0,
+        monthName: new Date(bucket.year, bucket.monthNum - 1).toLocaleString('default', { month: 'short' })
+      }
+    })
     .sort((a, b) => a.month.localeCompare(b.month))
 }
 

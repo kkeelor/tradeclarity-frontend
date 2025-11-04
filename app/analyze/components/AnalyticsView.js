@@ -1,7 +1,7 @@
 // app/analyze/components/AnalyticsView.js
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, createElement } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   DollarSign, TrendingUp, Target, Activity, Award, Brain,
@@ -1465,34 +1465,326 @@ function ChartCardBig({ title, icon: Icon, children }) {
 }
 
 // ============================================
-// INSIGHT MODAL
+// INSIGHT MODAL - Enhanced with Reasoning & Calculations
 // ============================================
 
-function InsightModal({ insight, onClose }) {
+function InsightModal({ insight, onClose, currSymbol = '$', analytics = {} }) {
   if (!insight) return null
 
-  const iconColor = insight.type === 'strength' ? 'emerald' :
-    insight.type === 'weakness' ? 'red' : 'cyan'
+  const isWeakness = insight.type === 'weakness'
+  const isOpportunity = insight.type === 'opportunity' || insight.type === 'recommendation'
+  const isStrength = insight.type === 'strength'
+  
+  const borderColor = isWeakness ? 'border-amber-500/30' : isOpportunity ? 'border-orange-500/30' : 'border-emerald-500/30'
+  const bgColor = isWeakness ? 'bg-amber-500/5' : isOpportunity ? 'bg-orange-500/5' : 'bg-emerald-500/5'
+  const textColor = isWeakness ? 'text-amber-300' : isOpportunity ? 'text-orange-300' : 'text-emerald-300'
+  const accentColor = isWeakness ? 'text-amber-400' : isOpportunity ? 'text-orange-400' : 'text-emerald-400'
+
+  // Get icon component properly
+  const IconComponent = insight.icon ? getIconComponent(insight.icon) : null
+
+  // Calculate missing values if needed (for display purposes)
+  const insightWithValues = calculateMissingInsightValues(insight, analytics)
+  
+  // Calculate reasoning metrics - extract all available data
+  // Format potential savings based on type and value
+  let potentialSavingsDisplay = 'Not Calculated'
+  if (insightWithValues.potentialSavings > 0) {
+    potentialSavingsDisplay = `${currSymbol}${insightWithValues.potentialSavings.toFixed(0)}`
+  } else if (insightWithValues.potentialSavings === 0) {
+    // Only show "None (strength)" for actual strengths, not weaknesses
+    if (insightWithValues.type === 'strength') {
+      potentialSavingsDisplay = 'None (strength)'
+    } else {
+      potentialSavingsDisplay = 'None'
+    }
+  }
+
+  const reasoningData = {
+    'Impact Level': insightWithValues.impact ? `${insightWithValues.impact}/5` : insightWithValues.score ? `${insightWithValues.score}/100` : 'Not Rated',
+    'Potential Savings': potentialSavingsDisplay,
+    'Affected Trades': insightWithValues.affectedTrades || insightWithValues.dataPoints || insightWithValues.trades || 'Not Available',
+    'Source': insightWithValues.source ? insightWithValues.source.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : insightWithValues.category || 'Analysis',
+    'Difficulty': insightWithValues.actionDifficulty ? insightWithValues.actionDifficulty.charAt(0).toUpperCase() + insightWithValues.actionDifficulty.slice(1) : 'Not Specified'
+  }
+
+  // Additional metrics that might be available
+  const additionalMetrics = []
+  
+  if (insight.score !== undefined && !insight.impact) {
+    additionalMetrics.push({ label: 'Score', value: `${insight.score}/100` })
+  }
+  
+  if (insight.trades && !insight.affectedTrades && !insight.dataPoints) {
+    additionalMetrics.push({ label: 'Trades Analyzed', value: insight.trades })
+  }
+  
+  if (insight.winRate !== undefined) {
+    additionalMetrics.push({ label: 'Win Rate', value: `${insight.winRate.toFixed(1)}%` })
+  }
+  
+  if (insight.profitFactor !== undefined) {
+    additionalMetrics.push({ label: 'Profit Factor', value: `${insight.profitFactor.toFixed(2)}x` })
+  }
+  
+  if (insight.severity) {
+    additionalMetrics.push({ label: 'Severity', value: insight.severity.charAt(0).toUpperCase() + insight.severity.slice(1) })
+  }
+  
+  if (insight.durationDays) {
+    additionalMetrics.push({ label: 'Duration', value: `${insight.durationDays} days` })
+  }
+  
+  if (insight.recoveryDays) {
+    additionalMetrics.push({ label: 'Recovery Time', value: `${insight.recoveryDays} days` })
+  }
+  
+  if (insight.drawdownPercent !== undefined) {
+    additionalMetrics.push({ label: 'Drawdown', value: `${insight.drawdownPercent.toFixed(1)}%` })
+  }
+  
+  if (insight.avgPnL !== undefined) {
+    additionalMetrics.push({ label: 'Avg P&L per Trade', value: `${currSymbol}${insight.avgPnL.toFixed(2)}` })
+  }
+  
+  if (insight.totalPnL !== undefined) {
+    additionalMetrics.push({ label: 'Total P&L', value: `${currSymbol}${insight.totalPnL.toFixed(2)}` })
+  }
+  
+  if (insight.drawdownAmount !== undefined) {
+    additionalMetrics.push({ label: 'Drawdown Amount', value: `${currSymbol}${Math.abs(insight.drawdownAmount).toFixed(2)}` })
+  }
+  
+  if (insight.bestSymbol || insight.symbol) {
+    additionalMetrics.push({ label: 'Symbol', value: insight.bestSymbol || insight.symbol })
+  }
+  
+  if (insight.recovered !== undefined) {
+    additionalMetrics.push({ label: 'Status', value: insight.recovered ? 'Recovered' : 'Still in Drawdown' })
+  }
 
   return (
-    <Modal
-      isOpen={true}
-      onClose={onClose}
-      title={insight.title}
-      icon={insight.icon}
-      iconColor={iconColor}
+    <div
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto"
+      onClick={onClose}
     >
-      <ModalSection>
-        <div className="text-sm text-slate-400 mb-4">{insight.category || insight.type}</div>
-        <ModalDescription>{insight.description}</ModalDescription>
+      <div
+        className={`bg-slate-900 border ${borderColor} rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl my-8`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className={`${bgColor} border-b ${borderColor} p-6`}>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-2">
+                {IconComponent && (
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                    isWeakness ? 'bg-amber-500/20 text-amber-400' :
+                    isOpportunity ? 'bg-orange-500/20 text-orange-400' :
+                    'bg-emerald-500/20 text-emerald-400'
+                  }`}>
+                    <IconComponent className="w-5 h-5" />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <h3 className={`text-xl font-bold ${textColor} mb-1`}>{insight.title}</h3>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs px-2 py-1 rounded-md bg-slate-800/50 text-slate-300">
+                      {insight.category || insight.type}
+                    </span>
+                    {insight.impact && (
+                      <span className="flex items-center gap-1">
+                        {[...Array(Math.min(insight.impact, 5))].map((_, i) => (
+                          <div key={i} className={`w-1.5 h-1.5 rounded-full ${accentColor}`} />
+                        ))}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-slate-400 hover:text-white transition-colors p-2 hover:bg-slate-800/50 rounded-lg"
+              aria-label="Close modal"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
 
-        {insight.data && <ModalMetrics data={insight.data} />}
+        {/* Content */}
+        <div className="p-6 space-y-6">
+          {/* Summary */}
+          <div>
+            <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-3">Summary</h4>
+            <p className="text-slate-300 leading-relaxed text-base">
+              {insight.message || insight.summary || insight.description}
+            </p>
+          </div>
 
-        {insight.actionSteps && (
-          <ModalActionSteps steps={insight.actionSteps} icon={Lightbulb} />
-        )}
-      </ModalSection>
-    </Modal>
+          {/* Reasoning & Calculations */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Key Metrics */}
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-5">
+              <h4 className="text-sm font-semibold text-slate-400 mb-4 flex items-center gap-2">
+                <Activity className="w-4 h-4" />
+                Key Metrics
+              </h4>
+              <div className="space-y-3">
+                {Object.entries(reasoningData).map(([key, value]) => (
+                  <div key={key} className="flex justify-between items-center py-2 border-b border-slate-700/30 last:border-0">
+                    <span className="text-sm text-slate-400">{key}</span>
+                    <span className={`font-semibold ${value !== 'Not Available' && value !== 'Not Calculated' && value !== 'Not Rated' && value !== 'Not Specified' ? accentColor : 'text-slate-500'}`}>
+                      {value}
+                    </span>
+                  </div>
+                ))}
+                {additionalMetrics.map((metric, idx) => (
+                  <div key={idx} className="flex justify-between items-center py-2 border-b border-slate-700/30 last:border-0">
+                    <span className="text-sm text-slate-400">{metric.label}</span>
+                    <span className={`font-semibold ${accentColor}`}>
+                      {metric.value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Impact Analysis */}
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-5">
+              <h4 className="text-sm font-semibold text-slate-400 mb-4 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4" />
+                Impact Analysis
+              </h4>
+              <div className="space-y-4">
+                {insight.potentialSavings > 0 && (
+                  <div>
+                    <div className="text-xs text-slate-400 mb-1">Potential Savings</div>
+                    <div className={`text-2xl font-bold ${accentColor}`}>
+                      {currSymbol}{insight.potentialSavings.toFixed(0)}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-1">
+                      Estimated improvement if addressed
+                    </div>
+                  </div>
+                )}
+                
+                {insight.impact && (
+                  <div>
+                    <div className="text-xs text-slate-400 mb-2">Impact Score</div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-2 bg-slate-700/50 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full ${isWeakness ? 'bg-amber-500' : isOpportunity ? 'bg-orange-500' : 'bg-emerald-500'}`}
+                          style={{ width: `${(insight.impact / 5) * 100}%` }}
+                        />
+                      </div>
+                      <span className={`text-sm font-semibold ${accentColor}`}>
+                        {insight.impact}/5
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {insight.expectedImpact && (
+                  <div className="pt-2 border-t border-slate-700/30">
+                    <div className="text-xs text-slate-400 mb-1">Expected Impact</div>
+                    <div className="text-sm text-slate-300">{insight.expectedImpact}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Calculations & Reasoning */}
+          {(insight.potentialSavings > 0 || insight.dataPoints || insight.affectedTrades) && (
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-5">
+              <h4 className="text-sm font-semibold text-slate-400 mb-4 flex items-center gap-2">
+                <Brain className="w-4 h-4" />
+                Calculations & Reasoning
+              </h4>
+              <div className="space-y-3">
+                {insight.potentialSavings > 0 && (
+                  <div className="bg-slate-900/50 p-3 rounded-lg">
+                    <div className="text-xs text-slate-400 mb-1">Potential Savings Calculation</div>
+                    <div className="text-sm text-slate-300 font-mono">
+                      {insight.source === 'drawdown' && (
+                        <span>Based on drawdown analysis: Potential to avoid 20% of losses through better risk management</span>
+                      )}
+                      {insight.source === 'timing-analysis' && (
+                        <span>Based on timing analysis: Potential to avoid 50% of losses by avoiding worst-performing hours</span>
+                      )}
+                      {insight.source === 'value-first' && (
+                        <span>Based on trade analysis: Calculated from performance patterns and optimization opportunities</span>
+                      )}
+                      {!insight.source || (insight.source !== 'drawdown' && insight.source !== 'timing-analysis' && insight.source !== 'value-first') && (
+                        <span>Estimated from trading patterns and historical performance data</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {(insightWithValues.affectedTrades || insightWithValues.dataPoints || insightWithValues.trades) && (
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-sm text-slate-400">Affected Trades</span>
+                    <span className="text-sm font-semibold text-slate-300">
+                      {(insightWithValues.affectedTrades || insightWithValues.dataPoints || insightWithValues.trades || 0).toLocaleString()} trades
+                    </span>
+                  </div>
+                )}
+                
+                {insight.dataPoints && (
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-sm text-slate-400">Data Points Analyzed</span>
+                    <span className="text-sm font-semibold text-slate-300">{insight.dataPoints}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Action Steps */}
+          {(insight.action?.steps || insight.actionSteps) && (
+            <div>
+              <h4 className="text-sm font-semibold text-slate-400 mb-4 flex items-center gap-2">
+                <Lightbulb className="w-4 h-4 text-yellow-400" />
+                Recommended Actions
+              </h4>
+              <div className="space-y-3">
+                {(insight.action?.steps || insight.actionSteps || []).map((step, i) => (
+                  <div key={i} className="flex items-start gap-3 bg-slate-800/30 p-4 rounded-lg border border-slate-700/30">
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-sm flex-shrink-0 ${
+                      isWeakness ? 'bg-amber-500/20 text-amber-400' :
+                      isOpportunity ? 'bg-orange-500/20 text-orange-400' :
+                      'bg-emerald-500/20 text-emerald-400'
+                    }`}>
+                      {i + 1}
+                    </div>
+                    <span className="text-slate-300 leading-relaxed flex-1">{step}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Additional Data */}
+          {insight.data && Object.keys(insight.data).length > 0 && (
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-5">
+              <h4 className="text-sm font-semibold text-slate-400 mb-4">Supporting Data</h4>
+              <div className="grid grid-cols-2 gap-3">
+                {Object.entries(insight.data).map(([key, value]) => (
+                  <div key={key} className="bg-slate-900/50 p-3 rounded-lg">
+                    <div className="text-xs text-slate-400 mb-1">{key}</div>
+                    <div className="text-sm font-semibold text-slate-300">{value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -1575,6 +1867,100 @@ function SymbolsTable({ symbols, filter, currSymbol }) {
 // ============================================
 // TAB CONTENT COMPONENTS
 // ============================================
+
+/**
+ * Calculate missing potentialSavings and affectedTrades for insights
+ * Based on insight type and available data
+ */
+function calculateMissingInsightValues(insight, analytics) {
+  const calculated = { ...insight }
+  
+  // If already has both values, return as-is
+  if (calculated.potentialSavings !== undefined && calculated.affectedTrades !== undefined) {
+    return calculated
+  }
+  
+  // Calculate affectedTrades if missing
+  if (!calculated.affectedTrades && !calculated.dataPoints && !calculated.trades) {
+    // Try to infer from analytics data
+    if (calculated.source === 'drawdown' && calculated.durationDays) {
+      calculated.affectedTrades = calculated.durationDays
+    } else if (calculated.source === 'drawdown-pattern') {
+      // For drawdown patterns, affectedTrades should already be calculated correctly
+      // If missing, use dataPoints as fallback (which should be set correctly)
+      if (calculated.patternType === 'frequent_small') {
+        // If we have dataPoints, use that (it should be the correct count)
+        calculated.affectedTrades = calculated.dataPoints || 0
+      } else {
+        calculated.affectedTrades = calculated.dataPoints || 0
+      }
+    } else if (calculated.source === 'timing-analysis' && analytics.allTrades) {
+      // Estimate based on total trades and hour-specific data
+      const estimatedTrades = Math.max(5, Math.floor((analytics.allTrades.length || 0) * 0.1))
+      calculated.affectedTrades = estimatedTrades
+    } else if (calculated.source === 'symbol' && calculated.bestSymbol) {
+      // Count trades for this symbol
+      const symbolTrades = analytics.allTrades?.filter(t => 
+        (t.symbol || '').includes(calculated.bestSymbol || '')
+      ).length || 0
+      calculated.affectedTrades = symbolTrades || analytics.totalTrades || 0
+    } else if (calculated.source === 'enhanced' || calculated.source === 'behavioral') {
+      // Estimate based on total trades
+      calculated.affectedTrades = analytics.totalTrades || 0
+    } else {
+      // Default fallback
+      calculated.affectedTrades = calculated.dataPoints || calculated.trades || analytics.totalTrades || 0
+    }
+  } else {
+    // Use existing value
+    calculated.affectedTrades = calculated.affectedTrades || calculated.dataPoints || calculated.trades || 0
+  }
+  
+  // Calculate potentialSavings if missing
+  if (calculated.potentialSavings === undefined || calculated.potentialSavings === null) {
+    // Only calculate for weaknesses and opportunities (not strengths)
+    if (calculated.type === 'weakness' || calculated.type === 'opportunity' || calculated.type === 'recommendation') {
+      // Calculate based on insight type and available data
+      if (calculated.source === 'drawdown' && calculated.drawdownAmount !== undefined) {
+        calculated.potentialSavings = Math.abs(calculated.drawdownAmount) * 0.2
+      } else if (calculated.source === 'drawdown-pattern') {
+        // For drawdown patterns, estimate based on pattern type and analytics
+        if (calculated.patternType === 'frequent_small') {
+          // Estimate cumulative losses from many small drawdowns
+          const avgLossPerTrade = analytics.avgLoss || 0
+          const estimatedCumulativeLoss = avgLossPerTrade * (calculated.affectedTrades || analytics.totalTrades || 0) * 0.1
+          calculated.potentialSavings = estimatedCumulativeLoss * 0.3 // Could avoid 30% of cumulative small losses
+        } else if (calculated.patternType === 'large_drawdowns') {
+          // Large drawdowns have high savings potential
+          const estimatedLoss = analytics.totalPnL < 0 ? Math.abs(analytics.totalPnL) * 0.4 : 0
+          calculated.potentialSavings = estimatedLoss
+        } else {
+          // Other patterns - estimate based on total P&L
+          calculated.potentialSavings = analytics.totalPnL < 0 ? Math.abs(analytics.totalPnL) * 0.15 : 0
+        }
+      } else if (calculated.source === 'timing-analysis' && calculated.totalPnL !== undefined) {
+        calculated.potentialSavings = calculated.totalPnL < 0 ? Math.abs(calculated.totalPnL) * 0.5 : calculated.totalPnL * 0.3
+      } else if (calculated.source === 'symbol' && calculated.totalPnL !== undefined) {
+        calculated.potentialSavings = calculated.totalPnL < 0 ? Math.abs(calculated.totalPnL) : calculated.totalPnL * 0.3
+      } else if (calculated.totalPnL !== undefined) {
+        calculated.potentialSavings = calculated.totalPnL < 0 ? Math.abs(calculated.totalPnL) * 0.15 : calculated.totalPnL * 0.2
+      } else if (calculated.avgPnL !== undefined && calculated.affectedTrades) {
+        calculated.potentialSavings = Math.abs(calculated.avgPnL) * calculated.affectedTrades * 0.2
+      } else if (analytics.totalPnL !== undefined && analytics.totalPnL < 0) {
+        // Estimate based on overall performance
+        const estimatedSavings = Math.abs(analytics.totalPnL) * 0.1
+        calculated.potentialSavings = estimatedSavings > 0 ? estimatedSavings : 0
+      } else {
+        calculated.potentialSavings = 0
+      }
+    } else {
+      // For strengths, set to 0
+      calculated.potentialSavings = calculated.potentialSavings || 0
+    }
+  }
+  
+  return calculated
+}
 
 function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setActiveTab }) {
   const [selectedInsight, setSelectedInsight] = useState(null)
@@ -1665,15 +2051,94 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
     // Drawdown patterns
     if (drawdownAnalysis.patterns && drawdownAnalysis.patterns.length > 0) {
       drawdownAnalysis.patterns.forEach(pattern => {
+        // Calculate potential savings and affected trades for patterns
+        let potentialSavings = 0
+        let affectedTrades = analytics.totalTrades || 0
+        
+        // For "Death by a Thousand Cuts" - calculate cumulative small drawdown losses
+        if (pattern.type === 'frequent_small') {
+          const smallDrawdowns = drawdownAnalysis.drawdowns?.filter(dd => Math.abs(dd.drawdownPercent) < 10) || []
+          const totalSmallDrawdownLoss = smallDrawdowns.reduce((sum, dd) => sum + Math.abs(dd.drawdownAmount || 0), 0)
+          // Potential to avoid 30% of these cumulative losses through better stop-losses
+          potentialSavings = totalSmallDrawdownLoss * 0.3
+          
+          // Count trades that occurred during small drawdown periods
+          // Each drawdown spans from startIndex to recoveryIndex (if recovered) or endIndex (if not recovered)
+          // Sum the trades across all small drawdowns
+          if (drawdownAnalysis.equityCurve && smallDrawdowns.length > 0) {
+            const affectedTradeIndices = new Set()
+            smallDrawdowns.forEach(dd => {
+              const startIdx = dd.startIndex || 0
+              // For recovered drawdowns, count through recovery point. For unrecovered, count through end point.
+              const endIdx = dd.recovered 
+                ? (dd.recoveryIndex !== undefined ? dd.recoveryIndex : (dd.endIndex !== undefined ? dd.endIndex : dd.lowestIndex))
+                : (dd.endIndex !== undefined ? dd.endIndex : (dd.lowestIndex !== undefined ? dd.lowestIndex : startIdx))
+              
+              // Count trades from start to end of drawdown period (inclusive)
+              if (endIdx !== undefined && endIdx !== null) {
+                for (let i = startIdx; i <= endIdx; i++) {
+                  if (i >= 0 && i < drawdownAnalysis.equityCurve.length) {
+                    affectedTradeIndices.add(i)
+                  }
+                }
+              }
+            })
+            affectedTrades = affectedTradeIndices.size
+          } else {
+            // Fallback: estimate based on number of small drawdowns
+            // Assume average of 10-20 trades per small drawdown
+            affectedTrades = smallDrawdowns.length * 15
+          }
+          
+          // Increase impact based on scale - if affecting many trades, it's more significant
+          const impactMultiplier = affectedTrades > 500 ? 3 : affectedTrades > 200 ? 2 : 1
+          pattern.severity = impactMultiplier === 3 ? 'medium' : pattern.severity
+        } else if (pattern.type === 'slow_recovery') {
+          const slowRecoveries = drawdownAnalysis.drawdowns?.filter(dd => {
+            if (!dd.recovered) return false
+            const drawdownDays = Math.ceil((new Date(dd.endDate) - new Date(dd.startDate)) / (1000 * 60 * 60 * 24))
+            const recoveryDays = Math.ceil((new Date(dd.recoveryDate) - new Date(dd.endDate)) / (1000 * 60 * 60 * 24))
+            return recoveryDays > drawdownDays * 2
+          }) || []
+          const totalLoss = slowRecoveries.reduce((sum, dd) => sum + Math.abs(dd.drawdownAmount || 0), 0)
+          potentialSavings = totalLoss * 0.2
+          affectedTrades = slowRecoveries.length
+        } else if (pattern.type === 'large_drawdowns') {
+          const largeDrawdowns = drawdownAnalysis.drawdowns?.filter(dd => Math.abs(dd.drawdownPercent) > 20) || []
+          const totalLoss = largeDrawdowns.reduce((sum, dd) => sum + Math.abs(dd.drawdownAmount || 0), 0)
+          potentialSavings = totalLoss * 0.4 // High potential savings from avoiding large drawdowns
+          affectedTrades = largeDrawdowns.length
+        } else if (pattern.type === 'current_drawdown') {
+          const currentDD = drawdownAnalysis.drawdowns?.find(dd => !dd.recovered)
+          if (currentDD) {
+            potentialSavings = Math.abs(currentDD.drawdownAmount || 0) * 0.5
+            affectedTrades = analytics.totalTrades || 0
+          }
+        }
+        
         allAvailableInsights.push({
           type: 'weakness',
           category: 'risk_management',
           title: pattern.title,
           message: pattern.message,
           summary: pattern.recommendation,
-          impact: pattern.severity === 'high' ? 3 : pattern.severity === 'medium' ? 2 : 1,
+          impact: (() => {
+            // Calculate impact based on severity and scale
+            let baseImpact = pattern.severity === 'high' ? 3 : pattern.severity === 'medium' ? 2 : 1
+            // Boost impact for "frequent_small" pattern if it affects many trades
+            if (pattern.type === 'frequent_small' && affectedTrades > 500) {
+              return 2 // Medium impact for affecting 500+ trades
+            } else if (pattern.type === 'frequent_small' && affectedTrades > 200) {
+              return 2 // Still medium impact for 200+ trades
+            }
+            return baseImpact
+          })(),
           source: 'drawdown-pattern',
           actionDifficulty: pattern.severity === 'high' ? 'medium' : 'easy',
+          potentialSavings: potentialSavings,
+          affectedTrades: affectedTrades,
+          dataPoints: affectedTrades,
+          patternType: pattern.type,
           action: {
             title: 'Improve Risk Management',
             steps: pattern.recommendation ? [pattern.recommendation] : []
@@ -2055,10 +2520,12 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
   // Now properly score ALL insights using the prioritization engine
   const prioritizedInsights = prioritizeInsights(allAvailableInsights, analytics)
   
-  // Enhance all insights for display
-  let sortedInsights = prioritizedInsights.allScored.map(insight => 
-    enhanceInsightForDisplay(insight, analytics)
-  )
+  // Enhance all insights for display and calculate missing values
+  let sortedInsights = prioritizedInsights.allScored.map(insight => {
+    // Calculate missing values before enhancing
+    const insightWithValues = calculateMissingInsightValues(insight, analytics)
+    return enhanceInsightForDisplay(insightWithValues, analytics)
+  })
   
   // Separate insights into improvements (left) and strengths (right) for balance sheet view
   const weaknesses = sortedInsights.filter(i => i.type === 'weakness')
@@ -2092,6 +2559,12 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
     s.score >= 65 || // Only high-scoring strengths
     s.impact >= 3 // Only high impact strengths
   ) // No artificial limit - show what's actually there
+  
+  // Calculate totals for balance sheet
+  const totalPotentialSavings = improvements.reduce((sum, i) => sum + (i.potentialSavings || 0), 0)
+  const totalAffectedTrades = improvements.reduce((sum, i) => sum + (i.affectedTrades || i.dataPoints || i.trades || 0), 0)
+  const totalStrengthsSavings = meaningfulStrengths.reduce((sum, s) => sum + (s.potentialSavings || 0), 0)
+  const totalStrengthsTrades = meaningfulStrengths.reduce((sum, s) => sum + (s.affectedTrades || s.dataPoints || s.trades || 0), 0)
   
   // Keep sortedInsights for backward compatibility (used in hero insight)
   sortedInsights = [...improvements, ...meaningfulStrengths]
@@ -2146,75 +2619,127 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         {/* Portfolio Overview - Left Column */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="relative overflow-hidden rounded-2xl border border-white/5 bg-white/[0.04] backdrop-blur">
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-cyan-500/5" />
-            <div className="relative p-4 md:p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Layers className="w-5 h-5 text-emerald-400" />
-                <h3 className="text-base font-semibold text-slate-200">Portfolio Overview</h3>
+          <div className="relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.04] backdrop-blur shadow-lg shadow-black/20">
+            {/* Enhanced gradient background */}
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/8 via-transparent to-cyan-500/6" />
+            <div className="absolute -top-20 -right-20 w-48 h-48 bg-emerald-500/10 blur-3xl rounded-full opacity-40" />
+            <div className="absolute -bottom-16 -left-16 w-36 h-36 bg-cyan-500/10 blur-3xl rounded-full opacity-30" />
+            
+            <div className="relative p-4 md:p-5">
+              {/* Header Section */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
+                    <Layers className="w-4 h-4 text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-100">Portfolio Overview</h3>
+                    <p className="text-[10px] text-slate-400 mt-0.5">Complete trading performance snapshot</p>
+                  </div>
+                </div>
               </div>
               
-              {/* Main P&L Display */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
-                <div className={`rounded-xl border p-4 ${
+              {/* Main P&L Display - Reduced Size */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 md:gap-3 mb-4">
+                <div className={`relative overflow-hidden rounded-lg border p-3 transition-all duration-200 hover:scale-[1.01] ${
                   isProfitable 
-                    ? 'border-emerald-400/30 bg-emerald-500/10' 
-                    : 'border-red-400/30 bg-red-500/10'
+                    ? 'border-emerald-400/40 bg-gradient-to-br from-emerald-500/15 to-emerald-500/5 shadow-md shadow-emerald-500/10' 
+                    : 'border-red-400/40 bg-gradient-to-br from-red-500/15 to-red-500/5 shadow-md shadow-red-500/10'
                 }`}>
-                  <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
-                    <DollarSign className="w-3.5 h-3.5" />
-                    <span>Total P&L</span>
+                  <div className="absolute top-0 right-0 w-16 h-16 bg-white/5 rounded-full blur-xl -mr-8 -mt-8" />
+                  <div className="relative">
+                    <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-300 mb-1.5">
+                      <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${
+                        isProfitable ? 'bg-emerald-500/20' : 'bg-red-500/20'
+                      }`}>
+                        <DollarSign className={`w-3 h-3 ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`} />
+                      </div>
+                      <span>Total P&L</span>
+                    </div>
+                    <div className={`text-xl md:text-2xl font-bold mb-0.5 ${isProfitable ? 'text-emerald-300' : 'text-red-300'}`}>
+                      {isProfitable ? '+' : ''}{currSymbol}{formatNumber(Math.abs(analytics.totalPnL), 2)}
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-medium">{currency || 'USD'}</div>
+                    <div className="text-[10px] text-slate-500 mt-1.5 pt-1.5 border-t border-white/5">{analytics.totalTrades.toLocaleString()} trades</div>
                   </div>
-                  <div className={`text-xl md:text-2xl font-bold ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {isProfitable ? '+' : ''}{currSymbol}{formatNumber(Math.abs(analytics.totalPnL), 2)} <span className="text-xs text-slate-400 font-normal">{currency || 'USD'}</span>
-                  </div>
-                  <div className="text-xs text-slate-500 mt-1">{analytics.totalTrades} trades</div>
                 </div>
 
-                <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4">
-                  <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
-                    <Target className="w-3.5 h-3.5" />
-                    <span>Win Rate</span>
+                <div className="relative overflow-hidden rounded-lg border border-white/10 bg-white/[0.03] p-3 transition-all duration-200 hover:scale-[1.01] hover:border-white/20">
+                  <div className="absolute top-0 right-0 w-16 h-16 bg-white/5 rounded-full blur-xl -mr-8 -mt-8" />
+                  <div className="relative">
+                    <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-300 mb-1.5">
+                      <div className="w-6 h-6 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                        <Target className="w-3 h-3 text-blue-400" />
+                      </div>
+                      <span>Win Rate</span>
+                    </div>
+                    <div className="text-xl md:text-2xl font-bold text-white mb-0.5">{(analytics.winRate ?? 0).toFixed(1)}%</div>
+                    <div className="text-[10px] text-slate-400 font-medium">
+                      {((analytics.winRate ?? 0) >= 50 ? 'Above' : 'Below')} Average
+                    </div>
+                    <div className="text-[10px] text-slate-500 mt-1.5 pt-1.5 border-t border-white/5">
+                      {analytics.winningTrades || 0}W / {analytics.losingTrades || 0}L
+                    </div>
                   </div>
-                  <div className="text-xl md:text-2xl font-bold text-white">{(analytics.winRate ?? 0).toFixed(1)}%</div>
-                  <div className="text-xs text-slate-500 mt-1">{analytics.winningTrades || 0}W / {analytics.losingTrades || 0}L</div>
                 </div>
 
-                <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4">
-                  <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
-                    <Activity className="w-3.5 h-3.5" />
-                    <span>Total Trades</span>
+                <div className="relative overflow-hidden rounded-lg border border-white/10 bg-white/[0.03] p-3 transition-all duration-200 hover:scale-[1.01] hover:border-white/20">
+                  <div className="absolute top-0 right-0 w-16 h-16 bg-white/5 rounded-full blur-xl -mr-8 -mt-8" />
+                  <div className="relative">
+                    <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-300 mb-1.5">
+                      <div className="w-6 h-6 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                        <Activity className="w-3 h-3 text-purple-400" />
+                      </div>
+                      <span>Total Trades</span>
+                    </div>
+                    <div className="text-xl md:text-2xl font-bold text-white mb-0.5">{totalTrades.toLocaleString()}</div>
+                    <div className="text-[10px] text-slate-400 font-medium">
+                      {analytics.spotTrades || 0}S + {analytics.futuresTrades || 0}F
+                    </div>
+                    <div className="text-[10px] text-slate-500 mt-1.5 pt-1.5 border-t border-white/5">
+                      {metadata?.hasSpot && 'Spot'}
+                      {metadata?.hasSpot && metadata?.hasFutures && ' + '}
+                      {metadata?.hasFutures && 'Futures'}
+                    </div>
                   </div>
-                  <div className="text-xl md:text-2xl font-bold text-white">{totalTrades.toLocaleString()}</div>
-                  <div className="text-xs text-slate-500 mt-1">{analytics.spotTrades || 0}S + {analytics.futuresTrades || 0}F</div>
                 </div>
               </div>
 
-              {/* Secondary P&L Details */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
-                  <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mb-1">
-                    <CheckCircle className="w-3 h-3" />
+              {/* Secondary P&L Details - Reduced Size */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 mb-3">
+                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2.5 hover:border-white/20 transition-all duration-200">
+                  <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-300 mb-1.5">
+                    <CheckCircle className="w-3 h-3 text-emerald-400" />
                     <span>Realized P&L</span>
                   </div>
-                  <div className="text-sm font-semibold text-white">
-                    {currSymbol}{formatNumber((analytics.spotPnL || 0) + (analytics.futuresRealizedPnL || 0), 2)} <span className="text-xs text-slate-400 font-normal">{currency || 'USD'}</span>
+                  <div className="text-sm font-bold text-white">
+                    {currSymbol}{formatNumber((analytics.spotPnL || 0) + (analytics.futuresRealizedPnL || 0), 2)}
                   </div>
+                  <div className="text-[9px] text-slate-400 mt-0.5">{currency || 'USD'}</div>
                 </div>
 
                 {(hasFuturesData || analytics.spotUnrealizedPnL) && (
-                  <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
-                    <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mb-1">
-                      <TrendingUpIcon className="w-3 h-3" />
+                  <div className={`rounded-lg border p-2.5 hover:border-opacity-40 transition-all duration-200 ${
+                    (analytics.totalUnrealizedPnL || 0) >= 0 
+                      ? 'border-emerald-400/30 bg-emerald-500/10' 
+                      : 'border-red-400/30 bg-red-500/10'
+                  }`}>
+                    <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-300 mb-1.5">
+                      <TrendingUpIcon className={`w-3 h-3 ${
+                        (analytics.totalUnrealizedPnL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
+                      }`} />
                       <span>Unrealized P&L</span>
                     </div>
-                    <div className={`text-sm font-semibold ${(analytics.totalUnrealizedPnL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {(analytics.totalUnrealizedPnL || 0) >= 0 ? '+' : ''}{currSymbol}{formatNumber(analytics.totalUnrealizedPnL || 0, 2)} <span className="text-xs text-slate-400 font-normal">{currency || 'USD'}</span>
+                    <div className={`text-sm font-bold ${
+                      (analytics.totalUnrealizedPnL || 0) >= 0 ? 'text-emerald-300' : 'text-red-300'
+                    }`}>
+                      {(analytics.totalUnrealizedPnL || 0) >= 0 ? '+' : ''}{currSymbol}{formatNumber(analytics.totalUnrealizedPnL || 0, 2)}
                     </div>
+                    <div className="text-[9px] text-slate-400 mt-0.5">{currency || 'USD'}</div>
                     {(analytics.spotUnrealizedPnL || analytics.futuresUnrealizedPnL) && (
-                      <div className="text-[9px] text-slate-500 mt-0.5">
+                      <div className="text-[9px] text-slate-500 mt-1.5 pt-1.5 border-t border-white/5">
                         {analytics.spotUnrealizedPnL ? `Spot: ${currSymbol}${formatNumber(analytics.spotUnrealizedPnL, 2)}` : ''}
-                        {analytics.spotUnrealizedPnL && analytics.futuresUnrealizedPnL ? ' ? ' : ''}
+                        {analytics.spotUnrealizedPnL && analytics.futuresUnrealizedPnL ? ' • ' : ''}
                         {analytics.futuresUnrealizedPnL ? `Futures: ${currSymbol}${formatNumber(analytics.futuresUnrealizedPnL, 2)}` : ''}
                       </div>
                     )}
@@ -2222,18 +2747,19 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
                 )}
 
                 {hasPortfolioData ? (
-                  <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3">
-                    <div className="flex items-center gap-1.5 text-[10px] text-blue-400 mb-1">
-                      <Wallet className="w-3 h-3" />
-                      <span>Total Portfolio Value</span>
+                  <div className="rounded-lg border border-blue-500/40 bg-blue-500/15 p-2.5 hover:border-blue-500/60 transition-all duration-200 shadow-md shadow-blue-500/10">
+                    <div className="flex items-center gap-1.5 text-[10px] font-medium text-blue-300 mb-1.5">
+                      <Wallet className="w-3 h-3 text-blue-400" />
+                      <span>Portfolio Value</span>
                     </div>
-                    <div className="text-sm font-semibold text-blue-300">
-                      {currSymbol}{formatNumber(metadata?.totalPortfolioValue || 0, 2)} <span className="text-xs text-slate-400 font-normal">{currency || 'USD'}</span>
+                    <div className="text-sm font-bold text-blue-200">
+                      {currSymbol}{formatNumber(metadata?.totalPortfolioValue || 0, 2)}
                     </div>
+                    <div className="text-[9px] text-blue-400/80 mt-0.5">{currency || 'USD'}</div>
                   </div>
                 ) : (
-                  <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
-                    <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mb-1">
+                  <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2.5 opacity-50">
+                    <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400 mb-1.5">
                       <Wallet className="w-3 h-3" />
                       <span>Portfolio Value</span>
                     </div>
@@ -2242,23 +2768,25 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
                 )}
               </div>
 
-              {/* Quick Stats Row */}
-              <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-white/5">
-                <div className="text-center">
-                  <div className="text-xs text-slate-400 mb-1">Exchanges</div>
-                  <div className="text-sm font-semibold text-white">{exchanges.length}</div>
+              {/* Quick Stats Row - Reduced Size */}
+              <div className="grid grid-cols-3 gap-2 pt-3 border-t border-white/10">
+                <div className="text-center p-1.5 rounded-lg bg-white/5 border border-white/5">
+                  <div className="text-[9px] font-medium text-slate-400 mb-0.5 uppercase tracking-wider">Exchanges</div>
+                  <div className="text-sm font-bold text-white">{exchanges.length}</div>
                 </div>
                 {dateRange && (
-                  <div className="text-center">
-                    <div className="text-xs text-slate-400 mb-1">Date Range</div>
-                    <div className="text-xs font-medium text-white">
-                      {dateRange.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {dateRange.end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  <div className="text-center p-1.5 rounded-lg bg-white/5 border border-white/5">
+                    <div className="text-[9px] font-medium text-slate-400 mb-0.5 uppercase tracking-wider">Period</div>
+                    <div className="text-[10px] font-semibold text-white leading-tight">
+                      {dateRange.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      <br />
+                      {dateRange.end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </div>
                   </div>
                 )}
-                <div className="text-center">
-                  <div className="text-xs text-slate-400 mb-1">Type</div>
-                  <div className="text-xs font-medium text-white capitalize">
+                <div className="text-center p-1.5 rounded-lg bg-white/5 border border-white/5">
+                  <div className="text-[9px] font-medium text-slate-400 mb-0.5 uppercase tracking-wider">Markets</div>
+                  <div className="text-[10px] font-semibold text-white capitalize">
                     {metadata?.hasSpot && 'Spot'}
                     {metadata?.hasSpot && metadata?.hasFutures && ' + '}
                     {metadata?.hasFutures && 'Futures'}
@@ -2275,7 +2803,7 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
           const isPrimaryWeakness = primaryInsight.type === 'weakness'
           
           return (
-            <div className={`relative overflow-hidden rounded-2xl border backdrop-blur transition-all duration-300 ${
+            <div className={`relative overflow-hidden rounded-xl border backdrop-blur transition-all duration-300 hover:scale-[1.01] ${
               isPrimaryWeakness
                 ? 'border-amber-500/30 bg-amber-500/10 shadow-lg shadow-amber-500/5'
                 : 'border-orange-500/30 bg-orange-500/10 shadow-lg shadow-orange-500/5'
@@ -2285,18 +2813,18 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
                   ? 'from-amber-500/10 via-transparent to-orange-500/5'
                   : 'from-orange-500/10 via-transparent to-amber-500/5'
               }`} />
-              <div className="relative p-4 md:p-5">
-                <div className="flex items-start gap-3">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 border ${
+              <div className="relative p-3 md:p-4">
+                <div className="flex items-start gap-2.5">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 border ${
                     isPrimaryWeakness
                       ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
                       : 'bg-orange-500/20 text-orange-400 border-orange-500/30'
                   }`}>
-                      {isPrimaryWeakness ? <AlertCircle className="w-6 h-6" /> : <Target className="w-6 h-6" />}
+                      {isPrimaryWeakness ? <AlertCircle className="w-5 h-5" /> : <Target className="w-5 h-5" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2 flex-wrap">
-                        <span className={`text-xs font-semibold uppercase tracking-wider ${
+                      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                        <span className={`text-[10px] font-semibold uppercase tracking-wider ${
                           isPrimaryWeakness ? 'text-amber-300' : 'text-orange-300'
                         }`}>
                           Top Improvement
@@ -2305,20 +2833,92 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
                           <span className={`text-sm font-bold ${
                             isPrimaryWeakness ? 'text-amber-400' : 'text-orange-400'
                           }`}>
-                            {currSymbol}{primaryInsight.potentialSavings.toFixed(0)} potential
+                            {currSymbol}{primaryInsight.potentialSavings.toFixed(0)}
                           </span>
                         )}
                       </div>
-                      <h3 className="text-lg font-bold text-white mb-2">{primaryInsight.title}</h3>
-                      <p className="text-xs text-slate-300 mb-3 leading-relaxed line-clamp-3">
+                      <h3 className="text-sm font-bold text-white mb-1.5">{primaryInsight.title}</h3>
+                      <p className="text-xs text-slate-300 mb-3 leading-relaxed">
                         {primaryInsight.message || primaryInsight.summary}
                       </p>
+
+                      {/* Enhanced Details Section - Reduced Size */}
+                      <div className="space-y-2 mb-3">
+                        {/* Impact & Affected Trades */}
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {primaryInsight.impact && (
+                            <div className="rounded-lg border border-white/5 bg-white/[0.02] p-2">
+                              <div className="text-[9px] text-slate-400 mb-0.5">Impact</div>
+                              <div className="flex items-center gap-1">
+                                {[...Array(Math.min(primaryInsight.impact, 5))].map((_, i) => (
+                                  <div key={i} className={`w-1 h-1 rounded-full ${
+                                    isPrimaryWeakness ? 'bg-amber-400' : 'bg-orange-400'
+                                  }`} />
+                                ))}
+                                <span className="text-[10px] font-semibold text-white ml-0.5">
+                                  {primaryInsight.impact}/5
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                          {(primaryInsight.affectedTrades || primaryInsight.dataPoints) && (
+                            <div className="rounded-lg border border-white/5 bg-white/[0.02] p-2">
+                              <div className="text-[9px] text-slate-400 mb-0.5">Affected</div>
+                              <div className="text-[10px] font-semibold text-white">
+                                {(primaryInsight.affectedTrades || primaryInsight.dataPoints || 0).toLocaleString()} trades
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Action Steps Preview */}
+                        {primaryInsight.action && primaryInsight.action.steps && primaryInsight.action.steps.length > 0 && (
+                          <div className="bg-white/5 rounded-lg p-2 border border-white/10">
+                            <div className="flex items-center gap-1.5 mb-1.5">
+                              <Lightbulb className={`w-3 h-3 ${
+                                isPrimaryWeakness ? 'text-amber-400' : 'text-orange-400'
+                              }`} />
+                              <span className="text-[10px] font-semibold text-slate-300">Quick Actions</span>
+                            </div>
+                            <ul className="space-y-1">
+                              {primaryInsight.action.steps.slice(0, 2).map((step, idx) => (
+                                <li key={idx} className="text-[10px] text-slate-400 flex items-start gap-1.5">
+                                  <span className={`mt-0.5 flex-shrink-0 ${
+                                    isPrimaryWeakness ? 'text-amber-400' : 'text-orange-400'
+                                  }`}>•</span>
+                                  <span className="leading-relaxed">{step}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {/* Expected Impact */}
+                        {primaryInsight.action && primaryInsight.action.expectedImpact && (
+                          <div className="flex items-center gap-1.5 text-[10px] text-slate-400 bg-white/5 rounded-lg p-2 border border-white/10">
+                            <Clock className={`w-3 h-3 ${
+                              isPrimaryWeakness ? 'text-amber-400' : 'text-orange-400'
+                            }`} />
+                            <span>
+                              <span className="font-medium text-slate-300">Expected: </span>
+                              {primaryInsight.action.expectedImpact}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* View Details Button - Reduced Size */}
                       {primaryInsight.action && (
                         <button
                           onClick={() => setSelectedInsight(primaryInsight)}
-                          className="text-xs text-slate-400 hover:text-orange-400 transition-colors flex items-center gap-1"
+                          className={`w-full py-2 px-3 rounded-lg border transition-all duration-200 flex items-center justify-center gap-1.5 group ${
+                            isPrimaryWeakness
+                              ? 'border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 hover:text-amber-200'
+                              : 'border-orange-500/30 bg-orange-500/10 hover:bg-orange-500/20 text-orange-300 hover:text-orange-200'
+                          }`}
                         >
-                          View details <ChevronRight className="w-3 h-3" />
+                          <span className="text-xs font-medium">View Full Details</span>
+                          <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
                         </button>
                       )}
                     </div>
@@ -2344,131 +2944,200 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
             )}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-            {/* LEFT COLUMN: Areas for Improvement */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-                  <Target className="w-4 h-4 text-amber-400" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-slate-200">
-                    Areas for Improvement
-                  </h4>
-                  <p className="text-xs text-slate-500">{improvements.length} items</p>
+          {/* Balance Sheet Container */}
+          <div className="rounded-xl border border-slate-700/50 bg-slate-900/50 backdrop-blur-sm overflow-hidden">
+            {/* Header Row */}
+            <div className="grid grid-cols-2 border-b border-slate-700/50 bg-slate-800/30">
+              <div className="px-6 py-4 border-r border-slate-700/50">
+                <div className="flex items-center gap-3">
+                  <Target className="w-5 h-5 text-amber-400" />
+                  <div>
+                    <h4 className="text-sm font-semibold text-amber-300">Areas for Improvement</h4>
+                    <p className="text-xs text-slate-400 mt-0.5">{improvements.length} items</p>
+                  </div>
                 </div>
               </div>
-              
-              {improvements.length > 0 ? (
-                <div className="space-y-2">
-                  {(showAllInsights ? improvements : improvements.slice(0, 6)).map((insight, idx) => {
-                    const isWeakness = insight.type === 'weakness'
-                    const colorClasses = isWeakness 
-                      ? 'border-amber-500/20 bg-amber-500/5 hover:border-amber-500/30 hover:bg-amber-500/10'
-                      : 'border-orange-500/20 bg-orange-500/5 hover:border-orange-500/30 hover:bg-orange-500/10'
-                    
-                    return (
-                      <div 
-                        key={idx} 
-                        className={`group relative overflow-hidden rounded-lg border ${colorClasses} p-3 transition-all duration-200 cursor-pointer`}
-                        onClick={() => setSelectedInsight(insight)}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className={`w-1.5 h-full rounded-full ${
-                            isWeakness ? 'bg-amber-400' : 'bg-orange-400'
-                          }`} />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2 mb-1">
-                              <h5 className={`text-sm font-semibold ${
-                                isWeakness ? 'text-amber-300' : 'text-orange-300'
-                              }`}>
-                                {insight.title}
-                              </h5>
+              <div className="px-6 py-4">
+                <div className="flex items-center gap-3">
+                  <Trophy className="w-5 h-5 text-emerald-400" />
+                  <div>
+                    <h4 className="text-sm font-semibold text-emerald-300">What You're Doing Well</h4>
+                    <p className="text-xs text-slate-400 mt-0.5">{meaningfulStrengths.length} items</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Balance Sheet Body */}
+            <div className="grid grid-cols-2 min-h-[300px]">
+              {/* Left Column: Improvements */}
+              <div className="border-r border-slate-700/50 bg-slate-900/20">
+                {improvements.length > 0 ? (
+                  <div className="divide-y divide-slate-700/30">
+                    {(showAllInsights ? improvements : improvements.slice(0, 6)).map((insight, idx) => {
+                      const isWeakness = insight.type === 'weakness'
+                      
+                      return (
+                        <div
+                          key={idx}
+                          className="group px-6 py-4 hover:bg-slate-800/20 transition-all duration-150 cursor-pointer"
+                          onClick={() => setSelectedInsight(insight)}
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                                  isWeakness ? 'bg-amber-400' : 'bg-orange-400'
+                                }`} />
+                                <span className={`text-xs font-semibold ${
+                                  isWeakness ? 'text-amber-300' : 'text-orange-300'
+                                }`}>
+                                  {insight.title}
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-400 line-clamp-1 ml-3.5">
+                                {insight.message || insight.summary}
+                              </p>
+                            </div>
+                            <div className="text-right flex-shrink-0">
                               {insight.potentialSavings > 0 && (
-                                <span className={`text-xs font-bold whitespace-nowrap ${
+                                <div className={`text-xs font-bold ${
                                   isWeakness ? 'text-amber-400' : 'text-orange-400'
                                 }`}>
                                   {currSymbol}{insight.potentialSavings.toFixed(0)}
-                                </span>
+                                </div>
+                              )}
+                              {insight.impact && (
+                                <div className="flex items-center gap-0.5 justify-end mt-1">
+                                  {[...Array(Math.min(insight.impact, 3))].map((_, i) => (
+                                    <div key={i} className={`w-1 h-1 rounded-full ${
+                                      isWeakness ? 'bg-amber-400/60' : 'bg-orange-400/60'
+                                    }`} />
+                                  ))}
+                                </div>
                               )}
                             </div>
-                            <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
-                              {insight.message || insight.summary}
-                            </p>
                           </div>
                         </div>
+                      )
+                    })}
+                    
+                    {/* Show More/Less Button */}
+                    {improvements.length > 6 && (
+                      <div className="px-6 py-3 border-t border-slate-700/30">
+                        {!showAllInsights ? (
+                          <button
+                            onClick={() => setShowAllInsights(true)}
+                            className="w-full py-2 rounded-md border border-slate-700/50 bg-slate-800/30 hover:bg-slate-800/50 text-xs font-medium text-slate-300 hover:text-slate-200 transition-all flex items-center justify-center gap-2 group"
+                          >
+                            <span>View {improvements.length - 6} more</span>
+                            <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-300 transition-transform duration-200 group-hover:translate-y-0.5" />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setShowAllInsights(false)}
+                            className="w-full py-2 rounded-md border border-slate-700/50 bg-slate-800/30 hover:bg-slate-800/50 text-xs font-medium text-slate-300 hover:text-slate-200 transition-all flex items-center justify-center gap-2 group"
+                          >
+                            <span>Show less</span>
+                            <ChevronUp className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-300 transition-transform duration-200 group-hover:-translate-y-0.5" />
+                          </button>
+                        )}
                       </div>
-                    )
-                  })}
-                  
-                  {improvements.length > 6 && !showAllInsights && (
-                    <button
-                      onClick={() => setShowAllInsights(true)}
-                      className="w-full py-2 rounded-lg border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] text-xs font-medium text-slate-400 hover:text-slate-300 transition-all"
-                    >
-                      View {improvements.length - 6} more improvements
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="rounded-lg border border-white/5 bg-white/[0.02] p-6 text-center">
-                  <CheckCircle className="w-6 h-6 text-emerald-400 mx-auto mb-2" />
-                  <p className="text-xs text-slate-400">No major improvements needed!</p>
-                </div>
-              )}
+                    )}
+                  </div>
+                ) : (
+                  <div className="px-6 py-12 text-center">
+                    <CheckCircle className="w-8 h-8 text-emerald-400 mx-auto mb-2 opacity-50" />
+                    <p className="text-xs text-slate-400">No improvements needed</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column: Strengths */}
+              <div className="bg-slate-900/10">
+                {meaningfulStrengths.length > 0 ? (
+                  <div className="divide-y divide-slate-700/30">
+                    {meaningfulStrengths.map((insight, idx) => {
+                      return (
+                        <div
+                          key={idx}
+                          className="group px-6 py-4 hover:bg-slate-800/20 transition-all duration-150 cursor-pointer"
+                          onClick={() => setSelectedInsight(insight)}
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-emerald-400" />
+                                <span className="text-xs font-semibold text-emerald-300">
+                                  {insight.title}
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-400 line-clamp-1 ml-3.5">
+                                {insight.message || insight.summary}
+                              </p>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              {insight.potentialSavings > 0 && (
+                                <div className="text-xs font-bold text-emerald-400">
+                                  {currSymbol}{insight.potentialSavings.toFixed(0)}
+                                </div>
+                              )}
+                              {insight.impact && (
+                                <div className="flex items-center gap-0.5 justify-end mt-1">
+                                  {[...Array(Math.min(insight.impact, 3))].map((_, i) => (
+                                    <div key={i} className="w-1 h-1 rounded-full bg-emerald-400/60" />
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="px-6 py-12 text-center">
+                    <Lightbulb className="w-8 h-8 text-slate-500 mx-auto mb-2 opacity-50" />
+                    <p className="text-xs text-slate-500">More data needed</p>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* RIGHT COLUMN: What You're Doing Well */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                  <Trophy className="w-4 h-4 text-emerald-400" />
+            {/* Footer Row with Totals */}
+            <div className="grid grid-cols-2 border-t border-slate-700/50 bg-slate-800/40">
+              {/* Left Column: Improvements Totals */}
+              <div className="px-6 py-4 border-r border-slate-700/50 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Total Potential Savings</span>
+                  <span className="text-sm font-bold text-amber-400">
+                    {currSymbol}{totalPotentialSavings.toFixed(0)}
+                  </span>
                 </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-slate-200">
-                    What You're Doing Well
-                  </h4>
-                  <p className="text-xs text-slate-500">{meaningfulStrengths.length} items</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-400">Affected Trades</span>
+                  <span className="text-xs font-semibold text-amber-300">
+                    {totalAffectedTrades.toLocaleString()}
+                  </span>
                 </div>
               </div>
-              
-              {meaningfulStrengths.length > 0 ? (
-                <div className="space-y-2">
-                  {meaningfulStrengths.map((insight, idx) => {
-                    return (
-                      <div 
-                        key={idx} 
-                        className="group relative overflow-hidden rounded-lg border border-emerald-500/20 bg-emerald-500/5 hover:border-emerald-500/30 hover:bg-emerald-500/10 p-3 transition-all duration-200 cursor-pointer"
-                        onClick={() => setSelectedInsight(insight)}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="w-1.5 h-full rounded-full bg-emerald-400" />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2 mb-1">
-                              <h5 className="text-sm font-semibold text-emerald-300">
-                                {insight.title}
-                              </h5>
-                              {insight.potentialSavings > 0 && (
-                                <span className="text-xs font-bold text-emerald-400 whitespace-nowrap">
-                                  {currSymbol}{insight.potentialSavings.toFixed(0)}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
-                              {insight.message || insight.summary}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
+              {/* Right Column: Strengths Totals */}
+              <div className="px-6 py-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Total Strengths</span>
+                  <span className="text-sm font-bold text-emerald-400">
+                    {meaningfulStrengths.length}
+                  </span>
                 </div>
-              ) : (
-                <div className="rounded-lg border border-white/5 bg-white/[0.02] p-6 text-center">
-                  <Lightbulb className="w-6 h-6 text-slate-500 mx-auto mb-2 opacity-50" />
-                  <p className="text-xs text-slate-500">More data needed to identify strengths</p>
-                </div>
-              )}
+                {totalStrengthsTrades > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-400">Total Trades Analyzed</span>
+                    <span className="text-xs font-semibold text-emerald-300">
+                      {totalStrengthsTrades.toLocaleString()}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -2682,7 +3351,7 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
 
       {/* Modal */}
       {selectedInsight && (
-        <InsightModal insight={selectedInsight} onClose={() => setSelectedInsight(null)} />
+        <InsightModal insight={selectedInsight} onClose={() => setSelectedInsight(null)} currSymbol={currSymbol} analytics={analytics} />
       )}
     </div>
   )
@@ -3580,14 +4249,30 @@ function BehavioralTab({ analytics, currSymbol, currency }) {
                 Your Best Trading Hours
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                {psychology.timeBasedInsights.bestHours.map((hour, idx) => (
-                  <div key={idx} className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-2">
-                    <div className="text-xs font-medium text-emerald-300">{hour.hourRange}</div>
-                    <div className="text-[11px] text-slate-300 mt-1">
-                      {hour.winRate?.toFixed(0) || 0}% win rate • {hour.trades} trades
+                {psychology.timeBasedInsights.bestHours.map((hour, idx) => {
+                  // Format hour with AM/PM
+                  let hourNum = hour.hour
+                  if (hourNum === undefined && hour.label) {
+                    // Parse from "14:00" format
+                    hourNum = parseInt(hour.label.split(':')[0])
+                  } else if (hourNum === undefined && hour.hourRange) {
+                    hourNum = parseInt(hour.hourRange.split(':')[0])
+                  }
+                  hourNum = hourNum || 0
+                  
+                  const hour12 = hourNum === 0 ? 12 : hourNum > 12 ? hourNum - 12 : hourNum
+                  const ampm = hourNum >= 12 ? 'PM' : 'AM'
+                  const displayHour = `${hour12}:00 ${ampm}`
+                  
+                  return (
+                    <div key={idx} className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-2">
+                      <div className="text-xs font-medium text-emerald-300">{displayHour}</div>
+                      <div className="text-[11px] text-slate-300 mt-1">
+                        {hour.winRate?.toFixed(0) || 0}% win rate • {hour.trades || 0} trades
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}
@@ -3600,14 +4285,30 @@ function BehavioralTab({ analytics, currSymbol, currency }) {
                 Hours to Avoid
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                {psychology.timeBasedInsights.worstHours.map((hour, idx) => (
-                  <div key={idx} className="bg-red-500/10 border border-red-500/30 rounded-lg p-2">
-                    <div className="text-xs font-medium text-red-300">{hour.hourRange}</div>
-                    <div className="text-[11px] text-slate-300 mt-1">
-                      {hour.winRate?.toFixed(0) || 0}% win rate • {hour.trades} trades
+                {psychology.timeBasedInsights.worstHours.map((hour, idx) => {
+                  // Format hour with AM/PM
+                  let hourNum = hour.hour
+                  if (hourNum === undefined && hour.label) {
+                    // Parse from "14:00" format
+                    hourNum = parseInt(hour.label.split(':')[0])
+                  } else if (hourNum === undefined && hour.hourRange) {
+                    hourNum = parseInt(hour.hourRange.split(':')[0])
+                  }
+                  hourNum = hourNum || 0
+                  
+                  const hour12 = hourNum === 0 ? 12 : hourNum > 12 ? hourNum - 12 : hourNum
+                  const ampm = hourNum >= 12 ? 'PM' : 'AM'
+                  const displayHour = `${hour12}:00 ${ampm}`
+                  
+                  return (
+                    <div key={idx} className="bg-red-500/10 border border-red-500/30 rounded-lg p-2">
+                      <div className="text-xs font-medium text-red-300">{displayHour}</div>
+                      <div className="text-[11px] text-slate-300 mt-1">
+                        {hour.winRate?.toFixed(0) || 0}% win rate • {hour.trades || 0} trades
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}
@@ -3916,6 +4617,14 @@ export default function AnalyticsView({
       )}
 
       <main className="relative mx-auto w-full max-w-[1400px] px-4 pb-16 pt-10 space-y-10">
+        {/* Page Header */}
+        <div className="space-y-2">
+          <h1 className="text-2xl md:text-3xl font-bold text-white">Trading Analytics</h1>
+          <p className="text-sm text-slate-400 max-w-3xl">
+            Comprehensive analysis of your trading performance, portfolio overview, behavioral patterns, and actionable insights to improve your results.
+          </p>
+        </div>
+
         {/* Tabs - Moved to Top */}
         <div className="overflow-hidden rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-emerald-500/5 backdrop-blur">
           {/* Tab Headers */}
@@ -4047,6 +4756,7 @@ export default function AnalyticsView({
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   )
 }

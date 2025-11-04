@@ -17,3 +17,4 @@ export {
   MetricCardsSkeleton,
   FullPageSkeleton
 } from './LoadingSkeletons'
+export { default as Footer } from './Footer'

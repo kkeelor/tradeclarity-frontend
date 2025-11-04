@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Home, Upload, Sparkles, LogOut, TrendingUp, Twitter, Linkedin, Menu, X } from 'lucide-react'
+import { Home, Database, Sparkles, LogOut, TrendingUp, Twitter, Linkedin, Menu, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function Sidebar({
@@ -121,8 +121,8 @@ export default function Sidebar({
               : 'text-slate-300 hover:bg-white/[0.05] border border-transparent'
           }`}
         >
-          <Upload className="w-5 h-5" />
-          <span>Upload Files</span>
+          <Database className="w-5 h-5" />
+          <span>Your Data</span>
         </button>
 
         <button

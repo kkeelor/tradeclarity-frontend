@@ -11,6 +11,7 @@ import CSVUploadFlow from '../analyze/components/CSVUploadFlow'
 import { EXCHANGES, getExchangeList } from '../analyze/utils/exchanges'
 import { analyzeData } from '../analyze/utils/masterAnalyzer'
 import { TrendingUp, BarChart3, Brain, Zap, Sparkles } from 'lucide-react'
+import Footer from '../components/Footer'
 
 // Loading screen component for real mode (API connection) - from main branch
 function RealModeLoadingScreen({ progress, onComplete }) {

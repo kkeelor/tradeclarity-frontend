@@ -107,7 +107,8 @@ export function analyzeSymbolPerformance(trades) {
   })
 
   return Object.values(symbolMap).map(symbol => {
-    const winRate = symbol.trades > 0 ? (symbol.wins / symbol.trades) * 100 : 0
+    const completedTrades = symbol.wins + symbol.losses
+    const winRate = completedTrades > 0 ? (symbol.wins / completedTrades) * 100 : 0
     const avgWin = symbol.wins > 0 ? symbol.winningPnL / symbol.wins : 0
     const avgLoss = symbol.losses > 0 ? symbol.losingPnL / symbol.losses : 0
     const profitFactor = symbol.losingPnL !== 0 ? Math.abs(symbol.winningPnL / symbol.losingPnL) : symbol.winningPnL > 0 ? 999 : 0
