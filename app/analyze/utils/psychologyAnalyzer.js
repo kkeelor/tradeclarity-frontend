@@ -288,8 +288,8 @@ const generateRecommendations = (trades, spotAnalysis, futuresAnalysis) => {
 // Analyze behavioral patterns after wins/losses
 const analyzeBehavioralPatterns = (trades) => {
   const patterns = {
-    afterWins: { avgSize: 0, avgLeverage: 0, winRate: 0, count: 0 },
-    afterLosses: { avgSize: 0, avgLeverage: 0, winRate: 0, count: 0 }
+    afterWins: { avgSize: 0, avgLeverage: 0, winRate: 0, count: 0, completedCount: 0 },
+    afterLosses: { avgSize: 0, avgLeverage: 0, winRate: 0, count: 0, completedCount: 0 }
   }
   
   for (let i = 1; i < trades.length; i++) {
@@ -304,27 +304,33 @@ const analyzeBehavioralPatterns = (trades) => {
       // After a win
       patterns.afterWins.avgSize += currentSize
       patterns.afterWins.count++
-      if (currentTrade.pnl) {
-        patterns.afterWins.winRate += currentTrade.pnl > 0 ? 1 : 0
+      if (currentTrade.pnl !== null && currentTrade.pnl !== undefined && currentTrade.pnl !== 0) {
+        patterns.afterWins.completedCount++
+        if (currentTrade.pnl > 0) {
+          patterns.afterWins.winRate += 1
+        }
       }
     } else {
       // After a loss
       patterns.afterLosses.avgSize += currentSize
       patterns.afterLosses.count++
-      if (currentTrade.pnl) {
-        patterns.afterLosses.winRate += currentTrade.pnl > 0 ? 1 : 0
+      if (currentTrade.pnl !== null && currentTrade.pnl !== undefined && currentTrade.pnl !== 0) {
+        patterns.afterLosses.completedCount++
+        if (currentTrade.pnl > 0) {
+          patterns.afterLosses.winRate += 1
+        }
       }
     }
   }
   
   if (patterns.afterWins.count > 0) {
     patterns.afterWins.avgSize /= patterns.afterWins.count
-    patterns.afterWins.winRate = (patterns.afterWins.winRate / patterns.afterWins.count) * 100
+    patterns.afterWins.winRate = patterns.afterWins.completedCount > 0 ? (patterns.afterWins.winRate / patterns.afterWins.completedCount) * 100 : 0
   }
   
   if (patterns.afterLosses.count > 0) {
     patterns.afterLosses.avgSize /= patterns.afterLosses.count
-    patterns.afterLosses.winRate = (patterns.afterLosses.winRate / patterns.afterLosses.count) * 100
+    patterns.afterLosses.winRate = patterns.afterLosses.completedCount > 0 ? (patterns.afterLosses.winRate / patterns.afterLosses.completedCount) * 100 : 0
   }
   
   // Calculate overconfidence ratio
@@ -419,11 +425,11 @@ const analyzeTimePatterns = (trades) => {
     dailyStats: Object.values(dailyStats),
     heatmap,
     bestHours: hourlyStats
-      .filter(h => h.trades >= 3)
+      .filter(h => (h.wins + h.losses) >= 3)
       .sort((a, b) => b.winRate - a.winRate)
       .slice(0, 3),
     worstHours: hourlyStats
-      .filter(h => h.trades >= 3)
+      .filter(h => (h.wins + h.losses) >= 3)
       .sort((a, b) => a.winRate - b.winRate)
       .slice(0, 3)
   }
@@ -468,7 +474,7 @@ const analyzeSymbolBehavior = (trades, spotAnalysis, futuresAnalysis) => {
     if (avgHold < 60 * 60 * 1000 && data.winRate < 45) { // < 1 hour
       insight.category = 'fomo'
       insight.message = 'Impulsive entries detected'
-      insight.icon = '🎲'
+      insight.icon = '??'
     }
     
     symbolInsights.push(insight)
@@ -553,7 +559,7 @@ const formatDuration = (ms) => {
 }
 
 const calculateWinRate = (trades) => {
-  const completedTrades = trades.filter(t => t.pnl)
+  const completedTrades = trades.filter(t => t.pnl !== null && t.pnl !== undefined && t.pnl !== 0)
   if (completedTrades.length === 0) return 0
   
   const wins = completedTrades.filter(t => t.pnl > 0).length
@@ -621,23 +627,28 @@ const findBestTradingHours = (trades) => {
     hourRange: `${hour}:00-${hour + 1}:00`,
     trades: 0,
     wins: 0,
+    losses: 0,
     winRate: 0
   }))
   
   trades.forEach(trade => {
     const hour = new Date(trade.time).getHours()
     hourlyStats[hour].trades++
-    if (trade.pnl && trade.pnl > 0) hourlyStats[hour].wins++
+    if (trade.pnl) {
+      if (trade.pnl > 0) hourlyStats[hour].wins++
+      else if (trade.pnl < 0) hourlyStats[hour].losses++
+    }
   })
   
   hourlyStats.forEach(stat => {
-    if (stat.trades > 0) {
-      stat.winRate = (stat.wins / stat.trades) * 100
+    const completedTrades = stat.wins + stat.losses
+    if (completedTrades > 0) {
+      stat.winRate = (stat.wins / completedTrades) * 100
     }
   })
   
   return hourlyStats
-    .filter(h => h.trades >= 3)
+    .filter(h => (h.wins + h.losses) >= 3)
     .sort((a, b) => b.winRate - a.winRate)
     .slice(0, 3)
 }
@@ -648,23 +659,28 @@ const findWorstTradingHours = (trades) => {
     hourRange: `${hour}:00-${hour + 1}:00`,
     trades: 0,
     wins: 0,
+    losses: 0,
     winRate: 0
   }))
   
   trades.forEach(trade => {
     const hour = new Date(trade.time).getHours()
     hourlyStats[hour].trades++
-    if (trade.pnl && trade.pnl > 0) hourlyStats[hour].wins++
+    if (trade.pnl) {
+      if (trade.pnl > 0) hourlyStats[hour].wins++
+      else if (trade.pnl < 0) hourlyStats[hour].losses++
+    }
   })
   
   hourlyStats.forEach(stat => {
-    if (stat.trades > 0) {
-      stat.winRate = (stat.wins / stat.trades) * 100
+    const completedTrades = stat.wins + stat.losses
+    if (completedTrades > 0) {
+      stat.winRate = (stat.wins / completedTrades) * 100
     }
   })
   
   return hourlyStats
-    .filter(h => h.trades >= 3)
+    .filter(h => (h.wins + h.losses) >= 3)
     .sort((a, b) => a.winRate - b.winRate)
     .slice(0, 3)
 }

@@ -129,8 +129,8 @@ export default function Header({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const navItems = [
     { label: 'Dashboard', icon: LayoutDashboard, onClick: onNavigateDashboard },
-    { label: 'Upload CSV', icon: Upload, onClick: onNavigateUpload },
-    { label: 'All Data', icon: BarChart3, onClick: onNavigateAll }
+    { label: 'Data Sources', icon: Database, onClick: onNavigateUpload },
+    { label: 'Analytics', icon: BarChart3, onClick: onNavigateAll }
   ].filter(item => Boolean(item.onClick))
 
   // Close mobile menu on ESC key

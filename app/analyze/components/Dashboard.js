@@ -7,7 +7,12 @@ import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileTe
 import { useAuth } from '@/lib/AuthContext'
 import { toast } from 'sonner'
 import ThemeToggle from '@/app/components/ThemeToggle'
-import { getMostCriticalInsight, getAllInsights } from '../utils/performanceAnalogies'
+import { getMostCriticalInsight, getAllInsights, generatePerformanceAnalogies } from '../utils/performanceAnalogies'
+import { generateValueFirstInsights } from '../utils/insights/valueFirstInsights'
+import { prioritizeInsights, enhanceInsightForDisplay } from '../utils/insights/insightsPrioritizationEngine'
+import { analyzeDrawdowns } from '../utils/drawdownAnalysis'
+import { analyzeTimeBasedPerformance } from '../utils/timeBasedAnalysis'
+import { analyzeSymbols } from '../utils/symbolAnalysis'
 import { analyzeData } from '../utils/masterAnalyzer'
 import {
   AlertDialog,
@@ -23,6 +28,180 @@ import { ExchangeIcon } from '@/components/ui'
 import { DashboardStatsSkeleton, DataSourceSkeleton } from '@/app/components/LoadingSkeletons'
 import ConnectExchangeModal from './ConnectExchangeModal'
 import Sidebar from './Sidebar'
+
+/**
+ * Generate combined insights from balance sheet (overview) and behavioral tabs
+ * Replicates the same logic used in AnalyticsView OverviewTab
+ * Returns up to 5 insights mixing improvements, strengths, and behavioral insights
+ */
+function generateCombinedInsights(analytics, psychology, spotTrades, futuresIncome) {
+  const allAvailableInsights = []
+  const currSymbol = '$' // Default, can be improved later
+  
+  try {
+    const allTrades = analytics.allTrades || []
+    
+    // 1. Value-first insights (already prioritized)
+    const valueFirstInsights = generateValueFirstInsights(analytics, psychology, allTrades)
+    if (valueFirstInsights?.allScored) {
+      allAvailableInsights.push(...valueFirstInsights.allScored.map(insight => ({
+        ...insight,
+        source: 'value-first'
+      })))
+    } else if (valueFirstInsights?.all) {
+      allAvailableInsights.push(...valueFirstInsights.all.map(insight => ({
+        ...insight,
+        source: 'value-first'
+      })))
+    }
+    
+    // 2. Drawdown insights
+    const drawdownAnalysis = analyzeDrawdowns(allTrades)
+    if (drawdownAnalysis?.worstDrawdowns && drawdownAnalysis.worstDrawdowns.length > 0) {
+      drawdownAnalysis.worstDrawdowns.slice(0, 2).forEach((worst, idx) => {
+        if (worst.drawdownPercent < -5) {
+          allAvailableInsights.push({
+            type: 'weakness',
+            category: 'risk_management',
+            title: idx === 0 
+              ? `Worst Drawdown: ${Math.abs(worst.drawdownPercent).toFixed(1)}%`
+              : `Drawdown: ${Math.abs(worst.drawdownPercent).toFixed(1)}%`,
+            message: `Lost ${currSymbol}${Math.abs(worst.drawdownAmount).toFixed(0)} over ${worst.durationDays} days`,
+            summary: worst.recovered 
+              ? `Recovered in ${worst.recoveryDays} days` 
+              : 'Still in drawdown',
+            potentialSavings: Math.abs(worst.drawdownAmount) * 0.2,
+            impact: worst.drawdownPercent < -20 ? 4 : worst.drawdownPercent < -10 ? 3 : 2,
+            source: 'drawdown'
+          })
+        }
+      })
+    }
+    
+    // 3. Time-based insights
+    const timeAnalysis = analyzeTimeBasedPerformance(allTrades)
+    if (timeAnalysis?.bestWorstTimes) {
+      const { worstHour } = timeAnalysis.bestWorstTimes
+      if (worstHour && worstHour.trades >= 5 && worstHour.totalPnL < 0) {
+        allAvailableInsights.push({
+          type: 'weakness',
+          category: 'timing',
+          title: `Avoid ${worstHour.label}`,
+          message: `Only ${worstHour.winRate.toFixed(0)}% win rate, losing ${currSymbol}${Math.abs(worstHour.avgPnL).toFixed(2)} per trade`,
+          summary: `Consider avoiding trading during ${worstHour.label}`,
+          potentialSavings: Math.abs(worstHour.totalPnL) * 0.5,
+          impact: worstHour.winRate < 40 ? 3 : 2,
+          source: 'timing-analysis'
+        })
+      }
+    }
+    
+    // 4. Symbol insights
+    const symbolAnalysis = analyzeSymbols(allTrades)
+    if (symbolAnalysis?.recommendations && symbolAnalysis.recommendations.length > 0) {
+      symbolAnalysis.recommendations.forEach(rec => {
+        if (rec.type === 'avoid' && rec.symbols.length > 0) {
+          allAvailableInsights.push({
+            type: 'weakness',
+            category: 'opportunity',
+            title: `Avoid ${rec.symbols.join(', ')}`,
+            message: rec.message,
+            summary: `These symbols consistently lose money`,
+            potentialSavings: rec.details?.reduce((sum, s) => sum + Math.abs(s.totalPnL || 0), 0) || 0,
+            impact: rec.severity === 'high' ? 3 : 2,
+            source: 'symbol'
+          })
+        }
+      })
+    }
+    
+    // 5. Performance insights (from analogies)
+    const analogies = generatePerformanceAnalogies(analytics)
+    if (analogies?.hourlyRate && analogies.hourlyRate.rate < -10) {
+      const hourlyRate = analogies.hourlyRate.rate
+      allAvailableInsights.push({
+        type: 'weakness',
+        category: 'performance',
+        title: 'Negative Hourly Rate',
+        message: `You're losing ${currSymbol}${Math.abs(hourlyRate).toFixed(2)}/hour while trading`,
+        summary: `Review your strategy - this suggests fundamental issues`,
+        potentialSavings: Math.abs(hourlyRate * analogies.hourlyRate.totalHours) * 0.5,
+        impact: hourlyRate < -20 ? 4 : 3,
+        source: 'analogy'
+      })
+    }
+    
+    if (analytics.profitFactor < 1) {
+      allAvailableInsights.push({
+        type: 'weakness',
+        category: 'performance',
+        title: 'Profit Factor Below 1.0',
+        message: `Your profit factor of ${analytics.profitFactor.toFixed(2)}x means you're losing more than you win`,
+        summary: 'Critical: This strategy is not profitable long-term',
+        potentialSavings: analytics.totalPnL < 0 ? Math.abs(analytics.totalPnL) * 0.5 : 0,
+        impact: 4,
+        source: 'analogy'
+      })
+    }
+    
+    // 6. Psychology insights from behavioral analysis
+    if (psychology?.weaknesses && psychology.weaknesses.length > 0) {
+      psychology.weaknesses.forEach(weakness => {
+        if (weakness.severity === 'high' || weakness.impact >= 3) {
+          allAvailableInsights.push({
+            type: 'weakness',
+            category: 'behavioral',
+            title: weakness.title || 'Behavioral Weakness',
+            message: weakness.message,
+            summary: weakness.message,
+            impact: weakness.impact || 3,
+            source: 'psychology'
+          })
+        }
+      })
+    }
+    
+    // Now prioritize and enhance all insights (same as balance sheet)
+    const prioritizedInsights = prioritizeInsights(allAvailableInsights, analytics)
+    let sortedInsights = prioritizedInsights.allScored.map(insight => 
+      enhanceInsightForDisplay(insight, analytics)
+    )
+    
+    // Separate into improvements (weaknesses + opportunities) and strengths
+    const weaknesses = sortedInsights.filter(i => i.type === 'weakness')
+    const opportunities = sortedInsights.filter(i => i.type === 'opportunity' || i.type === 'recommendation')
+    const strengths = sortedInsights.filter(i => i.type === 'strength')
+    
+    // Collect all improvements (weaknesses + opportunities) - prioritize these
+    const improvements = [...weaknesses, ...opportunities]
+    
+    // Get meaningful strengths
+    const meaningfulStrengths = strengths.filter(s => 
+      s.potentialSavings > 0 || 
+      (s.action && s.action.steps && s.action.steps.length > 0) ||
+      s.score >= 65 ||
+      s.impact >= 3
+    )
+    
+    // Combine and prioritize: weaknesses/opportunities first, then strengths
+    // Limit to 5 total, prioritizing high-impact improvements
+    const combined = [...improvements, ...meaningfulStrengths]
+    
+    // Sort by: weaknesses first, then by impact/score
+    const sorted = combined.sort((a, b) => {
+      // Weaknesses get priority
+      if (a.type === 'weakness' && b.type !== 'weakness') return -1
+      if (a.type !== 'weakness' && b.type === 'weakness') return 1
+      // Then by impact or score
+      return (b.impact || b.score || 0) - (a.impact || a.score || 0)
+    })
+    
+    return sorted.slice(0, 5)
+  } catch (error) {
+    console.error('Error generating combined insights:', error)
+    return []
+  }
+}
 
 export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithCSV, onViewAnalytics }) {
   const router = useRouter()
@@ -62,25 +241,35 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
     fetchTradesStats()
   }, [])
 
-  // Rotate through insights every 6 seconds
+  // Auto-rotate through insights every 6 seconds - highlights active insight
   useEffect(() => {
     if (!allInsights || allInsights.length <= 1) return // Don't rotate if there's only one or no insights
 
     const interval = setInterval(() => {
       setCurrentInsightIndex((prev) => (prev + 1) % allInsights.length)
-    }, 6000) // Change insight every 6 seconds
+    }, 6000) // Change active insight every 6 seconds
 
     return () => clearInterval(interval)
   }, [allInsights])
+  
+  // Auto-scroll to active insight when it changes
+  useEffect(() => {
+    if (allInsights.length <= 1) return
+    
+    const insightElement = document.querySelector(`[data-insight-index="${currentInsightIndex}"]`)
+    if (insightElement) {
+      insightElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+    }
+  }, [currentInsightIndex, allInsights.length])
 
   const fetchConnectedExchanges = async () => {
     const startTime = Date.now()
     try {
-      console.log('📡 [Dashboard] Fetching connected exchanges...')
+      console.log('?? [Dashboard] Fetching connected exchanges...')
       const response = await fetch('/api/exchange/list')
       const data = await response.json()
 
-      console.log('📡 [Dashboard] API response:', data)
+      console.log('?? [Dashboard] API response:', data)
 
       if (data.success) {
         const formatted = data.connections.map(conn => ({
@@ -90,13 +279,13 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
           connectedAt: conn.created_at,
           lastSynced: conn.last_synced || conn.updated_at || conn.created_at
         }))
-        console.log('✅ [Dashboard] Formatted exchanges:', formatted)
+        console.log('? [Dashboard] Formatted exchanges:', formatted)
         setConnectedExchanges(formatted)
       } else {
-        console.log('❌ [Dashboard] API returned error:', data.error)
+        console.log('? [Dashboard] API returned error:', data.error)
       }
     } catch (error) {
-      console.error('❌ [Dashboard] Error fetching exchanges:', error)
+      console.error('? [Dashboard] Error fetching exchanges:', error)
     } finally {
       // Ensure minimum 350ms loading time for skeleton visibility
       const elapsed = Date.now() - startTime
@@ -144,9 +333,12 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
             const analytics = await analyzeData(data)
             const psychology = analytics.psychology || {}
             const insight = getMostCriticalInsight(analytics, psychology)
-            const insights = getAllInsights(analytics, psychology)
+            
+            // Generate combined insights from balance sheet and behavioral tabs
+            const combinedInsights = generateCombinedInsights(analytics, psychology, data.spotTrades || [], data.futuresIncome || [])
+            
             setCriticalInsight(insight)
-            setAllInsights(insights || [])
+            setAllInsights(combinedInsights)
             setCurrentInsightIndex(0) // Reset to first insight
           } catch (error) {
             console.error('Error analyzing trades for insight:', error)
@@ -208,7 +400,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
   const handleViewSelected = () => {
     if (selectedSources.length === 0) return
 
-    console.log('📊 Viewing analytics for selected sources:', selectedSources)
+    console.log('?? Viewing analytics for selected sources:', selectedSources)
 
     // Pass selected sources to analytics view for filtering
     onViewAnalytics(selectedSources)
@@ -329,32 +521,32 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
   }
 
   const handleSignOut = async () => {
-    console.log('🔴 Sign out button clicked')
+    console.log('?? Sign out button clicked')
     const timeoutId = setTimeout(() => {
-      console.log('🔴 SignOut timeout - forcing reload anyway')
+      console.log('?? SignOut timeout - forcing reload anyway')
       window.location.href = '/'
     }, 3000)
 
     try {
-      console.log('🔴 Calling server-side sign out API...')
+      console.log('?? Calling server-side sign out API...')
       const response = await fetch('/api/auth/signout', {
         method: 'POST',
       })
-      console.log('🔴 API response status:', response.status)
+      console.log('?? API response status:', response.status)
       const data = await response.json()
-      console.log('🔴 API response data:', data)
+      console.log('?? API response data:', data)
       clearTimeout(timeoutId)
 
       if (!response.ok) {
-        console.error('🔴 Sign out error:', data.error)
+        console.error('?? Sign out error:', data.error)
       } else {
-        console.log('🔴 Sign out successful!')
+        console.log('?? Sign out successful!')
       }
 
-      console.log('🔴 Redirecting to landing page...')
+      console.log('?? Redirecting to landing page...')
       window.location.href = '/'
     } catch (error) {
-      console.error('🔴 Sign out catch error:', error)
+      console.error('?? Sign out catch error:', error)
       clearTimeout(timeoutId)
       window.location.href = '/'
     }
@@ -399,8 +591,8 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                   className="group inline-flex items-center justify-center gap-1 md:gap-2 rounded-full px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium text-slate-300 transition-all duration-300 hover:text-white flex-shrink-0 whitespace-nowrap"
                   style={{ minHeight: '32px', minWidth: '32px' }}
                 >
-                  <Upload className="h-3 w-3 md:h-4 md:w-4 text-slate-500 transition-colors group-hover:text-emerald-300 flex-shrink-0" />
-                  <span className="hidden sm:inline">Upload Files</span>
+                  <Database className="h-3 w-3 md:h-4 md:w-4 text-slate-500 transition-colors group-hover:text-emerald-300 flex-shrink-0" />
+                  <span className="hidden sm:inline">Data Sources</span>
                 </button>
                 <button
                   onClick={() => onViewAnalytics()}
@@ -412,12 +604,12 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                   }`}
                   style={{ minHeight: '32px', minWidth: '32px' }}
                 >
-                  <Sparkles className={`h-3 w-3 md:h-4 md:w-4 transition-colors flex-shrink-0 ${
+                  <BarChart3 className={`h-3 w-3 md:h-4 md:w-4 transition-colors flex-shrink-0 ${
                     connectedExchanges.length === 0 && !loadingExchanges
                       ? 'text-slate-600'
                       : 'text-slate-500 group-hover:text-emerald-300'
                   }`} />
-                  <span className="hidden sm:inline">My Patterns</span>
+                  <span className="hidden sm:inline">Analytics</span>
                 </button>
               </nav>
             </div>
@@ -474,7 +666,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
               {user?.email}
               {tradesStats && tradesStats.totalTrades > 0 && (
                 <>
-                  <span className="text-slate-600">•</span>
+                  <span className="text-slate-600">?</span>
                   <span className="text-slate-400 font-medium">{tradesStats.totalTrades} trades analyzed</span>
                 </>
               )}
@@ -649,7 +841,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                           onClick={() => onViewAnalytics()}
                           className="group/btn text-xs text-emerald-400 hover:text-emerald-300 font-semibold transition-all duration-300 inline-flex items-center gap-1.5 hover:gap-2"
                         >
-                          View Combined Analytics
+                          View Analytics
                           <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover/btn:translate-x-1" />
                         </button>
                       </div>
@@ -798,78 +990,130 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
               </div>
             )}
 
-            {/* Dynamic Trading Insight Card - Rotates through insights */}
-            {!loadingStats && allInsights.length > 0 && tradesStats && tradesStats.totalTrades > 0 && (() => {
-              const currentInsight = allInsights[currentInsightIndex]
-              if (!currentInsight) return null
+            {/* Trading Insights Section - Horizontal scrolling row */}
+            {!loadingStats && allInsights.length > 0 && tradesStats && tradesStats.totalTrades > 0 && (
+              <section className="space-y-3">
+                <div className="flex items-center gap-2 mb-3 px-1">
+                  <Sparkles className="w-4 h-4 text-emerald-400" />
+                  <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Trading Insights</h3>
+                  <span className="text-xs text-slate-500">({allInsights.length})</span>
+                </div>
+                
+                {/* Horizontal scrolling container with insights and button */}
+                <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1">
+                  {/* Insights row - up to 5 insights */}
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    {allInsights.map((insight, index) => {
+                      const isWeakness = insight.type === 'weakness'
+                      const isOpportunity = insight.type === 'opportunity' || insight.type === 'recommendation'
+                      const isStrength = insight.type === 'strength'
+                      const isActive = index === currentInsightIndex
+                      
+                      // Color scheme matching balance sheet: amber for weaknesses, orange for opportunities, emerald for strengths
+                      const colorClasses = isWeakness
+                        ? 'border-amber-500/20 bg-amber-500/5 shadow-lg shadow-amber-500/5'
+                        : isOpportunity
+                        ? 'border-orange-500/20 bg-orange-500/5 shadow-lg shadow-orange-500/5'
+                        : 'border-emerald-500/20 bg-emerald-500/5 shadow-lg shadow-emerald-500/5'
+                      
+                      const textColor = isWeakness
+                        ? 'text-amber-300'
+                        : isOpportunity
+                        ? 'text-orange-300'
+                        : 'text-emerald-300'
+                      
+                      const iconBgColor = isWeakness
+                        ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                        : isOpportunity
+                        ? 'bg-orange-500/20 text-orange-400 border-orange-500/30'
+                        : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                      
+                      const dotColor = isWeakness
+                        ? 'bg-amber-400/70'
+                        : isOpportunity
+                        ? 'bg-orange-400/70'
+                        : 'bg-emerald-400/70'
+                      
+                      const gradientColor = isWeakness
+                        ? 'from-amber-500/10 via-transparent to-orange-500/10'
+                        : isOpportunity
+                        ? 'from-orange-500/10 via-transparent to-amber-500/10'
+                        : 'from-emerald-500/10 via-transparent to-cyan-500/10'
+                      
+                      return (
+                        <div
+                          key={index}
+                          data-insight-index={index}
+                          className={`group relative overflow-hidden flex items-center gap-2 px-3 py-2.5 rounded-xl border backdrop-blur transition-all duration-300 flex-shrink-0 min-w-[280px] max-w-[320px] ${colorClasses} ${
+                            isActive ? 'ring-2 ring-emerald-500/30 scale-[1.02]' : ''
+                          }`}
+                        >
+                          <div className={`absolute inset-0 bg-gradient-to-br transition-opacity duration-300 ${gradientColor}`} />
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 backdrop-blur-sm border transition-all duration-300 ${iconBgColor}`}>
+                            {isWeakness ? <AlertCircle className="w-3.5 h-3.5" /> : <Zap className="w-3.5 h-3.5" />}
+                          </div>
 
-              const isWeakness = currentInsight.type === 'weakness'
-
-              return (
-                <button
-                  onClick={onViewAnalytics}
-                  className={`w-full group relative overflow-hidden flex items-center gap-3 px-5 py-4 rounded-3xl border backdrop-blur transition-all duration-500 hover:scale-[1.02] text-left ${
-                    isWeakness
-                      ? 'border-red-500/20 bg-red-500/5 shadow-lg shadow-red-500/5 hover:border-red-500/40 hover:bg-red-500/10'
-                      : 'border-emerald-500/20 bg-emerald-500/5 shadow-lg shadow-emerald-500/5 hover:border-emerald-500/40 hover:bg-emerald-500/10'
-                  }`}
-                  key={currentInsightIndex} // Key helps React animate the transition
-                >
-                  <div className={`absolute inset-0 bg-gradient-to-br transition-opacity duration-500 ${
-                    isWeakness
-                      ? 'from-red-500/10 via-transparent to-orange-500/10'
-                      : 'from-emerald-500/10 via-transparent to-cyan-500/10'
-                  }`} />
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 backdrop-blur-sm border transition-all duration-500 ${
-                    isWeakness
-                      ? 'bg-red-500/20 text-red-400 border-red-500/30'
-                      : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                  }`}>
-                    {isWeakness ? <AlertCircle className="w-5 h-5" /> : <Zap className="w-5 h-5" />}
+                          <div className="flex-1 min-w-0 relative">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className={`text-xs font-semibold transition-colors duration-300 ${textColor}`}>
+                                {insight.title}
+                              </span>
+                              {insight.impact && (
+                                <span className="flex items-center gap-0.5">
+                                  {[...Array(Math.min(insight.impact, 3))].map((_, i) => (
+                                    <div key={i} className={`w-1 h-1 rounded-full transition-colors duration-300 ${dotColor}`} />
+                                  ))}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-slate-300 truncate block mt-0.5">{insight.message || insight.summary}</span>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
 
-                  <div className="flex-1 min-w-0 relative">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`text-xs font-semibold transition-colors duration-500 ${
-                        isWeakness ? 'text-red-300' : 'text-emerald-300'
-                      }`}>
-                        {currentInsight.title}
-                      </span>
-                      {currentInsight.impact && (
-                        <span className="flex items-center gap-0.5">
-                          {[...Array(currentInsight.impact)].map((_, i) => (
-                            <div key={i} className={`w-1.5 h-1.5 rounded-full transition-colors duration-500 ${
-                              isWeakness ? 'bg-red-400/70' : 'bg-emerald-400/70'
-                            }`} />
-                          ))}
-                        </span>
-                      )}
-                      <span className="text-xs text-slate-300 truncate">• {currentInsight.message}</span>
-                    </div>
-                    {allInsights.length > 1 && (
-                      <div className="flex items-center gap-1 mt-2">
-                        {allInsights.map((_, index) => (
-                          <div
-                            key={index}
-                            className={`h-1 rounded-full transition-all duration-300 ${
-                              index === currentInsightIndex
-                                ? isWeakness
-                                  ? 'bg-red-400 w-2'
-                                  : 'bg-emerald-400 w-2'
-                                : 'bg-slate-600 w-1'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  {/* View Analytics button - Fixed on the right */}
+                  <button
+                    onClick={onViewAnalytics}
+                    className="group flex-shrink-0 px-4 py-2.5 bg-gradient-to-r from-emerald-500/10 to-emerald-600/10 hover:from-emerald-500/20 hover:to-emerald-600/20 border border-emerald-500/30 hover:border-emerald-500/50 rounded-xl text-xs font-semibold text-emerald-300 hover:text-emerald-200 transition-all duration-300 inline-flex items-center gap-2 hover:scale-[1.02] whitespace-nowrap"
+                  >
+                    <BarChart3 className="w-4 h-4" />
+                    <span>Explore All</span>
+                    <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                  </button>
+                </div>
 
-                  <ChevronRight className={`w-5 h-5 flex-shrink-0 transition-transform duration-300 group-hover:translate-x-1 ${
-                    isWeakness ? 'text-red-400/70' : 'text-emerald-400/70'
-                  }`} />
-                </button>
-              )
-            })()}
+                {/* Clickable dots indicator */}
+                {allInsights.length > 1 && (
+                  <div className="flex items-center justify-center gap-1.5 pt-1">
+                    {allInsights.map((insight, index) => {
+                      const isActive = index === currentInsightIndex
+                      const isWeakness = insight?.type === 'weakness'
+                      const isOpportunity = insight?.type === 'opportunity' || insight?.type === 'recommendation'
+                      
+                      return (
+                        <button
+                          key={index}
+                          onClick={() => setCurrentInsightIndex(index)}
+                          className={`rounded-full transition-all duration-300 hover:scale-125 cursor-pointer ${
+                            isActive
+                              ? isWeakness
+                                ? 'bg-amber-400 w-2.5 h-2.5'
+                                : isOpportunity
+                                ? 'bg-orange-400 w-2.5 h-2.5'
+                                : 'bg-emerald-400 w-2.5 h-2.5'
+                              : 'bg-slate-600 w-1.5 h-1.5 hover:bg-slate-500'
+                          }`}
+                          aria-label={`View insight ${index + 1}: ${insight.title}`}
+                          title={insight.title}
+                        />
+                      )
+                    })}
+                  </div>
+                )}
+              </section>
+            )}
 
             {/* Quick Actions - Only show for users with data */}
             {tradesStats && tradesStats.totalTrades > 0 && (
@@ -955,7 +1199,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                       >
                         Select All
                       </button>
-                      <span className="text-slate-600">•</span>
+                      <span className="text-slate-600">?</span>
                       <button
                         onClick={deselectAll}
                         className="text-slate-500 hover:text-slate-400 transition-colors"
@@ -1058,7 +1302,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                                         </div>
                                         {linkedCount > 0 && (
                                           <>
-                                            <span className="text-slate-600">•</span>
+                                            <span className="text-slate-600">?</span>
                                             <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20">
                                               <span className="relative flex h-2 w-2">
                                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
@@ -1141,7 +1385,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                                         </span>
                                       </div>
                                       <p className="text-xs text-slate-400">
-                                        {file.trades_count || 0} trades • {(file.size / 1024).toFixed(1)} KB
+                                        {file.trades_count || 0} trades ? {(file.size / 1024).toFixed(1)} KB
                                       </p>
                                     </div>
                                   </div>
@@ -1174,7 +1418,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                         className="group flex-1 py-3.5 bg-white/[0.03] hover:bg-white/[0.05] border border-white/5 hover:border-white/10 rounded-3xl font-semibold text-sm text-slate-200 hover:text-white transition-all duration-300 inline-flex items-center justify-center gap-2 hover:scale-105"
                       >
                         <BarChart3 className="w-4 h-4" />
-                        View All Data
+                        View Analytics
                       </button>
                     </div>
                   )}

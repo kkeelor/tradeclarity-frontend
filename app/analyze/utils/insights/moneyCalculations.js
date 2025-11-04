@@ -137,10 +137,12 @@ export function calculateTimingEdge(trades) {
   const bestHoursGain = bestHours.reduce((sum, h) => sum + h.pnl, 0)
   const bestHoursWinRate = bestHours.reduce((sum, h) => {
     const wins = h.trades.filter(t => t.pnl > 0).length
-    return sum + (wins / h.count)
+    const completedTrades = h.trades.filter(t => t.pnl !== null && t.pnl !== undefined && t.pnl !== 0).length
+    return sum + (completedTrades > 0 ? wins / completedTrades : 0)
   }, 0) / bestHours.length
 
-  const overallWinRate = trades.filter(t => t.pnl > 0).length / trades.length
+  const completedTrades = trades.filter(t => t.pnl !== null && t.pnl !== undefined && t.pnl !== 0)
+  const overallWinRate = completedTrades.length > 0 ? completedTrades.filter(t => t.pnl > 0).length / completedTrades.length : 0
 
   return {
     potentialSavings: Math.abs(worstHoursLoss),
