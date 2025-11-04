@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { ArrowLeft, Mail, MessageSquare, Send, CheckCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import Footer from '../components/Footer'
 
 export default function ContactPage() {
   const router = useRouter()
