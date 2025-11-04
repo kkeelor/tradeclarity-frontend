@@ -47,6 +47,7 @@ import {
   TableSkeleton,
   EmptyState
 } from '../../components'
+import Footer from '../../components/Footer'
 
 // Helper function to format numbers with commas
 const formatNumber = (num, decimals = 2) => {
@@ -4577,7 +4578,7 @@ export default function AnalyticsView({
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white">
+    <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white flex flex-col">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(46,204,149,0.08),_transparent_60%)]" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom,_rgba(59,130,246,0.06),_transparent_55%)]" />
 
