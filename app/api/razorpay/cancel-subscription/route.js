@@ -3,15 +3,20 @@ import { NextResponse } from 'next/server'
 import Razorpay from 'razorpay'
 import { createClient } from '@supabase/supabase-js'
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-})
-
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
+
+function getRazorpayInstance() {
+  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+    throw new Error('Razorpay credentials not configured')
+  }
+  return new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+  })
+}
 
 export async function POST(request) {
   try {
@@ -37,6 +42,9 @@ export async function POST(request) {
         { status: 404 }
       )
     }
+
+    // Initialize Razorpay instance
+    const razorpay = getRazorpayInstance()
 
     // Cancel subscription in Razorpay
     await razorpay.subscriptions.cancel(subscription.razorpay_subscription_id)
