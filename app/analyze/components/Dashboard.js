@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, LogOut, BarChart3, Sparkles, Database, CheckSquare, Square, Loader2, ChevronRight, Zap, Brain, Clock, DollarSign, PieChart, TrendingDown, Target, Lightbulb, LayoutDashboard } from 'lucide-react'
+import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, LogOut, BarChart3, Sparkles, Database, CheckSquare, Square, Loader2, ChevronRight, Zap, Brain, Clock, DollarSign, PieChart, TrendingDown, Target, Lightbulb, LayoutDashboard, Tag } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { toast } from 'sonner'
 import ThemeToggle from '@/app/components/ThemeToggle'
@@ -640,6 +640,22 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                       : 'text-slate-500 group-hover:text-emerald-300'
                   }`} />
                   <span className="hidden sm:inline">Analytics</span>
+                </button>
+                <button
+                  onClick={() => router.push('/pricing')}
+                  className={`group inline-flex items-center justify-center gap-1 md:gap-2 rounded-full px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium transition-all duration-300 flex-shrink-0 whitespace-nowrap ${
+                    pathname === '/pricing'
+                      ? 'text-white'
+                      : 'text-slate-300 hover:text-white'
+                  }`}
+                  style={{ minHeight: '32px', minWidth: '32px' }}
+                >
+                  <Tag className={`h-3 w-3 md:h-4 md:w-4 transition-colors flex-shrink-0 ${
+                    pathname === '/pricing'
+                      ? 'text-emerald-300'
+                      : 'text-slate-500 group-hover:text-emerald-300'
+                  }`} />
+                  <span className="hidden sm:inline">Pricing</span>
                 </button>
               </nav>
             </div>

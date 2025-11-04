@@ -112,6 +112,42 @@ export default function PrivacyPage() {
               However, no method of transmission over the internet is 100% secure. While we strive to protect 
               your data, we cannot guarantee absolute security.
             </p>
+
+            <h3 className="text-xl font-semibold text-white mt-6 mb-3">3.1 API Key Security</h3>
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6 mt-4 mb-4">
+              <h4 className="font-semibold text-red-300 mb-2">?? Important: API Key Permissions</h4>
+              <p className="text-sm mb-3">
+                TradeClarity requires <strong>read-only API keys</strong> to analyze your trading data. We do not 
+                request, require, or support API keys with trading, withdrawal, or transfer permissions.
+              </p>
+              <p className="text-sm">
+                <strong>Security Best Practices:</strong>
+              </p>
+              <ul className="list-disc list-inside space-y-1 ml-4 mt-2 text-sm">
+                <li>Only create API keys with read-only permissions</li>
+                <li>Never enable trading, withdrawal, or transfer permissions</li>
+                <li>Store API keys securely and never share them</li>
+                <li>Regularly rotate your API keys</li>
+                <li>Immediately revoke compromised API keys</li>
+              </ul>
+            </div>
+            <p>
+              API keys are stored using industry-standard encryption. However, you are responsible for:
+            </p>
+            <ul className="list-disc list-inside space-y-2 ml-4">
+              <li>Creating API keys with the correct permissions (read-only only)</li>
+              <li>Protecting your API credentials from unauthorized access</li>
+              <li>Monitoring your exchange account for any suspicious activity</li>
+              <li>Immediately revoking API keys if you suspect a security breach</li>
+            </ul>
+            <p className="mt-4">
+              <strong>Important Disclaimer:</strong> In the event of any security breach, unauthorized access, 
+              or compromise of your API keys or exchange account, TradeClarity shall not be liable for any losses, 
+              damages, unauthorized trades, or financial consequences that may occur. You acknowledge that you 
+              use API keys at your own risk and agree to indemnify TradeClarity against any claims arising from 
+              API key security incidents or unauthorized trading activities. Please refer to our Terms and Conditions 
+              for complete details on API key usage and indemnification.
+            </p>
           </section>
 
           <section className="space-y-4">
