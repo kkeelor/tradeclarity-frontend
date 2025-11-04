@@ -28,6 +28,7 @@ import { ExchangeIcon } from '@/components/ui'
 import { DashboardStatsSkeleton, DataSourceSkeleton } from '@/app/components/LoadingSkeletons'
 import ConnectExchangeModal from './ConnectExchangeModal'
 import Sidebar from './Sidebar'
+import Footer from '../../components/Footer'
 
 /**
  * Generate combined insights from balance sheet (overview) and behavioral tabs
@@ -1470,6 +1471,9 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
             </section>
         </main>
 
+        {/* Footer */}
+        <Footer />
+
       {/* Connect Exchange Modal */}
       <ConnectExchangeModal
         isOpen={showConnectModal}
@@ -1568,7 +1572,6 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
         </AlertDialogContent>
       </AlertDialog>
       </div>
-      <Footer />
     </div>
   )
 }
