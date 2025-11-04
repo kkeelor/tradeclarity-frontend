@@ -156,15 +156,90 @@ export default function TermsPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-2xl font-semibold text-white mb-4">9. Limitation of Liability</h2>
+            <h2 className="text-2xl font-semibold text-white mb-4">9. API Keys and Exchange Connections</h2>
+            <h3 className="text-xl font-semibold text-white mt-4 mb-3">9.1 API Key Permissions</h3>
             <p>
-              To the maximum extent permitted by law, TradeClarity shall not be liable for any indirect, 
-              incidental, special, or consequential damages arising from your use of the Service.
+              When connecting your exchange account to TradeClarity, you are required to create API keys with 
+              <strong className="text-white"> read-only permissions only</strong>. TradeClarity explicitly does not 
+              request, require, or support API keys with trading, withdrawal, or transfer permissions.
+            </p>
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6 mt-4 mb-4">
+              <h4 className="font-semibold text-red-300 mb-2">?? Critical Security Notice</h4>
+              <p className="text-sm">
+                <strong>Do NOT enable trading, withdrawal, or transfer permissions</strong> when creating API keys 
+                for TradeClarity. We only require read-only access to analyze your trading history. Enabling 
+                trading permissions creates unnecessary security risks and is not supported by our platform.
+              </p>
+            </div>
+
+            <h3 className="text-xl font-semibold text-white mt-4 mb-3">9.2 API Key Security</h3>
+            <p>You are solely responsible for:</p>
+            <ul className="list-disc list-inside space-y-2 ml-4">
+              <li>Creating API keys with the correct permissions (read-only)</li>
+              <li>Securing and protecting your API keys</li>
+              <li>Maintaining the confidentiality of your API credentials</li>
+              <li>Regularly reviewing and rotating your API keys</li>
+              <li>Immediately revoking API keys if you suspect unauthorized access</li>
+            </ul>
+
+            <h3 className="text-xl font-semibold text-white mt-4 mb-3">9.3 Indemnification for Unauthorized Trading</h3>
+            <p>
+              <strong className="text-white">YOU EXPRESSLY ACKNOWLEDGE AND AGREE THAT:</strong>
+            </p>
+            <ul className="list-disc list-inside space-y-2 ml-4">
+              <li>
+                TradeClarity is designed and operates as a <strong className="text-white">read-only analytics platform</strong>. 
+                We do not execute trades, initiate withdrawals, or perform any trading actions on your behalf.
+              </li>
+              <li>
+                In the event of any security breach, unauthorized access, or compromise of your API keys or exchange account, 
+                TradeClarity shall not be liable for any losses, damages, or unauthorized trades that may occur.
+              </li>
+              <li>
+                If you inadvertently or intentionally create API keys with trading permissions enabled, you assume full 
+                responsibility for any consequences, including but not limited to unauthorized trades, financial losses, 
+                or account compromises.
+              </li>
+              <li>
+                You agree to indemnify, defend, and hold harmless TradeClarity, its officers, directors, employees, 
+                and affiliates from any claims, damages, losses, liabilities, costs, or expenses (including legal fees) 
+                arising from:
+                <ul className="list-disc list-inside space-y-2 ml-6 mt-2">
+                  <li>Unauthorized trades executed in your exchange account</li>
+                  <li>Compromise or breach of your API keys</li>
+                  <li>Any losses resulting from the use of API keys with trading permissions enabled</li>
+                  <li>Any security incident affecting your exchange account</li>
+                </ul>
+              </li>
+            </ul>
+            <p className="mt-4">
+              TradeClarity stores your API keys using industry-standard encryption and security measures. However, 
+              no system is completely secure, and you acknowledge that you use API keys at your own risk.
             </p>
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-2xl font-semibold text-white mb-4">10. Termination</h2>
+            <h2 className="text-2xl font-semibold text-white mb-4">10. Limitation of Liability</h2>
+            <p>
+              To the maximum extent permitted by law, TradeClarity shall not be liable for any indirect, 
+              incidental, special, or consequential damages arising from your use of the Service, including 
+              but not limited to:
+            </p>
+            <ul className="list-disc list-inside space-y-2 ml-4">
+              <li>Loss of profits, trading opportunities, or financial losses</li>
+              <li>Unauthorized trades or transactions in your exchange account</li>
+              <li>API key breaches or security incidents</li>
+              <li>Data loss or corruption</li>
+              <li>Service interruptions or downtime</li>
+            </ul>
+            <p className="mt-4">
+              Our total liability to you for any claims arising from or related to the Service shall not exceed 
+              the amount you paid to TradeClarity in the twelve (12) months preceding the claim.
+            </p>
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="text-2xl font-semibold text-white mb-4">11. Termination</h2>
             <p>
               We reserve the right to suspend or terminate your account if you violate these Terms. 
               You may terminate your account at any time by canceling your subscription and contacting support.

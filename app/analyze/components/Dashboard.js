@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, LogOut, BarChart3, Sparkles, Database, CheckSquare, Square, Loader2, ChevronRight, Zap, Brain, Clock, DollarSign, PieChart, TrendingDown, Target, Lightbulb, LayoutDashboard } from 'lucide-react'
+import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, LogOut, BarChart3, Sparkles, Database, CheckSquare, Square, Loader2, ChevronRight, Zap, Brain, Clock, DollarSign, PieChart, TrendingDown, Target, Lightbulb, LayoutDashboard, Tag, CreditCard } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { toast } from 'sonner'
 import ThemeToggle from '@/app/components/ThemeToggle'
@@ -29,6 +29,7 @@ import { DashboardStatsSkeleton, DataSourceSkeleton } from '@/app/components/Loa
 import ConnectExchangeModal from './ConnectExchangeModal'
 import Sidebar from './Sidebar'
 import Footer from '../../components/Footer'
+import UsageLimits from '../../components/UsageLimits'
 
 /**
  * Generate combined insights from balance sheet (overview) and behavioral tabs
@@ -227,6 +228,8 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
   const [deleteStats, setDeleteStats] = useState(null)
   const [deleteLinkedCSVs, setDeleteLinkedCSVs] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [subscription, setSubscription] = useState(null)
+  const [loadingSubscription, setLoadingSubscription] = useState(true)
 
   // Get time-based greeting
   const getGreeting = () => {
@@ -358,6 +361,23 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
       const elapsed = Date.now() - startTime
       const remaining = Math.max(0, 350 - elapsed)
       setTimeout(() => setLoadingStats(false), remaining)
+    }
+  }
+
+  const fetchSubscription = async () => {
+    try {
+      setLoadingSubscription(true)
+      if (user?.id) {
+        const response = await fetch(`/api/subscriptions/current?userId=${user.id}`)
+        if (response.ok) {
+          const data = await response.json()
+          setSubscription(data.subscription)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching subscription:', error)
+    } finally {
+      setLoadingSubscription(false)
     }
   }
 
@@ -641,6 +661,38 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                   }`} />
                   <span className="hidden sm:inline">Analytics</span>
                 </button>
+                <button
+                  onClick={() => router.push('/pricing')}
+                  className={`group inline-flex items-center justify-center gap-1 md:gap-2 rounded-full px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium transition-all duration-300 flex-shrink-0 whitespace-nowrap ${
+                    pathname === '/pricing'
+                      ? 'text-white'
+                      : 'text-slate-300 hover:text-white'
+                  }`}
+                  style={{ minHeight: '32px', minWidth: '32px' }}
+                >
+                  <Tag className={`h-3 w-3 md:h-4 md:w-4 transition-colors flex-shrink-0 ${
+                    pathname === '/pricing'
+                      ? 'text-emerald-300'
+                      : 'text-slate-500 group-hover:text-emerald-300'
+                  }`} />
+                  <span className="hidden sm:inline">Pricing</span>
+                </button>
+                <button
+                  onClick={() => router.push('/billing')}
+                  className={`group inline-flex items-center justify-center gap-1 md:gap-2 rounded-full px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium transition-all duration-300 flex-shrink-0 whitespace-nowrap ${
+                    pathname === '/billing'
+                      ? 'text-white'
+                      : 'text-slate-300 hover:text-white'
+                  }`}
+                  style={{ minHeight: '32px', minWidth: '32px' }}
+                >
+                  <CreditCard className={`h-3 w-3 md:h-4 md:w-4 transition-colors flex-shrink-0 ${
+                    pathname === '/billing'
+                      ? 'text-emerald-300'
+                      : 'text-slate-500 group-hover:text-emerald-300'
+                  }`} />
+                  <span className="hidden sm:inline">Billing</span>
+                </button>
               </nav>
             </div>
 
@@ -703,6 +755,14 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
             </p>
           </div>
         </div>
+
+        {/* Usage Limits */}
+        {subscription && subscription.tier !== 'free' && (
+          <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4 md:p-6">
+            <UsageLimits subscription={subscription} compact={true} />
+          </div>
+        )}
+
             {/* Stats Overview & Smart Recommendations */}
             {loadingStats ? (
               <DashboardStatsSkeleton />

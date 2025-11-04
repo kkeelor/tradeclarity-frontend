@@ -39,14 +39,24 @@ export default function LandingPage() {
         </button>
         <div className="flex items-center gap-2 md:gap-4">
           {!user && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push('/analyze?demo=true')}
-              className="text-xs md:text-sm"
-            >
-              View Demo
-            </Button>
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push('/pricing')}
+                className="text-xs md:text-sm"
+              >
+                Pricing
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push('/analyze?demo=true')}
+                className="text-xs md:text-sm"
+              >
+                View Demo
+              </Button>
+            </>
           )}
           {user && (
             <div className="relative">

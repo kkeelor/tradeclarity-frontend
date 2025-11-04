@@ -99,7 +99,7 @@ export default function PricingPage() {
 
   const fetchUserSubscription = async () => {
     try {
-      const response = await fetch('/api/subscriptions/current')
+      const response = await fetch(`/api/subscriptions/current?userId=${user?.id}`)
       if (response.ok) {
         const data = await response.json()
         if (data.subscription) {
@@ -185,12 +185,14 @@ export default function PricingPage() {
       {/* Header */}
       <div className="border-b border-white/5 bg-slate-950/70 backdrop-blur-xl">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="text-sm text-slate-400 hover:text-white transition-colors"
-          >
-            ← Back to Dashboard
-          </button>
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => router.push(user ? '/dashboard' : '/')}
+              className="text-sm text-slate-400 hover:text-white transition-colors flex items-center gap-2"
+            >
+              ← Back {user ? 'to Dashboard' : 'to Home'}
+            </button>
+          </div>
         </div>
       </div>
 

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { TrendingUp, ArrowRight, LayoutDashboard, Database, BarChart3, LogOut, ChevronDown, Menu, X } from 'lucide-react'
+import { TrendingUp, ArrowRight, LayoutDashboard, Database, BarChart3, LogOut, ChevronDown, Menu, X, Tag, CreditCard } from 'lucide-react'
 import ThemeToggle from '../../components/ThemeToggle'
 import { getCurrencySymbol } from '../utils/currencyFormatter'
 
@@ -137,7 +137,9 @@ export default function Header({
   const navItems = [
     { label: 'Dashboard', icon: LayoutDashboard, onClick: onNavigateDashboard || (() => router.push('/dashboard')), path: '/dashboard' },
     { label: 'Your Data', icon: Database, onClick: onNavigateUpload || (() => router.push('/data')), path: '/data' },
-    { label: 'Analytics', icon: BarChart3, onClick: onNavigateAll || (() => router.push('/analyze')), path: '/analyze' }
+    { label: 'Analytics', icon: BarChart3, onClick: onNavigateAll || (() => router.push('/analyze')), path: '/analyze' },
+    { label: 'Pricing', icon: Tag, onClick: () => router.push('/pricing'), path: '/pricing' },
+    { label: 'Billing', icon: CreditCard, onClick: () => router.push('/billing'), path: '/billing' }
   ].filter(item => Boolean(item.onClick))
 
   // Close mobile menu on ESC key
