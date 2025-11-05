@@ -21,7 +21,7 @@ import { getCurrencyRates } from '../utils/currencyConverter'
 import { generateValueFirstInsights } from '../utils/insights/valueFirstInsights'
 import { prioritizeInsights, enhanceInsightForDisplay } from '../utils/insights/insightsPrioritizationEngine'
 import AhaMomentsSection from './AhaMomentsSection'
-import { ExchangeIcon } from '@/components/ui'
+import { ExchangeIcon, SeparatorText, Separator } from '@/components/ui'
 import {
   AreaChart, Area, BarChart, Bar, LineChart as RechartsLineChart,
   Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart,
@@ -56,23 +56,6 @@ const formatNumber = (num, decimals = 2) => {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals
   })
-}
-
-// Elegant separator component for text segments
-const SeparatorText = ({ segments, className = '', separator = '•' }) => {
-  const validSegments = segments.filter(Boolean)
-  if (validSegments.length === 0) return null
-  
-  return (
-    <span className={className}>
-      {validSegments.map((segment, idx) => (
-        <span key={idx}>
-          {idx > 0 && <span className="mx-1">{separator}</span>}
-          {segment}
-        </span>
-      ))}
-    </span>
-  )
 }
 
 // Icon mapper for string icon names to Lucide components
@@ -2738,10 +2721,10 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
                     </div>
                     <div className="text-[9px] text-slate-400 mt-0.5">{currency || 'USD'}</div>
                     {(analytics.spotUnrealizedPnL || analytics.futuresUnrealizedPnL) && (
-                      <div className="text-[9px] text-slate-500 mt-1.5 pt-1.5 border-t border-white/5">
-                        {analytics.spotUnrealizedPnL ? `Spot: ${currSymbol}${formatNumber(analytics.spotUnrealizedPnL, 2)}` : ''}
-                        {analytics.spotUnrealizedPnL && analytics.futuresUnrealizedPnL ? ' • ' : ''}
-                        {analytics.futuresUnrealizedPnL ? `Futures: ${currSymbol}${formatNumber(analytics.futuresUnrealizedPnL, 2)}` : ''}
+                      <div className="text-[9px] text-slate-500 mt-1.5 pt-1.5 border-t border-white/5 flex items-center gap-1">
+                        {analytics.spotUnrealizedPnL && `Spot: ${currSymbol}${formatNumber(analytics.spotUnrealizedPnL, 2)}`}
+                        {analytics.spotUnrealizedPnL && analytics.futuresUnrealizedPnL && <Separator className="text-[9px]" />}
+                        {analytics.futuresUnrealizedPnL && `Futures: ${currSymbol}${formatNumber(analytics.futuresUnrealizedPnL, 2)}`}
                       </div>
                     )}
                   </div>
@@ -2886,7 +2869,7 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
                                 <li key={idx} className="text-[10px] text-slate-400 flex items-start gap-1.5">
                                   <span className={`mt-0.5 flex-shrink-0 ${
                                     isPrimaryWeakness ? 'text-amber-400' : 'text-orange-400'
-                                  }`}>•</span>
+                                  }`}>?</span>
                                   <span className="leading-relaxed">{step}</span>
                                 </li>
                               ))}
@@ -3243,8 +3226,8 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
                     <div className="text-xs text-slate-300 mb-1">
                       {futuresValue >= 0 ? `+${currSymbol}${formatNumber(futuresValue, 2)} realized` : `${currSymbol}${formatNumber(Math.abs(futuresValue), 2)} loss`}
                       {openPositions > 0 && (
-                        <span className={`ml-1 ${unrealizedPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                          <span className="mx-1">•</span>
+                        <span className={`ml-1 flex items-center ${unrealizedPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          <Separator className="mx-1" />
                           {unrealizedPnL >= 0 ? '+' : ''}{currSymbol}{formatNumber(Math.abs(unrealizedPnL), 2)} unrealized
                         </span>
                       )}
@@ -4268,8 +4251,8 @@ function BehavioralTab({ analytics, currSymbol, currency }) {
                   return (
                     <div key={idx} className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-2">
                       <div className="text-xs font-medium text-emerald-300">{displayHour}</div>
-                      <div className="text-[11px] text-slate-300 mt-1">
-                        {hour.winRate?.toFixed(0) || 0}% win rate • {hour.trades || 0} trades
+                      <div className="text-[11px] text-slate-300 mt-1 flex items-center gap-1">
+                        {hour.winRate?.toFixed(0) || 0}% win rate <Separator className="text-[11px]" /> {hour.trades || 0} trades
                       </div>
                     </div>
                   )
@@ -4305,7 +4288,7 @@ function BehavioralTab({ analytics, currSymbol, currency }) {
                     <div key={idx} className="bg-red-500/10 border border-red-500/30 rounded-lg p-2">
                       <div className="text-xs font-medium text-red-300">{displayHour}</div>
                       <div className="text-[11px] text-slate-300 mt-1">
-                        {hour.winRate?.toFixed(0) || 0}% win rate • {hour.trades || 0} trades
+                        {hour.winRate?.toFixed(0) || 0}% win rate ? {hour.trades || 0} trades
                       </div>
                     </div>
                   )
@@ -4343,10 +4326,10 @@ function BehavioralTab({ analytics, currSymbol, currency }) {
                     </div>
                     <div className="text-[11px] text-slate-300">{rec.message}</div>
                     <div className="text-[10px] text-slate-400 mt-2">
-                      {rec.type === 'timing' && '⏰ Timing Recommendation'}
-                      {rec.type === 'symbol' && '🎯 Symbol Focus'}
-                      {rec.type === 'risk_management' && '🛡️ Risk Management'}
-                      {rec.type === 'leverage' && '⚡ Leverage Advice'}
+                      {rec.type === 'timing' && '? Timing Recommendation'}
+                      {rec.type === 'symbol' && '?? Symbol Focus'}
+                      {rec.type === 'risk_management' && '??? Risk Management'}
+                      {rec.type === 'leverage' && '? Leverage Advice'}
                     </div>
                   </div>
                 </div>
@@ -4387,11 +4370,11 @@ function BehavioralTab({ analytics, currSymbol, currency }) {
                 <div className="text-[11px] text-slate-400 mb-1">{symbol.message}</div>
                 <div className="flex items-center gap-3 text-[10px] text-slate-500">
                   <span>{symbol.winRate?.toFixed(0) || 0}% WR</span>
-                  <span>•</span>
+                  <Separator className="text-[10px]" />
                   <span>{symbol.trades} trades</span>
                   {symbol.avgHoldTime && (
                     <>
-                      <span>•</span>
+                      <Separator className="text-[10px]" />
                       <span>Avg hold: {symbol.avgHoldTime}</span>
                     </>
                   )}
@@ -4607,7 +4590,7 @@ export default function AnalyticsView({
               <div className="space-y-1 text-sm">
                 <p className="font-semibold text-purple-200 flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-purple-300" />
-                  Demo Mode • Sample Binance Data
+                  Demo Mode <Separator className="mx-1" /> Sample Binance Data
                 </p>
                 <p className="text-slate-300/80">
                   Explore how TradeClarity surfaces patterns, then connect your exchange to uncover your own.

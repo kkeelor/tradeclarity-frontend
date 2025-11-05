@@ -3,6 +3,7 @@
 
 import Link from 'next/link'
 import { Twitter, Linkedin } from 'lucide-react'
+import { Separator } from '@/components/ui'
 
 export default function Footer() {
   return (
@@ -17,7 +18,7 @@ export default function Footer() {
           <Twitter className="w-4 h-4 group-hover:text-cyan-400 transition-colors" />
           <span className="hidden sm:inline">@trdclrty</span>
         </a>
-        <span className="text-slate-700">?</span>
+        <Separator className="text-slate-700" />
         <a
           href="https://www.linkedin.com/in/karankeelor/"
           target="_blank"
@@ -30,13 +31,13 @@ export default function Footer() {
       </div>
       <div className="flex flex-wrap items-center justify-center gap-4 text-xs">
         <Link href="/legal/terms" className="hover:text-emerald-400 transition-colors">Terms & Conditions</Link>
-        <span className="text-slate-700">?</span>
+        <Separator className="text-slate-700" />
         <Link href="/legal/privacy" className="hover:text-emerald-400 transition-colors">Privacy Policy</Link>
-        <span className="text-slate-700">?</span>
+        <Separator className="text-slate-700" />
         <Link href="/legal/cancellation-refunds" className="hover:text-emerald-400 transition-colors">Cancellation & Refunds</Link>
-        <span className="text-slate-700">?</span>
+        <Separator className="text-slate-700" />
         <Link href="/legal/shipping" className="hover:text-emerald-400 transition-colors">Shipping Policy</Link>
-        <span className="text-slate-700">?</span>
+        <Separator className="text-slate-700" />
         <Link href="/contact" className="hover:text-emerald-400 transition-colors">Contact Us</Link>
       </div>
       <p className="font-medium">Built for traders who are tired of guessing</p>

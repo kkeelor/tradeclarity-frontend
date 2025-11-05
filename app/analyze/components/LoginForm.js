@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { TrendingUp, Lock, Loader2, AlertCircle, Eye, EyeOff, HelpCircle, Sparkles, ChevronRight, CheckCircle, Shield, ExternalLink, X, Play, FileText, Clock, BarChart3, Brain, Zap, Target, ArrowLeft, Mail, Plus } from 'lucide-react'
-import { ExchangeIcon } from '@/components/ui'
+import { ExchangeIcon, Separator } from '@/components/ui'
 
 // Step Progress Indicator Component
 function StepProgress({ currentStep, totalSteps }) {
@@ -417,7 +417,9 @@ export default function LoginForm({
             {/* Minimal Security Badge */}
             <div className="flex items-center justify-center gap-2 text-xs sm:text-sm text-slate-400">
               <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
-              <span>Read-only access • Encrypted storage</span>
+              <span>Read-only access</span>
+              <Separator className="mx-1" />
+              <span>Encrypted storage</span>
             </div>
             </div>
           </div>
