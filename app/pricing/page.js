@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, X, Zap, TrendingUp, Crown, ArrowRight, Sparkles, Shield, Clock, CreditCard, ChevronDown } from 'lucide-react'
+import { Check, X, Zap, TrendingUp, Crown, ArrowRight, Sparkles, Shield, Clock, CreditCard, ChevronDown, ArrowLeft } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { getTierDisplayName } from '@/lib/featureGates'
 import { toast } from 'sonner'
@@ -312,7 +312,8 @@ export default function PricingPage() {
               onClick={() => router.push(user ? '/dashboard' : '/')}
               className="text-sm text-slate-400 hover:text-white transition-colors flex items-center gap-2"
             >
-              ? Back {user ? 'to Dashboard' : 'to Home'}
+              <ArrowLeft className="w-4 h-4" />
+              Back {user ? 'to Dashboard' : 'to Home'}
             </button>
           </div>
         </div>
