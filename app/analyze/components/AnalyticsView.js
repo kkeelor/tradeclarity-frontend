@@ -4593,6 +4593,7 @@ export default function AnalyticsView({
         onNavigateAll={handleNavigateAll}
         onSignOut={handleSignOut}
         isDemoMode={isDemoMode}
+        hasDataSources={true}
       />
 
       {isDemoMode && (

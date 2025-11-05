@@ -244,6 +244,13 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
     fetchConnectedExchanges()
     fetchUploadedFiles()
     fetchTradesStats()
+
+    // Check if we should show connect modal (from DataManagement page)
+    const shouldShowModal = sessionStorage.getItem('showConnectModal')
+    if (shouldShowModal === 'true') {
+      sessionStorage.removeItem('showConnectModal')
+      setShowConnectModal(true)
+    }
   }, [])
 
   // Auto-rotate through insights every 6 seconds - highlights active insight
@@ -1084,11 +1091,14 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                   <div className="mt-5 pt-4 border-t border-white/10">
                     <button
                       onClick={onTryDemo}
-                      className="w-full text-xs text-emerald-400 hover:text-emerald-300 font-medium transition-colors inline-flex items-center justify-center gap-1.5"
+                      className="w-full px-4 py-2.5 bg-gradient-to-r from-emerald-500/20 to-emerald-500/10 hover:from-emerald-500/30 hover:to-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 rounded-xl text-xs font-semibold text-emerald-300 hover:text-emerald-200 transition-all flex items-center justify-center gap-2 group hover:scale-105"
                     >
-                      <Play className="w-3.5 h-3.5" />
-                      Watch demo walkthrough
+                      <Sparkles className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                      Try Demo First
                     </button>
+                    <p className="text-[10px] text-slate-500 text-center mt-2.5">
+                      Explore analytics with sample data
+                    </p>
                   </div>
                 </div>
               </div>

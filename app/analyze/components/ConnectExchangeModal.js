@@ -56,9 +56,11 @@ export default function ConnectExchangeModal({ isOpen, onClose, onSelectMethod }
             return (
               <button
                 key={method.id}
-                onClick={() => {
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
                   onSelectMethod(method.id)
-                  onClose()
+                  // Don't call onClose here - let the parent handle it
                 }}
                 className="group relative overflow-hidden w-full text-left p-6 bg-gradient-to-br from-slate-800/60 via-slate-800/40 to-slate-800/30 hover:from-slate-800/80 hover:to-slate-800/60 border border-slate-700/50 hover:border-emerald-500/50 rounded-2xl transition-all backdrop-blur-sm hover:scale-[1.02]"
               >

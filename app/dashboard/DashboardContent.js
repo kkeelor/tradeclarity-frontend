@@ -322,11 +322,11 @@ export default function DashboardContent() {
     }
   }
 
-  // Navigate to analytics when loading completes
+  // Navigate back to dashboard when loading completes (after exchange connection)
   useEffect(() => {
     if (loadingComplete && status === 'connecting') {
-      console.log('?? [DashboardContent] Loading complete, navigating to /analyze...')
-      router.push('/analyze')
+      console.log('?? [DashboardContent] Loading complete, navigating back to dashboard...')
+      router.push('/dashboard')
     }
   }, [loadingComplete, status, router])
 
@@ -353,6 +353,15 @@ export default function DashboardContent() {
     // Navigate to analytics page with demo flag
     router.push('/analyze?demo=true')
   }
+
+  // Check for API connection request from DataManagement page
+  useEffect(() => {
+    const shouldShowAPIConnection = sessionStorage.getItem('showAPIConnection')
+    if (shouldShowAPIConnection === 'true') {
+      sessionStorage.removeItem('showAPIConnection')
+      setShowAPIConnection(true)
+    }
+  }, [])
 
   if (authLoading) {
     return (
