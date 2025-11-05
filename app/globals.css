@@ -24,6 +24,25 @@
     -moz-osx-font-smoothing: grayscale;
     transition: background-color 0.3s ease, color 0.3s ease;
   }
+
+  /* Ensure separator characters render correctly */
+  [data-separator] {
+    font-feature-settings: normal;
+    font-variant: normal;
+    font-family: inherit;
+    display: inline-block;
+    vertical-align: middle;
+  }
+
+  /* Utility class for separator characters */
+  .separator {
+    font-feature-settings: normal;
+    font-variant: normal;
+    font-family: inherit;
+    display: inline-block;
+    vertical-align: middle;
+  }
+
 }
 
 /* Custom animations */

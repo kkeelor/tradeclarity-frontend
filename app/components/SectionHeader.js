@@ -2,6 +2,7 @@
 'use client'
 
 import { IconBadge } from './IconBadge'
+import { Separator } from '@/components/ui'
 
 /**
  * Reusable section header with icon, title, and subtitle
@@ -66,7 +67,12 @@ export function SimpleSectionHeader({ title, subtitle, icon: Icon, className = "
     <div className={`flex items-center gap-2 ${className}`}>
       {Icon && <Icon className="w-6 h-6 text-emerald-400" />}
       <h3 className="text-xl font-bold">{title}</h3>
-      {subtitle && <span className="text-slate-400 text-sm">• {subtitle}</span>}
+      {subtitle && (
+        <>
+          <Separator className="mx-1" />
+          <span className="text-slate-400 text-sm">{subtitle}</span>
+        </>
+      )}
     </div>
   )
 }

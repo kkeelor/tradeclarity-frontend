@@ -81,7 +81,7 @@ export default function AhaMomentsSection({ insights, currency = 'USD', currSymb
                         <ul className="space-y-1.5">
                           {topInsight.action.steps.slice(0, 3).map((step, idx) => (
                             <li key={idx} className="text-xs text-slate-400 flex items-start gap-2">
-                              <span className="text-emerald-400 mt-0.5">•</span>
+                              <Separator className="text-emerald-400 mt-0.5" />
                               <span>{step}</span>
                             </li>
                           ))}

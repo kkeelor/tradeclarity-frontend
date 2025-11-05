@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Database, Upload, FileText, X, AlertCircle, CheckCircle, Trash2, Loader2, Check, ChevronDown, Link2, Plus, KeyRound, Clock } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
-import { ExchangeIcon } from '@/components/ui'
+import { ExchangeIcon, Separator } from '@/components/ui'
 import { toast } from 'sonner'
 import Header from './Header'
 import Footer from '../../components/Footer'
@@ -1167,7 +1167,7 @@ function UploadedFileCard({ file, connectedExchanges, onRefresh, onDelete, isDel
             </span>
             {file.uploaded_at && (
               <>
-                <span className="text-xs text-slate-500">?</span>
+                <Separator className="text-xs text-slate-500" />
                 <span className="text-xs text-slate-500">
                   {new Date(file.uploaded_at).toLocaleDateString()}
                 </span>

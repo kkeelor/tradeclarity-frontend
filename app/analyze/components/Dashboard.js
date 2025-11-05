@@ -24,7 +24,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog'
-import { ExchangeIcon } from '@/components/ui'
+import { ExchangeIcon, Separator } from '@/components/ui'
 import { DashboardStatsSkeleton, DataSourceSkeleton } from '@/app/components/LoadingSkeletons'
 import ConnectExchangeModal from './ConnectExchangeModal'
 import Sidebar from './Sidebar'
@@ -755,7 +755,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
               {user?.email}
               {tradesStats && tradesStats.totalTrades > 0 && (
                 <>
-                  <span className="text-slate-600">?</span>
+                  <Separator className="text-slate-600" />
                   <span className="text-slate-400 font-medium">{tradesStats.totalTrades} trades analyzed</span>
                 </>
               )}
@@ -1313,7 +1313,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                       >
                         Select All
                       </button>
-                      <span className="text-slate-600">?</span>
+                      <Separator className="text-slate-600" />
                       <button
                         onClick={deselectAll}
                         className="text-slate-500 hover:text-slate-400 transition-colors"
@@ -1416,7 +1416,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                                         </div>
                                         {linkedCount > 0 && (
                                           <>
-                                            <span className="text-slate-600">?</span>
+                                            <Separator className="text-slate-600" />
                                             <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20">
                                               <span className="relative flex h-2 w-2">
                                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>

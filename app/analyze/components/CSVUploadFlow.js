@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react'
 import { TrendingUp, Upload, FileText, X, AlertCircle, CheckCircle, Trash2, Home, LogOut, Sparkles, Loader2, Check, ChevronDown, ArrowLeft } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
-import { ExchangeIcon } from '@/components/ui'
+import { ExchangeIcon, Separator } from '@/components/ui'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -536,8 +536,8 @@ export default function CSVUploadFlow({ onBack }) {
                 <p className="text-sm text-slate-200 font-semibold mb-1">
                   Drop CSV files here or click to browse
                 </p>
-                <p className="text-xs text-slate-400 mb-4">
-                  Max 10MB per file • CSV format only
+                <p className="text-xs text-slate-400 mb-4 flex items-center gap-1">
+                  Max 10MB per file <Separator className="mx-1" /> CSV format only
                 </p>
                 <input
                   type="file"
@@ -780,9 +780,14 @@ function FileConfigCard({ config, connectedExchanges, onUpdate, onRemove, getSta
             <div className="flex-1">
               <p className="text-sm font-semibold text-emerald-300">{config.message}</p>
               {config.tradesCount !== null && (
-                <p className="text-xs text-slate-300 mt-1.5">
+                <p className="text-xs text-slate-300 mt-1.5 flex items-center gap-1">
                   {config.tradesCount} trades imported
-                  {config.duplicatesCount > 0 && ` • ${config.duplicatesCount} duplicates skipped`}
+                  {config.duplicatesCount > 0 && (
+                    <>
+                      <Separator className="mx-1" />
+                      {config.duplicatesCount} duplicates skipped
+                    </>
+                  )}
                 </p>
               )}
             </div>
@@ -922,11 +927,11 @@ function UploadedFileCard({ file, connectedExchanges, onRefresh }) {
 
           <div className="flex items-center gap-3 text-xs text-slate-500">
             <span>{(file.size / 1024).toFixed(1)} KB</span>
-            <span>•</span>
+            <Separator className="text-xs" />
             <span>{file.trades_count || 0} trades</span>
             {file.uploaded_at && (
               <>
-                <span>•</span>
+                <Separator className="text-xs" />
                 <span>{new Date(file.uploaded_at).toLocaleDateString()}</span>
               </>
             )}
@@ -948,7 +953,7 @@ function UploadedFileCard({ file, connectedExchanges, onRefresh }) {
                   disabled={linking}
                   className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors disabled:opacity-50"
                 >
-                  {linking ? 'Linking...' : 'Link to Exchange →'}
+                  {linking ? 'Linking...' : 'Link to Exchange >'}
                 </button>
 
                 {showExchangeDropdown && (
