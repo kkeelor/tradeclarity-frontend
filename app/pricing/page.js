@@ -379,9 +379,16 @@ export default function PricingPage() {
             const monthlyPriceUSD = billingCycle === 'annual' ? Math.round(plan.priceAnnual / 12) : plan.price
             const annualPriceUSD = plan.priceAnnual
             
+            // Apply 50% discount for paid plans
+            const discountMultiplier = (key === 'trader' || key === 'pro') ? 0.5 : 1
+            const discountedMonthlyPriceUSD = monthlyPriceUSD * discountMultiplier
+            const discountedAnnualPriceUSD = annualPriceUSD * discountMultiplier
+            
             // Convert prices to selected currency
             const convertedMonthlyPrice = currency === 'USD' ? monthlyPriceUSD : convertCurrencySync(monthlyPriceUSD, 'USD', currency)
             const convertedAnnualPrice = currency === 'USD' ? annualPriceUSD : convertCurrencySync(annualPriceUSD, 'USD', currency)
+            const convertedDiscountedMonthlyPrice = currency === 'USD' ? discountedMonthlyPriceUSD : convertCurrencySync(discountedMonthlyPriceUSD, 'USD', currency)
+            const convertedDiscountedAnnualPrice = currency === 'USD' ? discountedAnnualPriceUSD : convertCurrencySync(discountedAnnualPriceUSD, 'USD', currency)
             
             // Format prices with appropriate decimals
             const formatPrice = (price) => {
@@ -412,15 +419,44 @@ export default function PricingPage() {
                   </div>
                   <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
                   <p className="text-sm text-slate-400 mb-4">{plan.description}</p>
+                  
+                  {/* Launch Offer Badge for paid plans - inside card */}
+                  {(key === 'trader' || key === 'pro') && (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/30 rounded-full text-xs font-semibold text-red-300 mb-4">
+                      <Sparkles className="w-3 h-3" />
+                      <span>Launch Offer: 50% OFF</span>
+                    </div>
+                  )}
+                  
                   <div className="flex items-baseline gap-2">
+                    {(key === 'trader' || key === 'pro') && (
+                      <span className="text-xl text-slate-500 line-through">
+                        {getCurrencySymbol(currency)}{formatPrice(convertedMonthlyPrice)}
+                      </span>
+                    )}
                     <span className="text-4xl font-bold">
-                      {getCurrencySymbol(currency)}{formatPrice(convertedMonthlyPrice)}
+                      {getCurrencySymbol(currency)}{formatPrice(convertedDiscountedMonthlyPrice)}
                     </span>
                     <span className="text-slate-400">
                       /{billingCycle === 'annual' ? 'month' : 'month'}
                       {billingCycle === 'annual' && (
                         <span className="block text-xs mt-1">
-                          billed {getCurrencySymbol(currency)}{formatPrice(convertedAnnualPrice)}/year
+                          {key === 'trader' || key === 'pro' ? (
+                            <>
+                              <span className="line-through text-slate-500">
+                                {getCurrencySymbol(currency)}{formatPrice(convertedAnnualPrice)}
+                              </span>
+                              {' '}
+                              <span className="text-emerald-400">
+                                {getCurrencySymbol(currency)}{formatPrice(convertedDiscountedAnnualPrice)}
+                              </span>
+                              /year
+                            </>
+                          ) : (
+                            <>
+                              billed {getCurrencySymbol(currency)}{formatPrice(convertedAnnualPrice)}/year
+                            </>
+                          )}
                         </span>
                       )}
                     </span>
