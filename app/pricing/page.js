@@ -10,6 +10,9 @@ import { toast } from 'sonner'
 import Footer from '../components/Footer'
 import { getCurrencySymbol } from '../analyze/utils/currencyFormatter'
 import { convertCurrencySync, getCurrencyRates } from '../analyze/utils/currencyConverter'
+import { Badge } from '@/components/ui/badge'
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 const PRICING_PLANS = {
   free: {
@@ -86,29 +89,8 @@ const PRICING_PLANS = {
   }
 }
 
-// Currency dropdown component (same as analytics page)
+// Currency dropdown component using shadcn DropdownMenu
 function CurrencyDropdown({ currencies, selectedCurrency, onSelectCurrency }) {
-  const [isOpen, setIsOpen] = useState(false)
-  const dropdownRef = useRef(null)
-  const buttonRef = useRef(null)
-
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target) && 
-          buttonRef.current && !buttonRef.current.contains(event.target)) {
-        setIsOpen(false)
-      }
-    }
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [isOpen])
-
   const currencyNames = {
     'USD': 'US Dollar',
     'INR': 'Indian Rupee',
@@ -122,62 +104,33 @@ function CurrencyDropdown({ currencies, selectedCurrency, onSelectCurrency }) {
     'CHF': 'Swiss Franc'
   }
 
-  // Calculate position for fixed dropdown
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 })
-
-  useEffect(() => {
-    if (isOpen && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect()
-      setDropdownPosition({
-        top: rect.bottom + 8,
-        right: window.innerWidth - rect.right
-      })
-    }
-  }, [isOpen])
-
   return (
-    <>
-      <div className="relative" ref={buttonRef}>
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-1.5 rounded-full border border-white/5 bg-white/[0.02] px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white"
-        >
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="flex items-center gap-1.5 rounded-full border border-white/5 bg-white/[0.02] px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white">
           <span>{getCurrencySymbol(selectedCurrency)}</span>
           <span>{selectedCurrency}</span>
-          <ChevronDown className={`h-3 w-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          <ChevronDown className="h-3 w-3 transition-transform" />
         </button>
-      </div>
-
-      {isOpen && (
-        <div 
-          ref={dropdownRef}
-          className="fixed w-48 bg-slate-800/95 backdrop-blur-xl border border-slate-700/50 rounded-lg shadow-2xl z-[100] overflow-hidden max-h-80 overflow-y-auto scrollbar-hide"
-          style={{
-            top: `${dropdownPosition.top}px`,
-            right: `${dropdownPosition.right}px`
-          }}
-        >
-          {currencies.map((curr) => (
-            <button
-              key={curr}
-              onClick={() => {
-                onSelectCurrency(curr)
-                setIsOpen(false)
-              }}
-              className={`w-full px-3 py-2 text-left text-xs transition flex items-center gap-2 ${
-                selectedCurrency === curr
-                  ? 'bg-emerald-400/20 text-emerald-300 font-medium'
-                  : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
-              }`}
-            >
-              <span className="w-8 text-right">{getCurrencySymbol(curr)}</span>
-              <span className="flex-1">{curr}</span>
-              <span className="text-[10px] text-slate-500">{currencyNames[curr] || ''}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48 bg-slate-800/95 backdrop-blur-xl border-slate-700/50">
+        {currencies.map((curr) => (
+          <DropdownMenuItem
+            key={curr}
+            onClick={() => onSelectCurrency(curr)}
+            className={`flex items-center gap-2 text-xs cursor-pointer ${
+              selectedCurrency === curr
+                ? 'bg-emerald-400/20 text-emerald-300 font-medium'
+                : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+            }`}
+          >
+            <span className="w-8 text-right">{getCurrencySymbol(curr)}</span>
+            <span className="flex-1">{curr}</span>
+            <span className="text-[10px] text-slate-500">{currencyNames[curr] || ''}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
@@ -348,9 +301,9 @@ export default function PricingPage() {
               <span className={`text-sm ${billingCycle === 'annual' ? 'text-white' : 'text-slate-400'}`}>
                 Annual
                 {savings > 0 && (
-                  <span className="ml-2 px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full text-xs font-medium">
+                  <Badge variant="profit" className="ml-2">
                     Save {savings}%
-                  </span>
+                  </Badge>
                 )}
               </span>
             </div>
@@ -423,10 +376,10 @@ export default function PricingPage() {
                   
                   {/* Launch Offer Badge for paid plans - inside card */}
                   {(key === 'trader' || key === 'pro') && (
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/30 rounded-full text-xs font-semibold text-red-300 mb-4">
+                    <Badge variant="warning" className="inline-flex items-center gap-1.5 mb-4">
                       <Sparkles className="w-3 h-3" />
-                      <span>Launch Offer: 50% OFF</span>
-                    </div>
+                      Launch Offer: 50% OFF
+                    </Badge>
                   )}
                   
                   <div className="flex items-baseline gap-2">
@@ -558,7 +511,7 @@ export default function PricingPage() {
         {/* FAQ Section */}
         <div className="max-w-3xl mx-auto mb-16">
           <h2 className="text-2xl font-bold mb-6 text-center">Frequently Asked Questions</h2>
-          <div className="space-y-4">
+          <Accordion type="single" collapsible className="w-full">
             {[
               {
                 q: 'Can I change plans anytime?',
@@ -581,12 +534,16 @@ export default function PricingPage() {
                 a: 'Yes, you can cancel your subscription at any time. You\'ll continue to have access until the end of your billing period.'
               }
             ].map((faq, idx) => (
-              <div key={idx} className="rounded-xl border border-white/5 bg-white/[0.03] p-6">
-                <h3 className="font-semibold mb-2 text-emerald-400">{faq.q}</h3>
-                <p className="text-sm text-slate-400">{faq.a}</p>
-              </div>
+              <AccordionItem key={idx} value={`item-${idx}`} className="border-white/5 rounded-xl bg-white/[0.03] px-4 mb-4">
+                <AccordionTrigger className="text-left font-semibold text-emerald-400 hover:no-underline">
+                  {faq.q}
+                </AccordionTrigger>
+                <AccordionContent className="text-sm text-slate-400 pb-4">
+                  {faq.a}
+                </AccordionContent>
+              </AccordionItem>
             ))}
-          </div>
+          </Accordion>
         </div>
 
         {/* Trust Signals */}

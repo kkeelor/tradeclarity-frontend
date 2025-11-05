@@ -1,11 +1,13 @@
 // app/components/Modal.js
 'use client'
 
-import { X } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { IconBadge } from './IconBadge'
+import { cn } from '@/lib/utils'
 
 /**
  * Reusable modal component with backdrop and animations
+ * Wrapper around shadcn Dialog to maintain existing API
  */
 export function Modal({
   isOpen,
@@ -17,8 +19,6 @@ export function Modal({
   maxWidth = "2xl",
   className = ""
 }) {
-  if (!isOpen) return null
-
   const maxWidthClasses = {
     sm: "max-w-sm",
     md: "max-w-md",
@@ -30,33 +30,23 @@ export function Modal({
   }
 
   return (
-    <div
-      className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <div
-        className={`bg-slate-900 border border-slate-700 rounded-2xl ${maxWidthClasses[maxWidth]} w-full max-h-[90vh] overflow-y-auto p-4 md:p-8 shadow-2xl ${className}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-start justify-between mb-4 md:mb-6">
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className={cn(
+        "bg-slate-900 border-slate-700 p-4 md:p-8 max-h-[90vh] overflow-y-auto",
+        maxWidthClasses[maxWidth],
+        className
+      )}>
+        <DialogHeader>
           <div className="flex items-center gap-2 md:gap-4">
             {icon && <IconBadge icon={icon} color={iconColor} size="lg" />}
-            <h3 className="text-xl md:text-2xl font-bold">{title}</h3>
+            <DialogTitle className="text-xl md:text-2xl font-bold">{title}</DialogTitle>
           </div>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors p-1"
-            aria-label="Close modal"
-          >
-            <X className="w-5 h-5 md:w-6 md:h-6" />
-          </button>
-        </div>
+        </DialogHeader>
 
         {/* Content */}
         {children}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -64,11 +54,11 @@ export function Modal({
  * Modal content section helper components
  */
 export function ModalSection({ children, className = "" }) {
-  return <div className={`space-y-6 ${className}`}>{children}</div>
+  return <div className={cn("space-y-6", className)}>{children}</div>
 }
 
 export function ModalDescription({ children, className = "" }) {
-  return <p className={`text-slate-300 leading-relaxed text-base md:text-lg ${className}`}>{children}</p>
+  return <p className={cn("text-slate-300 leading-relaxed text-base md:text-lg", className)}>{children}</p>
 }
 
 export function ModalMetrics({ data, title = "Key Metrics" }) {

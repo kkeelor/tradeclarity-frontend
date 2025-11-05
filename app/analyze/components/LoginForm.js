@@ -3,6 +3,13 @@
 import { useState } from 'react'
 import { TrendingUp, Lock, Loader2, AlertCircle, Eye, EyeOff, HelpCircle, Sparkles, ChevronRight, CheckCircle, Shield, ExternalLink, X, Play, FileText, Clock, BarChart3, Brain, Zap, Target, ArrowLeft, Mail, Plus } from 'lucide-react'
 import { ExchangeIcon, Separator } from '@/components/ui'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { Form } from '@/components/ui/form'
+import { useForm } from 'react-hook-form'
 
 // Step Progress Indicator Component
 function StepProgress({ currentStep, totalSteps }) {
@@ -35,22 +42,19 @@ function HelpModal({ isOpen, onClose, exchange }) {
   if (!isOpen) return null
   
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-2xl animate-in" onClick={e => e.stopPropagation()}>
-        <div className="sticky top-0 bg-slate-900 border-b border-slate-700 p-6 flex items-center justify-between">
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="bg-slate-900 border-slate-700 max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center">
               <HelpCircle className="w-5 h-5 text-blue-400" />
             </div>
             <div>
-              <h3 className="text-xl font-bold">How to Get Your API Keys</h3>
-              <p className="text-sm text-slate-400">{exchange.displayName} Guide</p>
+              <DialogTitle className="text-xl font-bold">How to Get Your API Keys</DialogTitle>
+              <DialogDescription>{exchange.displayName} Guide</DialogDescription>
             </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
-            <X className="w-6 h-6" />
-          </button>
-        </div>
+        </DialogHeader>
         
         <div className="p-6 space-y-6">
           <ol className="space-y-4">
@@ -166,8 +170,8 @@ function HelpModal({ isOpen, onClose, exchange }) {
             </ul>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -376,10 +380,10 @@ export default function LoginForm({
                         {ex.id === 'coindcx' && 'India\'s #1 crypto exchange'}
                       </div>
                       {ex.id === 'binance' && (
-                        <div className="inline-flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 bg-gradient-to-r from-emerald-500/20 to-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-full text-[10px] sm:text-xs font-semibold">
+                        <Badge variant="profit" className="inline-flex items-center gap-1">
                           <Sparkles className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                           Most Popular
-                        </div>
+                        </Badge>
                       )}
                     </div>
                     <ChevronRight className={`w-4 h-4 sm:w-5 sm:h-5 transition-all group-hover:translate-x-0.5 ${
@@ -488,11 +492,12 @@ export default function LoginForm({
               </div>
               
               {/* API Key Field */}
+              <Form {...form}>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="block text-sm font-medium text-slate-300">
+                  <Label htmlFor="api-key" className="text-slate-300">
                     API Key
-                  </label>
+                  </Label>
                   <button
                     onClick={() => setShowHelpModal(true)}
                     className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors"
@@ -502,7 +507,8 @@ export default function LoginForm({
                   </button>
                 </div>
                 <div className="relative">
-                  <input 
+                  <Input 
+                    id="api-key"
                     type="text" 
                     value={apiKey} 
                     onChange={(e) => {
@@ -510,7 +516,7 @@ export default function LoginForm({
                       validateApiKey(e.target.value)
                     }}
                     placeholder={`Paste your ${currentExchange.config.displayName} API key`} 
-                    className={`w-full px-4 py-3 bg-slate-900/80 border rounded-xl focus:outline-none focus:ring-2 transition-all text-white placeholder-slate-500 pr-10 backdrop-blur-sm ${
+                    className={`bg-slate-900/80 backdrop-blur-sm text-white placeholder-slate-500 pr-10 ${
                       apiKeyValid === true ? 'border-emerald-500/50 focus:ring-emerald-500/30' :
                       apiKeyValid === false ? 'border-red-500/50 focus:ring-red-500/30' :
                       'border-slate-700/50 focus:ring-emerald-500/30'
@@ -518,10 +524,10 @@ export default function LoginForm({
                     disabled={status === 'connecting'} 
                   />
                   {apiKeyValid === true && (
-                    <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-400" />
+                    <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-400 z-10" />
                   )}
                   {apiKeyValid === false && (
-                    <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-red-400" />
+                    <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-red-400 z-10" />
                   )}
                 </div>
                 {apiKeyValid === true && (
@@ -541,7 +547,7 @@ export default function LoginForm({
               {/* API Secret Field */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="block text-sm font-medium text-slate-300">API Secret</label>
+                  <Label htmlFor="api-secret" className="text-slate-300">API Secret</Label>
                   <button
                     onClick={() => setShowHelpModal(true)}
                     className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors"
@@ -551,7 +557,8 @@ export default function LoginForm({
                   </button>
                 </div>
                 <div className="relative">
-                  <input 
+                  <Input 
+                    id="api-secret"
                     type={showSecret ? "text" : "password"} 
                     value={apiSecret} 
                     onChange={(e) => {
@@ -559,14 +566,14 @@ export default function LoginForm({
                       validateApiSecret(e.target.value)
                     }}
                     placeholder="Paste your API secret" 
-                    className={`w-full px-4 py-3 bg-slate-900/80 border rounded-xl focus:outline-none focus:ring-2 transition-all text-white placeholder-slate-500 pr-20 backdrop-blur-sm ${
+                    className={`bg-slate-900/80 backdrop-blur-sm text-white placeholder-slate-500 pr-20 ${
                       apiSecretValid === true ? 'border-emerald-500/50 focus:ring-emerald-500/30' :
                       apiSecretValid === false ? 'border-red-500/50 focus:ring-red-500/30' :
                       'border-slate-700/50 focus:ring-emerald-500/30'
                     }`}
                     disabled={status === 'connecting'} 
                   />
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2 z-10">
                     {apiSecretValid === true && <CheckCircle className="w-5 h-5 text-emerald-400" />}
                     {apiSecretValid === false && <AlertCircle className="w-5 h-5 text-red-400" />}
                     <button 
@@ -591,19 +598,20 @@ export default function LoginForm({
                   </div>
                 )}
               </div>
+              </Form>
 
               {(error || submitError) && (
-                <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-                  <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-                  <p className="text-red-400 text-sm">{submitError || error}</p>
-                </div>
+                <Alert variant="destructive" className="bg-red-500/10 border-red-500/30">
+                  <AlertCircle className="w-5 h-5 text-red-400" />
+                  <AlertDescription className="text-red-400 text-sm">{submitError || error}</AlertDescription>
+                </Alert>
               )}
 
               {((isSubmitting || status === 'connecting') && !submitError && !error) && (
-                <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
-                  <Loader2 className="w-5 h-5 text-emerald-400 animate-spin flex-shrink-0" />
-                  <p className="text-emerald-400 text-sm">{localProgress || progress || 'Connecting...'}</p>
-                </div>
+                <Alert className="bg-emerald-500/10 border-emerald-500/30">
+                  <Loader2 className="w-5 h-5 text-emerald-400 animate-spin" />
+                  <AlertDescription className="text-emerald-400 text-sm">{localProgress || progress || 'Connecting...'}</AlertDescription>
+                </Alert>
               )}
 
               {/* Security Info */}

@@ -10,6 +10,15 @@ import { toast } from 'sonner'
 import Header from './Header'
 import Footer from '../../components/Footer'
 import ConnectExchangeModal from './ConnectExchangeModal'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Badge } from '@/components/ui/badge'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { Form } from '@/components/ui/form'
+import { useForm } from 'react-hook-form'
 import {
   AlertDialog,
   AlertDialogContent,
@@ -954,157 +963,153 @@ function FileConfigCard({ config, connectedExchanges, onUpdate, onRemove, getSta
   const selectedExchange = connectedExchanges.find(e => e.id === config.exchangeConnectionId)
 
   return (
-    <div className={`relative overflow-hidden border rounded-2xl p-5 transition-all backdrop-blur-sm ${getStatusColor(config.status)}`}>
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-800/40 via-slate-800/20 to-slate-800/10" />
-      <div className="relative">
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-2">
-            {selectedExchange ? (
-              <ExchangeIcon exchange={selectedExchange.exchange} size={20} className="w-5 h-5" />
-            ) : (
-              <FileText className="w-5 h-5 text-slate-400" />
+      <div className={`relative overflow-hidden border rounded-2xl p-5 transition-all backdrop-blur-sm ${getStatusColor(config.status)}`}>
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-800/40 via-slate-800/20 to-slate-800/10" />
+        <div className="relative">
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              {selectedExchange ? (
+                <ExchangeIcon exchange={selectedExchange.exchange} size={20} className="w-5 h-5" />
+              ) : (
+                <FileText className="w-5 h-5 text-slate-400" />
+              )}
+              <span className="text-sm font-medium text-slate-200">{config.file.name}</span>
+              <span className="text-xs text-slate-500">
+                ({(config.file.size / 1024).toFixed(1)} KB)
+              </span>
+              {config.status && (
+                <Badge 
+                  variant={
+                    config.status === 'success' ? 'profit' :
+                    config.status === 'error' ? 'loss' :
+                    config.status === 'processing' ? 'warning' :
+                    'secondary'
+                  }
+                  className="text-xs"
+                >
+                  {config.status === 'ready' ? 'Ready' :
+                   config.status === 'processing' ? 'Processing' :
+                   config.status === 'success' ? 'Success' :
+                   config.status === 'error' ? 'Error' : config.status}
+                </Badge>
+              )}
+            </div>
+            {config.status === 'ready' && (
+              <button
+                onClick={onRemove}
+                className="p-1 text-slate-500 hover:text-red-400 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
             )}
-            <span className="text-sm font-medium text-slate-200">{config.file.name}</span>
-            <span className="text-xs text-slate-500">
-              ({(config.file.size / 1024).toFixed(1)} KB)
-            </span>
           </div>
-          {config.status === 'ready' && (
-            <button
-              onClick={onRemove}
-              className="p-1 text-slate-500 hover:text-red-400 transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
-        </div>
 
         {config.status === 'ready' && (
           <div className="space-y-4">
             {config.warning && (
-              <div className="relative overflow-hidden flex items-start gap-2 text-xs text-yellow-300 bg-gradient-to-br from-yellow-500/10 via-yellow-500/5 to-transparent border border-yellow-500/30 rounded-xl p-3 backdrop-blur-sm">
-                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                <span>{config.warning}</span>
-              </div>
+              <Alert variant="destructive" className="bg-yellow-500/10 border-yellow-500/30 text-yellow-300">
+                <AlertCircle className="w-4 h-4" />
+                <AlertDescription className="text-xs">{config.warning}</AlertDescription>
+              </Alert>
             )}
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-2">Label (optional)</label>
-              <input
+              <Label htmlFor="file-label" className="block text-xs text-slate-300 mb-2">Label (optional)</Label>
+              <Input
+                id="file-label"
                 type="text"
                 value={config.label}
                 onChange={(e) => onUpdate({ label: e.target.value })}
                 placeholder="Binance January 2024"
-                className="w-full px-4 py-2.5 bg-slate-800/60 border border-slate-600/50 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                className="bg-slate-800/60 border-slate-600/50 text-slate-200 placeholder-slate-500 focus:border-emerald-500/50 focus:ring-emerald-500/20"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-2">Link to Exchange (optional)</label>
-              <div className="relative">
-                <button
-                  onClick={() => setShowExchangeDropdown(!showExchangeDropdown)}
-                  className="w-full px-4 py-2.5 bg-slate-800/60 border border-slate-600/50 rounded-xl text-sm text-left flex items-center justify-between hover:border-emerald-500/50 hover:bg-slate-800/80 transition-all"
-                >
-                  {selectedExchange ? (
-                    <span className="flex items-center gap-2">
-                      <ExchangeIcon exchange={selectedExchange.exchange} size={14} className="w-6 h-6 p-1" />
-                      <span className="text-slate-200">{selectedExchange.name}</span>
-                    </span>
-                  ) : (
-                    <span className="text-slate-500">Select exchange...</span>
-                  )}
-                  <ChevronDown className="w-4 h-4 text-slate-400" />
-                </button>
-
-                {showExchangeDropdown && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-10"
-                      onClick={() => setShowExchangeDropdown(false)}
-                    />
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-20 max-h-48 overflow-y-auto">
-                      {connectedExchanges.map(exchange => (
-                        <button
-                          key={exchange.id}
-                          onClick={() => {
-                            onUpdate({ exchangeConnectionId: exchange.id })
-                            setShowExchangeDropdown(false)
-                          }}
-                          className="w-full px-3 py-2 text-left text-sm hover:bg-slate-700/50 transition-colors flex items-center gap-2"
-                        >
-                          <ExchangeIcon exchange={exchange.exchange} size={14} className="w-6 h-6 p-1" />
-                          <span className="text-slate-200">{exchange.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
+              <Label htmlFor={`exchange-select-${config.id}`} className="block text-xs font-medium text-slate-300 mb-2">Link to Exchange (optional)</Label>
+              <DropdownMenu open={showExchangeDropdown} onOpenChange={setShowExchangeDropdown}>
+                <DropdownMenuTrigger asChild>
+                  <button className="w-full px-4 py-2.5 bg-slate-800/60 border border-slate-600/50 rounded-xl text-sm text-left flex items-center justify-between hover:border-emerald-500/50 hover:bg-slate-800/80 transition-all">
+                    {selectedExchange ? (
+                      <span className="flex items-center gap-2">
+                        <ExchangeIcon exchange={selectedExchange.exchange} size={14} className="w-6 h-6 p-1" />
+                        <span className="text-slate-200">{selectedExchange.name}</span>
+                      </span>
+                    ) : (
+                      <span className="text-slate-500">Select exchange...</span>
+                    )}
+                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-full bg-slate-800 border-slate-700 max-h-48">
+                  {connectedExchanges.map(exchange => (
+                    <DropdownMenuItem
+                      key={exchange.id}
+                      onClick={() => {
+                        onUpdate({ exchangeConnectionId: exchange.id })
+                        setShowExchangeDropdown(false)
+                      }}
+                      className="text-sm hover:bg-slate-700/50 flex items-center gap-2 cursor-pointer"
+                    >
+                      <ExchangeIcon exchange={exchange.exchange} size={14} className="w-6 h-6 p-1" />
+                      <span className="text-slate-200">{exchange.name}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-2">Account Type</label>
-              <select
-                value={config.accountType}
-                onChange={(e) => onUpdate({ accountType: e.target.value })}
-                className="w-full px-4 py-2.5 bg-slate-800/60 border border-slate-600/50 rounded-xl text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 transition-all"
-              >
-                <option value="BOTH">Both (SPOT & FUTURES)</option>
-                <option value="SPOT">SPOT Only</option>
-                <option value="FUTURES">FUTURES Only</option>
-              </select>
+              <Label htmlFor="account-type" className="block text-xs text-slate-300 mb-2">Account Type</Label>
+              <Select value={config.accountType} onValueChange={(value) => onUpdate({ accountType: value })}>
+                <SelectTrigger id="account-type" className="bg-slate-800/60 border-slate-600/50 text-slate-200 focus:border-emerald-500/50 focus:ring-emerald-500/20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-800 border-slate-700 text-slate-200">
+                  <SelectItem value="BOTH">Both (SPOT & FUTURES)</SelectItem>
+                  <SelectItem value="SPOT">SPOT Only</SelectItem>
+                  <SelectItem value="FUTURES">FUTURES Only</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         )}
 
         {config.status === 'processing' && (
-          <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border border-blue-500/30 p-4 backdrop-blur-sm">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-500/20 border border-blue-500/30 rounded-xl flex items-center justify-center">
-                <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
-              </div>
-              <span className="text-sm font-medium text-slate-200">{config.progress}</span>
-            </div>
-          </div>
+          <Alert className="bg-blue-500/10 border-blue-500/30">
+            <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
+            <AlertDescription className="text-blue-400 text-sm">{config.progress}</AlertDescription>
+          </Alert>
         )}
 
         {config.status === 'success' && (
-          <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/30 p-4 backdrop-blur-sm">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 bg-emerald-500/20 border border-emerald-500/30 rounded-xl flex items-center justify-center flex-shrink-0">
-                <Check className="w-5 h-5 text-emerald-400" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-emerald-300">{config.message}</p>
-                {config.tradesCount !== null && (
-                  <p className="text-xs text-slate-300 mt-1.5">
-                    {config.tradesCount} trades imported
-                    {config.duplicatesCount > 0 && ` ? ${config.duplicatesCount} duplicates skipped`}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
+          <Alert className="bg-emerald-500/10 border-emerald-500/30">
+            <Check className="w-5 h-5 text-emerald-400" />
+            <AlertDescription>
+              <p className="text-sm font-semibold text-emerald-300">{config.message}</p>
+              {config.tradesCount !== null && (
+                <p className="text-xs text-slate-300 mt-1.5">
+                  {config.tradesCount} trades imported
+                  {config.duplicatesCount > 0 && ` ? ${config.duplicatesCount} duplicates skipped`}
+                </p>
+              )}
+            </AlertDescription>
+          </Alert>
         )}
 
         {config.status === 'error' && (
-          <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-red-500/10 via-red-500/5 to-transparent border border-red-500/30 p-4 backdrop-blur-sm">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 bg-red-500/20 border border-red-500/30 rounded-xl flex items-center justify-center flex-shrink-0">
-                <AlertCircle className="w-5 h-5 text-red-400" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-red-300">{config.message}</p>
-                <button
-                  onClick={() => onUpdate({ status: 'ready', message: '' })}
-                  className="text-xs text-red-400 hover:text-red-300 font-semibold mt-2 inline-flex items-center gap-1 transition-colors"
-                >
-                  Try Again <ChevronDown className="w-3 h-3 rotate-90" />
-                </button>
-              </div>
-            </div>
-          </div>
+          <Alert variant="destructive" className="bg-red-500/10 border-red-500/30">
+            <AlertCircle className="w-5 h-5 text-red-400" />
+            <AlertDescription>
+              <p className="text-sm font-semibold text-red-300">{config.message}</p>
+              <button
+                onClick={() => onUpdate({ status: 'ready', message: '' })}
+                className="text-xs text-red-400 hover:text-red-300 font-semibold mt-2 inline-flex items-center gap-1 transition-colors"
+              >
+                Try Again <ChevronDown className="w-3 h-3 rotate-90" />
+              </button>
+            </AlertDescription>
+          </Alert>
         )}
       </div>
     </div>
@@ -1173,9 +1178,9 @@ function UploadedFileCard({ file, connectedExchanges, onRefresh, onDelete, isDel
                 </span>
               </>
             )}
-            <span className="px-2 py-0.5 bg-slate-700/50 text-slate-400 text-xs rounded">
+            <Badge variant="outline" className="text-xs">
               {getAccountTypeLabel(file.account_type)}
-            </span>
+            </Badge>
           </div>
           {selectedExchange && (
             <div className="flex items-center gap-2 mt-1 text-xs">
@@ -1208,8 +1213,6 @@ function UpdateKeysModal({ exchange, isOpen, onClose, onConfirm, isUpdating }) {
   const [showSecret, setShowSecret] = useState(false)
   const [apiKeyValid, setApiKeyValid] = useState(null)
   const [apiSecretValid, setApiSecretValid] = useState(null)
-
-  if (!isOpen) return null
 
   // Validate API key format (exchange-specific validation)
   const validateApiKey = (key) => {
@@ -1268,28 +1271,12 @@ function UpdateKeysModal({ exchange, isOpen, onClose, onConfirm, isUpdating }) {
   }
 
   return (
-    <div
-      className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <div
-        className="relative overflow-hidden bg-gradient-to-br from-slate-900/95 via-slate-900/95 to-slate-900/95 border border-slate-700/50 rounded-2xl max-w-lg w-full backdrop-blur-xl shadow-2xl"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="sticky top-0 bg-gradient-to-r from-slate-900/95 via-slate-900/95 to-slate-900/95 border-b border-slate-700/50 p-6 flex items-center justify-between backdrop-blur-xl z-10">
-          <div>
-            <h2 className="text-2xl font-bold">Update API Keys</h2>
-            <p className="text-slate-400 mt-1">{exchange.name}</p>
-          </div>
-          <button
-            onClick={onClose}
-            disabled={isUpdating}
-            className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all disabled:opacity-50"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="bg-gradient-to-br from-slate-900/95 via-slate-900/95 to-slate-900/95 border-slate-700/50 max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="text-2xl font-bold">Update API Keys</DialogTitle>
+          <DialogDescription>{exchange.name}</DialogDescription>
+        </DialogHeader>
 
         {/* Content */}
         <div className="p-6 space-y-6">
@@ -1306,12 +1293,14 @@ function UpdateKeysModal({ exchange, isOpen, onClose, onConfirm, isUpdating }) {
           </div>
 
           {/* API Key Field */}
+          <Form {...form}>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
+            <Label htmlFor="update-api-key" className="block text-sm text-slate-300 mb-2">
               API Key
-            </label>
+            </Label>
             <div className="relative">
-              <input
+              <Input
+                id="update-api-key"
                 type="text"
                 value={apiKey}
                 onChange={(e) => {
@@ -1320,13 +1309,13 @@ function UpdateKeysModal({ exchange, isOpen, onClose, onConfirm, isUpdating }) {
                 }}
                 placeholder={`Enter your ${exchange.name} API key`}
                 disabled={isUpdating}
-                className={`w-full px-4 py-3 bg-slate-800/60 border rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                className={`bg-slate-800/60 text-slate-200 placeholder-slate-500 disabled:opacity-50 disabled:cursor-not-allowed ${
                   apiKeyValid === true ? 'border-emerald-500/50 focus:ring-emerald-500/30' :
                   apiKeyValid === false ? 'border-red-500/50 focus:ring-red-500/30' :
                   'border-slate-600/50 focus:ring-slate-500/30'
                 }`}
               />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 z-10">
                 {apiKeyValid === true && <CheckCircle className="w-5 h-5 text-emerald-400" />}
                 {apiKeyValid === false && <AlertCircle className="w-5 h-5 text-red-400" />}
               </div>
@@ -1347,11 +1336,12 @@ function UpdateKeysModal({ exchange, isOpen, onClose, onConfirm, isUpdating }) {
 
           {/* API Secret Field */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
+            <Label htmlFor="update-api-secret" className="block text-sm text-slate-300 mb-2">
               API Secret
-            </label>
+            </Label>
             <div className="relative">
-              <input
+              <Input
+                id="update-api-secret"
                 type={showSecret ? 'text' : 'password'}
                 value={apiSecret}
                 onChange={(e) => {
@@ -1360,13 +1350,13 @@ function UpdateKeysModal({ exchange, isOpen, onClose, onConfirm, isUpdating }) {
                 }}
                 placeholder={`Enter your ${exchange.name} API secret`}
                 disabled={isUpdating}
-                className={`w-full px-4 py-3 bg-slate-800/60 border rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed pr-12 ${
+                className={`bg-slate-800/60 text-slate-200 placeholder-slate-500 disabled:opacity-50 disabled:cursor-not-allowed pr-12 ${
                   apiSecretValid === true ? 'border-emerald-500/50 focus:ring-emerald-500/30' :
                   apiSecretValid === false ? 'border-red-500/50 focus:ring-red-500/30' :
                   'border-slate-600/50 focus:ring-slate-500/30'
                 }`}
               />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2 z-10">
                 {apiSecretValid === true && <CheckCircle className="w-5 h-5 text-emerald-400" />}
                 {apiSecretValid === false && <AlertCircle className="w-5 h-5 text-red-400" />}
                 <button
@@ -1396,10 +1386,11 @@ function UpdateKeysModal({ exchange, isOpen, onClose, onConfirm, isUpdating }) {
               </p>
             )}
           </div>
+          </Form>
         </div>
 
         {/* Footer */}
-        <div className="border-t border-slate-700/50 p-6 flex items-center justify-end gap-3">
+        <DialogFooter className="border-t border-slate-700/50 pt-6">
           <button
             onClick={onClose}
             disabled={isUpdating}
@@ -1424,9 +1415,9 @@ function UpdateKeysModal({ exchange, isOpen, onClose, onConfirm, isUpdating }) {
               </>
             )}
           </button>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

@@ -17,11 +17,13 @@ import { analyzeDrawdowns } from '../utils/drawdownAnalysis'
 import { analyzeTimeBasedPerformance } from '../utils/timeBasedAnalysis'
 import { analyzeSymbols } from '../utils/symbolAnalysis'
 import { convertAnalyticsForDisplay } from '../utils/currencyFormatter'
-import { getCurrencyRates } from '../utils/currencyConverter'
+import { getCurrencyRates, convertCurrencySync } from '../utils/currencyConverter'
 import { generateValueFirstInsights } from '../utils/insights/valueFirstInsights'
 import { prioritizeInsights, enhanceInsightForDisplay } from '../utils/insights/insightsPrioritizationEngine'
 import AhaMomentsSection from './AhaMomentsSection'
 import { ExchangeIcon, SeparatorText, Separator, Card as ShadcnCard, CardHeader, CardTitle, CardDescription, CardContent, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableFooter } from '@/components/ui'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Badge } from '@/components/ui/badge'
 import {
   AreaChart, Area, BarChart, Bar, LineChart as RechartsLineChart,
   Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart,
@@ -36,11 +38,6 @@ import {
   SectionHeaderWithAction,
   FilterButton,
   TabButton,
-  Modal,
-  ModalSection,
-  ModalDescription,
-  ModalMetrics,
-  ModalActionSteps,
   HeroSkeleton,
   ChartSkeleton,
   CardGridSkeleton,
@@ -178,17 +175,17 @@ function HeroSection({ analytics, currSymbol, currency, metadata }) {
               })}
 
               {hasLimitedData && (
-                <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/40 bg-amber-400/10 px-3 py-1.5 text-xs font-semibold text-amber-100">
+                <Badge variant="warning" className="inline-flex items-center gap-2">
                   <AlertCircle className="w-3.5 h-3.5" />
                   {tradeCount}/20 trades analyzed
-                </span>
+                </Badge>
               )}
 
               {hasGreatData && (
-                <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/40 bg-emerald-400/10 px-3 py-1.5 text-xs font-semibold text-emerald-100">
+                <Badge variant="profit" className="inline-flex items-center gap-2">
                   <CheckCircle className="w-3.5 h-3.5" />
                   High-quality dataset
-                </span>
+                </Badge>
               )}
             </div>
           </div>
@@ -1147,8 +1144,6 @@ function SymbolRankingsTable({ rankings, currSymbol }) {
 // ============================================
 
 function PatternDetectionEnhanced({ patterns }) {
-  const [expanded, setExpanded] = useState(true)
-  
   // Sort by severity: high ? medium ? low
   const severityOrder = { high: 0, medium: 1, low: 2 }
   const sortedPatterns = [...patterns].sort((a, b) => 
@@ -1166,67 +1161,60 @@ function PatternDetectionEnhanced({ patterns }) {
         title="Hidden Patterns Detected"
         subtitle={`${patterns.length} insights from your data`}
         color="cyan"
-        action={
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="text-slate-400 hover:text-white transition-colors"
-          >
-            {expanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-          </button>
-        }
       />
       
-      {expanded && (
-        <div className="space-y-3">
-          {/* All Patterns - Uniform Grid */}
-          <div className="grid grid-cols-1 gap-3">
-            {sortedPatterns.map((pattern, i) => {
-              const IconComponent = pattern.icon
-              return (
-                <div
-                  key={i}
-                  className={`bg-slate-800/30 border rounded-lg p-4 ${
-                    pattern.severity === 'high' ? 'border-red-500/30' :
-                    pattern.severity === 'medium' ? 'border-yellow-500/20' :
-                    'border-slate-700/30'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <IconBadge
-                      icon={IconComponent}
-                      color={pattern.severity === 'high' ? 'red' : pattern.severity === 'medium' ? 'yellow' : 'emerald'}
-                      size="sm"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <h4 className="font-semibold text-sm">{pattern.title}</h4>
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ml-2 ${
-                          pattern.severity === 'high' ? 'bg-red-500/10 text-red-400' :
-                          pattern.severity === 'medium' ? 'bg-yellow-500/10 text-yellow-400' :
-                          'bg-emerald-500/10 text-emerald-400'
-                        }`}>
-                          {pattern.severity}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-400">{pattern.description}</p>
-                      {pattern.stats && (
-                        <div className="flex flex-wrap gap-2 mt-2 text-xs">
-                          {Object.entries(pattern.stats).map(([key, value]) => (
-                            <div key={key} className="bg-slate-700/30 px-2 py-1 rounded">
-                              <span className="text-slate-400">{key}:</span>{' '}
-                              <span className="text-white font-mono">{value}</span>
+      <Accordion type="single" collapsible defaultValue="patterns" className="w-full">
+        <AccordionItem value="patterns" className="border-none">
+          <AccordionTrigger className="hidden" />
+          <AccordionContent className="pt-0">
+            <div className="space-y-3">
+              {/* All Patterns - Uniform Grid */}
+              <div className="grid grid-cols-1 gap-3">
+                {sortedPatterns.map((pattern, i) => {
+                  const IconComponent = pattern.icon
+                  return (
+                    <div
+                      key={i}
+                      className={`bg-slate-800/30 border rounded-lg p-4 ${
+                        pattern.severity === 'high' ? 'border-red-500/30' :
+                        pattern.severity === 'medium' ? 'border-yellow-500/20' :
+                        'border-slate-700/30'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <IconBadge
+                          icon={IconComponent}
+                          color={pattern.severity === 'high' ? 'red' : pattern.severity === 'medium' ? 'yellow' : 'emerald'}
+                          size="sm"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <h4 className="font-semibold text-sm">{pattern.title}</h4>
+                            <Badge variant={pattern.severity === 'high' ? 'loss' : pattern.severity === 'medium' ? 'warning' : 'profit'} className="text-xs font-medium flex-shrink-0 ml-2">
+                              {pattern.severity}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-slate-400">{pattern.description}</p>
+                          {pattern.stats && (
+                            <div className="flex flex-wrap gap-2 mt-2 text-xs">
+                              {Object.entries(pattern.stats).map(([key, value]) => (
+                                <Badge key={key} variant="secondary" className="text-xs">
+                                  <span className="text-slate-400">{key}:</span>{' '}
+                                  <span className="text-white font-mono">{value}</span>
+                                </Badge>
+                              ))}
                             </div>
-                          ))}
+                          )}
                         </div>
-                      )}
+                      </div>
                     </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
+                  )
+                })}
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
   )
 }
@@ -1781,13 +1769,9 @@ function SymbolsTable({ symbols, filter, currSymbol }) {
                 </td>
                 <td className="p-3 md:p-4 text-right text-slate-300 font-semibold whitespace-nowrap">{data.trades}</td>
                 <td className="p-3 md:p-4 text-right">
-                  <span className={`px-3 py-1 rounded-full text-sm font-semibold whitespace-nowrap ${
-                    data.winRate >= 60 ? 'bg-emerald-500/20 text-emerald-400' :
-                    data.winRate >= 50 ? 'bg-yellow-500/20 text-yellow-400' :
-                    'bg-red-500/20 text-red-400'
-                  }`}>
+                  <Badge variant={data.winRate >= 60 ? 'profit' : data.winRate >= 50 ? 'warning' : 'loss'} className="text-sm font-semibold whitespace-nowrap">
                     {data.winRate.toFixed(0)}%
-                  </span>
+                  </Badge>
                 </td>
                 <td className="p-3 md:p-4 text-right text-slate-400 text-sm font-medium whitespace-nowrap">
                   {data.wins}W / {data.losses}L
@@ -2550,6 +2534,13 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
   // Check if portfolio data is available (only present on live connections)
   const hasPortfolioData = metadata?.totalPortfolioValue !== undefined && metadata?.totalPortfolioValue !== null
 
+  // Convert portfolio value to selected currency
+  const convertedPortfolioValue = useMemo(() => {
+    if (!hasPortfolioData || !metadata?.totalPortfolioValue) return null
+    if (currency === 'USD') return metadata.totalPortfolioValue
+    return convertCurrencySync(metadata.totalPortfolioValue, 'USD', currency)
+  }, [hasPortfolioData, metadata?.totalPortfolioValue, currency])
+
   return (
     <div className="space-y-4 md:space-y-6">
       {/* TOP SECTION: Balanced Portfolio Overview + PnL Summary */}
@@ -2591,7 +2582,7 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
                       <span className="text-[10px] font-medium text-slate-300">Total Portfolio Value</span>
                     </div>
                     <div className="text-xl md:text-2xl font-bold text-blue-400 mb-1">
-                      {currSymbol}{formatNumber(metadata?.totalPortfolioValue || 0, 2)}
+                      {currSymbol}{formatNumber(convertedPortfolioValue || 0, 2)}
                     </div>
                     <div className="text-[10px] text-slate-400">{currency || 'USD'}</div>
                   </ShadcnCard>
@@ -4222,7 +4213,7 @@ function BehavioralTab({ analytics, currSymbol, currency }) {
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-xs font-semibold text-blue-300">{rec.title}</span>
                       {rec.priority === 'high' && (
-                        <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/30 text-blue-300 rounded uppercase">High Priority</span>
+                        <Badge variant="purple" className="text-[10px] uppercase">High Priority</Badge>
                       )}
                     </div>
                     <div className="text-[11px] text-slate-300">{rec.message}</div>
@@ -4257,16 +4248,11 @@ function BehavioralTab({ analytics, currSymbol, currency }) {
               }`}>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-semibold text-slate-200">{symbol.symbol}</span>
-                  <span className={`text-[10px] px-2 py-0.5 rounded ${
-                    symbol.category === 'strength' ? 'bg-emerald-500/30 text-emerald-300' :
-                    symbol.category === 'weakness' ? 'bg-red-500/30 text-red-300' :
-                    symbol.category === 'fomo' ? 'bg-yellow-500/30 text-yellow-300' :
-                    'bg-slate-700/50 text-slate-400'
-                  }`}>
+                  <Badge variant={symbol.category === 'strength' ? 'profit' : symbol.category === 'weakness' ? 'loss' : symbol.category === 'fomo' ? 'warning' : 'secondary'} className="text-[10px]">
                     {symbol.category === 'strength' ? 'Strength' :
                      symbol.category === 'weakness' ? 'Weakness' :
                      symbol.category === 'fomo' ? 'FOMO' : 'Neutral'}
-                  </span>
+                  </Badge>
                 </div>
                 <div className="text-[11px] text-slate-400 mb-1">{symbol.message}</div>
                 <div className="flex items-center gap-3 text-[10px] text-slate-500">
@@ -4511,133 +4497,126 @@ export default function AnalyticsView({
 
         {/* Tabs - Moved to Top */}
         <div className="overflow-hidden rounded-3xl border border-slate-800 bg-black shadow-xl">
-          {/* Tab Headers */}
-          <div className="flex items-center border-b border-slate-800">
-            <div className="flex flex-1 overflow-x-auto scrollbar-hide">
-              {tabs.map(tab => {
-                const TabIcon = tab.icon
-                return (
-                  <TabButton
-                    key={tab.id}
-                    active={activeTab === tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className="whitespace-nowrap text-xs md:text-base"
-                  >
-                    <div className="flex items-center gap-2">
-                      <TabIcon className="w-4 h-4" />
-                      <span>{tab.label}</span>
-                    </div>
-                  </TabButton>
-                )
-              })}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            {/* Tab Headers */}
+            <div className="flex items-center border-b border-slate-800">
+              <TabsList className="flex flex-1 overflow-x-auto scrollbar-hide bg-transparent border-none h-auto p-0">
+                {tabs.map(tab => {
+                  const TabIcon = tab.icon
+                  return (
+                    <TabsTrigger
+                      key={tab.id}
+                      value={tab.id}
+                      className="whitespace-nowrap text-xs md:text-base data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 data-[state=active]:border-b-2 data-[state=active]:border-emerald-500 rounded-none border-b-2 border-transparent"
+                    >
+                      <div className="flex items-center gap-2">
+                        <TabIcon className="w-4 h-4" />
+                        <span>{tab.label}</span>
+                      </div>
+                    </TabsTrigger>
+                  )
+                })}
+              </TabsList>
+
+              {/* Filter Button */}
+              <div className="flex-shrink-0 border-l border-white/5 px-3">
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`p-2 rounded-lg transition-all ${
+                    showFilters
+                      ? 'bg-purple-500/20 text-purple-200'
+                      : 'text-slate-400 hover:bg-white/10 hover:text-white'
+                  }`}
+                  title="Filter data"
+                >
+                  <Filter className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
-            {/* Filter Button */}
-            <div className="flex-shrink-0 border-l border-white/5 px-3">
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className={`p-2 rounded-lg transition-all ${
-                  showFilters
-                    ? 'bg-purple-500/20 text-purple-200'
-                    : 'text-slate-400 hover:bg-white/10 hover:text-white'
-                }`}
-                title="Filter data"
-              >
-                <Filter className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+            {/* Filter Panel */}
+            {showFilters && currencyMetadata?.exchanges && currencyMetadata.exchanges.length > 1 && (
+              <div className="border-b border-white/5 bg-white/[0.03] px-4 py-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Exchange Buttons */}
+                  {currencyMetadata.exchanges.map(exchange => (
+                    <button
+                      key={exchange}
+                      onClick={() => {
+                        if (selectedExchanges.includes(exchange)) {
+                          setSelectedExchanges(selectedExchanges.filter(ex => ex !== exchange))
+                        } else {
+                          setSelectedExchanges([...selectedExchanges, exchange])
+                        }
+                      }}
+                      className={`relative flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium capitalize transition-all ${
+                        selectedExchanges.includes(exchange)
+                          ? 'border-purple-400/50 bg-purple-500/20 text-white'
+                          : 'border-white/10 bg-white/5 text-slate-200 hover:border-purple-400/40 hover:text-white'
+                      }`}
+                    >
+                      {selectedExchanges.includes(exchange) && (
+                        <CheckCircle className="w-3.5 h-3.5 text-purple-200" />
+                      )}
+                      {exchange}
+                    </button>
+                  ))}
 
-          {/* Filter Panel */}
-          {showFilters && currencyMetadata?.exchanges && currencyMetadata.exchanges.length > 1 && (
-            <div className="border-b border-white/5 bg-white/[0.03] px-4 py-3">
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Exchange Buttons */}
-                {currencyMetadata.exchanges.map(exchange => (
+                  {/* Apply Button */}
                   <button
-                    key={exchange}
                     onClick={() => {
-                      if (selectedExchanges.includes(exchange)) {
-                        setSelectedExchanges(selectedExchanges.filter(ex => ex !== exchange))
-                      } else {
-                        setSelectedExchanges([...selectedExchanges, exchange])
+                      setAppliedExchanges(selectedExchanges)
+                      console.log('?? Applying exchange filter:', selectedExchanges)
+                      if (onFilterExchanges && selectedExchanges.length > 0) {
+                        onFilterExchanges(selectedExchanges)
                       }
                     }}
-                    className={`relative flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium capitalize transition-all ${
-                      selectedExchanges.includes(exchange)
-                        ? 'border-purple-400/50 bg-purple-500/20 text-white'
-                        : 'border-white/10 bg-white/5 text-slate-200 hover:border-purple-400/40 hover:text-white'
+                    disabled={selectedExchanges.length === 0}
+                    className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-all ${
+                      selectedExchanges.length > 0
+                        ? 'bg-gradient-to-r from-purple-500 to-purple-400 text-white shadow-lg shadow-purple-500/30 hover:from-purple-400 hover:to-purple-300'
+                        : 'cursor-not-allowed bg-white/5 text-slate-500'
                     }`}
                   >
-                    {selectedExchanges.includes(exchange) && (
-                      <CheckCircle className="w-3.5 h-3.5 text-purple-200" />
-                    )}
-                    {exchange}
+                    Apply
                   </button>
-                ))}
 
-                {/* Apply Button */}
-                <button
-                  onClick={() => {
-                    setAppliedExchanges(selectedExchanges)
-                    console.log('?? Applying exchange filter:', selectedExchanges)
-                    if (onFilterExchanges && selectedExchanges.length > 0) {
-                      onFilterExchanges(selectedExchanges)
-                    }
-                  }}
-                  disabled={selectedExchanges.length === 0}
-                  className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-all ${
-                    selectedExchanges.length > 0
-                      ? 'bg-gradient-to-r from-purple-500 to-purple-400 text-white shadow-lg shadow-purple-500/30 hover:from-purple-400 hover:to-purple-300'
-                      : 'cursor-not-allowed bg-white/5 text-slate-500'
-                  }`}
-                >
-                  Apply
-                </button>
-
-                {/* Clear Filter */}
-                {selectedExchanges.length > 0 && (
-                  <button
-                    onClick={() => {
-                      setSelectedExchanges([])
-                      setAppliedExchanges([])
-                    }}
-                    className="ml-auto inline-flex items-center gap-1 text-xs text-slate-400 transition-colors hover:text-purple-200"
-                  >
-                    <X className="w-3 h-3" />
-                    Clear
-                  </button>
-                )}
+                  {/* Clear Filter */}
+                  {selectedExchanges.length > 0 && (
+                    <button
+                      onClick={() => {
+                        setSelectedExchanges([])
+                        setAppliedExchanges([])
+                      }}
+                      className="ml-auto inline-flex items-center gap-1 text-xs text-slate-400 transition-colors hover:text-purple-200"
+                    >
+                      <X className="w-3 h-3" />
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <p className="mt-2 text-xs text-slate-400/80">Refine which sources feed this view</p>
               </div>
-              <p className="mt-2 text-xs text-slate-400/80">Refine which sources feed this view</p>
-            </div>
-          )}
+            )}
 
-          {/* Tab Content with Smooth Transitions */}
-          <div className="p-3 md:p-4">
-            <div className="transition-all duration-300 ease-in-out">
-              {activeTab === 'overview' && (
-                <div className="animate-in fade-in duration-300">
+            {/* Tab Content with Smooth Transitions */}
+            <div className="p-3 md:p-4">
+              <div className="transition-all duration-300 ease-in-out">
+                <TabsContent value="overview" className="mt-0 animate-in fade-in duration-300">
                   <OverviewTab analytics={displayAnalytics} currSymbol={currSymbol} currency={currency} metadata={currencyMetadata} setActiveTab={setActiveTab} />
-                </div>
-              )}
-              {activeTab === 'behavioral' && (
-                <div className="animate-in fade-in duration-300">
+                </TabsContent>
+                <TabsContent value="behavioral" className="mt-0 animate-in fade-in duration-300">
                   <BehavioralTab analytics={displayAnalytics} currSymbol={currSymbol} currency={currency} />
-                </div>
-              )}
-              {activeTab === 'spot' && (
-                <div className="animate-in fade-in duration-300">
+                </TabsContent>
+                <TabsContent value="spot" className="mt-0 animate-in fade-in duration-300">
                   <SpotTab analytics={displayAnalytics} currSymbol={currSymbol} currency={currency} metadata={currencyMetadata} />
-                </div>
-              )}
-              {activeTab === 'futures' && (
-                <div className="animate-in fade-in duration-300">
+                </TabsContent>
+                <TabsContent value="futures" className="mt-0 animate-in fade-in duration-300">
                   <FuturesTab analytics={displayAnalytics} currSymbol={currSymbol} currency={currency} metadata={currencyMetadata} />
-                </div>
-              )}
+                </TabsContent>
+              </div>
             </div>
-          </div>
+          </Tabs>
         </div>
       </main>
       <Footer />
