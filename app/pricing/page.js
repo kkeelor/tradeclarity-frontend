@@ -1,13 +1,15 @@
 // app/pricing/page.js
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, X, Zap, TrendingUp, Crown, ArrowRight, Sparkles, Shield, Clock, CreditCard } from 'lucide-react'
+import { Check, X, Zap, TrendingUp, Crown, ArrowRight, Sparkles, Shield, Clock, CreditCard, ChevronDown } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { getTierDisplayName } from '@/lib/featureGates'
 import { toast } from 'sonner'
 import Footer from '../components/Footer'
+import { getCurrencySymbol } from '../analyze/utils/currencyFormatter'
+import { convertCurrencySync, getCurrencyRates } from '../analyze/utils/currencyConverter'
 
 const PRICING_PLANS = {
   free: {
@@ -84,12 +86,132 @@ const PRICING_PLANS = {
   }
 }
 
+// Currency dropdown component (same as analytics page)
+function CurrencyDropdown({ currencies, selectedCurrency, onSelectCurrency }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const dropdownRef = useRef(null)
+  const buttonRef = useRef(null)
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target) && 
+          buttonRef.current && !buttonRef.current.contains(event.target)) {
+        setIsOpen(false)
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isOpen])
+
+  const currencyNames = {
+    'USD': 'US Dollar',
+    'INR': 'Indian Rupee',
+    'EUR': 'Euro',
+    'GBP': 'British Pound',
+    'JPY': 'Japanese Yen',
+    'AUD': 'Australian Dollar',
+    'CAD': 'Canadian Dollar',
+    'CNY': 'Chinese Yuan',
+    'SGD': 'Singapore Dollar',
+    'CHF': 'Swiss Franc'
+  }
+
+  // Calculate position for fixed dropdown
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 })
+
+  useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect()
+      setDropdownPosition({
+        top: rect.bottom + 8,
+        right: window.innerWidth - rect.right
+      })
+    }
+  }, [isOpen])
+
+  return (
+    <>
+      <div className="relative" ref={buttonRef}>
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex items-center gap-1.5 rounded-full border border-white/5 bg-white/[0.02] px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white"
+        >
+          <span>{getCurrencySymbol(selectedCurrency)}</span>
+          <span>{selectedCurrency}</span>
+          <ChevronDown className={`h-3 w-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
+
+      {isOpen && (
+        <div 
+          ref={dropdownRef}
+          className="fixed w-48 bg-slate-800/95 backdrop-blur-xl border border-slate-700/50 rounded-lg shadow-2xl z-[100] overflow-hidden max-h-80 overflow-y-auto scrollbar-hide"
+          style={{
+            top: `${dropdownPosition.top}px`,
+            right: `${dropdownPosition.right}px`
+          }}
+        >
+          {currencies.map((curr) => (
+            <button
+              key={curr}
+              onClick={() => {
+                onSelectCurrency(curr)
+                setIsOpen(false)
+              }}
+              className={`w-full px-3 py-2 text-left text-xs transition flex items-center gap-2 ${
+                selectedCurrency === curr
+                  ? 'bg-emerald-400/20 text-emerald-300 font-medium'
+                  : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+              }`}
+            >
+              <span className="w-8 text-right">{getCurrencySymbol(curr)}</span>
+              <span className="flex-1">{curr}</span>
+              <span className="text-[10px] text-slate-500">{currencyNames[curr] || ''}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
+
 export default function PricingPage() {
   const router = useRouter()
   const { user } = useAuth()
   const [billingCycle, setBillingCycle] = useState('monthly') // 'monthly' or 'annual'
   const [loading, setLoading] = useState(false)
   const [currentTier, setCurrentTier] = useState('free')
+  const [currency, setCurrency] = useState('USD')
+  
+  // Available currencies (same as analytics page)
+  const availableCurrencies = ['USD', 'INR', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CNY', 'SGD', 'CHF']
+
+  // Initialize currency from localStorage
+  useEffect(() => {
+    const savedCurrency = typeof window !== 'undefined' ? localStorage.getItem('tradeclarity_currency') : null
+    if (savedCurrency && availableCurrencies.includes(savedCurrency)) {
+      setCurrency(savedCurrency)
+    }
+    
+    // Pre-fetch currency rates for conversion
+    getCurrencyRates().catch(err => {
+      console.warn('Could not fetch currency rates:', err.message)
+    })
+  }, [])
+
+  // Handle currency change with localStorage persistence
+  const handleCurrencyChange = (newCurrency) => {
+    setCurrency(newCurrency)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('tradeclarity_currency', newCurrency)
+    }
+  }
 
   useEffect(() => {
     if (user) {
@@ -190,7 +312,7 @@ export default function PricingPage() {
               onClick={() => router.push(user ? '/dashboard' : '/')}
               className="text-sm text-slate-400 hover:text-white transition-colors flex items-center gap-2"
             >
-              ← Back {user ? 'to Dashboard' : 'to Home'}
+              ? Back {user ? 'to Dashboard' : 'to Home'}
             </button>
           </div>
         </div>
@@ -206,29 +328,41 @@ export default function PricingPage() {
             Transparent pricing for every trader. Start free, upgrade when you need more.
           </p>
 
-          {/* Billing Toggle */}
-          <div className="mt-8 flex items-center justify-center gap-4">
-            <span className={`text-sm ${billingCycle === 'monthly' ? 'text-white' : 'text-slate-400'}`}>
-              Monthly
-            </span>
-            <button
-              onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')}
-              className="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  billingCycle === 'annual' ? 'translate-x-6' : 'translate-x-1'
-                }`}
+          {/* Billing Toggle and Currency Selector */}
+          <div className="mt-8 flex flex-col items-center gap-4">
+            <div className="flex items-center justify-center gap-4">
+              <span className={`text-sm ${billingCycle === 'monthly' ? 'text-white' : 'text-slate-400'}`}>
+                Monthly
+              </span>
+              <button
+                onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')}
+                className="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    billingCycle === 'annual' ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+              <span className={`text-sm ${billingCycle === 'annual' ? 'text-white' : 'text-slate-400'}`}>
+                Annual
+                {savings > 0 && (
+                  <span className="ml-2 px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full text-xs font-medium">
+                    Save {savings}%
+                  </span>
+                )}
+              </span>
+            </div>
+            
+            {/* Currency Dropdown */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400">Currency:</span>
+              <CurrencyDropdown
+                currencies={availableCurrencies}
+                selectedCurrency={currency}
+                onSelectCurrency={handleCurrencyChange}
               />
-            </button>
-            <span className={`text-sm ${billingCycle === 'annual' ? 'text-white' : 'text-slate-400'}`}>
-              Annual
-              {savings > 0 && (
-                <span className="ml-2 px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full text-xs font-medium">
-                  Save {savings}%
-                </span>
-              )}
-            </span>
+            </div>
           </div>
         </div>
 
@@ -238,8 +372,24 @@ export default function PricingPage() {
             const Icon = plan.icon
             const isCurrentTier = currentTier === key
             const isPopular = plan.popular
-            const price = billingCycle === 'annual' ? plan.priceAnnual : plan.price * (billingCycle === 'annual' ? 12 : 1)
-            const monthlyPrice = billingCycle === 'annual' ? Math.round(plan.priceAnnual / 12) : plan.price
+            
+            // Calculate prices in USD first
+            // For monthly billing: show plan.price
+            // For annual billing: show monthly equivalent (plan.priceAnnual / 12)
+            const monthlyPriceUSD = billingCycle === 'annual' ? Math.round(plan.priceAnnual / 12) : plan.price
+            const annualPriceUSD = plan.priceAnnual
+            
+            // Convert prices to selected currency
+            const convertedMonthlyPrice = currency === 'USD' ? monthlyPriceUSD : convertCurrencySync(monthlyPriceUSD, 'USD', currency)
+            const convertedAnnualPrice = currency === 'USD' ? annualPriceUSD : convertCurrencySync(annualPriceUSD, 'USD', currency)
+            
+            // Format prices with appropriate decimals
+            const formatPrice = (price) => {
+              if (price === 0) return '0'
+              // Round to 2 decimals for most currencies, 0 for JPY
+              const decimals = currency === 'JPY' ? 0 : 2
+              return price.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+            }
 
             return (
               <div
@@ -264,13 +414,13 @@ export default function PricingPage() {
                   <p className="text-sm text-slate-400 mb-4">{plan.description}</p>
                   <div className="flex items-baseline gap-2">
                     <span className="text-4xl font-bold">
-                      ${billingCycle === 'annual' ? monthlyPrice : price}
+                      {getCurrencySymbol(currency)}{formatPrice(convertedMonthlyPrice)}
                     </span>
                     <span className="text-slate-400">
                       /{billingCycle === 'annual' ? 'month' : 'month'}
                       {billingCycle === 'annual' && (
                         <span className="block text-xs mt-1">
-                          billed ${plan.priceAnnual}/year
+                          billed {getCurrencySymbol(currency)}{formatPrice(convertedAnnualPrice)}/year
                         </span>
                       )}
                     </span>
