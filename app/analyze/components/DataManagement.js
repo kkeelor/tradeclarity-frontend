@@ -9,6 +9,7 @@ import { ExchangeIcon } from '@/components/ui'
 import { toast } from 'sonner'
 import Header from './Header'
 import Footer from '../../components/Footer'
+import ConnectExchangeModal from './ConnectExchangeModal'
 import {
   AlertDialog,
   AlertDialogContent,
@@ -42,6 +43,7 @@ export default function DataManagement() {
   const [showUpdateKeysModal, setShowUpdateKeysModal] = useState(false)
   const [updatingExchange, setUpdatingExchange] = useState(null)
   const [isUpdatingKeys, setIsUpdatingKeys] = useState(false)
+  const [showConnectModal, setShowConnectModal] = useState(false)
 
   useEffect(() => {
     fetchConnectedExchanges()
@@ -196,7 +198,25 @@ export default function DataManagement() {
   }
 
   const handleConnectExchange = () => {
-    router.push('/dashboard?action=connect')
+    setShowConnectModal(true)
+  }
+
+  const handleConnectionMethod = (method) => {
+    // Close modal first
+    setShowConnectModal(false)
+    
+    if (method === 'api') {
+      // Small delay to ensure modal closes before navigation
+      setTimeout(() => {
+        // Signal dashboard to directly show API connection form (not modal)
+        sessionStorage.setItem('showAPIConnection', 'true')
+        // Navigate to dashboard to start exchange connection flow
+        router.push('/dashboard')
+      }, 150) // Small delay for modal close animation
+    } else if (method === 'csv') {
+      // Stay on /data page - CSV upload is already available here
+      // Modal already closed above
+    }
   }
 
   const handleUpdateKeys = (exchange) => {
@@ -512,6 +532,15 @@ export default function DataManagement() {
 
       await fetchUploadedFiles()
 
+      // Navigate back to dashboard after successful CSV upload
+      // Check if all files are now processed (success or error)
+      const processedCount = fileConfigs.filter(c => c.status === 'success' || c.status === 'error').length + 1 // +1 for current file
+      if (processedCount >= fileConfigs.length) {
+        setTimeout(() => {
+          router.push('/dashboard')
+        }, 1500) // Small delay to show success message
+      }
+
     } catch (error) {
       console.error('Error processing file:', error)
       const errorMsg = 'Failed to process file. Please try again.'
@@ -563,6 +592,7 @@ export default function DataManagement() {
         onNavigateAll={() => router.push('/analyze')}
         onSignOut={handleSignOut}
         isDemoMode={false}
+        hasDataSources={connectedExchanges.length > 0 || uploadedFiles.length > 0}
       />
 
       <main className="mx-auto w-full max-w-[1400px] px-4 py-8">
@@ -905,6 +935,14 @@ export default function DataManagement() {
           isUpdating={isUpdatingKeys}
         />
       )}
+
+      {/* Connect Exchange Modal */}
+      <ConnectExchangeModal
+        isOpen={showConnectModal}
+        onClose={() => setShowConnectModal(false)}
+        onSelectMethod={handleConnectionMethod}
+      />
+
       <Footer />
     </div>
   )

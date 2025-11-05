@@ -6,19 +6,28 @@ import { TrendingUp, ArrowRight, LayoutDashboard, Database, BarChart3, LogOut, C
 import ThemeToggle from '../../components/ThemeToggle'
 import { getCurrencySymbol } from '../utils/currencyFormatter'
 
-function NavButton({ icon: Icon, label, onClick, isActive = false }) {
+function NavButton({ icon: Icon, label, onClick, isActive = false, disabled = false }) {
   if (!onClick) return null
 
   return (
     <button
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
       className={`group inline-flex items-center justify-center gap-1 md:gap-2 rounded-full px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium transition-colors flex-shrink-0 whitespace-nowrap min-w-[32px] md:min-w-auto ${
-        isActive ? 'text-white' : 'text-slate-300 hover:text-white'
+        disabled
+          ? 'text-slate-500 cursor-not-allowed'
+          : isActive
+          ? 'text-white'
+          : 'text-slate-300 hover:text-white'
       }`}
       style={{ minHeight: '32px' }}
     >
       <Icon className={`h-3 w-3 md:h-4 md:w-4 transition-colors flex-shrink-0 ${
-        isActive ? 'text-emerald-300' : 'text-slate-500 group-hover:text-emerald-300'
+        disabled
+          ? 'text-slate-600'
+          : isActive
+          ? 'text-emerald-300'
+          : 'text-slate-500 group-hover:text-emerald-300'
       }`} />
       <span className="hidden sm:inline">{label}</span>
     </button>
@@ -129,7 +138,8 @@ export default function Header({
   onNavigateUpload,
   onNavigateAll,
   onSignOut,
-  isDemoMode = false
+  isDemoMode = false,
+  hasDataSources = true // Default to true to allow access unless explicitly disabled
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -137,7 +147,7 @@ export default function Header({
   const navItems = [
     { label: 'Dashboard', icon: LayoutDashboard, onClick: onNavigateDashboard || (() => router.push('/dashboard')), path: '/dashboard' },
     { label: 'Your Data', icon: Database, onClick: onNavigateUpload || (() => router.push('/data')), path: '/data' },
-    { label: 'Analytics', icon: BarChart3, onClick: onNavigateAll || (() => router.push('/analyze')), path: '/analyze' },
+    { label: 'Analytics', icon: BarChart3, onClick: onNavigateAll || (() => router.push('/analyze')), path: '/analyze', disabled: !hasDataSources && !isDemoMode },
     { label: 'Pricing', icon: Tag, onClick: () => router.push('/pricing'), path: '/pricing' },
     { label: 'Billing', icon: CreditCard, onClick: () => router.push('/billing'), path: '/billing' }
   ].filter(item => Boolean(item.onClick))
@@ -199,7 +209,7 @@ export default function Header({
                 {navItems.map(item => {
                   const isActive = pathname === item.path || (item.path === '/dashboard' && pathname?.startsWith('/dashboard'))
                   return (
-                    <NavButton key={item.label} {...item} isActive={isActive} />
+                    <NavButton key={item.label} {...item} isActive={isActive} disabled={item.disabled} />
                   )
                 })}
               </nav>
@@ -292,17 +302,27 @@ export default function Header({
                 {navItems.map(item => {
                   const Icon = item.icon
                   const isActive = pathname === item.path || (item.path === '/dashboard' && pathname?.startsWith('/dashboard'))
+                  const isDisabled = item.disabled
                   return (
                     <button
                       key={item.label}
-                      onClick={() => handleNavClick(item.onClick)}
+                      onClick={() => !isDisabled && handleNavClick(item.onClick)}
+                      disabled={isDisabled}
                       className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-300 ${
-                        isActive
+                        isDisabled
+                          ? 'text-slate-600 cursor-not-allowed opacity-50'
+                          : isActive
                           ? 'bg-white/10 text-white'
                           : 'text-slate-300 hover:bg-white/10 hover:text-white'
                       }`}
                     >
-                      <Icon className={`h-5 w-5 ${isActive ? 'text-emerald-300' : 'text-slate-400'}`} />
+                      <Icon className={`h-5 w-5 ${
+                        isDisabled
+                          ? 'text-slate-600'
+                          : isActive
+                          ? 'text-emerald-300'
+                          : 'text-slate-400'
+                      }`} />
                       <span>{item.label}</span>
                     </button>
                   )

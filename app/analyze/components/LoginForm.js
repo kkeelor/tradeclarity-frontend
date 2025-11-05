@@ -1,26 +1,26 @@
 // app/analyze/components/LoginForm.js
 
 import { useState } from 'react'
-import { TrendingUp, Lock, Loader2, AlertCircle, Eye, EyeOff, HelpCircle, Sparkles, ChevronRight, CheckCircle, Shield, ExternalLink, X, Play, FileText, Clock, BarChart3, Brain, Zap, Target, ArrowLeft } from 'lucide-react'
+import { TrendingUp, Lock, Loader2, AlertCircle, Eye, EyeOff, HelpCircle, Sparkles, ChevronRight, CheckCircle, Shield, ExternalLink, X, Play, FileText, Clock, BarChart3, Brain, Zap, Target, ArrowLeft, Mail, Plus } from 'lucide-react'
 import { ExchangeIcon } from '@/components/ui'
 
 // Step Progress Indicator Component
 function StepProgress({ currentStep, totalSteps }) {
   return (
-    <div className="flex items-center justify-center gap-3 mb-8">
+    <div className="flex items-center justify-center gap-2 sm:gap-3 mb-4 sm:mb-8">
       {[...Array(totalSteps)].map((_, idx) => (
         <div key={idx} className="flex items-center">
-          <div className={`flex items-center justify-center w-10 h-10 rounded-full font-bold transition-all ${
+          <div className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full font-bold transition-all text-xs sm:text-sm ${
             idx < currentStep 
               ? 'bg-emerald-500 text-white' 
               : idx === currentStep
-              ? 'bg-emerald-500 text-white ring-4 ring-emerald-500/30'
+              ? 'bg-emerald-500 text-white ring-2 sm:ring-4 ring-emerald-500/30'
               : 'bg-slate-700 text-slate-400'
           }`}>
-            {idx < currentStep ? <CheckCircle className="w-5 h-5" /> : idx + 1}
+            {idx < currentStep ? <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" /> : idx + 1}
           </div>
           {idx < totalSteps - 1 && (
-            <div className={`w-12 h-1 mx-2 rounded transition-all ${
+            <div className={`w-8 sm:w-12 h-0.5 sm:h-1 mx-1 sm:mx-2 rounded transition-all ${
               idx < currentStep ? 'bg-emerald-500' : 'bg-slate-700'
             }`} />
           )}
@@ -194,6 +194,13 @@ export default function LoginForm({
   const [submitError, setSubmitError] = useState('')
   const [localProgress, setLocalProgress] = useState('')
 
+  const handleRequestExchange = () => {
+    const subject = encodeURIComponent('Exchange Integration Request')
+    const body = encodeURIComponent(`Hello TradeClarity Team,\n\nI would like to request support for the following exchange:\n\nExchange Name: [Please specify]\n\nAdditional Notes:\n[Any additional information]\n\nThank you!`)
+    const mailtoLink = `mailto:tradeclarity.help@gmail.com?subject=${subject}&body=${body}`
+    window.location.href = mailtoLink
+  }
+
   const handleSubmit = async () => {
     console.log('🔵 [LoginForm] Connect button clicked')
     setIsSubmitting(true)
@@ -303,22 +310,22 @@ export default function LoginForm({
   // Step 1: Choose Exchange
   if (step === 1) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center p-6">
-        <div className="max-w-3xl w-full space-y-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center p-4 sm:p-6">
+        <div className="max-w-6xl w-full space-y-4 sm:space-y-6">
           {/* Header */}
-          <div className="text-center space-y-3 relative">
+          <div className="text-center space-y-2 relative">
             {onBack && (
               <button
                 onClick={onBack}
-                className="absolute left-0 top-0 text-slate-400 hover:text-white transition-colors flex items-center gap-2 text-sm font-medium"
+                className="absolute left-0 top-0 text-slate-400 hover:text-white transition-colors flex items-center gap-2 text-xs sm:text-sm font-medium"
               >
-                <ArrowLeft className="w-4 h-4" />
-                Back
+                <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Back</span>
               </button>
             )}
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <TrendingUp className="w-8 h-8 text-emerald-400" />
-              <h1 className="text-2xl font-bold">TradeClarity</h1>
+            <div className="flex items-center justify-center gap-2 mb-2 sm:mb-4">
+              <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-400" />
+              <h1 className="text-xl sm:text-2xl font-bold">TradeClarity</h1>
             </div>
           </div>
           
@@ -326,17 +333,17 @@ export default function LoginForm({
           <StepProgress currentStep={0} totalSteps={2} />
 
           {/* Main Card */}
-          <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/50 via-slate-800/30 to-slate-800/20 border border-slate-700/50 rounded-2xl p-8 space-y-6 backdrop-blur-sm">
+          <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/50 via-slate-800/30 to-slate-800/20 border border-slate-700/50 rounded-xl sm:rounded-2xl p-5 sm:p-8 backdrop-blur-sm">
             <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-cyan-500/5" />
             <div className="absolute -top-24 -right-24 w-64 h-64 bg-emerald-500/10 blur-3xl rounded-full opacity-50" />
             <div className="relative">
-            <div className="text-center space-y-2">
-              <h2 className="text-3xl font-bold">Which exchange do you trade on?</h2>
-              <p className="text-slate-400">Select your trading platform to get started</p>
+            <div className="text-center space-y-1 sm:space-y-2 mb-6 sm:mb-8">
+              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">Which exchange do you trade on?</h2>
+              <p className="text-xs sm:text-sm text-slate-400">Select your trading platform to get started</p>
             </div>
             
-            {/* Exchange Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Exchange Cards - More scalable grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
               {exchangeList.map((ex) => (
                 <button
                   key={ex.id}
@@ -345,56 +352,72 @@ export default function LoginForm({
                     setExchange(ex.id)
                     setStep(2)
                   }}
-                  className={`group relative overflow-hidden p-6 rounded-2xl border-2 transition-all hover:scale-105 backdrop-blur-sm ${
+                  className={`group relative overflow-hidden p-3 sm:p-4 rounded-xl sm:rounded-2xl border transition-all hover:scale-[1.02] backdrop-blur-sm ${
                     exchange === ex.id
-                      ? 'bg-gradient-to-br from-emerald-500/20 via-emerald-500/10 to-transparent border-emerald-500/50'
+                      ? 'bg-gradient-to-br from-emerald-500/20 via-emerald-500/10 to-transparent border-emerald-500/50 shadow-lg shadow-emerald-500/10'
                       : 'bg-gradient-to-br from-slate-800/50 to-slate-800/30 border-slate-700/50 hover:border-emerald-500/40'
                   }`}
                 >
                   {exchange === ex.id && (
                     <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/5" />
                   )}
-                  <div className="relative flex items-start gap-4">
-                    <div className={`w-14 h-14 rounded-xl flex items-center justify-center border ${
+                  <div className="relative flex flex-col items-center text-center gap-2 sm:gap-3">
+                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center border transition-all ${
                       exchange === ex.id 
-                        ? 'bg-emerald-500/20 border-emerald-500/30' 
-                        : 'bg-slate-700/30 border-slate-600/50'
+                        ? 'bg-emerald-500/20 border-emerald-500/30 shadow-lg shadow-emerald-500/20' 
+                        : 'bg-slate-700/30 border-slate-600/50 group-hover:bg-slate-700/40'
                     }`}>
-                      <ExchangeIcon exchange={ex.id} size={32} className="w-full h-full p-2" />
+                      <ExchangeIcon exchange={ex.id} size={24} className="w-full h-full p-1.5 sm:p-2" />
                     </div>
-                    <div className="flex-1 text-left">
-                      <div className="font-bold text-xl mb-1">{ex.displayName}</div>
-                      <div className="text-sm text-slate-400 mb-3">
+                    <div className="flex-1 w-full">
+                      <div className="font-bold text-sm sm:text-base lg:text-lg mb-0.5 sm:mb-1">{ex.displayName}</div>
+                      <div className="text-xs sm:text-sm text-slate-400 mb-2">
                         {ex.id === 'binance' && 'World\'s largest crypto exchange'}
                         {ex.id === 'coindcx' && 'India\'s #1 crypto exchange'}
                       </div>
                       {ex.id === 'binance' && (
-                        <div className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-emerald-500/20 to-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-full text-xs font-semibold">
-                          <Sparkles className="w-3 h-3" />
+                        <div className="inline-flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 bg-gradient-to-r from-emerald-500/20 to-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-full text-[10px] sm:text-xs font-semibold">
+                          <Sparkles className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                           Most Popular
                         </div>
                       )}
                     </div>
-                    <ChevronRight className={`w-6 h-6 transition-colors group-hover:translate-x-1 ${
+                    <ChevronRight className={`w-4 h-4 sm:w-5 sm:h-5 transition-all group-hover:translate-x-0.5 ${
                       exchange === ex.id ? 'text-emerald-400' : 'text-slate-400 group-hover:text-white'
                     }`} />
                   </div>
                 </button>
               ))}
+              
+              {/* Request Exchange Card */}
+              <button
+                type="button"
+                onClick={handleRequestExchange}
+                className="group relative overflow-hidden p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-700/50 hover:border-blue-500/40 bg-gradient-to-br from-slate-800/50 to-slate-800/30 backdrop-blur-sm transition-all hover:scale-[1.02]"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative flex flex-col items-center text-center gap-2 sm:gap-3">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center border border-slate-600/50 bg-slate-700/30 group-hover:bg-blue-500/20 group-hover:border-blue-500/30 transition-all">
+                    <Plus className="w-5 h-5 sm:w-6 sm:h-6 text-slate-400 group-hover:text-blue-400 transition-colors" />
+                  </div>
+                  <div className="flex-1 w-full">
+                    <div className="font-bold text-sm sm:text-base lg:text-lg mb-0.5 sm:mb-1 flex items-center justify-center gap-1.5">
+                      <Mail className="w-3 h-3 sm:w-4 sm:h-4" />
+                      Request Exchange
+                    </div>
+                    <div className="text-xs sm:text-sm text-slate-400">
+                      Don't see your exchange?
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400 group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all" />
+                </div>
+              </button>
             </div>
             
-            {/* Security Badge */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/30 rounded-xl p-5 backdrop-blur-sm">
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-cyan-500/5" />
-              <div className="relative flex items-center gap-3">
-                <div className="w-12 h-12 bg-emerald-500/20 border border-emerald-500/30 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Shield className="w-6 h-6 text-emerald-400" />
-                </div>
-                <div className="flex-1">
-                  <div className="font-semibold text-emerald-300 mb-1">Secure & Private</div>
-                  <div className="text-sm text-slate-300">Read-Only Access • Encrypted Storage • Industry-Standard Security</div>
-                </div>
-              </div>
+            {/* Minimal Security Badge */}
+            <div className="flex items-center justify-center gap-2 text-xs sm:text-sm text-slate-400">
+              <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
+              <span>Read-only access • Encrypted storage</span>
             </div>
             </div>
           </div>
@@ -403,9 +426,9 @@ export default function LoginForm({
           <div className="flex items-center justify-end">
             <button
               onClick={onTryDemo}
-              className="text-purple-400 hover:text-purple-300 transition-colors text-sm font-medium flex items-center gap-1"
+              className="text-purple-400 hover:text-purple-300 transition-colors text-xs sm:text-sm font-medium flex items-center gap-1"
             >
-              <Sparkles className="w-4 h-4" />
+              <Sparkles className="w-3 h-3 sm:w-4 sm:h-4" />
               Try Demo Instead
             </button>
           </div>
@@ -447,12 +470,19 @@ export default function LoginForm({
           
           <div className="grid md:grid-cols-2 gap-6">
             {/* Left: Form */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/50 via-slate-800/30 to-slate-800/20 border border-slate-700/50 rounded-2xl p-8 space-y-6 backdrop-blur-sm">
+            <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/50 via-slate-800/30 to-slate-800/20 border border-slate-700/50 rounded-2xl p-6 sm:p-8 backdrop-blur-sm">
               <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-cyan-500/5" />
-              <div className="relative">
+              <div className="relative space-y-5 sm:space-y-6">
               <div className="space-y-2">
-                <h2 className="text-2xl font-bold">Connect {currentExchange.config.icon} {currentExchange.config.displayName}</h2>
-                <p className="text-slate-400">Enter your read-only API credentials</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
+                    <ExchangeIcon exchange={exchange} size={24} className="w-full h-full p-2" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold">Connect {currentExchange.config.displayName}</h2>
+                    <p className="text-slate-400">Enter your read-only API credentials</p>
+                  </div>
+                </div>
               </div>
               
               {/* API Key Field */}
@@ -575,7 +605,7 @@ export default function LoginForm({
               )}
 
               {/* Security Info */}
-              <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4 space-y-2 text-xs">
+              <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-3 sm:p-4 space-y-2 text-xs">
                 <div className="flex items-start gap-2">
                   <Lock className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
                   <div className="space-y-1">
@@ -589,7 +619,7 @@ export default function LoginForm({
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting || status === 'connecting' || !apiKey || !apiSecret || apiKeyValid === false || apiSecretValid === false}
-                className="w-full px-6 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed rounded-xl font-semibold transition-all text-lg flex items-center justify-center gap-2 group shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-105 disabled:hover:scale-100 disabled:shadow-none"
+                className="w-full px-6 py-3.5 sm:py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed rounded-xl font-semibold transition-all text-base sm:text-lg flex items-center justify-center gap-2 group shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-105 disabled:hover:scale-100 disabled:shadow-none mt-2"
               >
                 {(isSubmitting || status === 'connecting') ? (
                   <>
@@ -614,34 +644,34 @@ export default function LoginForm({
                 <div className="relative">
                 <h3 className="font-bold text-lg flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-purple-400" />
-                  Almost there! You'll see your first insight in 30 seconds
+                  Almost there! You'll see your analytics in 30 seconds
                 </h3>
                 <div className="space-y-3">
                   <div className="flex items-start gap-3">
                     <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <CheckCircle className="w-4 h-4 text-emerald-400" />
+                      <BarChart3 className="w-4 h-4 text-emerald-400" />
                     </div>
                     <div>
-                      <div className="font-semibold text-sm mb-1">Psychology Score</div>
-                      <div className="text-xs text-slate-400">See your trading discipline rating /100</div>
+                      <div className="font-semibold text-sm mb-1">Trading Balance Sheet</div>
+                      <div className="text-xs text-slate-400">See improvements vs strengths at a glance</div>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="w-8 h-8 bg-cyan-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <Clock className="w-4 h-4 text-cyan-400" />
+                      <Brain className="w-4 h-4 text-cyan-400" />
                     </div>
                     <div>
-                      <div className="font-semibold text-sm mb-1">Peak Performance Hours</div>
-                      <div className="text-xs text-slate-400">When you trade best (and worst)</div>
+                      <div className="font-semibold text-sm mb-1">Psychology Score</div>
+                      <div className="text-xs text-slate-400">Your trading discipline rating out of 100</div>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <Brain className="w-4 h-4 text-purple-400" />
+                      <Clock className="w-4 h-4 text-purple-400" />
                     </div>
                     <div>
-                      <div className="font-semibold text-sm mb-1">Hidden Patterns</div>
-                      <div className="text-xs text-slate-400">Patterns you can't see are costing you money</div>
+                      <div className="font-semibold text-sm mb-1">Performance Analysis</div>
+                      <div className="text-xs text-slate-400">Peak hours, drawdowns, and symbol insights</div>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
@@ -650,26 +680,32 @@ export default function LoginForm({
                     </div>
                     <div>
                       <div className="font-semibold text-sm mb-1">Actionable Insights</div>
-                      <div className="text-xs text-slate-400">Specific changes to improve your win rate</div>
+                      <div className="text-xs text-slate-400">Value-first insights to improve your win rate</div>
                     </div>
                   </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <TrendingUp className="w-4 h-4 text-blue-400" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-sm mb-1">Performance Charts</div>
+                      <div className="text-xs text-slate-400">Visualize your trading journey over time</div>
+                    </div>
+                  </div>
+                </div>
                 </div>
               </div>
               
               {/* Quick Guide */}
-              <div className="bg-blue-500/10 border border-blue-500/30 rounded-2xl p-6 space-y-3">
-                <div className="flex items-center gap-2 text-blue-400 font-semibold">
-                  <FileText className="w-5 h-5" />
-                  Need help finding your API keys?
-                </div>
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-2xl p-4 sm:p-5">
                 <button
                   onClick={() => setShowHelpModal(true)}
-                  className="w-full px-4 py-3 bg-gradient-to-r from-blue-500/20 to-blue-500/10 hover:from-blue-500/30 hover:to-blue-500/20 border border-blue-500/30 hover:border-blue-500/50 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 group hover:scale-105"
+                  className="w-full flex items-center justify-center gap-2 text-blue-400 hover:text-blue-300 transition-colors text-sm font-medium group"
                 >
-                  <Play className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                  Watch Step-by-Step Guide
+                  <FileText className="w-4 h-4" />
+                  <span>Need help finding your API keys?</span>
+                  <HelpCircle className="w-4 h-4 group-hover:scale-110 transition-transform" />
                 </button>
-                </div>
               </div>
             </div>
           </div>
