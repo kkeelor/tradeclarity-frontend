@@ -21,15 +21,6 @@ export default function ContactPage() {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
-  
-  const form = useForm({
-    defaultValues: {
-      name: '',
-      email: '',
-      subject: '',
-      message: ''
-    }
-  })
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -221,7 +212,6 @@ export default function ContactPage() {
                   )}
                 </button>
               </form>
-              </Form>
             )}
           </div>
         </div>
