@@ -25,6 +25,7 @@ import {
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog'
 import { ExchangeIcon, Separator } from '@/components/ui'
+import { Badge } from '@/components/ui/badge'
 import { DashboardStatsSkeleton, DataSourceSkeleton } from '@/app/components/LoadingSkeletons'
 import ConnectExchangeModal from './ConnectExchangeModal'
 import Sidebar from './Sidebar'
@@ -1125,10 +1126,10 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                       
                       // Color scheme matching balance sheet: amber for weaknesses, orange for opportunities, emerald for strengths
                       const colorClasses = isWeakness
-                        ? 'border-amber-500/20 bg-amber-500/5 shadow-lg shadow-amber-500/5'
+                        ? 'border-amber-500/20 bg-amber-500/5'
                         : isOpportunity
-                        ? 'border-orange-500/20 bg-orange-500/5 shadow-lg shadow-orange-500/5'
-                        : 'border-emerald-500/20 bg-emerald-500/5 shadow-lg shadow-emerald-500/5'
+                        ? 'border-orange-500/20 bg-orange-500/5'
+                        : 'border-emerald-500/20 bg-emerald-500/5'
                       
                       const textColor = isWeakness
                         ? 'text-amber-300'
@@ -1154,16 +1155,21 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                         ? 'from-orange-500/10 via-transparent to-amber-500/10'
                         : 'from-emerald-500/10 via-transparent to-cyan-500/10'
                       
+                      const activeBorderColor = isWeakness
+                        ? 'border-amber-500/30'
+                        : isOpportunity
+                        ? 'border-orange-500/30'
+                        : 'border-emerald-500/30'
+                      
                       return (
                         <div
                           key={index}
                           data-insight-index={index}
-                          className={`group relative overflow-hidden flex items-center gap-2 px-3 py-2.5 rounded-xl border backdrop-blur transition-all duration-300 flex-shrink-0 min-w-[280px] max-w-[320px] ${colorClasses} ${
-                            isActive ? 'ring-2 ring-emerald-500/30 scale-[1.02]' : ''
-                          }`}
+                          className={`group relative flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-all duration-300 flex-shrink-0 min-w-[280px] max-w-[320px] ${colorClasses} ${
+                            isActive ? activeBorderColor : ''
+                          } ${isActive ? 'scale-[1.05] z-10' : 'scale-100'}`}
                         >
-                          <div className={`absolute inset-0 bg-gradient-to-br transition-opacity duration-300 ${gradientColor}`} />
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 backdrop-blur-sm border transition-all duration-300 ${iconBgColor}`}>
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 border transition-all duration-300 ${iconBgColor}`}>
                             {isWeakness ? <AlertCircle className="w-3.5 h-3.5" /> : <Zap className="w-3.5 h-3.5" />}
                           </div>
 

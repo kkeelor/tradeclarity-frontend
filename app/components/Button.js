@@ -18,7 +18,7 @@ export function Button({
 }) {
   // Map custom variants to shadcn variants where applicable
   const variantMap = {
-    primary: "profit",
+    primary: "primary", // Use primary (gold) variant for primary buttons
     secondary: "secondary",
     gradient: "primary", // Use gold gradient for gradient variant
     outline: "outline",
@@ -30,6 +30,7 @@ export function Button({
     sm: "sm",
     md: "default",
     lg: "lg",
+    xl: "xl",
   }
 
   return (

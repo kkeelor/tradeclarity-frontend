@@ -14,4 +14,14 @@ export {
   AlertDialogAction,
   AlertDialogCancel,
 } from './alert-dialog'
+export {
+  Table,
+  TableHeader,
+  TableBody,
+  TableFooter,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableCaption,
+} from './table'
 export { default as ExchangeIcon } from './ExchangeIcon'

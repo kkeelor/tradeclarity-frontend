@@ -6,6 +6,10 @@ import { TrendingUp, Upload, FileText, X, AlertCircle, CheckCircle, Trash2, Home
 import { useAuth } from '@/lib/AuthContext'
 import { ExchangeIcon, Separator } from '@/components/ui'
 import { toast } from 'sonner'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import {
   AlertDialog,
   AlertDialogContent,
@@ -701,61 +705,52 @@ function FileConfigCard({ config, connectedExchanges, onUpdate, onRemove, getSta
 
           {/* Exchange selector */}
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-2">Link to Exchange (optional)</label>
-            <div className="relative">
-              <button
-                onClick={() => setShowExchangeDropdown(!showExchangeDropdown)}
-                className="w-full px-4 py-2.5 bg-slate-800/60 border border-slate-600/50 rounded-xl text-sm text-left flex items-center justify-between hover:border-emerald-500/50 hover:bg-slate-800/80 transition-all"
-              >
-                {selectedExchange ? (
-                  <span className="flex items-center gap-2">
-                    <span>{selectedExchange.icon}</span>
-                    <span className="text-slate-200">{selectedExchange.name}</span>
-                  </span>
-                ) : (
-                  <span className="text-slate-500">Select exchange...</span>
-                )}
-                <ChevronDown className="w-4 h-4 text-slate-400" />
-              </button>
-
-              {showExchangeDropdown && (
-                <>
-                  <div
-                    className="fixed inset-0 z-10"
-                    onClick={() => setShowExchangeDropdown(false)}
-                  />
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-20 max-h-48 overflow-y-auto">
-                    {connectedExchanges.map(exchange => (
-                      <button
-                        key={exchange.id}
-                        onClick={() => {
-                          onUpdate({ exchangeConnectionId: exchange.id })
-                          setShowExchangeDropdown(false)
-                        }}
-                        className="w-full px-3 py-2 text-left text-sm hover:bg-slate-700/50 transition-colors flex items-center gap-2"
-                      >
-                        <ExchangeIcon exchange={exchange.exchange} size={14} className="w-6 h-6 p-1" />
-                        <span className="text-slate-200">{exchange.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
+            <Label htmlFor={`exchange-select-${config.id}`} className="block text-xs font-medium text-slate-300 mb-2">Link to Exchange (optional)</Label>
+            <DropdownMenu open={showExchangeDropdown} onOpenChange={setShowExchangeDropdown}>
+              <DropdownMenuTrigger asChild>
+                <button className="w-full px-4 py-2.5 bg-slate-800/60 border border-slate-600/50 rounded-xl text-sm text-left flex items-center justify-between hover:border-emerald-500/50 hover:bg-slate-800/80 transition-all">
+                  {selectedExchange ? (
+                    <span className="flex items-center gap-2">
+                      <ExchangeIcon exchange={selectedExchange.exchange} size={14} className="w-6 h-6 p-1" />
+                      <span className="text-slate-200">{selectedExchange.name}</span>
+                    </span>
+                  ) : (
+                    <span className="text-slate-500">Select exchange...</span>
+                  )}
+                  <ChevronDown className="w-4 h-4 text-slate-400" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-full bg-slate-800 border-slate-700 max-h-48">
+                {connectedExchanges.map(exchange => (
+                  <DropdownMenuItem
+                    key={exchange.id}
+                    onClick={() => {
+                      onUpdate({ exchangeConnectionId: exchange.id })
+                      setShowExchangeDropdown(false)
+                    }}
+                    className="text-sm hover:bg-slate-700/50 flex items-center gap-2 cursor-pointer"
+                  >
+                    <ExchangeIcon exchange={exchange.exchange} size={14} className="w-6 h-6 p-1" />
+                    <span className="text-slate-200">{exchange.name}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {/* Account type dropdown */}
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-2">Account Type</label>
-            <select
-              value={config.accountType}
-              onChange={(e) => onUpdate({ accountType: e.target.value })}
-              className="w-full px-4 py-2.5 bg-slate-800/60 border border-slate-600/50 rounded-xl text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 transition-all"
-            >
-              <option value="BOTH">Both (SPOT & FUTURES)</option>
-              <option value="SPOT">SPOT Only</option>
-              <option value="FUTURES">FUTURES Only</option>
-            </select>
+            <Label htmlFor="account-type-csv" className="block text-xs text-slate-300 mb-2">Account Type</Label>
+            <Select value={config.accountType} onValueChange={(value) => onUpdate({ accountType: value })}>
+              <SelectTrigger id="account-type-csv" className="bg-slate-800/60 border-slate-600/50 text-slate-200 focus:border-emerald-500/50 focus:ring-emerald-500/20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-800 border-slate-700 text-slate-200">
+                <SelectItem value="BOTH">Both (SPOT & FUTURES)</SelectItem>
+                <SelectItem value="SPOT">SPOT Only</SelectItem>
+                <SelectItem value="FUTURES">FUTURES Only</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       )}
@@ -942,41 +937,33 @@ function UploadedFileCard({ file, connectedExchanges, onRefresh }) {
               <div className="flex items-center gap-2 text-xs">
                 <span className="text-slate-500">Linked to:</span>
                 <span className="flex items-center gap-1">
-                  <span>{selectedExchange.icon}</span>
+                  <ExchangeIcon exchange={selectedExchange.exchange} size={14} className="w-4 h-4" />
                   <span className="text-slate-300">{selectedExchange.name}</span>
                 </span>
               </div>
             ) : (
-              <div className="relative inline-block">
-                <button
-                  onClick={() => setShowExchangeDropdown(!showExchangeDropdown)}
-                  disabled={linking}
-                  className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors disabled:opacity-50"
-                >
-                  {linking ? 'Linking...' : 'Link to Exchange >'}
-                </button>
-
-                {showExchangeDropdown && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-10"
-                      onClick={() => setShowExchangeDropdown(false)}
-                    />
-                    <div className="absolute top-full left-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-20 min-w-[200px]">
-                      {connectedExchanges.map(exchange => (
-                        <button
-                          key={exchange.id}
-                          onClick={() => handleLinkExchange(exchange.id)}
-                          className="w-full px-3 py-2 text-left text-sm hover:bg-slate-700/50 transition-colors flex items-center gap-2"
-                        >
-                          <ExchangeIcon exchange={exchange.exchange} size={14} className="w-6 h-6 p-1" />
-                          <span className="text-slate-200">{exchange.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
+              <DropdownMenu open={showExchangeDropdown} onOpenChange={setShowExchangeDropdown}>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    disabled={linking}
+                    className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors disabled:opacity-50"
+                  >
+                    {linking ? 'Linking...' : 'Link to Exchange >'}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="bg-slate-800 border-slate-700 min-w-[200px]">
+                  {connectedExchanges.map(exchange => (
+                    <DropdownMenuItem
+                      key={exchange.id}
+                      onClick={() => handleLinkExchange(exchange.id)}
+                      className="text-sm hover:bg-slate-700/50 flex items-center gap-2 cursor-pointer"
+                    >
+                      <ExchangeIcon exchange={exchange.exchange} size={14} className="w-6 h-6 p-1" />
+                      <span className="text-slate-200">{exchange.name}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
         </div>

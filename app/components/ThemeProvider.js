@@ -37,7 +37,7 @@ export function ThemeProvider({ children }) {
   }
 
   const toggleTheme = () => {
-    const newTheme = theme === 'classic' ? 'midnight' : 'classic'
+    const newTheme = theme === 'classic' ? 'daylight' : 'classic'
     setTheme(newTheme)
     localStorage.setItem('theme', newTheme)
     loadThemeStyles(newTheme)

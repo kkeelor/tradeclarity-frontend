@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { TrendingUp, ArrowRight, LayoutDashboard, Database, BarChart3, LogOut, ChevronDown, Menu, X, Tag, CreditCard } from 'lucide-react'
 import ThemeToggle from '../../components/ThemeToggle'
 import { getCurrencySymbol } from '../utils/currencyFormatter'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 function NavButton({ icon: Icon, label, onClick, isActive = false, disabled = false }) {
   if (!onClick) return null
@@ -35,27 +36,6 @@ function NavButton({ icon: Icon, label, onClick, isActive = false, disabled = fa
 }
 
 function CurrencyDropdown({ currencies, selectedCurrency, onSelectCurrency }) {
-  const [isOpen, setIsOpen] = useState(false)
-  const dropdownRef = useRef(null)
-  const buttonRef = useRef(null)
-
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target) && 
-          buttonRef.current && !buttonRef.current.contains(event.target)) {
-        setIsOpen(false)
-      }
-    }
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [isOpen])
-
   const currencyNames = {
     'USD': 'US Dollar',
     'INR': 'Indian Rupee',
@@ -69,62 +49,33 @@ function CurrencyDropdown({ currencies, selectedCurrency, onSelectCurrency }) {
     'CHF': 'Swiss Franc'
   }
 
-  // Calculate position for fixed dropdown
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 })
-
-  useEffect(() => {
-    if (isOpen && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect()
-      setDropdownPosition({
-        top: rect.bottom + 8,
-        right: window.innerWidth - rect.right
-      })
-    }
-  }, [isOpen])
-
   return (
-    <>
-      <div className="relative" ref={buttonRef}>
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-1.5 rounded-full border border-white/5 bg-white/[0.02] px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white"
-        >
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="flex items-center gap-1.5 rounded-full border border-white/5 bg-white/[0.02] px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white">
           <span>{getCurrencySymbol(selectedCurrency)}</span>
           <span>{selectedCurrency}</span>
-          <ChevronDown className={`h-3 w-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          <ChevronDown className="h-3 w-3 transition-transform" />
         </button>
-      </div>
-
-      {isOpen && (
-        <div 
-          ref={dropdownRef}
-          className="fixed w-48 bg-slate-800/95 backdrop-blur-xl border border-slate-700/50 rounded-lg shadow-2xl z-[100] overflow-hidden max-h-80 overflow-y-auto scrollbar-hide"
-          style={{
-            top: `${dropdownPosition.top}px`,
-            right: `${dropdownPosition.right}px`
-          }}
-        >
-          {currencies.map((curr) => (
-            <button
-              key={curr}
-              onClick={() => {
-                onSelectCurrency(curr)
-                setIsOpen(false)
-              }}
-              className={`w-full px-3 py-2 text-left text-xs transition flex items-center gap-2 ${
-                selectedCurrency === curr
-                  ? 'bg-emerald-400/20 text-emerald-300 font-medium'
-                  : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
-              }`}
-            >
-              <span className="w-8 text-right">{getCurrencySymbol(curr)}</span>
-              <span className="flex-1">{curr}</span>
-              <span className="text-[10px] text-slate-500">{currencyNames[curr] || ''}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48 bg-slate-800/95 backdrop-blur-xl border-slate-700/50">
+        {currencies.map((curr) => (
+          <DropdownMenuItem
+            key={curr}
+            onClick={() => onSelectCurrency(curr)}
+            className={`flex items-center gap-2 text-xs cursor-pointer ${
+              selectedCurrency === curr
+                ? 'bg-emerald-400/20 text-emerald-300 font-medium'
+                : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+            }`}
+          >
+            <span className="w-8 text-right">{getCurrencySymbol(curr)}</span>
+            <span className="flex-1">{curr}</span>
+            <span className="text-[10px] text-slate-500">{currencyNames[curr] || ''}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
@@ -249,16 +200,6 @@ export default function Header({
             )}
 
             <ThemeToggle />
-
-            {!isDemoMode && (
-              <button
-                onClick={onDisconnect}
-                className="rounded-full border border-white/5 px-3 py-1 text-xs font-medium text-slate-400 transition hover:border-rose-400/50 hover:bg-rose-400/10 hover:text-rose-200"
-              >
-                <span className="hidden sm:inline">Disconnect</span>
-                <span className="sm:hidden">DC</span>
-              </button>
-            )}
 
             {onSignOut && (
               <button

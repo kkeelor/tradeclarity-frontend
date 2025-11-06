@@ -8,11 +8,25 @@ import { analyzeBehavior } from './behavioralAnalyzer'
 import { autoConvertToUSD } from './currencyConverter'
 
 export const analyzeData = async (allData) => {
-  console.log('\n=== MASTER ANALYZER ===')
+  // VERY VISIBLE LOG - should appear in browser console
+  console.warn('%c?????? === MASTER ANALYZER STARTED === ??????', 'color: #00ff00; font-size: 20px; font-weight: bold; background: #000; padding: 5px;')
+  console.warn('Raw data keys:', Object.keys(allData || {}))
+  console.warn('Has metadata:', !!allData?.metadata)
+  console.warn('Has spotHoldings:', !!allData?.metadata?.spotHoldings)
+  console.warn('spotHoldings count:', allData?.metadata?.spotHoldings?.length || 0)
+  if (allData?.metadata?.spotHoldings) {
+    console.warn('Sample holdings:', allData.metadata.spotHoldings.slice(0, 3))
+  } else {
+    console.error('??? NO HOLDINGS IN INPUT DATA ???')
+  }
 
   // STEP 1: Auto-detect currency and convert to USD if needed
   // This ensures all subsequent analysis uses consistent USD values
   const convertedData = await autoConvertToUSD(allData)
+
+  console.log('After conversion - Has metadata:', !!convertedData?.metadata)
+  console.log('After conversion - Has spotHoldings:', !!convertedData?.metadata?.spotHoldings)
+  console.log('After conversion - spotHoldings count:', convertedData?.metadata?.spotHoldings?.length || 0)
 
   // allData can be either:
   // 1. Array of trades (legacy format) - has { symbol, time, qty, price, isBuyer, accountType }
@@ -46,6 +60,8 @@ export const analyzeData = async (allData) => {
     console.log('Futures income records:', futuresData.income.length)
     console.log('Futures positions:', futuresData.positions.length)
     console.log('Currency:', metadata.convertedToUSD ? `USD (converted from ${metadata.originalCurrency})` : (metadata.primaryCurrency || 'USD'))
+    console.log('Metadata keys:', Object.keys(metadata))
+    console.log('Final metadata.spotHoldings count:', metadata.spotHoldings?.length || 0)
   }
 
   // Analyze spot trades
@@ -252,40 +268,137 @@ export const analyzeData = async (allData) => {
   // Calculate spot unrealized P&L if holdings data is available
   // Match spotHoldings (current market prices) with openPositions (from trade history)
   let spotUnrealizedPnL = 0
+  const unmatchedHoldings = []
+  const unmatchedPositions = []
+  const matchedPairs = []
+  
+  console.log('\n=== CHECKING HOLDINGS DATA ===')
+  console.log(`metadata exists: ${!!metadata}`)
+  console.log(`spotHoldings exists: ${!!metadata?.spotHoldings}`)
+  console.log(`spotHoldings is array: ${Array.isArray(metadata?.spotHoldings)}`)
+  console.log(`spotHoldings count: ${metadata?.spotHoldings?.length || 0}`)
+  console.log(`spotAnalysis.openPositions exists: ${!!spotAnalysis.openPositions}`)
+  console.log(`spotAnalysis.openPositions count: ${spotAnalysis.openPositions?.length || 0}`)
+  
   if (metadata?.spotHoldings && Array.isArray(metadata.spotHoldings) && spotAnalysis.openPositions && spotAnalysis.openPositions.length > 0) {
+    // Create a map of open positions by normalized symbol for faster lookup
+    const openPositionsMap = new Map()
+    spotAnalysis.openPositions.forEach(pos => {
+      const normalizedSymbol = pos.symbol?.toUpperCase().replace(/[\/\-]/g, '').replace('USDT', '')
+      if (!openPositionsMap.has(normalizedSymbol)) {
+        openPositionsMap.set(normalizedSymbol, [])
+      }
+      openPositionsMap.get(normalizedSymbol).push(pos)
+    })
+    
     spotUnrealizedPnL = metadata.spotHoldings.reduce((total, holding) => {
-      // Find matching open position from trade history
-      const openPosition = spotAnalysis.openPositions.find(pos => {
-        // Match symbol - handle different formats (BTCUSDT vs BTC/USDT vs BTC)
-        const holdingSymbol = holding.asset?.toUpperCase()
+      const holdingAsset = holding.asset?.toUpperCase().trim()
+      const normalizedHoldingAsset = holdingAsset?.replace(/[\/\-]/g, '').replace('USDT', '')
+      
+      // Try to find matching open position
+      let openPosition = null
+      const candidatePositions = openPositionsMap.get(normalizedHoldingAsset) || []
+      
+      // Try exact match first
+      openPosition = candidatePositions.find(pos => {
         const posSymbol = pos.symbol?.toUpperCase()
-        // Try exact match first
-        if (holdingSymbol === posSymbol) return true
-        // Try removing USDT suffix
-        if (holdingSymbol === posSymbol.replace('USDT', '')) return true
-        // Try adding USDT suffix
-        if (posSymbol === holdingSymbol + 'USDT') return true
-        // Try removing /USDT format
-        if (holdingSymbol === posSymbol.replace('/USDT', '')) return true
-        return false
+        return holdingAsset === posSymbol || 
+               holdingAsset === posSymbol.replace('USDT', '') ||
+               holdingAsset === posSymbol.replace('/USDT', '') ||
+               posSymbol === holdingAsset + 'USDT' ||
+               posSymbol.replace(/[\/\-]/g, '').replace('USDT', '') === normalizedHoldingAsset
       })
       
       if (openPosition && holding.price && holding.quantity) {
         const currentPrice = parseFloat(holding.price)
         const avgEntryPrice = parseFloat(openPosition.avgEntryPrice)
-        const quantity = parseFloat(holding.quantity)
+        const holdingQuantity = parseFloat(holding.quantity)
+        const positionQuantity = parseFloat(openPosition.quantity || 0)
+        
+        // Use the minimum of holding quantity and position quantity to avoid overstating P&L
+        // This handles cases where holdings include external deposits
+        const quantityToUse = Math.min(holdingQuantity, positionQuantity > 0 ? positionQuantity : holdingQuantity)
         
         // Calculate unrealized P&L: (currentPrice - avgEntryPrice) * quantity
-        if (!isNaN(currentPrice) && !isNaN(avgEntryPrice) && !isNaN(quantity) && avgEntryPrice > 0) {
-          const unrealizedPnL = (currentPrice - avgEntryPrice) * quantity
+        if (!isNaN(currentPrice) && !isNaN(avgEntryPrice) && !isNaN(quantityToUse) && avgEntryPrice > 0 && quantityToUse > 0) {
+          const unrealizedPnL = (currentPrice - avgEntryPrice) * quantityToUse
+          
+          matchedPairs.push({
+            asset: holdingAsset,
+            holdingQuantity,
+            positionQuantity,
+            quantityUsed: quantityToUse,
+            currentPrice,
+            avgEntryPrice,
+            unrealizedPnL,
+            match: 'full'
+          })
+          
           return total + unrealizedPnL
+        } else {
+          matchedPairs.push({
+            asset: holdingAsset,
+            holdingQuantity,
+            positionQuantity,
+            currentPrice,
+            avgEntryPrice,
+            match: 'invalid',
+            reason: `Invalid values: currentPrice=${currentPrice}, avgEntryPrice=${avgEntryPrice}, quantityToUse=${quantityToUse}`
+          })
         }
+      } else {
+        unmatchedHoldings.push({
+          asset: holdingAsset,
+          quantity: holding.quantity,
+          price: holding.price,
+          usdValue: holding.usdValue
+        })
       }
       
       return total
     }, 0)
     
-    console.log('Spot Unrealized P&L:', spotUnrealizedPnL.toFixed(2), `(from ${spotAnalysis.openPositions.length} open positions)`)
+    // Track open positions that don't have matching holdings
+    spotAnalysis.openPositions.forEach(pos => {
+      const posSymbol = pos.symbol?.toUpperCase()
+      const normalizedPosSymbol = posSymbol?.replace(/[\/\-]/g, '').replace('USDT', '')
+      const hasMatchingHolding = metadata.spotHoldings.some(h => {
+        const holdingAsset = h.asset?.toUpperCase().trim()
+        const normalizedHoldingAsset = holdingAsset?.replace(/[\/\-]/g, '').replace('USDT', '')
+        return normalizedHoldingAsset === normalizedPosSymbol ||
+               holdingAsset === posSymbol ||
+               holdingAsset === posSymbol.replace('USDT', '') ||
+               holdingAsset === posSymbol.replace('/USDT', '') ||
+               posSymbol === holdingAsset + 'USDT'
+      })
+      
+      if (!hasMatchingHolding) {
+        unmatchedPositions.push({
+          symbol: posSymbol,
+          quantity: pos.quantity,
+          avgEntryPrice: pos.avgEntryPrice
+        })
+      }
+    })
+    
+    console.log('\n=== SPOT UNREALIZED P&L CALCULATION ===')
+    console.log(`Total Unrealized P&L: ${spotUnrealizedPnL.toFixed(2)}`)
+    console.log(`Matched pairs: ${matchedPairs.length}`)
+    matchedPairs.forEach(pair => {
+      console.log(`  ${pair.asset}: ${pair.holdingQuantity} holdings, ${pair.positionQuantity} position, used ${pair.quantityUsed}, P&L: ${pair.unrealizedPnL?.toFixed(2) || 'N/A'} (${pair.match})`)
+    })
+    if (unmatchedHoldings.length > 0) {
+      console.warn(`??  ${unmatchedHoldings.length} holdings without matching open positions:`)
+      unmatchedHoldings.forEach(h => {
+        console.warn(`    - ${h.asset}: ${h.quantity} @ $${h.price} (value: $${h.usdValue})`)
+      })
+    }
+    if (unmatchedPositions.length > 0) {
+      console.warn(`??  ${unmatchedPositions.length} open positions without matching holdings:`)
+      unmatchedPositions.forEach(p => {
+        console.warn(`    - ${p.symbol}: ${p.quantity} @ avg $${p.avgEntryPrice}`)
+      })
+    }
   }
 
   return {

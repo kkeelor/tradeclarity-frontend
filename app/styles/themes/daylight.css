@@ -1,0 +1,608 @@
+/* ============================================
+   DAYLIGHT THEME - Modern White Background
+   Industry Standard Colors
+   ============================================ */
+
+:root {
+  /* Light theme base with professional colors */
+  --background: 0 0% 100%;  /* #FFFFFF - Pure white */
+  --foreground: 222 47% 11%;  /* #0f172a - Dark slate for text */
+
+  --card: 0 0% 100%;  /* #FFFFFF - White cards */
+  --card-foreground: 222 47% 11%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+
+  --primary: 217 91% 60%;  /* #3b82f6 - Standard blue */
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 210 40% 96%;  /* #f1f5f9 - Light gray */
+  --secondary-foreground: 222 47% 11%;
+
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+
+  --accent: 217 91% 60%;
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: 0 84% 60%;  /* #ef4444 - Standard red */
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 214 32% 91%;  /* #e2e8f0 - Light gray border */
+  --input: 214 32% 91%;
+  --ring: 217 91% 60%;
+}
+
+/* Light mode background - Pure white */
+body {
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+
+/* Override all slate backgrounds to light theme colors */
+.bg-black {
+  background: #ffffff !important;
+}
+
+.bg-slate-950 {
+  background: #f8fafc !important;  /* Very light gray */
+}
+
+.bg-slate-900 {
+  background: #f1f5f9 !important;  /* Light gray */
+}
+
+.bg-slate-900\/80 {
+  background: rgba(241, 245, 249, 0.95) !important;
+}
+
+.bg-slate-900\/40 {
+  background: rgba(241, 245, 249, 0.4) !important;
+}
+
+.bg-slate-800 {
+  background: #e2e8f0 !important;  /* Medium light gray */
+}
+
+.bg-slate-800\/50 {
+  background: rgba(226, 232, 240, 0.5) !important;
+}
+
+.bg-slate-800\/30 {
+  background: rgba(226, 232, 240, 0.3) !important;
+}
+
+.bg-slate-800\/20 {
+  background: rgba(226, 232, 240, 0.2) !important;
+}
+
+.bg-slate-700 {
+  background: #cbd5e1 !important;  /* Medium gray */
+}
+
+.bg-slate-700\/50 {
+  background: rgba(203, 213, 225, 0.5) !important;
+}
+
+.bg-slate-700\/30 {
+  background: rgba(203, 213, 225, 0.3) !important;
+}
+
+.bg-slate-700\/20 {
+  background: rgba(203, 213, 225, 0.2) !important;
+}
+
+/* Light theme borders */
+.border-slate-800,
+.border-slate-800\/50 {
+  border-color: #cbd5e1 !important;  /* Medium gray */
+}
+
+.border-slate-700,
+.border-slate-700\/50 {
+  border-color: #94a3b8 !important;  /* Slightly darker gray */
+}
+
+.border-slate-600\/50 {
+  border-color: #64748b !important;
+}
+
+/* Text colors for light background - dark text */
+.text-white {
+  color: #0f172a !important;  /* Dark slate */
+}
+
+.text-slate-100 {
+  color: #0f172a !important;
+}
+
+.text-slate-200 {
+  color: #1e293b !important;
+}
+
+.text-slate-300 {
+  color: #334155 !important;
+}
+
+.text-slate-400 {
+  color: #64748b !important;  /* Medium gray text */
+}
+
+.text-slate-500 {
+  color: #64748b !important;
+}
+
+/* Industry-standard green for profit */
+.text-profit {
+  color: #10b981 !important;  /* Emerald green */
+}
+
+.bg-profit {
+  background-color: #10b981 !important;
+}
+
+.bg-profit\/20 {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+}
+
+.border-profit {
+  border-color: #10b981 !important;
+}
+
+/* Industry-standard red for loss */
+.text-loss {
+  color: #ef4444 !important;  /* Red */
+}
+
+.bg-loss {
+  background-color: #ef4444 !important;
+}
+
+.bg-loss\/20 {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+}
+
+.border-loss {
+  border-color: #ef4444 !important;
+}
+
+/* Emerald/Green colors */
+.text-emerald-400,
+.text-emerald-500 {
+  color: #10b981 !important;
+}
+
+.bg-emerald-400,
+.bg-emerald-500 {
+  background-color: #10b981 !important;
+}
+
+.bg-emerald-500\/20 {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+}
+
+.bg-emerald-500\/10 {
+  background-color: rgba(16, 185, 129, 0.05) !important;
+}
+
+.border-emerald-500,
+.border-emerald-500\/30 {
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+.border-emerald-500\/50 {
+  border-color: rgba(16, 185, 129, 0.5) !important;
+}
+
+.from-emerald-500 {
+  --tw-gradient-from: #10b981 !important;
+}
+
+/* Red colors */
+.text-red-400,
+.text-red-500 {
+  color: #ef4444 !important;
+}
+
+.bg-red-400,
+.bg-red-500 {
+  background-color: #ef4444 !important;
+}
+
+.bg-red-500\/20 {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+}
+
+.bg-red-500\/10 {
+  background-color: rgba(239, 68, 68, 0.05) !important;
+}
+
+.border-red-400,
+.border-red-500,
+.border-red-500\/30 {
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+.border-red-500\/50 {
+  border-color: rgba(239, 68, 68, 0.5) !important;
+}
+
+/* Blue colors - standard primary */
+.text-blue-400,
+.text-blue-500 {
+  color: #3b82f6 !important;
+}
+
+.bg-blue-400,
+.bg-blue-500 {
+  background-color: #3b82f6 !important;
+}
+
+.bg-blue-500\/20 {
+  background-color: rgba(59, 130, 246, 0.1) !important;
+}
+
+.bg-blue-500\/15 {
+  background-color: rgba(59, 130, 246, 0.075) !important;
+}
+
+.bg-blue-500\/10 {
+  background-color: rgba(59, 130, 246, 0.05) !important;
+}
+
+.border-blue-400,
+.border-blue-500,
+.border-blue-500\/30 {
+  border-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+.border-blue-500\/50 {
+  border-color: rgba(59, 130, 246, 0.5) !important;
+}
+
+.border-blue-500\/40 {
+  border-color: rgba(59, 130, 246, 0.4) !important;
+}
+
+.text-blue-200 {
+  color: #3b82f6 !important;
+}
+
+.text-blue-300 {
+  color: #3b82f6 !important;
+}
+
+/* Cyan colors */
+.text-cyan-400,
+.text-cyan-500 {
+  color: #06b6d4 !important;
+}
+
+.bg-cyan-500\/20 {
+  background-color: rgba(6, 182, 212, 0.1) !important;
+}
+
+.border-cyan-500,
+.border-cyan-500\/30 {
+  border-color: rgba(6, 182, 212, 0.3) !important;
+}
+
+.to-cyan-500 {
+  --tw-gradient-to: #06b6d4 !important;
+}
+
+/* Purple colors */
+.text-purple-400 {
+  color: #8b5cf6 !important;
+}
+
+.bg-purple-500\/20 {
+  background-color: rgba(139, 92, 246, 0.1) !important;
+}
+
+.bg-purple-500\/10 {
+  background-color: rgba(139, 92, 246, 0.05) !important;
+}
+
+.border-purple-400,
+.border-purple-500\/30 {
+  border-color: rgba(139, 92, 246, 0.3) !important;
+}
+
+.from-purple-500\/10 {
+  --tw-gradient-from: rgba(139, 92, 246, 0.1) !important;
+}
+
+.to-purple-500\/5 {
+  --tw-gradient-to: rgba(139, 92, 246, 0.05) !important;
+}
+
+/* Yellow/Gold colors */
+.text-yellow-400,
+.text-yellow-500 {
+  color: #f59e0b !important;
+}
+
+.bg-yellow-400,
+.bg-yellow-500 {
+  background-color: #f59e0b !important;
+}
+
+.bg-yellow-500\/20 {
+  background-color: rgba(245, 158, 11, 0.1) !important;
+}
+
+.border-yellow-500,
+.border-yellow-500\/30 {
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+
+.text-gold {
+  color: #f59e0b !important;
+}
+
+.bg-gold {
+  background-color: #f59e0b !important;
+}
+
+.border-gold {
+  border-color: #f59e0b !important;
+}
+
+/* Gold gradient utilities */
+.from-gold-400 {
+  --tw-gradient-from: #facc15 !important;
+}
+
+.to-gold-600 {
+  --tw-gradient-to: #ca8a04 !important;
+}
+
+.from-gold-500 {
+  --tw-gradient-from: #eab308 !important;
+}
+
+.to-gold-500 {
+  --tw-gradient-to: #eab308 !important;
+}
+
+.to-gold-700 {
+  --tw-gradient-to: #a16207 !important;
+}
+
+.border-gold-500\/30 {
+  border-color: rgba(234, 179, 8, 0.3) !important;
+}
+
+.shadow-gold-500\/20 {
+  box-shadow: 0 10px 15px -3px rgba(234, 179, 8, 0.2), 0 4px 6px -2px rgba(234, 179, 8, 0.1) !important;
+}
+
+.shadow-gold-500\/50 {
+  box-shadow: 0 25px 50px -12px rgba(234, 179, 8, 0.5) !important;
+}
+
+/* Hover states for light theme */
+.hover\:bg-slate-700:hover {
+  background-color: #cbd5e1 !important;
+}
+
+.hover\:bg-slate-800:hover {
+  background-color: #e2e8f0 !important;
+}
+
+.hover\:border-emerald-500:hover,
+.hover\:border-emerald-500\/50:hover {
+  border-color: #10b981 !important;
+}
+
+/* Background white overrides */
+.bg-white\/\[0\.04\] {
+  background: #ffffff !important;
+}
+
+.bg-white\/\[0\.03\] {
+  background: #ffffff !important;
+}
+
+/* Specific overrides for cards and containers */
+.bg-white\/5 {
+  background: #f8fafc !important;
+}
+
+/* Shadow adjustments for light theme */
+.shadow-lg {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+}
+
+.shadow-xl {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* ============================================
+   NAV BAR - Light Theme Styling
+   ============================================ */
+
+/* Header/Nav Bar */
+header.sticky {
+  background: #ffffff !important;
+  border-bottom-color: #e2e8f0 !important;
+}
+
+.bg-slate-950\/70 {
+  background: rgba(255, 255, 255, 0.95) !important;
+}
+
+.backdrop-blur-xl {
+  backdrop-filter: blur(16px);
+  background: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Nav bar logo button */
+.bg-white\/\[0\.03\] {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+.hover\:bg-emerald-400\/10:hover {
+  background: rgba(16, 185, 129, 0.1) !important;
+}
+
+.hover\:border-emerald-400\/40:hover {
+  border-color: rgba(16, 185, 129, 0.4) !important;
+}
+
+/* Nav button text colors */
+.text-white\/90 {
+  color: #0f172a !important;
+}
+
+.text-slate-300 {
+  color: #475569 !important;
+}
+
+.text-slate-500 {
+  color: #64748b !important;
+}
+
+.hover\:text-white:hover {
+  color: #0f172a !important;
+}
+
+.text-emerald-300 {
+  color: #10b981 !important;
+}
+
+.group-hover\:text-emerald-300:hover {
+  color: #10b981 !important;
+}
+
+.hover\:bg-white\/10:hover {
+  background: rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Exchange config badge */
+.bg-white\/\[0\.02\] {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+.text-slate-300\/80 {
+  color: #475569 !important;
+}
+
+/* ============================================
+   TRADING BALANCE SHEET - Light Theme Styling
+   ============================================ */
+
+/* Balance Sheet Container */
+.bg-slate-900\/50 {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+.backdrop-blur-sm {
+  backdrop-filter: blur(4px);
+}
+
+/* Balance Sheet Header Row */
+.bg-slate-800\/30 {
+  background: #f1f5f9 !important;
+}
+
+.border-slate-700\/50 {
+  border-color: #cbd5e1 !important;
+}
+
+/* Balance Sheet Body */
+.bg-slate-900\/20 {
+  background: #f8fafc !important;
+}
+
+.divide-slate-700\/30 > * {
+  border-color: #e2e8f0 !important;
+}
+
+/* Balance Sheet Text Colors */
+.text-slate-200 {
+  color: #0f172a !important;
+}
+
+.text-slate-400 {
+  color: #64748b !important;
+}
+
+.text-amber-300 {
+  color: #d97706 !important;
+}
+
+.text-amber-400 {
+  color: #f59e0b !important;
+}
+
+.text-emerald-300 {
+  color: #059669 !important;
+}
+
+.text-emerald-400 {
+  color: #10b981 !important;
+}
+
+/* Table specific overrides */
+.bg-slate-800\/30 {
+  background: #f1f5f9 !important;
+}
+
+.border-slate-800\/30 {
+  border-color: #e2e8f0 !important;
+}
+
+.hover\:bg-slate-700\/10:hover {
+  background: rgba(203, 213, 225, 0.1) !important;
+}
+
+.hover\:bg-slate-800\/20:hover {
+  background: rgba(226, 232, 240, 0.2) !important;
+}
+
+.border-b.border-slate-800\/30 {
+  border-bottom-color: #e2e8f0 !important;
+}
+
+/* Balance Sheet insight cards */
+.bg-blue-500\/10 {
+  background: rgba(59, 130, 246, 0.05) !important;
+}
+
+.border-blue-500\/20 {
+  border-color: rgba(59, 130, 246, 0.2) !important;
+}
+
+.bg-orange-500\/10 {
+  background: rgba(249, 115, 22, 0.05) !important;
+}
+
+.border-orange-500\/20 {
+  border-color: rgba(249, 115, 22, 0.2) !important;
+}
+
+.bg-purple-500\/10 {
+  background: rgba(139, 92, 246, 0.05) !important;
+}
+
+.border-purple-500\/20 {
+  border-color: rgba(139, 92, 246, 0.2) !important;
+}
+
+.text-blue-400 {
+  color: #3b82f6 !important;
+}
+
+.text-orange-400 {
+  color: #f97316 !important;
+}
+
+.text-purple-400 {
+  color: #8b5cf6 !important;
+}

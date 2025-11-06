@@ -1,12 +1,11 @@
 // app/analyze/components/ConnectExchangeModal.js
 'use client'
 
-import { useState } from 'react'
-import { X, Upload, Link as LinkIcon, FileText, ArrowRight } from 'lucide-react'
+import { Upload, Link as LinkIcon, FileText, ArrowRight } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { Badge } from '@/components/ui/badge'
 
 export default function ConnectExchangeModal({ isOpen, onClose, onSelectMethod }) {
-  if (!isOpen) return null
-
   const methods = [
     {
       id: 'api',
@@ -27,27 +26,12 @@ export default function ConnectExchangeModal({ isOpen, onClose, onSelectMethod }
   ]
 
   return (
-    <div
-      className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <div
-        className="relative overflow-hidden bg-gradient-to-br from-slate-900/95 via-slate-900/95 to-slate-900/95 border border-slate-700/50 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto backdrop-blur-xl shadow-2xl"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="sticky top-0 bg-gradient-to-r from-slate-900/95 via-slate-900/95 to-slate-900/95 border-b border-slate-700/50 p-6 flex items-center justify-between backdrop-blur-xl z-10">
-          <div>
-            <h2 className="text-2xl font-bold">Connect Your Exchange</h2>
-            <p className="text-slate-400 mt-1">Choose how you'd like to import your trading data</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="bg-gradient-to-br from-slate-900/95 via-slate-900/95 to-slate-900/95 border-slate-700/50 max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-2xl font-bold">Connect Your Exchange</DialogTitle>
+          <DialogDescription className="mt-1">Choose how you'd like to import your trading data</DialogDescription>
+        </DialogHeader>
 
         {/* Content */}
         <div className="p-6 space-y-4">
@@ -80,9 +64,9 @@ export default function ConnectExchangeModal({ isOpen, onClose, onSelectMethod }
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="text-lg font-semibold">{method.title}</h3>
                       {method.recommended && (
-                        <span className="px-2.5 py-1 bg-gradient-to-r from-emerald-500/20 to-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold rounded-full">
+                        <Badge variant="profit" className="px-2.5 py-1 text-xs font-semibold">
                           Recommended
-                        </span>
+                        </Badge>
                       )}
                     </div>
                     <p className="text-slate-400 text-sm mb-3">
@@ -90,12 +74,9 @@ export default function ConnectExchangeModal({ isOpen, onClose, onSelectMethod }
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {method.benefits.map((benefit, idx) => (
-                        <span
-                          key={idx}
-                          className="px-2 py-1 bg-slate-700/50 text-slate-300 text-xs rounded-md"
-                        >
+                        <Badge key={idx} variant="secondary" className="px-2 py-1 text-xs">
                           {benefit}
-                        </span>
+                        </Badge>
                       ))}
                     </div>
                   </div>
@@ -116,7 +97,7 @@ export default function ConnectExchangeModal({ isOpen, onClose, onSelectMethod }
             </p>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

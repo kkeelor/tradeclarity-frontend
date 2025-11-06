@@ -4,6 +4,7 @@
 'use client'
 
 import { Lock, TrendingUp, ChevronRight, Sparkles } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { getConfidenceLabel } from '../utils/insights/lowActivityInsights'
 
 export default function ProgressiveUnlockCard({ unlockTier, currentTrades, totalTrades }) {
@@ -78,14 +79,10 @@ export default function ProgressiveUnlockCard({ unlockTier, currentTrades, total
 
 export function ConfidenceBadge({ confidence, dataPoints }) {
   const label = getConfidenceLabel(confidence, dataPoints)
-  const color = confidence === 'high' ? 'emerald' : confidence === 'medium' ? 'yellow' : 'slate'
+  const variant = confidence === 'high' ? 'profit' : confidence === 'medium' ? 'warning' : 'secondary'
 
   return (
-    <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-      color === 'emerald' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-      color === 'yellow' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' :
-      'bg-slate-500/20 text-slate-400 border border-slate-500/30'
-    }`}>
+    <Badge variant={variant} className="inline-flex items-center gap-1">
       <span className="relative flex h-1.5 w-1.5">
         {confidence === 'high' && (
           <>
@@ -101,6 +98,6 @@ export function ConfidenceBadge({ confidence, dataPoints }) {
         )}
       </span>
       {label}
-    </div>
+    </Badge>
   )
 }

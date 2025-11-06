@@ -5,6 +5,10 @@ import { useState } from 'react'
 import { ArrowLeft, Mail, MessageSquare, Send, CheckCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
 import Footer from '../components/Footer'
 
 export default function ContactPage() {
@@ -17,6 +21,15 @@ export default function ContactPage() {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  
+  const form = useForm({
+    defaultValues: {
+      name: '',
+      email: '',
+      subject: '',
+      message: ''
+    }
+  })
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -127,65 +140,65 @@ export default function ContactPage() {
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-slate-300 mb-2">
+                  <Label htmlFor="name" className="text-slate-300">
                     Name
-                  </label>
-                  <input
+                  </Label>
+                  <Input
                     type="text"
                     id="name"
                     name="name"
                     value={formData.name}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-2 rounded-xl border border-white/10 bg-white/[0.05] text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                    className="border-white/10 bg-white/[0.05] text-white placeholder-slate-500 focus:border-emerald-500/50 focus:ring-emerald-500/20"
                     placeholder="Your name"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
+                  <Label htmlFor="email" className="text-slate-300">
                     Email
-                  </label>
-                  <input
+                  </Label>
+                  <Input
                     type="email"
                     id="email"
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-2 rounded-xl border border-white/10 bg-white/[0.05] text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                    className="border-white/10 bg-white/[0.05] text-white placeholder-slate-500 focus:border-emerald-500/50 focus:ring-emerald-500/20"
                     placeholder="Enter your email"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="subject" className="block text-sm font-medium text-slate-300 mb-2">
+                  <Label htmlFor="subject" className="text-slate-300">
                     Subject
-                  </label>
-                  <input
+                  </Label>
+                  <Input
                     type="text"
                     id="subject"
                     name="subject"
                     value={formData.subject}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-2 rounded-xl border border-white/10 bg-white/[0.05] text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                    className="border-white/10 bg-white/[0.05] text-white placeholder-slate-500 focus:border-emerald-500/50 focus:ring-emerald-500/20"
                     placeholder="What's this about?"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="message" className="block text-sm font-medium text-slate-300 mb-2">
+                  <Label htmlFor="message" className="text-slate-300">
                     Message
-                  </label>
-                  <textarea
+                  </Label>
+                  <Textarea
                     id="message"
                     name="message"
                     value={formData.message}
                     onChange={handleChange}
                     required
                     rows={5}
-                    className="w-full px-4 py-2 rounded-xl border border-white/10 bg-white/[0.05] text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 transition-all resize-none"
+                    className="border-white/10 bg-white/[0.05] text-white placeholder-slate-500 focus:border-emerald-500/50 focus:ring-emerald-500/20 resize-none"
                     placeholder="Tell us how we can help..."
                   />
                 </div>
@@ -208,6 +221,7 @@ export default function ContactPage() {
                   )}
                 </button>
               </form>
+              </Form>
             )}
           </div>
         </div>
@@ -215,7 +229,7 @@ export default function ContactPage() {
         {/* FAQ Section */}
         <div className="mt-12 pt-8 border-t border-white/5">
           <h2 className="text-2xl font-semibold mb-6">Frequently Asked Questions</h2>
-          <div className="space-y-4">
+          <Accordion type="single" collapsible className="w-full">
             {[
               {
                 q: 'How quickly do you respond?',
@@ -234,12 +248,16 @@ export default function ContactPage() {
                 a: 'Please contact us with your account email and reason for refund. We offer a 7-day money-back guarantee for new subscriptions.'
               }
             ].map((faq, idx) => (
-              <div key={idx} className="rounded-xl border border-white/5 bg-white/[0.03] p-4">
-                <h3 className="font-semibold text-emerald-400 mb-2">{faq.q}</h3>
-                <p className="text-sm text-slate-400">{faq.a}</p>
-              </div>
+              <AccordionItem key={idx} value={`item-${idx}`} className="border-white/5 rounded-xl bg-white/[0.03] px-4 mb-4">
+                <AccordionTrigger className="text-left font-semibold text-emerald-400 hover:no-underline">
+                  {faq.q}
+                </AccordionTrigger>
+                <AccordionContent className="text-sm text-slate-400 pb-4">
+                  {faq.a}
+                </AccordionContent>
+              </AccordionItem>
             ))}
-          </div>
+          </Accordion>
         </div>
       </div>
       <Footer />

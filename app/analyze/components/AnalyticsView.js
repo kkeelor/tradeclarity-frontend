@@ -17,11 +17,15 @@ import { analyzeDrawdowns } from '../utils/drawdownAnalysis'
 import { analyzeTimeBasedPerformance } from '../utils/timeBasedAnalysis'
 import { analyzeSymbols } from '../utils/symbolAnalysis'
 import { convertAnalyticsForDisplay } from '../utils/currencyFormatter'
-import { getCurrencyRates } from '../utils/currencyConverter'
+import { getCurrencyRates, convertCurrencySync } from '../utils/currencyConverter'
 import { generateValueFirstInsights } from '../utils/insights/valueFirstInsights'
 import { prioritizeInsights, enhanceInsightForDisplay } from '../utils/insights/insightsPrioritizationEngine'
 import AhaMomentsSection from './AhaMomentsSection'
-import { ExchangeIcon, SeparatorText, Separator } from '@/components/ui'
+import { ExchangeIcon, SeparatorText, Separator, Card as ShadcnCard, CardHeader, CardTitle, CardDescription, CardContent, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableFooter } from '@/components/ui'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Badge } from '@/components/ui/badge'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { getCurrencySymbol } from '../utils/currencyFormatter'
 import {
   AreaChart, Area, BarChart, Bar, LineChart as RechartsLineChart,
   Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart,
@@ -36,11 +40,6 @@ import {
   SectionHeaderWithAction,
   FilterButton,
   TabButton,
-  Modal,
-  ModalSection,
-  ModalDescription,
-  ModalMetrics,
-  ModalActionSteps,
   HeroSkeleton,
   ChartSkeleton,
   CardGridSkeleton,
@@ -178,17 +177,17 @@ function HeroSection({ analytics, currSymbol, currency, metadata }) {
               })}
 
               {hasLimitedData && (
-                <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/40 bg-amber-400/10 px-3 py-1.5 text-xs font-semibold text-amber-100">
+                <Badge variant="warning" className="inline-flex items-center gap-2">
                   <AlertCircle className="w-3.5 h-3.5" />
                   {tradeCount}/20 trades analyzed
-                </span>
+                </Badge>
               )}
 
               {hasGreatData && (
-                <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/40 bg-emerald-400/10 px-3 py-1.5 text-xs font-semibold text-emerald-100">
+                <Badge variant="profit" className="inline-flex items-center gap-2">
                   <CheckCircle className="w-3.5 h-3.5" />
                   High-quality dataset
-                </span>
+                </Badge>
               )}
             </div>
           </div>
@@ -426,7 +425,7 @@ function LiveHoldings({ analytics, metadata, currSymbol }) {
 // ============================================
 
 function RadialPsychologyScore({ score, analytics }) {
-  const radius = 70
+  const radius = 60
   const circumference = 2 * Math.PI * radius
   const strokeDashoffset = circumference - (score / 100) * circumference
 
@@ -439,40 +438,38 @@ function RadialPsychologyScore({ score, analytics }) {
   }
 
   const colors = getScoreColor(score)
-  const winRate = analytics.winRate || 0
-  const profitFactor = analytics.profitFactor || 0
 
   return (
     <div className="flex flex-col items-center">
       {/* Radial Progress Circle */}
-      <div className="relative flex items-center justify-center mb-6">
+      <div className="relative flex items-center justify-center mb-4">
         {/* Glow effect */}
         <div className="absolute inset-0 rounded-full blur-xl opacity-30"
              style={{
-               width: '200px',
-               height: '200px',
+               width: '160px',
+               height: '160px',
                background: `radial-gradient(circle, ${colors.glow}40 0%, transparent 70%)`
              }} />
 
         {/* SVG Circle */}
-        <svg className="transform -rotate-90" width="180" height="180">
+        <svg className="transform -rotate-90" width="150" height="150">
           {/* Background circle */}
           <circle
-            cx="90"
-            cy="90"
+            cx="75"
+            cy="75"
             r={radius}
             fill="none"
             stroke="rgba(71, 85, 105, 0.15)"
-            strokeWidth="14"
+            strokeWidth="12"
           />
           {/* Progress circle */}
           <circle
-            cx="90"
-            cy="90"
+            cx="75"
+            cy="75"
             r={radius}
             fill="none"
             stroke={`url(#gradient-${score})`}
-            strokeWidth="14"
+            strokeWidth="12"
             strokeLinecap="round"
             strokeDasharray={circumference}
             strokeDashoffset={strokeDashoffset}
@@ -490,24 +487,8 @@ function RadialPsychologyScore({ score, analytics }) {
 
         {/* Center content */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <div className="text-5xl font-bold text-white mb-1">{score}</div>
-          <div className="text-xs text-slate-400 uppercase tracking-wider">Discipline</div>
-        </div>
-      </div>
-
-      {/* Mini stats below */}
-      <div className="w-full grid grid-cols-2 gap-3">
-        <div className="text-center p-3 bg-slate-800/30 rounded-lg border border-slate-700/30">
-          <div className="text-xs text-slate-500 mb-1">Win Rate</div>
-          <div className={`text-lg font-bold ${winRate >= 50 ? 'text-emerald-400' : 'text-slate-400'}`}>
-            {winRate.toFixed(1)}%
-          </div>
-        </div>
-        <div className="text-center p-3 bg-slate-800/30 rounded-lg border border-slate-700/30">
-          <div className="text-xs text-slate-500 mb-1">Profit Factor</div>
-          <div className={`text-lg font-bold ${profitFactor >= 1 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {profitFactor.toFixed(2)}x
-          </div>
+          <div className="text-4xl font-bold text-white mb-1">{score}</div>
+          <div className="text-[10px] text-slate-400 uppercase tracking-wider">Discipline</div>
         </div>
       </div>
     </div>
@@ -1147,8 +1128,6 @@ function SymbolRankingsTable({ rankings, currSymbol }) {
 // ============================================
 
 function PatternDetectionEnhanced({ patterns }) {
-  const [expanded, setExpanded] = useState(true)
-  
   // Sort by severity: high ? medium ? low
   const severityOrder = { high: 0, medium: 1, low: 2 }
   const sortedPatterns = [...patterns].sort((a, b) => 
@@ -1166,67 +1145,60 @@ function PatternDetectionEnhanced({ patterns }) {
         title="Hidden Patterns Detected"
         subtitle={`${patterns.length} insights from your data`}
         color="cyan"
-        action={
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="text-slate-400 hover:text-white transition-colors"
-          >
-            {expanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-          </button>
-        }
       />
       
-      {expanded && (
-        <div className="space-y-3">
-          {/* All Patterns - Uniform Grid */}
-          <div className="grid grid-cols-1 gap-3">
-            {sortedPatterns.map((pattern, i) => {
-              const IconComponent = pattern.icon
-              return (
-                <div
-                  key={i}
-                  className={`bg-slate-800/30 border rounded-lg p-4 ${
-                    pattern.severity === 'high' ? 'border-red-500/30' :
-                    pattern.severity === 'medium' ? 'border-yellow-500/20' :
-                    'border-slate-700/30'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <IconBadge
-                      icon={IconComponent}
-                      color={pattern.severity === 'high' ? 'red' : pattern.severity === 'medium' ? 'yellow' : 'emerald'}
-                      size="sm"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <h4 className="font-semibold text-sm">{pattern.title}</h4>
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ml-2 ${
-                          pattern.severity === 'high' ? 'bg-red-500/10 text-red-400' :
-                          pattern.severity === 'medium' ? 'bg-yellow-500/10 text-yellow-400' :
-                          'bg-emerald-500/10 text-emerald-400'
-                        }`}>
-                          {pattern.severity}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-400">{pattern.description}</p>
-                      {pattern.stats && (
-                        <div className="flex flex-wrap gap-2 mt-2 text-xs">
-                          {Object.entries(pattern.stats).map(([key, value]) => (
-                            <div key={key} className="bg-slate-700/30 px-2 py-1 rounded">
-                              <span className="text-slate-400">{key}:</span>{' '}
-                              <span className="text-white font-mono">{value}</span>
+      <Accordion type="single" collapsible defaultValue="patterns" className="w-full">
+        <AccordionItem value="patterns" className="border-none">
+          <AccordionTrigger className="hidden" />
+          <AccordionContent className="pt-0">
+            <div className="space-y-3">
+              {/* All Patterns - Uniform Grid */}
+              <div className="grid grid-cols-1 gap-3">
+                {sortedPatterns.map((pattern, i) => {
+                  const IconComponent = pattern.icon
+                  return (
+                    <div
+                      key={i}
+                      className={`bg-slate-800/30 border rounded-lg p-4 ${
+                        pattern.severity === 'high' ? 'border-red-500/30' :
+                        pattern.severity === 'medium' ? 'border-yellow-500/20' :
+                        'border-slate-700/30'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <IconBadge
+                          icon={IconComponent}
+                          color={pattern.severity === 'high' ? 'red' : pattern.severity === 'medium' ? 'yellow' : 'emerald'}
+                          size="sm"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <h4 className="font-semibold text-sm">{pattern.title}</h4>
+                            <Badge variant={pattern.severity === 'high' ? 'loss' : pattern.severity === 'medium' ? 'warning' : 'profit'} className="text-xs font-medium flex-shrink-0 ml-2">
+                              {pattern.severity}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-slate-400">{pattern.description}</p>
+                          {pattern.stats && (
+                            <div className="flex flex-wrap gap-2 mt-2 text-xs">
+                              {Object.entries(pattern.stats).map(([key, value]) => (
+                                <Badge key={key} variant="secondary" className="text-xs">
+                                  <span className="text-slate-400">{key}:</span>{' '}
+                                  <span className="text-white font-mono">{value}</span>
+                                </Badge>
+                              ))}
                             </div>
-                          ))}
+                          )}
                         </div>
-                      )}
+                      </div>
                     </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
+                  )
+                })}
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
   )
 }
@@ -1553,33 +1525,33 @@ function InsightModal({ insight, onClose, currSymbol = '$', analytics = {} }) {
       onClick={onClose}
     >
       <div
-        className={`bg-slate-900 border ${borderColor} rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl my-8`}
+        className={`bg-slate-900 border ${borderColor} rounded-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-2xl`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className={`${bgColor} border-b ${borderColor} p-6`}>
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
+        <div className={`${bgColor} border-b ${borderColor} p-4`}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2.5 mb-1.5">
                 {IconComponent && (
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
                     isWeakness ? 'bg-amber-500/20 text-amber-400' :
                     isOpportunity ? 'bg-orange-500/20 text-orange-400' :
                     'bg-emerald-500/20 text-emerald-400'
                   }`}>
-                    <IconComponent className="w-5 h-5" />
+                    <IconComponent className="w-4 h-4" />
                   </div>
                 )}
-                <div className="flex-1">
-                  <h3 className={`text-xl font-bold ${textColor} mb-1`}>{insight.title}</h3>
+                <div className="flex-1 min-w-0">
+                  <h3 className={`text-base font-bold ${textColor} mb-1 leading-tight`}>{insight.title}</h3>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs px-2 py-1 rounded-md bg-slate-800/50 text-slate-300">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-slate-800/50 text-slate-300">
                       {insight.category || insight.type}
                     </span>
                     {insight.impact && (
                       <span className="flex items-center gap-1">
                         {[...Array(Math.min(insight.impact, 5))].map((_, i) => (
-                          <div key={i} className={`w-1.5 h-1.5 rounded-full ${accentColor}`} />
+                          <div key={i} className={`w-1 h-1 rounded-full ${accentColor}`} />
                         ))}
                       </span>
                     )}
@@ -1589,45 +1561,69 @@ function InsightModal({ insight, onClose, currSymbol = '$', analytics = {} }) {
             </div>
             <button
               onClick={onClose}
-              className="text-slate-400 hover:text-white transition-colors p-2 hover:bg-slate-800/50 rounded-lg"
+              className="text-slate-400 hover:text-white transition-colors p-1.5 hover:bg-slate-800/50 rounded-lg flex-shrink-0"
               aria-label="Close modal"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6">
+        <div className="p-4 space-y-3">
           {/* Summary */}
           <div>
-            <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-3">Summary</h4>
-            <p className="text-slate-300 leading-relaxed text-base">
+            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Summary</h4>
+            <p className="text-slate-300 leading-relaxed text-sm">
               {insight.message || insight.summary || insight.description}
             </p>
           </div>
 
+          {/* Recommended Actions - Moved Up */}
+          {(insight.action?.steps || insight.actionSteps) && (
+            <div>
+              <h4 className="text-xs font-semibold text-slate-400 mb-2 flex items-center gap-1.5">
+                <Lightbulb className="w-3.5 h-3.5 text-yellow-400" />
+                Recommended Actions
+              </h4>
+              <div className="space-y-1.5">
+                {(insight.action?.steps || insight.actionSteps || []).map((step, i) => (
+                  <div key={i} className="flex items-start gap-2 bg-slate-800/30 p-2.5 rounded-lg border border-slate-700/30">
+                    <div className={`w-5 h-5 rounded-lg flex items-center justify-center font-bold text-[10px] flex-shrink-0 ${
+                      isWeakness ? 'bg-amber-500/20 text-amber-400' :
+                      isOpportunity ? 'bg-orange-500/20 text-orange-400' :
+                      'bg-emerald-500/20 text-emerald-400'
+                    }`}>
+                      {i + 1}
+                    </div>
+                    <span className="text-xs text-slate-300 leading-relaxed flex-1">{step}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Reasoning & Calculations */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* Key Metrics */}
-            <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-5">
-              <h4 className="text-sm font-semibold text-slate-400 mb-4 flex items-center gap-2">
-                <Activity className="w-4 h-4" />
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-3">
+              <h4 className="text-xs font-semibold text-slate-400 mb-2 flex items-center gap-1.5">
+                <Activity className="w-3.5 h-3.5" />
                 Key Metrics
               </h4>
-              <div className="space-y-3">
+              <div className="space-y-1.5">
                 {Object.entries(reasoningData).map(([key, value]) => (
-                  <div key={key} className="flex justify-between items-center py-2 border-b border-slate-700/30 last:border-0">
-                    <span className="text-sm text-slate-400">{key}</span>
-                    <span className={`font-semibold ${value !== 'Not Available' && value !== 'Not Calculated' && value !== 'Not Rated' && value !== 'Not Specified' ? accentColor : 'text-slate-500'}`}>
+                  <div key={key} className="flex justify-between items-center py-1 border-b border-slate-700/30 last:border-0">
+                    <span className="text-xs text-slate-400">{key}</span>
+                    <span className={`text-xs font-semibold ${value !== 'Not Available' && value !== 'Not Calculated' && value !== 'Not Rated' && value !== 'Not Specified' ? accentColor : 'text-slate-500'}`}>
                       {value}
                     </span>
                   </div>
                 ))}
                 {additionalMetrics.map((metric, idx) => (
-                  <div key={idx} className="flex justify-between items-center py-2 border-b border-slate-700/30 last:border-0">
-                    <span className="text-sm text-slate-400">{metric.label}</span>
-                    <span className={`font-semibold ${accentColor}`}>
+                  <div key={idx} className="flex justify-between items-center py-1 border-b border-slate-700/30 last:border-0">
+                    <span className="text-xs text-slate-400">{metric.label}</span>
+                    <span className={`text-xs font-semibold ${accentColor}`}>
                       {metric.value}
                     </span>
                   </div>
@@ -1636,19 +1632,19 @@ function InsightModal({ insight, onClose, currSymbol = '$', analytics = {} }) {
             </div>
 
             {/* Impact Analysis */}
-            <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-5">
-              <h4 className="text-sm font-semibold text-slate-400 mb-4 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4" />
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-3">
+              <h4 className="text-xs font-semibold text-slate-400 mb-2 flex items-center gap-1.5">
+                <TrendingUp className="w-3.5 h-3.5" />
                 Impact Analysis
               </h4>
-              <div className="space-y-4">
+              <div className="space-y-2.5">
                 {insight.potentialSavings > 0 && (
                   <div>
-                    <div className="text-xs text-slate-400 mb-1">Potential Savings</div>
-                    <div className={`text-2xl font-bold ${accentColor}`}>
+                    <div className="text-[10px] text-slate-400 mb-0.5">Potential Savings</div>
+                    <div className={`text-lg font-bold ${accentColor}`}>
                       {currSymbol}{insight.potentialSavings.toFixed(0)}
                     </div>
-                    <div className="text-xs text-slate-500 mt-1">
+                    <div className="text-[10px] text-slate-500 mt-0.5">
                       Estimated improvement if addressed
                     </div>
                   </div>
@@ -1656,15 +1652,15 @@ function InsightModal({ insight, onClose, currSymbol = '$', analytics = {} }) {
                 
                 {insight.impact && (
                   <div>
-                    <div className="text-xs text-slate-400 mb-2">Impact Score</div>
+                    <div className="text-[10px] text-slate-400 mb-1">Impact Score</div>
                     <div className="flex items-center gap-2">
-                      <div className="flex-1 h-2 bg-slate-700/50 rounded-full overflow-hidden">
+                      <div className="flex-1 h-1.5 bg-slate-700/50 rounded-full overflow-hidden">
                         <div 
                           className={`h-full ${isWeakness ? 'bg-amber-500' : isOpportunity ? 'bg-orange-500' : 'bg-emerald-500'}`}
                           style={{ width: `${(insight.impact / 5) * 100}%` }}
                         />
                       </div>
-                      <span className={`text-sm font-semibold ${accentColor}`}>
+                      <span className={`text-xs font-semibold ${accentColor}`}>
                         {insight.impact}/5
                       </span>
                     </div>
@@ -1672,95 +1668,24 @@ function InsightModal({ insight, onClose, currSymbol = '$', analytics = {} }) {
                 )}
 
                 {insight.expectedImpact && (
-                  <div className="pt-2 border-t border-slate-700/30">
-                    <div className="text-xs text-slate-400 mb-1">Expected Impact</div>
-                    <div className="text-sm text-slate-300">{insight.expectedImpact}</div>
+                  <div className="pt-1.5 border-t border-slate-700/30">
+                    <div className="text-[10px] text-slate-400 mb-0.5">Expected Impact</div>
+                    <div className="text-xs text-slate-300">{insight.expectedImpact}</div>
                   </div>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Calculations & Reasoning */}
-          {(insight.potentialSavings > 0 || insight.dataPoints || insight.affectedTrades) && (
-            <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-5">
-              <h4 className="text-sm font-semibold text-slate-400 mb-4 flex items-center gap-2">
-                <Brain className="w-4 h-4" />
-                Calculations & Reasoning
-              </h4>
-              <div className="space-y-3">
-                {insight.potentialSavings > 0 && (
-                  <div className="bg-slate-900/50 p-3 rounded-lg">
-                    <div className="text-xs text-slate-400 mb-1">Potential Savings Calculation</div>
-                    <div className="text-sm text-slate-300 font-mono">
-                      {insight.source === 'drawdown' && (
-                        <span>Based on drawdown analysis: Potential to avoid 20% of losses through better risk management</span>
-                      )}
-                      {insight.source === 'timing-analysis' && (
-                        <span>Based on timing analysis: Potential to avoid 50% of losses by avoiding worst-performing hours</span>
-                      )}
-                      {insight.source === 'value-first' && (
-                        <span>Based on trade analysis: Calculated from performance patterns and optimization opportunities</span>
-                      )}
-                      {!insight.source || (insight.source !== 'drawdown' && insight.source !== 'timing-analysis' && insight.source !== 'value-first') && (
-                        <span>Estimated from trading patterns and historical performance data</span>
-                      )}
-                    </div>
-                  </div>
-                )}
-                
-                {(insightWithValues.affectedTrades || insightWithValues.dataPoints || insightWithValues.trades) && (
-                  <div className="flex justify-between items-center py-2">
-                    <span className="text-sm text-slate-400">Affected Trades</span>
-                    <span className="text-sm font-semibold text-slate-300">
-                      {(insightWithValues.affectedTrades || insightWithValues.dataPoints || insightWithValues.trades || 0).toLocaleString()} trades
-                    </span>
-                  </div>
-                )}
-                
-                {insight.dataPoints && (
-                  <div className="flex justify-between items-center py-2">
-                    <span className="text-sm text-slate-400">Data Points Analyzed</span>
-                    <span className="text-sm font-semibold text-slate-300">{insight.dataPoints}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Action Steps */}
-          {(insight.action?.steps || insight.actionSteps) && (
-            <div>
-              <h4 className="text-sm font-semibold text-slate-400 mb-4 flex items-center gap-2">
-                <Lightbulb className="w-4 h-4 text-yellow-400" />
-                Recommended Actions
-              </h4>
-              <div className="space-y-3">
-                {(insight.action?.steps || insight.actionSteps || []).map((step, i) => (
-                  <div key={i} className="flex items-start gap-3 bg-slate-800/30 p-4 rounded-lg border border-slate-700/30">
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-sm flex-shrink-0 ${
-                      isWeakness ? 'bg-amber-500/20 text-amber-400' :
-                      isOpportunity ? 'bg-orange-500/20 text-orange-400' :
-                      'bg-emerald-500/20 text-emerald-400'
-                    }`}>
-                      {i + 1}
-                    </div>
-                    <span className="text-slate-300 leading-relaxed flex-1">{step}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Additional Data */}
           {insight.data && Object.keys(insight.data).length > 0 && (
-            <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-5">
-              <h4 className="text-sm font-semibold text-slate-400 mb-4">Supporting Data</h4>
-              <div className="grid grid-cols-2 gap-3">
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-3">
+              <h4 className="text-xs font-semibold text-slate-400 mb-2">Supporting Data</h4>
+              <div className="grid grid-cols-2 gap-2">
                 {Object.entries(insight.data).map(([key, value]) => (
-                  <div key={key} className="bg-slate-900/50 p-3 rounded-lg">
-                    <div className="text-xs text-slate-400 mb-1">{key}</div>
-                    <div className="text-sm font-semibold text-slate-300">{value}</div>
+                  <div key={key} className="bg-slate-900/50 p-2 rounded-lg">
+                    <div className="text-[10px] text-slate-400 mb-0.5">{key}</div>
+                    <div className="text-xs font-semibold text-slate-300">{value}</div>
                   </div>
                 ))}
               </div>
@@ -1828,13 +1753,9 @@ function SymbolsTable({ symbols, filter, currSymbol }) {
                 </td>
                 <td className="p-3 md:p-4 text-right text-slate-300 font-semibold whitespace-nowrap">{data.trades}</td>
                 <td className="p-3 md:p-4 text-right">
-                  <span className={`px-3 py-1 rounded-full text-sm font-semibold whitespace-nowrap ${
-                    data.winRate >= 60 ? 'bg-emerald-500/20 text-emerald-400' :
-                    data.winRate >= 50 ? 'bg-yellow-500/20 text-yellow-400' :
-                    'bg-red-500/20 text-red-400'
-                  }`}>
+                  <Badge variant={data.winRate >= 60 ? 'profit' : data.winRate >= 50 ? 'warning' : 'loss'} className="text-sm font-semibold whitespace-nowrap">
                     {data.winRate.toFixed(0)}%
-                  </span>
+                  </Badge>
                 </td>
                 <td className="p-3 md:p-4 text-right text-slate-400 text-sm font-medium whitespace-nowrap">
                   {data.wins}W / {data.losses}L
@@ -1946,7 +1867,7 @@ function calculateMissingInsightValues(insight, analytics) {
   return calculated
 }
 
-function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setActiveTab }) {
+function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setActiveTab, setCurrency, currencyMetadata }) {
   const [selectedInsight, setSelectedInsight] = useState(null)
   const [showCharts, setShowCharts] = useState(false)
   const [showSymbols, setShowSymbols] = useState(false)
@@ -2597,192 +2518,276 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
   // Check if portfolio data is available (only present on live connections)
   const hasPortfolioData = metadata?.totalPortfolioValue !== undefined && metadata?.totalPortfolioValue !== null
 
+  // Convert portfolio value to selected currency
+  const convertedPortfolioValue = useMemo(() => {
+    if (!hasPortfolioData || !metadata?.totalPortfolioValue) return null
+    if (currency === 'USD') return metadata.totalPortfolioValue
+    return convertCurrencySync(metadata.totalPortfolioValue, 'USD', currency)
+  }, [hasPortfolioData, metadata?.totalPortfolioValue, currency])
+
   return (
     <div className="space-y-4 md:space-y-6">
       {/* TOP SECTION: Balanced Portfolio Overview + PnL Summary */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 items-stretch">
         {/* Portfolio Overview - Left Column */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.04] backdrop-blur shadow-lg shadow-black/20">
-            {/* Enhanced gradient background */}
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/8 via-transparent to-cyan-500/6" />
-            <div className="absolute -top-20 -right-20 w-48 h-48 bg-emerald-500/10 blur-3xl rounded-full opacity-40" />
-            <div className="absolute -bottom-16 -left-16 w-36 h-36 bg-cyan-500/10 blur-3xl rounded-full opacity-30" />
-            
-            <div className="relative p-4 md:p-5">
-              {/* Header Section */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
-                    <Layers className="w-4 h-4 text-emerald-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-100">Portfolio Overview</h3>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Complete trading performance snapshot</p>
-                  </div>
+        <div className="lg:col-span-2 space-y-4 h-full flex flex-col">
+          <ShadcnCard className="relative overflow-hidden border-slate-800 bg-black shadow-xl flex-1 flex flex-col">
+            <CardHeader className="relative pb-3">
+              {/* Trading Period and Currency Switcher */}
+              {(dateRange || (currencyMetadata?.supportsCurrencySwitch && currencyMetadata.availableCurrencies.length > 1)) && (
+                <div className="flex items-center justify-between gap-4 mb-3 pb-3 border-b border-slate-800 flex-wrap">
+                  {dateRange && (
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-slate-400" />
+                      <div className="text-xs text-slate-400">
+                        <span className="font-semibold text-slate-300">Trading Period: </span>
+                        {dateRange.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - {dateRange.end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </div>
+                    </div>
+                  )}
+                  {currencyMetadata?.supportsCurrencySwitch && currencyMetadata.availableCurrencies.length > 1 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-slate-300">Currency:</span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="flex items-center gap-1.5 rounded-full border border-white/5 bg-white/[0.02] px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white">
+                            <span>{getCurrencySymbol(currency)}</span>
+                            <span>{currency}</span>
+                            <ChevronDown className="h-3 w-3 transition-transform" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48 bg-slate-800/95 backdrop-blur-xl border-slate-700/50">
+                          {currencyMetadata.availableCurrencies.map((curr) => {
+                            const currencyNames = {
+                              'USD': 'US Dollar',
+                              'INR': 'Indian Rupee',
+                              'EUR': 'Euro',
+                              'GBP': 'British Pound',
+                              'JPY': 'Japanese Yen',
+                              'AUD': 'Australian Dollar',
+                              'CAD': 'Canadian Dollar',
+                              'CNY': 'Chinese Yuan',
+                              'SGD': 'Singapore Dollar',
+                              'CHF': 'Swiss Franc'
+                            }
+                            return (
+                              <DropdownMenuItem
+                                key={curr}
+                                onClick={() => setCurrency(curr)}
+                                className={`flex items-center gap-2 text-xs cursor-pointer ${
+                                  currency === curr
+                                    ? 'bg-emerald-400/20 text-emerald-300 font-medium'
+                                    : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+                                }`}
+                              >
+                                <span className="w-8 text-right">{getCurrencySymbol(curr)}</span>
+                                <span className="flex-1">{curr}</span>
+                                <span className="text-[10px] text-slate-500">{currencyNames[curr] || ''}</span>
+                              </DropdownMenuItem>
+                            )
+                          })}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
               
-              {/* Main P&L Display - Reduced Size */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 md:gap-3 mb-4">
-                <div className={`relative overflow-hidden rounded-lg border p-3 transition-all duration-200 hover:scale-[1.01] ${
-                  isProfitable 
-                    ? 'border-emerald-400/40 bg-gradient-to-br from-emerald-500/15 to-emerald-500/5 shadow-md shadow-emerald-500/10' 
-                    : 'border-red-400/40 bg-gradient-to-br from-red-500/15 to-red-500/5 shadow-md shadow-red-500/10'
-                }`}>
-                  <div className="absolute top-0 right-0 w-16 h-16 bg-white/5 rounded-full blur-xl -mr-8 -mt-8" />
-                  <div className="relative">
-                    <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-300 mb-1.5">
-                      <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${
-                        isProfitable ? 'bg-emerald-500/20' : 'bg-red-500/20'
-                      }`}>
-                        <DollarSign className={`w-3 h-3 ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`} />
-                      </div>
-                      <span>Total P&L</span>
-                    </div>
-                    <div className={`text-xl md:text-2xl font-bold mb-0.5 ${isProfitable ? 'text-emerald-300' : 'text-red-300'}`}>
-                      {isProfitable ? '+' : ''}{currSymbol}{formatNumber(Math.abs(analytics.totalPnL), 2)}
-                    </div>
-                    <div className="text-[10px] text-slate-400 font-medium">{currency || 'USD'}</div>
-                    <div className="text-[10px] text-slate-500 mt-1.5 pt-1.5 border-t border-white/5">{analytics.totalTrades.toLocaleString()} trades</div>
-                  </div>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
+                  <Layers className="w-4 h-4 text-emerald-400" />
                 </div>
-
-                <div className="relative overflow-hidden rounded-lg border border-white/10 bg-white/[0.03] p-3 transition-all duration-200 hover:scale-[1.01] hover:border-white/20">
-                  <div className="absolute top-0 right-0 w-16 h-16 bg-white/5 rounded-full blur-xl -mr-8 -mt-8" />
-                  <div className="relative">
-                    <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-300 mb-1.5">
-                      <div className="w-6 h-6 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                        <Target className="w-3 h-3 text-blue-400" />
-                      </div>
-                      <span>Win Rate</span>
-                    </div>
-                    <div className="text-xl md:text-2xl font-bold text-white mb-0.5">{(analytics.winRate ?? 0).toFixed(1)}%</div>
-                    <div className="text-[10px] text-slate-400 font-medium">
-                      {((analytics.winRate ?? 0) >= 50 ? 'Above' : 'Below')} Average
-                    </div>
-                    <div className="text-[10px] text-slate-500 mt-1.5 pt-1.5 border-t border-white/5">
-                      {analytics.winningTrades || 0}W / {analytics.losingTrades || 0}L
-                    </div>
-                  </div>
-                </div>
-
-                <div className="relative overflow-hidden rounded-lg border border-white/10 bg-white/[0.03] p-3 transition-all duration-200 hover:scale-[1.01] hover:border-white/20">
-                  <div className="absolute top-0 right-0 w-16 h-16 bg-white/5 rounded-full blur-xl -mr-8 -mt-8" />
-                  <div className="relative">
-                    <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-300 mb-1.5">
-                      <div className="w-6 h-6 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                        <Activity className="w-3 h-3 text-purple-400" />
-                      </div>
-                      <span>Total Trades</span>
-                    </div>
-                    <div className="text-xl md:text-2xl font-bold text-white mb-0.5">{totalTrades.toLocaleString()}</div>
-                    <div className="text-[10px] text-slate-400 font-medium">
-                      {analytics.spotTrades || 0}S + {analytics.futuresTrades || 0}F
-                    </div>
-                    <div className="text-[10px] text-slate-500 mt-1.5 pt-1.5 border-t border-white/5">
-                      {metadata?.hasSpot && 'Spot'}
-                      {metadata?.hasSpot && metadata?.hasFutures && ' + '}
-                      {metadata?.hasFutures && 'Futures'}
-                    </div>
-                  </div>
+                <div>
+                  <CardTitle className="text-sm font-bold text-slate-100">Portfolio Overview</CardTitle>
+                  <CardDescription className="text-[10px] text-slate-400 mt-0.5">Complete trading performance snapshot</CardDescription>
                 </div>
               </div>
+            </CardHeader>
+            
+            <CardContent className="relative space-y-4 flex-1 flex flex-col">
+              {/* Total Portfolio Value, Realized P&L, and Unrealized P&L in the same row */}
+              <div className={`grid gap-3 ${(hasFuturesData || analytics.spotUnrealizedPnL) ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                {/* Total Portfolio Value */}
+                {hasPortfolioData ? (
+                  <ShadcnCard className="border-slate-800 bg-slate-950 p-3 hover:border-blue-500/50 transition-all duration-200">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Wallet className="w-3 h-3 text-blue-400" />
+                      <span className="text-[10px] font-medium text-slate-300">Total Portfolio Value</span>
+                    </div>
+                    <div className="text-xl md:text-2xl font-bold text-blue-400 mb-1">
+                      {currSymbol}{formatNumber(convertedPortfolioValue || 0, 2)}
+                    </div>
+                    <div className="text-[10px] text-slate-400">{currency || 'USD'}</div>
+                  </ShadcnCard>
+                ) : (
+                  <ShadcnCard className="border-slate-800 bg-slate-950 p-3 opacity-50">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Wallet className="w-3 h-3 text-slate-500" />
+                      <span className="text-[10px] font-medium text-slate-500">Total Portfolio Value</span>
+                    </div>
+                    <div className="text-sm text-slate-500">Not available</div>
+                  </ShadcnCard>
+                )}
 
-              {/* Secondary P&L Details - Reduced Size */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 mb-3">
-                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2.5 hover:border-white/20 transition-all duration-200">
-                  <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-300 mb-1.5">
+                {/* Realized P&L */}
+                <ShadcnCard className="border-slate-800 bg-slate-950 p-3 hover:border-slate-700 transition-all duration-200">
+                  <div className="flex items-center gap-1.5 mb-2">
                     <CheckCircle className="w-3 h-3 text-emerald-400" />
-                    <span>Realized P&L</span>
+                    <span className="text-[10px] font-medium text-slate-300">Realized P&L</span>
                   </div>
-                  <div className="text-sm font-bold text-white">
+                  <div className="text-xl md:text-2xl font-bold text-white mb-1">
                     {currSymbol}{formatNumber((analytics.spotPnL || 0) + (analytics.futuresRealizedPnL || 0), 2)}
                   </div>
-                  <div className="text-[9px] text-slate-400 mt-0.5">{currency || 'USD'}</div>
-                </div>
+                  <div className="text-[10px] text-slate-400">{currency || 'USD'}</div>
+                </ShadcnCard>
 
+                {/* Unrealized P&L */}
                 {(hasFuturesData || analytics.spotUnrealizedPnL) && (
-                  <div className={`rounded-lg border p-2.5 hover:border-opacity-40 transition-all duration-200 ${
+                  <ShadcnCard className={`p-3 hover:border-opacity-60 transition-all duration-200 ${
                     (analytics.totalUnrealizedPnL || 0) >= 0 
-                      ? 'border-emerald-400/30 bg-emerald-500/10' 
-                      : 'border-red-400/30 bg-red-500/10'
+                      ? 'border-emerald-500/30 bg-slate-950' 
+                      : 'border-red-500/30 bg-slate-950'
                   }`}>
-                    <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-300 mb-1.5">
+                    <div className="flex items-center gap-1.5 mb-2">
                       <TrendingUpIcon className={`w-3 h-3 ${
                         (analytics.totalUnrealizedPnL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
                       }`} />
-                      <span>Unrealized P&L</span>
+                      <span className="text-[10px] font-medium text-slate-300">Unrealized P&L</span>
                     </div>
-                    <div className={`text-sm font-bold ${
-                      (analytics.totalUnrealizedPnL || 0) >= 0 ? 'text-emerald-300' : 'text-red-300'
+                    <div className={`text-xl md:text-2xl font-bold mb-1 ${
+                      (analytics.totalUnrealizedPnL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
                     }`}>
                       {(analytics.totalUnrealizedPnL || 0) >= 0 ? '+' : ''}{currSymbol}{formatNumber(analytics.totalUnrealizedPnL || 0, 2)}
                     </div>
-                    <div className="text-[9px] text-slate-400 mt-0.5">{currency || 'USD'}</div>
+                    <div className="text-[10px] text-slate-400">{currency || 'USD'}</div>
                     {(analytics.spotUnrealizedPnL || analytics.futuresUnrealizedPnL) && (
-                      <div className="text-[9px] text-slate-500 mt-1.5 pt-1.5 border-t border-white/5 flex items-center gap-1">
+                      <div className="text-[9px] text-slate-500 mt-2 pt-2 border-t border-slate-800 flex items-center gap-1">
                         {analytics.spotUnrealizedPnL && `Spot: ${currSymbol}${formatNumber(analytics.spotUnrealizedPnL, 2)}`}
                         {analytics.spotUnrealizedPnL && analytics.futuresUnrealizedPnL && <Separator className="text-[9px]" />}
                         {analytics.futuresUnrealizedPnL && `Futures: ${currSymbol}${formatNumber(analytics.futuresUnrealizedPnL, 2)}`}
                       </div>
                     )}
-                  </div>
-                )}
-
-                {hasPortfolioData ? (
-                  <div className="rounded-lg border border-blue-500/40 bg-blue-500/15 p-2.5 hover:border-blue-500/60 transition-all duration-200 shadow-md shadow-blue-500/10">
-                    <div className="flex items-center gap-1.5 text-[10px] font-medium text-blue-300 mb-1.5">
-                      <Wallet className="w-3 h-3 text-blue-400" />
-                      <span>Portfolio Value</span>
-                    </div>
-                    <div className="text-sm font-bold text-blue-200">
-                      {currSymbol}{formatNumber(metadata?.totalPortfolioValue || 0, 2)}
-                    </div>
-                    <div className="text-[9px] text-blue-400/80 mt-0.5">{currency || 'USD'}</div>
-                  </div>
-                ) : (
-                  <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2.5 opacity-50">
-                    <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400 mb-1.5">
-                      <Wallet className="w-3 h-3" />
-                      <span>Portfolio Value</span>
-                    </div>
-                    <div className="text-xs text-slate-500">Not available</div>
-                  </div>
+                  </ShadcnCard>
                 )}
               </div>
 
-              {/* Quick Stats Row - Reduced Size */}
-              <div className="grid grid-cols-3 gap-2 pt-3 border-t border-white/10">
-                <div className="text-center p-1.5 rounded-lg bg-white/5 border border-white/5">
-                  <div className="text-[9px] font-medium text-slate-400 mb-0.5 uppercase tracking-wider">Exchanges</div>
-                  <div className="text-sm font-bold text-white">{exchanges.length}</div>
-                </div>
-                {dateRange && (
-                  <div className="text-center p-1.5 rounded-lg bg-white/5 border border-white/5">
-                    <div className="text-[9px] font-medium text-slate-400 mb-0.5 uppercase tracking-wider">Period</div>
-                    <div className="text-[10px] font-semibold text-white leading-tight">
-                      {dateRange.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      <br />
-                      {dateRange.end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </div>
+              {/* Bottom Stats Row - Total Trades and Exchanges */}
+              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-800">
+                <div className="text-center p-3 rounded-lg bg-slate-950 border border-slate-800">
+                  <div className="text-[9px] font-medium text-slate-400 mb-1 uppercase tracking-wider">Total Trades</div>
+                  <div className="text-xl font-bold text-white mb-1">{totalTrades.toLocaleString()}</div>
+                  <div className="text-[10px] text-slate-400">
+                    {analytics.spotTrades || 0}S + {analytics.futuresTrades || 0}F
                   </div>
-                )}
-                <div className="text-center p-1.5 rounded-lg bg-white/5 border border-white/5">
-                  <div className="text-[9px] font-medium text-slate-400 mb-0.5 uppercase tracking-wider">Markets</div>
-                  <div className="text-[10px] font-semibold text-white capitalize">
+                </div>
+                <div className="text-center p-3 rounded-lg bg-slate-950 border border-slate-800">
+                  <div className="text-[9px] font-medium text-slate-400 mb-1 uppercase tracking-wider">Connected Exchanges</div>
+                  <div className="text-xl font-bold text-white mb-1">{exchanges.length}</div>
+                  <div className="text-[10px] text-slate-400">
                     {metadata?.hasSpot && 'Spot'}
                     {metadata?.hasSpot && metadata?.hasFutures && ' + '}
                     {metadata?.hasFutures && 'Futures'}
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </ShadcnCard>
         </div>
 
-        {/* Top Improvement Opportunity - Right Column */}
-        {sortedInsights.length > 0 && sortedInsights[0] && (() => {
+        {/* Psychology Score - Right Column */}
+        {analytics.behavioral?.healthScore !== undefined && analytics.behavioral?.healthScore !== null ? (
+          <div className="relative overflow-hidden rounded-xl border border-purple-500/30 bg-purple-500/10 shadow-lg shadow-purple-500/5 backdrop-blur transition-all duration-300 hover:scale-[1.01] h-full flex flex-col">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-purple-500/5" />
+            <div className="relative p-2 md:p-3 flex flex-col flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Brain className="w-4 h-4 text-purple-400" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-purple-300">
+                  Trading Psychology
+                </span>
+              </div>
+              <div className="flex justify-center mb-3">
+                <RadialPsychologyScore score={analytics.behavioral.healthScore} analytics={analytics} />
+              </div>
+              
+              {/* Score Breakdown */}
+              {(() => {
+                const behavioral = analytics.behavioral || {}
+                const scoreBreakdown = {
+                  panicScore: behavioral.panicPatterns?.score || 0,
+                  consistencyScore: behavioral.consistencyScore || 0,
+                  feeEfficiency: behavioral.feeAnalysis?.efficiency || 0,
+                  emotionalScore: behavioral.emotionalState?.emotionalScore || 0
+                }
+                
+                const getScoreColor = (score) => {
+                  if (score >= 80) return 'text-emerald-400'
+                  if (score >= 60) return 'text-yellow-400'
+                  if (score >= 40) return 'text-orange-400'
+                  return 'text-red-400'
+                }
+                
+                const getScoreBgColor = (score) => {
+                  if (score >= 80) return 'bg-emerald-500/20 border-emerald-500/30'
+                  if (score >= 60) return 'bg-yellow-500/20 border-yellow-500/30'
+                  if (score >= 40) return 'bg-orange-500/20 border-orange-500/30'
+                  return 'bg-red-500/20 border-red-500/30'
+                }
+                
+                const hasBreakdownData = scoreBreakdown.panicScore > 0 || scoreBreakdown.consistencyScore > 0 || scoreBreakdown.feeEfficiency > 0 || scoreBreakdown.emotionalScore > 0
+                
+                if (!hasBreakdownData) return null
+                
+                return (
+                  <div className="space-y-1.5 mb-2">
+                    <div className="text-[10px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5">Score Breakdown</div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {scoreBreakdown.panicScore > 0 && (
+                        <div className={`rounded-lg border p-1.5 ${getScoreBgColor(scoreBreakdown.panicScore)}`}>
+                          <div className="text-[9px] text-slate-400 mb-0.5">Panic Control</div>
+                          <div className={`text-base font-bold ${getScoreColor(scoreBreakdown.panicScore)}`}>
+                            {scoreBreakdown.panicScore.toFixed(0)}/100
+                          </div>
+                        </div>
+                      )}
+                      {scoreBreakdown.consistencyScore > 0 && (
+                        <div className={`rounded-lg border p-1.5 ${getScoreBgColor(scoreBreakdown.consistencyScore)}`}>
+                          <div className="text-[9px] text-slate-400 mb-0.5">Consistency</div>
+                          <div className={`text-base font-bold ${getScoreColor(scoreBreakdown.consistencyScore)}`}>
+                            {scoreBreakdown.consistencyScore.toFixed(0)}/100
+                          </div>
+                        </div>
+                      )}
+                      {scoreBreakdown.feeEfficiency > 0 && (
+                        <div className={`rounded-lg border p-1.5 ${getScoreBgColor(scoreBreakdown.feeEfficiency)}`}>
+                          <div className="text-[9px] text-slate-400 mb-0.5">Fee Efficiency</div>
+                          <div className={`text-base font-bold ${getScoreColor(scoreBreakdown.feeEfficiency)}`}>
+                            {scoreBreakdown.feeEfficiency.toFixed(0)}/100
+                          </div>
+                        </div>
+                      )}
+                      {scoreBreakdown.emotionalScore > 0 && (
+                        <div className={`rounded-lg border p-1.5 ${getScoreBgColor(scoreBreakdown.emotionalScore)}`}>
+                          <div className="text-[9px] text-slate-400 mb-0.5">Emotional State</div>
+                          <div className={`text-base font-bold ${getScoreColor(scoreBreakdown.emotionalScore)}`}>
+                            {scoreBreakdown.emotionalScore.toFixed(0)}/100
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })()}
+              
+              <button
+                onClick={() => setActiveTab('behavioral')}
+                className="w-full mt-auto py-1.5 px-2.5 rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 hover:text-purple-200 transition-all duration-200 flex items-center justify-center gap-1.5 group"
+              >
+                <span className="text-xs font-medium">View Full Analysis</span>
+                <ChevronRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
+              </button>
+            </div>
+          </div>
+        ) : sortedInsights.length > 0 && sortedInsights[0] && (() => {
           const primaryInsight = sortedInsights.find(i => i.type === 'weakness' || i.type === 'opportunity') || sortedInsights[0]
           const isPrimaryWeakness = primaryInsight.type === 'weakness'
           
@@ -2929,10 +2934,10 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
           </div>
 
           {/* Balance Sheet Container */}
-          <div className="rounded-xl border border-slate-700/50 bg-slate-900/50 backdrop-blur-sm overflow-hidden">
+          <ShadcnCard className="overflow-hidden border-slate-800 bg-slate-950">
             {/* Header Row */}
-            <div className="grid grid-cols-2 border-b border-slate-700/50 bg-slate-800/30">
-              <div className="px-6 py-4 border-r border-slate-700/50">
+            <div className="grid grid-cols-2 border-b border-slate-800 bg-slate-900">
+              <div className="px-6 py-4 border-r border-slate-800">
                 <div className="flex items-center gap-3">
                   <Target className="w-5 h-5 text-amber-400" />
                   <div>
@@ -2952,133 +2957,141 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
               </div>
             </div>
 
-            {/* Balance Sheet Body */}
+            {/* Balance Sheet Body - Using Table Components */}
             <div className="grid grid-cols-2 min-h-[300px]">
               {/* Left Column: Improvements */}
-              <div className="border-r border-slate-700/50 bg-slate-900/20">
+              <div className="border-r border-slate-800 bg-slate-950">
                 {improvements.length > 0 ? (
-                  <div className="divide-y divide-slate-700/30">
-                    {(showAllInsights ? improvements : improvements.slice(0, 6)).map((insight, idx) => {
-                      const isWeakness = insight.type === 'weakness'
-                      
-                      return (
-                        <div
-                          key={idx}
-                          className="group px-6 py-4 hover:bg-slate-800/20 transition-all duration-150 cursor-pointer"
-                          onClick={() => setSelectedInsight(insight)}
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1.5">
-                                <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                                  isWeakness ? 'bg-amber-400' : 'bg-orange-400'
-                                }`} />
-                                <span className={`text-xs font-semibold ${
-                                  isWeakness ? 'text-amber-300' : 'text-orange-300'
-                                }`}>
-                                  {insight.title}
-                                </span>
-                              </div>
-                              <p className="text-xs text-slate-400 line-clamp-1 ml-3.5">
-                                {insight.message || insight.summary}
-                              </p>
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                              {insight.potentialSavings > 0 && (
-                                <div className={`text-xs font-bold ${
-                                  isWeakness ? 'text-amber-400' : 'text-orange-400'
-                                }`}>
-                                  {currSymbol}{insight.potentialSavings.toFixed(0)}
-                                </div>
-                              )}
-                              {insight.impact && (
-                                <div className="flex items-center gap-0.5 justify-end mt-1">
-                                  {[...Array(Math.min(insight.impact, 3))].map((_, i) => (
-                                    <div key={i} className={`w-1 h-1 rounded-full ${
-                                      isWeakness ? 'bg-amber-400/60' : 'bg-orange-400/60'
+                  <Table>
+                    <TableBody>
+                      {(showAllInsights ? improvements : improvements.slice(0, 6)).map((insight, idx) => {
+                        const isWeakness = insight.type === 'weakness'
+                        
+                        return (
+                          <TableRow
+                            key={idx}
+                            className="cursor-pointer hover:bg-slate-800/50 border-slate-800"
+                            onClick={() => setSelectedInsight(insight)}
+                          >
+                            <TableCell className="px-6 py-4">
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1.5">
+                                    <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                                      isWeakness ? 'bg-amber-400' : 'bg-orange-400'
                                     }`} />
-                                  ))}
+                                    <span className={`text-xs font-semibold ${
+                                      isWeakness ? 'text-amber-300' : 'text-orange-300'
+                                    }`}>
+                                      {insight.title}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-slate-400 line-clamp-1 ml-3.5">
+                                    {insight.message || insight.summary}
+                                  </p>
                                 </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                    
-                    {/* Show More/Less Button */}
-                    {improvements.length > 6 && (
-                      <div className="px-6 py-3 border-t border-slate-700/30">
-                        {!showAllInsights ? (
-                          <button
-                            onClick={() => setShowAllInsights(true)}
-                            className="w-full py-2 rounded-md border border-slate-700/50 bg-slate-800/30 hover:bg-slate-800/50 text-xs font-medium text-slate-300 hover:text-slate-200 transition-all flex items-center justify-center gap-2 group"
-                          >
-                            <span>View {improvements.length - 6} more</span>
-                            <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-300 transition-transform duration-200 group-hover:translate-y-0.5" />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => setShowAllInsights(false)}
-                            className="w-full py-2 rounded-md border border-slate-700/50 bg-slate-800/30 hover:bg-slate-800/50 text-xs font-medium text-slate-300 hover:text-slate-200 transition-all flex items-center justify-center gap-2 group"
-                          >
-                            <span>Show less</span>
-                            <ChevronUp className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-300 transition-transform duration-200 group-hover:-translate-y-0.5" />
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                                <div className="text-right flex-shrink-0">
+                                  {insight.potentialSavings > 0 && (
+                                    <div className={`text-xs font-bold ${
+                                      isWeakness ? 'text-amber-400' : 'text-orange-400'
+                                    }`}>
+                                      {currSymbol}{insight.potentialSavings.toFixed(0)}
+                                    </div>
+                                  )}
+                                  {insight.impact && (
+                                    <div className="flex items-center gap-0.5 justify-end mt-1">
+                                      {[...Array(Math.min(insight.impact, 3))].map((_, i) => (
+                                        <div key={i} className={`w-1 h-1 rounded-full ${
+                                          isWeakness ? 'bg-amber-400/60' : 'bg-orange-400/60'
+                                        }`} />
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
                 ) : (
                   <div className="px-6 py-12 text-center">
                     <CheckCircle className="w-8 h-8 text-emerald-400 mx-auto mb-2 opacity-50" />
                     <p className="text-xs text-slate-400">No improvements needed</p>
                   </div>
                 )}
+                
+                {/* Show More/Less Button */}
+                {improvements.length > 6 && (
+                  <div className="px-6 py-3 border-t border-slate-800">
+                    {!showAllInsights ? (
+                      <button
+                        onClick={() => setShowAllInsights(true)}
+                        className="w-full py-2 rounded-md border border-slate-800 bg-slate-900 hover:bg-slate-800 text-xs font-medium text-slate-300 hover:text-slate-200 transition-all flex items-center justify-center gap-2 group"
+                      >
+                        <span>View {improvements.length - 6} more</span>
+                        <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-300 transition-transform duration-200 group-hover:translate-y-0.5" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setShowAllInsights(false)}
+                        className="w-full py-2 rounded-md border border-slate-800 bg-slate-900 hover:bg-slate-800 text-xs font-medium text-slate-300 hover:text-slate-200 transition-all flex items-center justify-center gap-2 group"
+                      >
+                        <span>Show less</span>
+                        <ChevronUp className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-300 transition-transform duration-200 group-hover:-translate-y-0.5" />
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Right Column: Strengths */}
-              <div className="bg-slate-900/10">
+              <div className="bg-slate-950">
                 {meaningfulStrengths.length > 0 ? (
-                  <div className="divide-y divide-slate-700/30">
-                    {meaningfulStrengths.map((insight, idx) => {
-                      return (
-                        <div
-                          key={idx}
-                          className="group px-6 py-4 hover:bg-slate-800/20 transition-all duration-150 cursor-pointer"
-                          onClick={() => setSelectedInsight(insight)}
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1.5">
-                                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-emerald-400" />
-                                <span className="text-xs font-semibold text-emerald-300">
-                                  {insight.title}
-                                </span>
+                  <Table>
+                    <TableBody>
+                      {meaningfulStrengths.map((insight, idx) => {
+                        return (
+                          <TableRow
+                            key={idx}
+                            className="cursor-pointer hover:bg-slate-800/50 border-slate-800"
+                            onClick={() => setSelectedInsight(insight)}
+                          >
+                            <TableCell className="px-6 py-4">
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1.5">
+                                    <div className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-emerald-400" />
+                                    <span className="text-xs font-semibold text-emerald-300">
+                                      {insight.title}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-slate-400 line-clamp-1 ml-3.5">
+                                    {insight.message || insight.summary}
+                                  </p>
+                                </div>
+                                <div className="text-right flex-shrink-0">
+                                  {insight.potentialSavings > 0 && (
+                                    <div className="text-xs font-bold text-emerald-400">
+                                      {currSymbol}{insight.potentialSavings.toFixed(0)}
+                                    </div>
+                                  )}
+                                  {insight.impact && (
+                                    <div className="flex items-center gap-0.5 justify-end mt-1">
+                                      {[...Array(Math.min(insight.impact, 3))].map((_, i) => (
+                                        <div key={i} className="w-1 h-1 rounded-full bg-emerald-400/60" />
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                              <p className="text-xs text-slate-400 line-clamp-1 ml-3.5">
-                                {insight.message || insight.summary}
-                              </p>
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                              {insight.potentialSavings > 0 && (
-                                <div className="text-xs font-bold text-emerald-400">
-                                  {currSymbol}{insight.potentialSavings.toFixed(0)}
-                                </div>
-                              )}
-                              {insight.impact && (
-                                <div className="flex items-center gap-0.5 justify-end mt-1">
-                                  {[...Array(Math.min(insight.impact, 3))].map((_, i) => (
-                                    <div key={i} className="w-1 h-1 rounded-full bg-emerald-400/60" />
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
                 ) : (
                   <div className="px-6 py-12 text-center">
                     <Lightbulb className="w-8 h-8 text-slate-500 mx-auto mb-2 opacity-50" />
@@ -3089,41 +3102,45 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
             </div>
 
             {/* Footer Row with Totals */}
-            <div className="grid grid-cols-2 border-t border-slate-700/50 bg-slate-800/40">
+            <div className="grid grid-cols-2 border-t border-slate-800 bg-slate-900">
               {/* Left Column: Improvements Totals */}
-              <div className="px-6 py-4 border-r border-slate-700/50 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Total Potential Savings</span>
-                  <span className="text-sm font-bold text-amber-400">
-                    {currSymbol}{totalPotentialSavings.toFixed(0)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-400">Affected Trades</span>
-                  <span className="text-xs font-semibold text-amber-300">
-                    {totalAffectedTrades.toLocaleString()}
-                  </span>
+              <div className="px-6 py-4 border-r border-slate-800">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Total Potential Savings</span>
+                    <span className="text-sm font-bold text-amber-400">
+                      {currSymbol}{totalPotentialSavings.toFixed(0)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-400">Affected Trades</span>
+                    <span className="text-xs font-semibold text-amber-300">
+                      {totalAffectedTrades.toLocaleString()}
+                    </span>
+                  </div>
                 </div>
               </div>
               {/* Right Column: Strengths Totals */}
-              <div className="px-6 py-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Total Strengths</span>
-                  <span className="text-sm font-bold text-emerald-400">
-                    {meaningfulStrengths.length}
-                  </span>
-                </div>
-                {totalStrengthsTrades > 0 && (
+              <div className="px-6 py-4">
+                <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-400">Total Trades Analyzed</span>
-                    <span className="text-xs font-semibold text-emerald-300">
-                      {totalStrengthsTrades.toLocaleString()}
+                    <span className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Total Strengths</span>
+                    <span className="text-sm font-bold text-emerald-400">
+                      {meaningfulStrengths.length}
                     </span>
                   </div>
-                )}
+                  {totalStrengthsTrades > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-400">Total Trades Analyzed</span>
+                      <span className="text-xs font-semibold text-emerald-300">
+                        {totalStrengthsTrades.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          </ShadcnCard>
         </div>
       ) : (
         // No insights available - Show encouragement and tier unlock
@@ -3317,18 +3334,11 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
 
       {/* Premium Teaser - Time Analysis */}
       <div className="bg-gradient-to-br from-purple-500/5 to-cyan-500/5 border border-purple-500/20 rounded-lg p-3 relative overflow-hidden">
-        <div className="absolute top-0 right-0 bg-purple-500/10 px-2 py-0.5 rounded-bl-lg">
-          <span className="text-[10px] font-bold text-purple-400">PRO</span>
-        </div>
         <div className="flex items-start gap-3">
           <Clock className="w-4 h-4 text-purple-400 mt-0.5" />
           <div className="flex-1">
             <h4 className="text-xs font-semibold text-slate-200 mb-1">Time-Based Performance Analysis</h4>
             <p className="text-[10px] text-slate-400 mb-2">Discover your most profitable hours, days, and months. See when you make the best decisions.</p>
-            <div className="flex items-center gap-2 text-[10px] text-purple-400">
-              <Sparkles className="w-3 h-3" />
-              <span>Unlock with Pro to see hourly, daily & monthly breakdowns</span>
-            </div>
           </div>
         </div>
       </div>
@@ -3471,18 +3481,11 @@ function SpotTab({ analytics, currSymbol, currency, metadata }) {
 
       {/* Premium Teaser - Portfolio Rebalancing */}
       <div className="bg-gradient-to-br from-emerald-500/5 to-cyan-500/5 border border-emerald-500/20 rounded-lg p-3 relative overflow-hidden">
-        <div className="absolute top-0 right-0 bg-emerald-500/10 px-2 py-0.5 rounded-bl-lg">
-          <span className="text-[10px] font-bold text-emerald-400">PRO</span>
-        </div>
         <div className="flex items-start gap-3">
           <PieChart className="w-4 h-4 text-emerald-400 mt-0.5" />
           <div className="flex-1">
             <h4 className="text-xs font-semibold text-slate-200 mb-1">Portfolio Rebalancing Suggestions</h4>
             <p className="text-[10px] text-slate-400 mb-2">Get AI-powered recommendations on when to rebalance your portfolio based on market conditions and your risk profile.</p>
-            <div className="flex items-center gap-2 text-[10px] text-emerald-400">
-              <Sparkles className="w-3 h-3" />
-              <span>Unlock smart rebalancing alerts with Pro</span>
-            </div>
           </div>
         </div>
       </div>
@@ -3845,9 +3848,6 @@ function FuturesTab({ analytics, currSymbol, currency, metadata }) {
 
       {/* Premium Teaser - Leverage Analysis */}
       <div className="bg-gradient-to-br from-cyan-500/5 to-purple-500/5 border border-cyan-500/20 rounded-lg p-3 relative overflow-hidden">
-        <div className="absolute top-0 right-0 bg-cyan-500/10 px-2 py-0.5 rounded-bl-lg">
-          <span className="text-[10px] font-bold text-cyan-400">PRO</span>
-        </div>
         <div className="flex items-start gap-3">
           <TrendingUp className="w-4 h-4 text-cyan-400 mt-0.5" />
           <div className="flex-1">
@@ -3855,10 +3855,6 @@ function FuturesTab({ analytics, currSymbol, currency, metadata }) {
             <p className="text-[10px] text-slate-400 mb-2">
               Discover optimal leverage levels, position sizing recommendations, and liquidation risk warnings.
             </p>
-            <div className="flex items-center gap-2 text-[10px] text-cyan-400">
-              <Sparkles className="w-3 h-3" />
-              <span>Unlock advanced risk management with Pro</span>
-            </div>
           </div>
         </div>
       </div>
@@ -4321,7 +4317,7 @@ function BehavioralTab({ analytics, currSymbol, currency }) {
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-xs font-semibold text-blue-300">{rec.title}</span>
                       {rec.priority === 'high' && (
-                        <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/30 text-blue-300 rounded uppercase">High Priority</span>
+                        <Badge variant="purple" className="text-[10px] uppercase">High Priority</Badge>
                       )}
                     </div>
                     <div className="text-[11px] text-slate-300">{rec.message}</div>
@@ -4356,16 +4352,11 @@ function BehavioralTab({ analytics, currSymbol, currency }) {
               }`}>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-semibold text-slate-200">{symbol.symbol}</span>
-                  <span className={`text-[10px] px-2 py-0.5 rounded ${
-                    symbol.category === 'strength' ? 'bg-emerald-500/30 text-emerald-300' :
-                    symbol.category === 'weakness' ? 'bg-red-500/30 text-red-300' :
-                    symbol.category === 'fomo' ? 'bg-yellow-500/30 text-yellow-300' :
-                    'bg-slate-700/50 text-slate-400'
-                  }`}>
+                  <Badge variant={symbol.category === 'strength' ? 'profit' : symbol.category === 'weakness' ? 'loss' : symbol.category === 'fomo' ? 'warning' : 'secondary'} className="text-[10px]">
                     {symbol.category === 'strength' ? 'Strength' :
                      symbol.category === 'weakness' ? 'Weakness' :
                      symbol.category === 'fomo' ? 'FOMO' : 'Neutral'}
-                  </span>
+                  </Badge>
                 </div>
                 <div className="text-[11px] text-slate-400 mb-1">{symbol.message}</div>
                 <div className="flex items-center gap-3 text-[10px] text-slate-500">
@@ -4561,9 +4552,7 @@ export default function AnalyticsView({
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white flex flex-col">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(46,204,149,0.08),_transparent_60%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom,_rgba(59,130,246,0.06),_transparent_55%)]" />
+    <div className="relative min-h-screen overflow-hidden bg-black text-white flex flex-col">
 
       <Header
         exchangeConfig={exchangeConfig}
@@ -4611,134 +4600,127 @@ export default function AnalyticsView({
         </div>
 
         {/* Tabs - Moved to Top */}
-        <div className="overflow-hidden rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-emerald-500/5 backdrop-blur">
-          {/* Tab Headers */}
-          <div className="flex items-center border-b border-white/5">
-            <div className="flex flex-1 overflow-x-auto scrollbar-hide">
-              {tabs.map(tab => {
-                const TabIcon = tab.icon
-                return (
-                  <TabButton
-                    key={tab.id}
-                    active={activeTab === tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className="whitespace-nowrap text-xs md:text-base"
-                  >
-                    <div className="flex items-center gap-2">
-                      <TabIcon className="w-4 h-4" />
-                      <span>{tab.label}</span>
-                    </div>
-                  </TabButton>
-                )
-              })}
+        <div className="overflow-hidden rounded-3xl border border-slate-800 bg-black shadow-xl">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            {/* Tab Headers */}
+            <div className="flex items-center border-b border-slate-800">
+              <TabsList className="flex flex-1 overflow-x-auto scrollbar-hide bg-transparent border-none h-auto p-0">
+                {tabs.map(tab => {
+                  const TabIcon = tab.icon
+                  return (
+                    <TabsTrigger
+                      key={tab.id}
+                      value={tab.id}
+                      className="whitespace-nowrap text-xs md:text-base data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 data-[state=active]:border-b-2 data-[state=active]:border-emerald-500 rounded-none border-b-2 border-transparent"
+                    >
+                      <div className="flex items-center gap-2">
+                        <TabIcon className="w-4 h-4" />
+                        <span>{tab.label}</span>
+                      </div>
+                    </TabsTrigger>
+                  )
+                })}
+              </TabsList>
+
+              {/* Filter Button */}
+              <div className="flex-shrink-0 border-l border-white/5 px-3">
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`p-2 rounded-lg transition-all ${
+                    showFilters
+                      ? 'bg-purple-500/20 text-purple-200'
+                      : 'text-slate-400 hover:bg-white/10 hover:text-white'
+                  }`}
+                  title="Filter data"
+                >
+                  <Filter className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
-            {/* Filter Button */}
-            <div className="flex-shrink-0 border-l border-white/5 px-3">
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className={`p-2 rounded-lg transition-all ${
-                  showFilters
-                    ? 'bg-purple-500/20 text-purple-200'
-                    : 'text-slate-400 hover:bg-white/10 hover:text-white'
-                }`}
-                title="Filter data"
-              >
-                <Filter className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+            {/* Filter Panel */}
+            {showFilters && currencyMetadata?.exchanges && currencyMetadata.exchanges.length > 1 && (
+              <div className="border-b border-white/5 bg-white/[0.03] px-4 py-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Exchange Buttons */}
+                  {currencyMetadata.exchanges.map(exchange => (
+                    <button
+                      key={exchange}
+                      onClick={() => {
+                        if (selectedExchanges.includes(exchange)) {
+                          setSelectedExchanges(selectedExchanges.filter(ex => ex !== exchange))
+                        } else {
+                          setSelectedExchanges([...selectedExchanges, exchange])
+                        }
+                      }}
+                      className={`relative flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium capitalize transition-all ${
+                        selectedExchanges.includes(exchange)
+                          ? 'border-purple-400/50 bg-purple-500/20 text-white'
+                          : 'border-white/10 bg-white/5 text-slate-200 hover:border-purple-400/40 hover:text-white'
+                      }`}
+                    >
+                      {selectedExchanges.includes(exchange) && (
+                        <CheckCircle className="w-3.5 h-3.5 text-purple-200" />
+                      )}
+                      {exchange}
+                    </button>
+                  ))}
 
-          {/* Filter Panel */}
-          {showFilters && currencyMetadata?.exchanges && currencyMetadata.exchanges.length > 1 && (
-            <div className="border-b border-white/5 bg-white/[0.03] px-4 py-3">
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Exchange Buttons */}
-                {currencyMetadata.exchanges.map(exchange => (
+                  {/* Apply Button */}
                   <button
-                    key={exchange}
                     onClick={() => {
-                      if (selectedExchanges.includes(exchange)) {
-                        setSelectedExchanges(selectedExchanges.filter(ex => ex !== exchange))
-                      } else {
-                        setSelectedExchanges([...selectedExchanges, exchange])
+                      setAppliedExchanges(selectedExchanges)
+                      console.log('?? Applying exchange filter:', selectedExchanges)
+                      if (onFilterExchanges && selectedExchanges.length > 0) {
+                        onFilterExchanges(selectedExchanges)
                       }
                     }}
-                    className={`relative flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium capitalize transition-all ${
-                      selectedExchanges.includes(exchange)
-                        ? 'border-purple-400/50 bg-purple-500/20 text-white'
-                        : 'border-white/10 bg-white/5 text-slate-200 hover:border-purple-400/40 hover:text-white'
+                    disabled={selectedExchanges.length === 0}
+                    className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-all ${
+                      selectedExchanges.length > 0
+                        ? 'bg-gradient-to-r from-purple-500 to-purple-400 text-white shadow-lg shadow-purple-500/30 hover:from-purple-400 hover:to-purple-300'
+                        : 'cursor-not-allowed bg-white/5 text-slate-500'
                     }`}
                   >
-                    {selectedExchanges.includes(exchange) && (
-                      <CheckCircle className="w-3.5 h-3.5 text-purple-200" />
-                    )}
-                    {exchange}
+                    Apply
                   </button>
-                ))}
 
-                {/* Apply Button */}
-                <button
-                  onClick={() => {
-                    setAppliedExchanges(selectedExchanges)
-                    console.log('?? Applying exchange filter:', selectedExchanges)
-                    if (onFilterExchanges && selectedExchanges.length > 0) {
-                      onFilterExchanges(selectedExchanges)
-                    }
-                  }}
-                  disabled={selectedExchanges.length === 0}
-                  className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-all ${
-                    selectedExchanges.length > 0
-                      ? 'bg-gradient-to-r from-purple-500 to-purple-400 text-white shadow-lg shadow-purple-500/30 hover:from-purple-400 hover:to-purple-300'
-                      : 'cursor-not-allowed bg-white/5 text-slate-500'
-                  }`}
-                >
-                  Apply
-                </button>
-
-                {/* Clear Filter */}
-                {selectedExchanges.length > 0 && (
-                  <button
-                    onClick={() => {
-                      setSelectedExchanges([])
-                      setAppliedExchanges([])
-                    }}
-                    className="ml-auto inline-flex items-center gap-1 text-xs text-slate-400 transition-colors hover:text-purple-200"
-                  >
-                    <X className="w-3 h-3" />
-                    Clear
-                  </button>
-                )}
+                  {/* Clear Filter */}
+                  {selectedExchanges.length > 0 && (
+                    <button
+                      onClick={() => {
+                        setSelectedExchanges([])
+                        setAppliedExchanges([])
+                      }}
+                      className="ml-auto inline-flex items-center gap-1 text-xs text-slate-400 transition-colors hover:text-purple-200"
+                    >
+                      <X className="w-3 h-3" />
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <p className="mt-2 text-xs text-slate-400/80">Refine which sources feed this view</p>
               </div>
-              <p className="mt-2 text-xs text-slate-400/80">Refine which sources feed this view</p>
-            </div>
-          )}
+            )}
 
-          {/* Tab Content with Smooth Transitions */}
-          <div className="p-3 md:p-4">
-            <div className="transition-all duration-300 ease-in-out">
-              {activeTab === 'overview' && (
-                <div className="animate-in fade-in duration-300">
-                  <OverviewTab analytics={displayAnalytics} currSymbol={currSymbol} currency={currency} metadata={currencyMetadata} setActiveTab={setActiveTab} />
-                </div>
-              )}
-              {activeTab === 'behavioral' && (
-                <div className="animate-in fade-in duration-300">
+            {/* Tab Content with Smooth Transitions */}
+            <div className="p-3 md:p-4">
+              <div className="transition-all duration-300 ease-in-out">
+                <TabsContent value="overview" className="mt-0 animate-in fade-in duration-300">
+                  <OverviewTab analytics={displayAnalytics} currSymbol={currSymbol} currency={currency} metadata={currencyMetadata} setActiveTab={setActiveTab} setCurrency={setCurrency} currencyMetadata={currencyMetadata} />
+                </TabsContent>
+                <TabsContent value="behavioral" className="mt-0 animate-in fade-in duration-300">
                   <BehavioralTab analytics={displayAnalytics} currSymbol={currSymbol} currency={currency} />
-                </div>
-              )}
-              {activeTab === 'spot' && (
-                <div className="animate-in fade-in duration-300">
+                </TabsContent>
+                <TabsContent value="spot" className="mt-0 animate-in fade-in duration-300">
                   <SpotTab analytics={displayAnalytics} currSymbol={currSymbol} currency={currency} metadata={currencyMetadata} />
-                </div>
-              )}
-              {activeTab === 'futures' && (
-                <div className="animate-in fade-in duration-300">
+                </TabsContent>
+                <TabsContent value="futures" className="mt-0 animate-in fade-in duration-300">
                   <FuturesTab analytics={displayAnalytics} currSymbol={currSymbol} currency={currency} metadata={currencyMetadata} />
-                </div>
-              )}
+                </TabsContent>
+              </div>
             </div>
-          </div>
+          </Tabs>
         </div>
       </main>
       <Footer />

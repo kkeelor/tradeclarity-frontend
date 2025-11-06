@@ -1,7 +1,7 @@
 // app/components/ThemeToggle.js
 'use client'
 
-import { Sparkles, Crown } from 'lucide-react'
+import { Sparkles, Sun } from 'lucide-react'
 import { useTheme } from './ThemeProvider'
 import { useEffect, useState } from 'react'
 
@@ -37,29 +37,31 @@ export default function ThemeToggle() {
     localStorage.setItem('theme-toggle-interacted', 'true')
   }
 
+  const isLightTheme = theme === 'daylight'
+
   return (
     <button
       onClick={handleToggle}
-      className={`relative w-14 h-7 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-900 bg-slate-700 dark:bg-slate-700 light:bg-slate-200 ${
-        shouldPulse ? 'animate-pulse-subtle' : ''
-      }`}
+      className={`relative w-14 h-7 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
+        isLightTheme ? 'bg-blue-500' : 'bg-slate-800'
+      } ${shouldPulse ? 'animate-pulse-subtle' : ''}`}
       aria-label="Toggle theme"
     >
       {/* Subtle glow effect when pulsing */}
       {shouldPulse && (
-        <div className="absolute inset-0 rounded-full bg-emerald-500/20 animate-ping" />
+        <div className={`absolute inset-0 rounded-full ${isLightTheme ? 'bg-blue-500/20' : 'bg-emerald-500/20'} animate-ping`} />
       )}
       
       {/* Toggle Circle */}
       <div
         className={`absolute top-0.5 left-0.5 w-6 h-6 rounded-full transition-all duration-300 flex items-center justify-center ${
-          theme === 'midnight'
-            ? 'translate-x-7 bg-yellow-400'
-            : 'translate-x-0 bg-slate-800'
+          isLightTheme
+            ? 'translate-x-7 bg-white shadow-lg'
+            : 'translate-x-0 bg-slate-700'
         }`}
       >
-        {theme === 'midnight' ? (
-          <Crown className="w-4 h-4 text-slate-900" />
+        {isLightTheme ? (
+          <Sun className="w-4 h-4 text-blue-600" />
         ) : (
           <Sparkles className="w-4 h-4 text-slate-300" />
         )}
