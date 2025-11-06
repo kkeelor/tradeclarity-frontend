@@ -13,6 +13,7 @@ import { convertCurrencySync, getCurrencyRates } from '../analyze/utils/currency
 import { Badge } from '@/components/ui/badge'
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import Script from 'next/script'
 
 const PRICING_PLANS = {
   free: {
@@ -141,6 +142,7 @@ export default function PricingPage() {
   const [loading, setLoading] = useState(false)
   const [currentTier, setCurrentTier] = useState('free')
   const [currency, setCurrency] = useState('USD')
+  const [razorpayLoaded, setRazorpayLoaded] = useState(false)
   
   // Available currencies (same as analytics page)
   const availableCurrencies = ['USD', 'INR', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CNY', 'SGD', 'CHF']
@@ -221,34 +223,123 @@ export default function PricingPage() {
 
       if (!planId) {
         toast.error('Plan configuration error. Please contact support.')
+        setLoading(false)
         return
       }
 
-      const response = await fetch('/api/razorpay/create-subscription', {
+      // Calculate price
+      const plan = PRICING_PLANS[tier]
+      const monthlyPriceUSD = billingCycle === 'annual' ? Math.round(plan.priceAnnual / 12) : plan.price
+      const discountMultiplier = 0.5 // 50% discount
+      const discountedPriceUSD = monthlyPriceUSD * discountMultiplier
+      
+      // Convert to INR for Razorpay (Razorpay primarily works with INR)
+      const amountInINR = currency === 'INR' 
+        ? discountedPriceUSD 
+        : convertCurrencySync(discountedPriceUSD, 'USD', 'INR')
+
+      // Create order
+      const orderResponse = await fetch('/api/razorpay/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          amount: amountInINR,
+          currency: 'INR',
           planId,
           userId: user.id,
-          billingCycle
+          billingCycle,
+          tier
         })
       })
 
-      const data = await response.json()
+      const orderData = await orderResponse.json()
       
-      if (data.error) {
-        toast.error(data.error)
+      if (orderData.error) {
+        toast.error(orderData.error)
+        setLoading(false)
         return
       }
 
-      // Redirect to Razorpay payment page
-      if (data.authLink) {
-        window.location.href = data.authLink
+      // Initialize Razorpay checkout
+      if (typeof window !== 'undefined' && window.Razorpay) {
+        const options = {
+          key: orderData.keyId,
+          amount: orderData.amount,
+          currency: orderData.currency,
+          name: 'TradeClarity',
+          description: `${PRICING_PLANS[tier].name} Plan - ${billingCycle === 'annual' ? 'Annual' : 'Monthly'}`,
+          image: '/logo.png', // Update with your logo URL
+          order_id: orderData.orderId,
+          handler: async function (response) {
+            // Payment successful
+            try {
+              const verifyResponse = await fetch('/api/razorpay/verify-payment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_signature: response.razorpay_signature,
+                  userId: user.id,
+                  planId,
+                  tier,
+                  billingCycle
+                })
+              })
+
+              const verifyData = await verifyResponse.json()
+
+              if (verifyData.success) {
+                toast.success('Payment successful! Your subscription is now active.')
+                // Refresh subscription status
+                await fetchUserSubscription()
+                // Redirect to dashboard
+                setTimeout(() => {
+                  router.push('/dashboard')
+                }, 2000)
+              } else {
+                toast.error(verifyData.error || 'Payment verification failed')
+              }
+            } catch (error) {
+              console.error('Error verifying payment:', error)
+              toast.error('Payment verification failed. Please contact support.')
+            } finally {
+              setLoading(false)
+            }
+          },
+          prefill: {
+            name: user.user_metadata?.name || user.email?.split('@')[0] || 'Customer',
+            email: user.email || '',
+            contact: user.user_metadata?.phone || ''
+          },
+          notes: {
+            userId: user.id,
+            tier: tier,
+            billingCycle: billingCycle
+          },
+          theme: {
+            color: '#10b981' // emerald-500
+          }
+        }
+
+        const rzp = new window.Razorpay(options)
+        
+        // Handle payment failure
+        rzp.on('payment.failed', function (response) {
+          console.error('Payment failed:', response.error)
+          toast.error(`Payment failed: ${response.error.description || response.error.reason || 'Unknown error'}`)
+          setLoading(false)
+        })
+
+        // Open Razorpay checkout
+        rzp.open()
+      } else {
+        toast.error('Razorpay checkout is loading. Please wait a moment and try again.')
+        setLoading(false)
       }
     } catch (error) {
       console.error('Error creating checkout:', error)
       toast.error('Failed to start checkout. Please try again.')
-    } finally {
       setLoading(false)
     }
   }
@@ -256,8 +347,17 @@ export default function PricingPage() {
   const savings = billingCycle === 'annual' ? 17 : 0
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
-      {/* Header */}
+    <>
+      <Script 
+        src="https://checkout.razorpay.com/v1/checkout.js"
+        strategy="afterInteractive"
+        onLoad={() => {
+          console.log('Razorpay checkout script loaded')
+          setRazorpayLoaded(true)
+        }}
+      />
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
+        {/* Header */}
       <div className="border-b border-white/5 bg-slate-950/70 backdrop-blur-xl">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
@@ -563,10 +663,11 @@ export default function PricingPage() {
             </div>
           </div>
         </div>
-
-        {/* Footer */}
-        <Footer />
       </div>
-    </div>
+
+      {/* Footer */}
+      <Footer />
+      </div>
+    </>
   )
 }

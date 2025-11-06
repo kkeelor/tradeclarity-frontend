@@ -8,7 +8,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
-const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET
+const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || process.env.RAZORPAY_KEY_SECRET
 
 export async function POST(request) {
   const body = await request.text()
@@ -18,6 +18,14 @@ export async function POST(request) {
     return NextResponse.json(
       { error: 'No signature provided' },
       { status: 400 }
+    )
+  }
+
+  if (!webhookSecret) {
+    console.error('Razorpay webhook secret not configured')
+    return NextResponse.json(
+      { error: 'Webhook secret not configured' },
+      { status: 500 }
     )
   }
 
