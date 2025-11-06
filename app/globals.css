@@ -25,6 +25,13 @@
     transition: background-color 0.3s ease, color 0.3s ease;
   }
 
+  /* Professional number formatting for prices */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+    letter-spacing: -0.02em;
+  }
+
   /* Ensure separator characters render correctly */
   [data-separator] {
     font-feature-settings: normal;

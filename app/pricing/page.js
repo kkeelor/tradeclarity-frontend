@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, X, Zap, TrendingUp, Crown, ArrowRight, Sparkles, Shield, Clock, CreditCard, ChevronDown, ArrowLeft } from 'lucide-react'
+import { Check, X, Zap, TrendingUp, Crown, ArrowRight, Sparkles, Shield, Clock, CreditCard, ChevronDown, ArrowLeft, Star, Users, TrendingDown } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { getTierDisplayName } from '@/lib/featureGates'
 import { toast } from 'sonner'
@@ -205,6 +205,13 @@ export default function PricingPage() {
     }
 
     setLoading(true)
+    
+    // Safety timeout: reset loading state after 2 minutes if something goes wrong
+    const loadingTimeout = setTimeout(() => {
+      console.warn('Loading timeout reached, resetting state')
+      setLoading(false)
+    }, 120000) // 2 minutes
+    
     try {
       // Get Razorpay plan IDs from server
       const plansResponse = await fetch('/api/razorpay/get-plans')
@@ -222,6 +229,7 @@ export default function PricingPage() {
       }
 
       if (!planId) {
+        clearTimeout(loadingTimeout)
         toast.error('Plan configuration error. Please contact support.')
         setLoading(false)
         return
@@ -233,12 +241,12 @@ export default function PricingPage() {
       const discountMultiplier = 0.5 // 50% discount
       const discountedPriceUSD = monthlyPriceUSD * discountMultiplier
       
-      // Convert to INR for Razorpay (Razorpay primarily works with INR)
-      const amountInINR = currency === 'INR' 
-        ? discountedPriceUSD 
-        : convertCurrencySync(discountedPriceUSD, 'USD', 'INR')
+      // Convert to INR for Razorpay (Razorpay always works with INR)
+      // Always convert from USD to INR regardless of selected display currency
+      const amountInINR = convertCurrencySync(discountedPriceUSD, 'USD', 'INR')
 
       // Create order
+      console.log('Creating Razorpay order:', { amountInINR, planId, tier, billingCycle })
       const orderResponse = await fetch('/api/razorpay/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -252,9 +260,22 @@ export default function PricingPage() {
         })
       })
 
+      if (!orderResponse.ok) {
+        const errorData = await orderResponse.json().catch(() => ({ error: 'Failed to create order' }))
+        console.error('Order creation failed:', errorData)
+        console.error('Response status:', orderResponse.status)
+        clearTimeout(loadingTimeout)
+        toast.error(errorData.error || errorData.details || 'Failed to create order. Please try again.')
+        setLoading(false)
+        return
+      }
+
       const orderData = await orderResponse.json()
+      console.log('Order created successfully:', orderData)
       
       if (orderData.error) {
+        console.error('Order error:', orderData.error)
+        clearTimeout(loadingTimeout)
         toast.error(orderData.error)
         setLoading(false)
         return
@@ -273,6 +294,11 @@ export default function PricingPage() {
           handler: async function (response) {
             // Payment successful
             try {
+              console.log('Verifying payment:', {
+                payment_id: response.razorpay_payment_id,
+                order_id: response.razorpay_order_id
+              })
+              
               const verifyResponse = await fetch('/api/razorpay/verify-payment', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -287,9 +313,20 @@ export default function PricingPage() {
                 })
               })
 
+              if (!verifyResponse.ok) {
+                const errorData = await verifyResponse.json().catch(() => ({ error: 'Payment verification failed' }))
+                console.error('Payment verification failed:', errorData)
+                clearTimeout(loadingTimeout)
+                toast.error(errorData.error || 'Payment verification failed. Please contact support.')
+                setLoading(false)
+                return
+              }
+
               const verifyData = await verifyResponse.json()
+              console.log('Payment verification result:', verifyData)
 
               if (verifyData.success) {
+                clearTimeout(loadingTimeout)
                 toast.success('Payment successful! Your subscription is now active.')
                 // Refresh subscription status
                 await fetchUserSubscription()
@@ -298,12 +335,17 @@ export default function PricingPage() {
                   router.push('/dashboard')
                 }, 2000)
               } else {
+                clearTimeout(loadingTimeout)
                 toast.error(verifyData.error || 'Payment verification failed')
+                setLoading(false)
               }
             } catch (error) {
               console.error('Error verifying payment:', error)
+              clearTimeout(loadingTimeout)
               toast.error('Payment verification failed. Please contact support.')
+              setLoading(false)
             } finally {
+              clearTimeout(loadingTimeout)
               setLoading(false)
             }
           },
@@ -327,7 +369,15 @@ export default function PricingPage() {
         // Handle payment failure
         rzp.on('payment.failed', function (response) {
           console.error('Payment failed:', response.error)
+          clearTimeout(loadingTimeout)
           toast.error(`Payment failed: ${response.error.description || response.error.reason || 'Unknown error'}`)
+          setLoading(false)
+        })
+
+        // Handle modal close (user cancels/closes without completing payment)
+        rzp.on('modal.close', function () {
+          console.log('Razorpay modal closed by user')
+          clearTimeout(loadingTimeout)
           setLoading(false)
         })
 
@@ -335,11 +385,13 @@ export default function PricingPage() {
         rzp.open()
       } else {
         toast.error('Razorpay checkout is loading. Please wait a moment and try again.')
+        clearTimeout(loadingTimeout)
         setLoading(false)
       }
     } catch (error) {
       console.error('Error creating checkout:', error)
       toast.error('Failed to start checkout. Please try again.')
+      clearTimeout(loadingTimeout)
       setLoading(false)
     }
   }
@@ -378,9 +430,22 @@ export default function PricingPage() {
           <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
             Choose Your Plan
           </h1>
-          <p className="text-lg text-slate-400 max-w-2xl mx-auto">
+          <p className="text-lg text-slate-400 max-w-2xl mx-auto mb-6">
             Transparent pricing for every trader. Start free, upgrade when you need more.
           </p>
+          
+          {/* Social Proof */}
+          <div className="flex items-center justify-center gap-4 mb-8">
+            <div className="flex items-center gap-2 text-sm text-slate-400">
+              <Users className="w-4 h-4 text-emerald-400" />
+              <span>Join <span className="text-emerald-400 font-semibold">500+</span> active traders</span>
+            </div>
+            <div className="h-4 w-px bg-white/10"></div>
+            <div className="flex items-center gap-2 text-sm text-slate-400">
+              <TrendingUp className="w-4 h-4 text-emerald-400" />
+              <span><span className="text-emerald-400 font-semibold">1M+</span> trades analyzed</span>
+            </div>
+          </div>
 
           {/* Billing Toggle and Currency Selector */}
           <div className="mt-8 flex flex-col items-center gap-4">
@@ -457,13 +522,22 @@ export default function PricingPage() {
                 key={key}
                 className={`relative rounded-3xl border backdrop-blur p-8 transition-all duration-300 ${
                   isPopular
-                    ? 'border-emerald-500/50 bg-emerald-500/5 shadow-lg shadow-emerald-500/10 scale-105'
+                    ? 'border-emerald-500/50 bg-emerald-500/5 shadow-lg shadow-emerald-500/10 scale-105 ring-2 ring-emerald-500/20'
+                    : key === 'pro'
+                    ? 'border-cyan-500/30 bg-cyan-500/5 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10'
                     : 'border-white/5 bg-white/[0.03] hover:border-white/10'
                 }`}
               >
                 {isPopular && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full text-xs font-semibold text-white">
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full text-xs font-semibold text-white shadow-lg">
                     Most Popular
+                  </div>
+                )}
+                
+                {key === 'pro' && (
+                  <div className="absolute -top-4 right-4 px-3 py-1 bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-full text-xs font-semibold text-white shadow-lg flex items-center gap-1">
+                    <Crown className="w-3 h-3" />
+                    Premium
                   </div>
                 )}
 
@@ -476,59 +550,132 @@ export default function PricingPage() {
                   
                   {/* Launch Offer Badge for paid plans - inside card */}
                   {(key === 'trader' || key === 'pro') && (
-                    <Badge variant="warning" className="inline-flex items-center gap-1.5 mb-4">
-                      <Sparkles className="w-3 h-3" />
-                      Launch Offer: 50% OFF
-                    </Badge>
+                    <div className="mb-4 flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="warning" className="inline-flex items-center gap-1.5 animate-pulse">
+                          <Sparkles className="w-3 h-3" />
+                          Launch Offer: 50% OFF
+                        </Badge>
+                        <span className="text-xs text-emerald-400 font-semibold">
+                          Save {getCurrencySymbol(currency)}{formatPrice(convertedMonthlyPrice - convertedDiscountedMonthlyPrice)}/month
+                        </span>
+                      </div>
+                      {billingCycle === 'annual' && (
+                        <div className="text-xs text-slate-400">
+                          <span className="text-emerald-400 font-semibold">Best Value:</span> Save {getCurrencySymbol(currency)}{formatPrice(convertedAnnualPrice - convertedDiscountedAnnualPrice)} annually
+                        </div>
+                      )}
+                    </div>
                   )}
                   
-                  <div className="flex items-baseline gap-2">
+                  <div className="flex items-baseline gap-3 mb-2">
                     {(key === 'trader' || key === 'pro') && (
-                      <span className="text-xl text-slate-500 line-through">
-                        {getCurrencySymbol(currency)}{formatPrice(convertedMonthlyPrice)}
-                      </span>
-                    )}
-                    <span className="text-4xl font-bold">
-                      {getCurrencySymbol(currency)}{formatPrice(convertedDiscountedMonthlyPrice)}
-                    </span>
-                    <span className="text-slate-400">
-                      /{billingCycle === 'annual' ? 'month' : 'month'}
-                      {billingCycle === 'annual' && (
-                        <span className="block text-xs mt-1">
-                          {key === 'trader' || key === 'pro' ? (
-                            <>
-                              <span className="line-through text-slate-500">
-                                {getCurrencySymbol(currency)}{formatPrice(convertedAnnualPrice)}
-                              </span>
-                              {' '}
-                              <span className="text-emerald-400">
-                                {getCurrencySymbol(currency)}{formatPrice(convertedDiscountedAnnualPrice)}
-                              </span>
-                              /year
-                            </>
-                          ) : (
-                            <>
-                              billed {getCurrencySymbol(currency)}{formatPrice(convertedAnnualPrice)}/year
-                            </>
-                          )}
+                      <div className="relative">
+                        <span className="text-xl text-slate-400 font-medium tabular-nums">
+                          {getCurrencySymbol(currency)}{formatPrice(convertedMonthlyPrice)}
                         </span>
-                      )}
-                    </span>
+                        {/* Dramatic red strikethrough */}
+                        <svg 
+                          className="absolute inset-0 pointer-events-none" 
+                          width="100%" 
+                          height="100%"
+                          style={{ top: '50%', transform: 'translateY(-50%)' }}
+                        >
+                          <line 
+                            x1="0" 
+                            y1="50%" 
+                            x2="100%" 
+                            y2="50%" 
+                            stroke="#ef4444" 
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            opacity="0.9"
+                          />
+                        </svg>
+                      </div>
+                    )}
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-5xl font-bold tabular-nums bg-gradient-to-br from-white via-white to-slate-200 bg-clip-text text-transparent">
+                        {getCurrencySymbol(currency)}{formatPrice(convertedDiscountedMonthlyPrice)}
+                      </span>
+                      <span className="text-lg text-slate-400 font-medium">
+                        /{billingCycle === 'annual' ? 'month' : 'month'}
+                      </span>
+                    </div>
                   </div>
+                  
+                  {billingCycle === 'annual' && (key === 'trader' || key === 'pro') && (
+                    <div className="mt-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-400">Annual total:</span>
+                        <div className="flex items-center gap-2">
+                          <span className="relative">
+                            <span className="text-slate-500 tabular-nums">
+                              {getCurrencySymbol(currency)}{formatPrice(convertedAnnualPrice)}
+                            </span>
+                            <svg 
+                              className="absolute inset-0 pointer-events-none" 
+                              width="100%" 
+                              height="100%"
+                              style={{ top: '50%', transform: 'translateY(-50%)' }}
+                            >
+                              <line 
+                                x1="0" 
+                                y1="50%" 
+                                x2="100%" 
+                                y2="50%" 
+                                stroke="#ef4444" 
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                              />
+                            </svg>
+                          </span>
+                          <span className="text-emerald-400 font-bold tabular-nums">
+                            {getCurrencySymbol(currency)}{formatPrice(convertedDiscountedAnnualPrice)}
+                          </span>
+                          <span className="text-xs text-emerald-400">/year</span>
+                        </div>
+                      </div>
+                      <div className="mt-1 text-xs text-emerald-400 font-semibold">
+                        Save {getCurrencySymbol(currency)}{formatPrice(convertedAnnualPrice - convertedDiscountedAnnualPrice)} per year
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <button
                   onClick={() => handleUpgrade(key)}
                   disabled={loading || isCurrentTier}
-                  className={`w-full py-3 rounded-xl font-semibold transition-all duration-300 mb-6 ${
+                  className={`w-full py-4 rounded-xl font-semibold transition-all duration-300 mb-6 relative overflow-hidden group ${
                     isCurrentTier
                       ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                      : loading
+                      ? 'bg-slate-700 text-slate-300 cursor-wait opacity-75'
                       : isPopular
-                      ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-105'
-                      : 'bg-white/[0.05] hover:bg-white/[0.08] border border-white/10 hover:border-white/20 text-white'
+                      ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-105 disabled:hover:scale-100'
+                      : key === 'pro'
+                      ? 'bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-400 hover:to-cyan-500 text-white shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/30 hover:scale-105 disabled:hover:scale-100'
+                      : 'bg-white/[0.05] hover:bg-white/[0.08] border border-white/10 hover:border-white/20 text-white disabled:opacity-50 disabled:cursor-not-allowed'
                   }`}
                 >
-                  {isCurrentTier ? 'Current Plan' : loading ? 'Processing...' : 'Upgrade'}
+                  <span className="relative z-10 flex items-center justify-center gap-2">
+                    {isCurrentTier ? (
+                      <>
+                        <Check className="w-4 h-4" />
+                        Current Plan
+                      </>
+                    ) : loading ? (
+                      'Processing...'
+                    ) : (
+                      <>
+                        Get Started
+                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      </>
+                    )}
+                  </span>
+                  {!isCurrentTier && !loading && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                  )}
                 </button>
 
                 <div className="space-y-3">
@@ -648,18 +795,22 @@ export default function PricingPage() {
 
         {/* Trust Signals */}
         <div className="max-w-4xl mx-auto text-center mb-12">
-          <div className="flex items-center justify-center gap-8 text-slate-400 text-sm">
-            <div className="flex items-center gap-2">
-              <Shield className="w-5 h-5 text-emerald-400" />
-              <span>Secure payments</span>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-slate-400">
+            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-emerald-500/20 transition-colors">
+              <Shield className="w-6 h-6 text-emerald-400" />
+              <span className="text-xs font-medium">Bank-Level Security</span>
             </div>
-            <div className="flex items-center gap-2">
-              <CreditCard className="w-5 h-5 text-emerald-400" />
-              <span>No credit card required for Free</span>
+            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-emerald-500/20 transition-colors">
+              <CreditCard className="w-6 h-6 text-emerald-400" />
+              <span className="text-xs font-medium">Secure Payments</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-emerald-400" />
-              <span>Cancel anytime</span>
+            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-emerald-500/20 transition-colors">
+              <Clock className="w-6 h-6 text-emerald-400" />
+              <span className="text-xs font-medium">Cancel Anytime</span>
+            </div>
+            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-emerald-500/20 transition-colors">
+              <Star className="w-6 h-6 text-emerald-400 fill-emerald-400" />
+              <span className="text-xs font-medium">7-Day Guarantee</span>
             </div>
           </div>
         </div>
