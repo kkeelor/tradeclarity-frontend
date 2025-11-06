@@ -24,6 +24,8 @@ import AhaMomentsSection from './AhaMomentsSection'
 import { ExchangeIcon, SeparatorText, Separator, Card as ShadcnCard, CardHeader, CardTitle, CardDescription, CardContent, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableFooter } from '@/components/ui'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { getCurrencySymbol } from '../utils/currencyFormatter'
 import {
   AreaChart, Area, BarChart, Bar, LineChart as RechartsLineChart,
   Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart,
@@ -423,7 +425,7 @@ function LiveHoldings({ analytics, metadata, currSymbol }) {
 // ============================================
 
 function RadialPsychologyScore({ score, analytics }) {
-  const radius = 70
+  const radius = 60
   const circumference = 2 * Math.PI * radius
   const strokeDashoffset = circumference - (score / 100) * circumference
 
@@ -436,40 +438,38 @@ function RadialPsychologyScore({ score, analytics }) {
   }
 
   const colors = getScoreColor(score)
-  const winRate = analytics.winRate || 0
-  const profitFactor = analytics.profitFactor || 0
 
   return (
     <div className="flex flex-col items-center">
       {/* Radial Progress Circle */}
-      <div className="relative flex items-center justify-center mb-6">
+      <div className="relative flex items-center justify-center mb-4">
         {/* Glow effect */}
         <div className="absolute inset-0 rounded-full blur-xl opacity-30"
              style={{
-               width: '200px',
-               height: '200px',
+               width: '160px',
+               height: '160px',
                background: `radial-gradient(circle, ${colors.glow}40 0%, transparent 70%)`
              }} />
 
         {/* SVG Circle */}
-        <svg className="transform -rotate-90" width="180" height="180">
+        <svg className="transform -rotate-90" width="150" height="150">
           {/* Background circle */}
           <circle
-            cx="90"
-            cy="90"
+            cx="75"
+            cy="75"
             r={radius}
             fill="none"
             stroke="rgba(71, 85, 105, 0.15)"
-            strokeWidth="14"
+            strokeWidth="12"
           />
           {/* Progress circle */}
           <circle
-            cx="90"
-            cy="90"
+            cx="75"
+            cy="75"
             r={radius}
             fill="none"
             stroke={`url(#gradient-${score})`}
-            strokeWidth="14"
+            strokeWidth="12"
             strokeLinecap="round"
             strokeDasharray={circumference}
             strokeDashoffset={strokeDashoffset}
@@ -487,24 +487,8 @@ function RadialPsychologyScore({ score, analytics }) {
 
         {/* Center content */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <div className="text-5xl font-bold text-white mb-1">{score}</div>
-          <div className="text-xs text-slate-400 uppercase tracking-wider">Discipline</div>
-        </div>
-      </div>
-
-      {/* Mini stats below */}
-      <div className="w-full grid grid-cols-2 gap-3">
-        <div className="text-center p-3 bg-slate-800/30 rounded-lg border border-slate-700/30">
-          <div className="text-xs text-slate-500 mb-1">Win Rate</div>
-          <div className={`text-lg font-bold ${winRate >= 50 ? 'text-emerald-400' : 'text-slate-400'}`}>
-            {winRate.toFixed(1)}%
-          </div>
-        </div>
-        <div className="text-center p-3 bg-slate-800/30 rounded-lg border border-slate-700/30">
-          <div className="text-xs text-slate-500 mb-1">Profit Factor</div>
-          <div className={`text-lg font-bold ${profitFactor >= 1 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {profitFactor.toFixed(2)}x
-          </div>
+          <div className="text-4xl font-bold text-white mb-1">{score}</div>
+          <div className="text-[10px] text-slate-400 uppercase tracking-wider">Discipline</div>
         </div>
       </div>
     </div>
@@ -1883,7 +1867,7 @@ function calculateMissingInsightValues(insight, analytics) {
   return calculated
 }
 
-function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setActiveTab }) {
+function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setActiveTab, setCurrency, currencyMetadata }) {
   const [selectedInsight, setSelectedInsight] = useState(null)
   const [showCharts, setShowCharts] = useState(false)
   const [showSymbols, setShowSymbols] = useState(false)
@@ -2544,19 +2528,68 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
   return (
     <div className="space-y-4 md:space-y-6">
       {/* TOP SECTION: Balanced Portfolio Overview + PnL Summary */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 items-stretch">
         {/* Portfolio Overview - Left Column */}
-        <div className="lg:col-span-2 space-y-4">
-          <ShadcnCard className="relative overflow-hidden border-slate-800 bg-black shadow-xl">
+        <div className="lg:col-span-2 space-y-4 h-full flex flex-col">
+          <ShadcnCard className="relative overflow-hidden border-slate-800 bg-black shadow-xl flex-1 flex flex-col">
             <CardHeader className="relative pb-3">
-              {/* Trading Period at the top */}
-              {dateRange && (
-                <div className="flex items-center gap-2 mb-3 pb-3 border-b border-slate-800">
-                  <Calendar className="w-4 h-4 text-slate-400" />
-                  <div className="text-xs text-slate-400">
-                    <span className="font-semibold text-slate-300">Trading Period: </span>
-                    {dateRange.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - {dateRange.end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                  </div>
+              {/* Trading Period and Currency Switcher */}
+              {(dateRange || (currencyMetadata?.supportsCurrencySwitch && currencyMetadata.availableCurrencies.length > 1)) && (
+                <div className="flex items-center justify-between gap-4 mb-3 pb-3 border-b border-slate-800 flex-wrap">
+                  {dateRange && (
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-slate-400" />
+                      <div className="text-xs text-slate-400">
+                        <span className="font-semibold text-slate-300">Trading Period: </span>
+                        {dateRange.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - {dateRange.end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </div>
+                    </div>
+                  )}
+                  {currencyMetadata?.supportsCurrencySwitch && currencyMetadata.availableCurrencies.length > 1 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-slate-300">Currency:</span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="flex items-center gap-1.5 rounded-full border border-white/5 bg-white/[0.02] px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white">
+                            <span>{getCurrencySymbol(currency)}</span>
+                            <span>{currency}</span>
+                            <ChevronDown className="h-3 w-3 transition-transform" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48 bg-slate-800/95 backdrop-blur-xl border-slate-700/50">
+                          {currencyMetadata.availableCurrencies.map((curr) => {
+                            const currencyNames = {
+                              'USD': 'US Dollar',
+                              'INR': 'Indian Rupee',
+                              'EUR': 'Euro',
+                              'GBP': 'British Pound',
+                              'JPY': 'Japanese Yen',
+                              'AUD': 'Australian Dollar',
+                              'CAD': 'Canadian Dollar',
+                              'CNY': 'Chinese Yuan',
+                              'SGD': 'Singapore Dollar',
+                              'CHF': 'Swiss Franc'
+                            }
+                            return (
+                              <DropdownMenuItem
+                                key={curr}
+                                onClick={() => setCurrency(curr)}
+                                className={`flex items-center gap-2 text-xs cursor-pointer ${
+                                  currency === curr
+                                    ? 'bg-emerald-400/20 text-emerald-300 font-medium'
+                                    : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+                                }`}
+                              >
+                                <span className="w-8 text-right">{getCurrencySymbol(curr)}</span>
+                                <span className="flex-1">{curr}</span>
+                                <span className="text-[10px] text-slate-500">{currencyNames[curr] || ''}</span>
+                              </DropdownMenuItem>
+                            )
+                          })}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  )}
                 </div>
               )}
               
@@ -2571,7 +2604,7 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
               </div>
             </CardHeader>
             
-            <CardContent className="relative space-y-4">
+            <CardContent className="relative space-y-4 flex-1 flex flex-col">
               {/* Total Portfolio Value, Realized P&L, and Unrealized P&L in the same row */}
               <div className={`grid gap-3 ${(hasFuturesData || analytics.spotUnrealizedPnL) ? 'grid-cols-3' : 'grid-cols-2'}`}>
                 {/* Total Portfolio Value */}
@@ -2661,8 +2694,100 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
           </ShadcnCard>
         </div>
 
-        {/* Top Improvement Opportunity - Right Column */}
-        {sortedInsights.length > 0 && sortedInsights[0] && (() => {
+        {/* Psychology Score - Right Column */}
+        {analytics.behavioral?.healthScore !== undefined && analytics.behavioral?.healthScore !== null ? (
+          <div className="relative overflow-hidden rounded-xl border border-purple-500/30 bg-purple-500/10 shadow-lg shadow-purple-500/5 backdrop-blur transition-all duration-300 hover:scale-[1.01] h-full flex flex-col">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-purple-500/5" />
+            <div className="relative p-2 md:p-3 flex flex-col flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Brain className="w-4 h-4 text-purple-400" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-purple-300">
+                  Trading Psychology
+                </span>
+              </div>
+              <div className="flex justify-center mb-3">
+                <RadialPsychologyScore score={analytics.behavioral.healthScore} analytics={analytics} />
+              </div>
+              
+              {/* Score Breakdown */}
+              {(() => {
+                const behavioral = analytics.behavioral || {}
+                const scoreBreakdown = {
+                  panicScore: behavioral.panicPatterns?.score || 0,
+                  consistencyScore: behavioral.consistencyScore || 0,
+                  feeEfficiency: behavioral.feeAnalysis?.efficiency || 0,
+                  emotionalScore: behavioral.emotionalState?.emotionalScore || 0
+                }
+                
+                const getScoreColor = (score) => {
+                  if (score >= 80) return 'text-emerald-400'
+                  if (score >= 60) return 'text-yellow-400'
+                  if (score >= 40) return 'text-orange-400'
+                  return 'text-red-400'
+                }
+                
+                const getScoreBgColor = (score) => {
+                  if (score >= 80) return 'bg-emerald-500/20 border-emerald-500/30'
+                  if (score >= 60) return 'bg-yellow-500/20 border-yellow-500/30'
+                  if (score >= 40) return 'bg-orange-500/20 border-orange-500/30'
+                  return 'bg-red-500/20 border-red-500/30'
+                }
+                
+                const hasBreakdownData = scoreBreakdown.panicScore > 0 || scoreBreakdown.consistencyScore > 0 || scoreBreakdown.feeEfficiency > 0 || scoreBreakdown.emotionalScore > 0
+                
+                if (!hasBreakdownData) return null
+                
+                return (
+                  <div className="space-y-1.5 mb-2">
+                    <div className="text-[10px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5">Score Breakdown</div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {scoreBreakdown.panicScore > 0 && (
+                        <div className={`rounded-lg border p-1.5 ${getScoreBgColor(scoreBreakdown.panicScore)}`}>
+                          <div className="text-[9px] text-slate-400 mb-0.5">Panic Control</div>
+                          <div className={`text-base font-bold ${getScoreColor(scoreBreakdown.panicScore)}`}>
+                            {scoreBreakdown.panicScore.toFixed(0)}/100
+                          </div>
+                        </div>
+                      )}
+                      {scoreBreakdown.consistencyScore > 0 && (
+                        <div className={`rounded-lg border p-1.5 ${getScoreBgColor(scoreBreakdown.consistencyScore)}`}>
+                          <div className="text-[9px] text-slate-400 mb-0.5">Consistency</div>
+                          <div className={`text-base font-bold ${getScoreColor(scoreBreakdown.consistencyScore)}`}>
+                            {scoreBreakdown.consistencyScore.toFixed(0)}/100
+                          </div>
+                        </div>
+                      )}
+                      {scoreBreakdown.feeEfficiency > 0 && (
+                        <div className={`rounded-lg border p-1.5 ${getScoreBgColor(scoreBreakdown.feeEfficiency)}`}>
+                          <div className="text-[9px] text-slate-400 mb-0.5">Fee Efficiency</div>
+                          <div className={`text-base font-bold ${getScoreColor(scoreBreakdown.feeEfficiency)}`}>
+                            {scoreBreakdown.feeEfficiency.toFixed(0)}/100
+                          </div>
+                        </div>
+                      )}
+                      {scoreBreakdown.emotionalScore > 0 && (
+                        <div className={`rounded-lg border p-1.5 ${getScoreBgColor(scoreBreakdown.emotionalScore)}`}>
+                          <div className="text-[9px] text-slate-400 mb-0.5">Emotional State</div>
+                          <div className={`text-base font-bold ${getScoreColor(scoreBreakdown.emotionalScore)}`}>
+                            {scoreBreakdown.emotionalScore.toFixed(0)}/100
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })()}
+              
+              <button
+                onClick={() => setActiveTab('behavioral')}
+                className="w-full mt-auto py-1.5 px-2.5 rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 hover:text-purple-200 transition-all duration-200 flex items-center justify-center gap-1.5 group"
+              >
+                <span className="text-xs font-medium">View Full Analysis</span>
+                <ChevronRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
+              </button>
+            </div>
+          </div>
+        ) : sortedInsights.length > 0 && sortedInsights[0] && (() => {
           const primaryInsight = sortedInsights.find(i => i.type === 'weakness' || i.type === 'opportunity') || sortedInsights[0]
           const isPrimaryWeakness = primaryInsight.type === 'weakness'
           
@@ -3209,18 +3334,11 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
 
       {/* Premium Teaser - Time Analysis */}
       <div className="bg-gradient-to-br from-purple-500/5 to-cyan-500/5 border border-purple-500/20 rounded-lg p-3 relative overflow-hidden">
-        <div className="absolute top-0 right-0 bg-purple-500/10 px-2 py-0.5 rounded-bl-lg">
-          <span className="text-[10px] font-bold text-purple-400">PRO</span>
-        </div>
         <div className="flex items-start gap-3">
           <Clock className="w-4 h-4 text-purple-400 mt-0.5" />
           <div className="flex-1">
             <h4 className="text-xs font-semibold text-slate-200 mb-1">Time-Based Performance Analysis</h4>
             <p className="text-[10px] text-slate-400 mb-2">Discover your most profitable hours, days, and months. See when you make the best decisions.</p>
-            <div className="flex items-center gap-2 text-[10px] text-purple-400">
-              <Sparkles className="w-3 h-3" />
-              <span>Unlock with Pro to see hourly, daily & monthly breakdowns</span>
-            </div>
           </div>
         </div>
       </div>
@@ -3363,18 +3481,11 @@ function SpotTab({ analytics, currSymbol, currency, metadata }) {
 
       {/* Premium Teaser - Portfolio Rebalancing */}
       <div className="bg-gradient-to-br from-emerald-500/5 to-cyan-500/5 border border-emerald-500/20 rounded-lg p-3 relative overflow-hidden">
-        <div className="absolute top-0 right-0 bg-emerald-500/10 px-2 py-0.5 rounded-bl-lg">
-          <span className="text-[10px] font-bold text-emerald-400">PRO</span>
-        </div>
         <div className="flex items-start gap-3">
           <PieChart className="w-4 h-4 text-emerald-400 mt-0.5" />
           <div className="flex-1">
             <h4 className="text-xs font-semibold text-slate-200 mb-1">Portfolio Rebalancing Suggestions</h4>
             <p className="text-[10px] text-slate-400 mb-2">Get AI-powered recommendations on when to rebalance your portfolio based on market conditions and your risk profile.</p>
-            <div className="flex items-center gap-2 text-[10px] text-emerald-400">
-              <Sparkles className="w-3 h-3" />
-              <span>Unlock smart rebalancing alerts with Pro</span>
-            </div>
           </div>
         </div>
       </div>
@@ -3737,9 +3848,6 @@ function FuturesTab({ analytics, currSymbol, currency, metadata }) {
 
       {/* Premium Teaser - Leverage Analysis */}
       <div className="bg-gradient-to-br from-cyan-500/5 to-purple-500/5 border border-cyan-500/20 rounded-lg p-3 relative overflow-hidden">
-        <div className="absolute top-0 right-0 bg-cyan-500/10 px-2 py-0.5 rounded-bl-lg">
-          <span className="text-[10px] font-bold text-cyan-400">PRO</span>
-        </div>
         <div className="flex items-start gap-3">
           <TrendingUp className="w-4 h-4 text-cyan-400 mt-0.5" />
           <div className="flex-1">
@@ -3747,10 +3855,6 @@ function FuturesTab({ analytics, currSymbol, currency, metadata }) {
             <p className="text-[10px] text-slate-400 mb-2">
               Discover optimal leverage levels, position sizing recommendations, and liquidation risk warnings.
             </p>
-            <div className="flex items-center gap-2 text-[10px] text-cyan-400">
-              <Sparkles className="w-3 h-3" />
-              <span>Unlock advanced risk management with Pro</span>
-            </div>
           </div>
         </div>
       </div>
@@ -4603,7 +4707,7 @@ export default function AnalyticsView({
             <div className="p-3 md:p-4">
               <div className="transition-all duration-300 ease-in-out">
                 <TabsContent value="overview" className="mt-0 animate-in fade-in duration-300">
-                  <OverviewTab analytics={displayAnalytics} currSymbol={currSymbol} currency={currency} metadata={currencyMetadata} setActiveTab={setActiveTab} />
+                  <OverviewTab analytics={displayAnalytics} currSymbol={currSymbol} currency={currency} metadata={currencyMetadata} setActiveTab={setActiveTab} setCurrency={setCurrency} currencyMetadata={currencyMetadata} />
                 </TabsContent>
                 <TabsContent value="behavioral" className="mt-0 animate-in fade-in duration-300">
                   <BehavioralTab analytics={displayAnalytics} currSymbol={currSymbol} currency={currency} />

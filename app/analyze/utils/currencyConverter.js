@@ -292,6 +292,8 @@ export async function convertFuturesPositionsToUSD(futuresPositions, sourceCurre
  */
 export async function autoConvertToUSD(tradeData) {
   console.log('\n💱 === AUTO CURRENCY CONVERSION ===')
+  console.log('💱 Input data type:', Array.isArray(tradeData) ? 'Array' : typeof tradeData)
+  console.log('💱 Input data keys:', Object.keys(tradeData || {}))
 
   // Handle both array format (legacy) and object format (new)
   let data = tradeData
@@ -304,7 +306,38 @@ export async function autoConvertToUSD(tradeData) {
       futuresPositions: [],
       metadata: {}
     }
+  } else if (tradeData && typeof tradeData === 'object') {
+    // Handle API response format: { success: true, spotTrades, futuresIncome, metadata }
+    // Extract just the data fields, ignore 'success' field
+    if ('success' in tradeData) {
+      data = {
+        spotTrades: tradeData.spotTrades || [],
+        futuresIncome: tradeData.futuresIncome || [],
+        futuresPositions: tradeData.futuresPositions || [],
+        futuresTrades: tradeData.futuresTrades || [],
+        metadata: tradeData.metadata || {}
+      }
+      console.log('💱 Extracted data from API response format')
+    } else {
+      // Already in correct format
+      data = {
+        spotTrades: tradeData.spotTrades || [],
+        futuresIncome: tradeData.futuresIncome || [],
+        futuresPositions: tradeData.futuresPositions || [],
+        futuresTrades: tradeData.futuresTrades || [],
+        metadata: tradeData.metadata || {}
+      }
+    }
   }
+
+  console.log('💱 Processed data structure:', {
+    hasSpotTrades: !!data.spotTrades,
+    hasFuturesIncome: !!data.futuresIncome,
+    hasMetadata: !!data.metadata,
+    metadataKeys: data.metadata ? Object.keys(data.metadata) : [],
+    hasSpotHoldings: !!data.metadata?.spotHoldings,
+    spotHoldingsCount: data.metadata?.spotHoldings?.length || 0
+  })
 
   // Detect currency from metadata
   const sourceCurrency = detectCurrency(data.metadata)
@@ -314,10 +347,24 @@ export async function autoConvertToUSD(tradeData) {
   console.log(`   - Spot trades: ${data.spotTrades?.length || 0}`)
   console.log(`   - Futures income: ${data.futuresIncome?.length || 0}`)
   console.log(`   - Futures positions: ${data.futuresPositions?.length || 0}`)
+  console.log(`   - Holdings: ${data.metadata?.spotHoldings?.length || 0}`)
 
   // If already in USD, return as-is
   if (sourceCurrency === 'USD') {
     console.log('✅ Data already in USD, no conversion needed')
+    // Log holdings info for debugging
+    if (data.metadata?.spotHoldings) {
+      console.log(`💱 Holdings preserved (USD): ${data.metadata.spotHoldings.length} holdings`)
+      console.log(`💱 Holdings sample:`, data.metadata.spotHoldings.slice(0, 3).map(h => ({
+        asset: h.asset,
+        quantity: h.quantity,
+        price: h.price,
+        usdValue: h.usdValue,
+        exchange: h.exchange
+      })))
+    } else {
+      console.log('⚠️  No spotHoldings found in metadata (USD path)')
+    }
     console.log('💱 === CONVERSION COMPLETE ===\n')
     return data
   }
@@ -344,6 +391,20 @@ export async function autoConvertToUSD(tradeData) {
     originalCurrency: sourceCurrency,
     convertedToUSD: true,
     conversionTimestamp: new Date().toISOString()
+  }
+
+  // Log holdings info for debugging
+  if (convertedMetadata.spotHoldings) {
+    console.log(`💱 Holdings preserved: ${convertedMetadata.spotHoldings.length} holdings`)
+    console.log(`💱 Holdings sample:`, convertedMetadata.spotHoldings.slice(0, 3).map(h => ({
+      asset: h.asset,
+      quantity: h.quantity,
+      price: h.price,
+      usdValue: h.usdValue,
+      exchange: h.exchange
+    })))
+  } else {
+    console.log('⚠️  No spotHoldings found in metadata')
   }
 
   console.log(`✅ All data converted from ${sourceCurrency} to USD`)

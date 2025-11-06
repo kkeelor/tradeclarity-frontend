@@ -524,6 +524,11 @@ export default function TradeClarityContent() {
 
       if (cachedData && currentConnectionId === cacheKey) {
         console.log('? Using cached data for:', cacheKey)
+        console.warn('?? [CACHED DATA] Checking holdings:', {
+          hasMetadata: !!cachedData.metadata,
+          hasSpotHoldings: !!cachedData.metadata?.spotHoldings,
+          spotHoldingsCount: cachedData.metadata?.spotHoldings?.length || 0
+        })
         setProgress('Analyzing your trading data...')
 
         const analysis = await analyzeData(cachedData)
@@ -614,6 +619,16 @@ export default function TradeClarityContent() {
         throw new Error('No trading data available')
       }
 
+      console.log('?? [DEBUG] API Response structure:', {
+        success: data.success,
+        hasSpotTrades: !!data.spotTrades,
+        hasFuturesIncome: !!data.futuresIncome,
+        hasMetadata: !!data.metadata,
+        metadataKeys: data.metadata ? Object.keys(data.metadata) : [],
+        hasSpotHoldings: !!data.metadata?.spotHoldings,
+        spotHoldingsCount: data.metadata?.spotHoldings?.length || 0
+      })
+
       console.log('? Saved trades loaded:', {
         spotTrades: data.spotTrades?.length || 0,
         futuresIncome: data.futuresIncome?.length || 0,
@@ -626,6 +641,16 @@ export default function TradeClarityContent() {
       setCurrentConnectionId(cacheKey)
 
       setProgress('Analyzing your trading data...')
+
+      console.log('?? [DEBUG] About to call analyzeData with:', {
+        hasData: !!data,
+        dataKeys: Object.keys(data || {}),
+        hasMetadata: !!data?.metadata,
+        hasSpotHoldings: !!data?.metadata?.spotHoldings,
+        spotHoldingsCount: data?.metadata?.spotHoldings?.length || 0,
+        spotTradesCount: data?.spotTrades?.length || 0,
+        futuresIncomeCount: data?.futuresIncome?.length || 0
+      })
 
       const analysis = await analyzeData(data)
 
@@ -698,6 +723,16 @@ export default function TradeClarityContent() {
       }
 
       setProgress('Analyzing your trading data...')
+
+      console.log('?? [DEBUG] About to call analyzeData with:', {
+        hasData: !!data,
+        dataKeys: Object.keys(data || {}),
+        hasMetadata: !!data?.metadata,
+        hasSpotHoldings: !!data?.metadata?.spotHoldings,
+        spotHoldingsCount: data?.metadata?.spotHoldings?.length || 0,
+        spotTradesCount: data?.spotTrades?.length || 0,
+        futuresIncomeCount: data?.futuresIncome?.length || 0
+      })
 
       const analysis = await analyzeData(data)
 

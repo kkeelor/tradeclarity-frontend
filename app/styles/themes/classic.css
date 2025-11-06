@@ -128,6 +128,39 @@ body {
   border-color: #f0b90b !important;
 }
 
+/* Gold gradient utilities */
+.from-gold-400 {
+  --tw-gradient-from: #facc15 !important;
+}
+
+.to-gold-600 {
+  --tw-gradient-to: #ca8a04 !important;
+}
+
+.from-gold-500 {
+  --tw-gradient-from: #eab308 !important;
+}
+
+.to-gold-500 {
+  --tw-gradient-to: #eab308 !important;
+}
+
+.to-gold-700 {
+  --tw-gradient-to: #a16207 !important;
+}
+
+.border-gold-500\/30 {
+  border-color: rgba(234, 179, 8, 0.3) !important;
+}
+
+.shadow-gold-500\/20 {
+  box-shadow: 0 10px 15px -3px rgba(234, 179, 8, 0.2), 0 4px 6px -2px rgba(234, 179, 8, 0.1) !important;
+}
+
+.shadow-gold-500\/50 {
+  box-shadow: 0 25px 50px -12px rgba(234, 179, 8, 0.5) !important;
+}
+
 /* Override yellow/cyan to use default emerald/cyan colors */
 .text-yellow-400,
 .text-yellow-500 {

@@ -201,16 +201,6 @@ export default function Header({
 
             <ThemeToggle />
 
-            {!isDemoMode && (
-              <button
-                onClick={onDisconnect}
-                className="rounded-full border border-white/5 px-3 py-1 text-xs font-medium text-slate-400 transition hover:border-rose-400/50 hover:bg-rose-400/10 hover:text-rose-200"
-              >
-                <span className="hidden sm:inline">Disconnect</span>
-                <span className="sm:hidden">DC</span>
-              </button>
-            )}
-
             {onSignOut && (
               <button
                 onClick={onSignOut}

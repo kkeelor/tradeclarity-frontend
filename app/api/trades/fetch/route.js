@@ -225,29 +225,46 @@ export async function GET(request) {
         }
       } else {
         // Viewing COMBINED analytics - fetch ALL snapshots and aggregate them
-        console.log('📊 Fetching ALL portfolio snapshots for combined analytics...')
-
-        const { data: allSnapshots, error: snapshotError } = await supabase
+        // OR viewing SELECTED exchanges - fetch snapshots for selected connections only
+        console.log('📊 Fetching portfolio snapshots for combined analytics...')
+        
+        let snapshotQuery = supabase
           .from('portfolio_snapshots')
           .select('*')
           .eq('user_id', user.id)
 
+        // If specific connections are selected, filter by them
+        if (connectionIds) {
+          const connIds = connectionIds.split(',').filter(id => id.trim())
+          if (connIds.length > 0) {
+            console.log(`📊 Filtering snapshots by selected connections: ${connIds.join(', ')}`)
+            snapshotQuery = snapshotQuery.in('connection_id', connIds)
+          }
+        }
+
+        const { data: allSnapshots, error: snapshotError } = await snapshotQuery.order('snapshot_time', { ascending: false })
+
         if (snapshotError) {
           console.error('Error fetching portfolio snapshots:', snapshotError)
         } else if (allSnapshots && allSnapshots.length > 0) {
-          console.log(`📊 Found ${allSnapshots.length} total snapshots across all exchanges`)
+          console.log(`📊 Found ${allSnapshots.length} total snapshots${connectionIds ? ' for selected connections' : ' across all exchanges'}`)
 
           // Group by connection_id, keep most recent for each
           const latestPerConnection = {}
           allSnapshots.forEach(snap => {
             const key = snap.connection_id
-            if (!latestPerConnection[key] || snap.snapshot_time > latestPerConnection[key].snapshot_time) {
+            if (!latestPerConnection[key] || new Date(snap.snapshot_time) > new Date(latestPerConnection[key].snapshot_time)) {
               latestPerConnection[key] = snap
             }
           })
 
           const recentSnapshots = Object.values(latestPerConnection)
           console.log(`📊 Using ${recentSnapshots.length} most recent snapshots (one per connection)`)
+          
+          // Log which exchanges are included
+          recentSnapshots.forEach(snap => {
+            console.log(`  - ${snap.exchange} (connection: ${snap.connection_id}): $${snap.total_portfolio_value || 0} ${snap.primary_currency || 'USD'}`)
+          })
 
           // Fetch live currency rates from backend
           const currencyRates = await getCurrencyRates()
@@ -285,10 +302,10 @@ export async function GET(request) {
             totalSpotValue += spotValueUSD
             totalFuturesValue += futuresValueUSD
 
-            console.log(`  - ${snap.exchange}: $${portfolioValueUSD.toFixed(2)} USD (from ${snapCurrency})`)
+            console.log(`  - ${snap.exchange}: $${portfolioValueUSD.toFixed(2)} USD (from ${snapCurrency}) - ${snap.holdings?.length || 0} holdings`)
 
             // Merge holdings with exchange attribution
-            if (snap.holdings && Array.isArray(snap.holdings)) {
+            if (snap.holdings && Array.isArray(snap.holdings) && snap.holdings.length > 0) {
               const exchangeHoldings = snap.holdings.map(h => {
                 // Convert holding value to USD using live rates
                 const holdingValueUSD = convertCurrency(
@@ -307,6 +324,9 @@ export async function GET(request) {
                 }
               })
               allHoldings.push(...exchangeHoldings)
+              console.log(`    Added ${exchangeHoldings.length} holdings from ${snap.exchange}`)
+            } else {
+              console.warn(`    ⚠️  No holdings found for ${snap.exchange} (connection: ${snap.connection_id})`)
             }
           }
 
@@ -318,10 +338,11 @@ export async function GET(request) {
             holdings: allHoldings,
             snapshot_time: recentSnapshots[0].snapshot_time, // Use most recent timestamp
             _aggregated: true,
-            _snapshotCount: recentSnapshots.length
+            _snapshotCount: recentSnapshots.length,
+            _exchanges: recentSnapshots.map(s => s.exchange)
           }
 
-          console.log(`✅ Aggregated portfolio: $${totalPortfolioValue.toFixed(2)} USD (${allHoldings.length} holdings from ${recentSnapshots.length} exchanges)`)
+          console.log(`✅ Aggregated portfolio: $${totalPortfolioValue.toFixed(2)} USD (${allHoldings.length} holdings from ${recentSnapshots.length} exchanges: ${recentSnapshots.map(s => s.exchange).join(', ')})`)
         } else {
           console.log('📊 No portfolio snapshots found')
         }
