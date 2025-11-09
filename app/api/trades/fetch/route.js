@@ -228,7 +228,8 @@ export async function GET(request) {
           time: new Date(trade.trade_time).getTime(),
           orderId: trade.order_id,
           id: trade.trade_id,
-          accountType: 'SPOT'
+          accountType: 'SPOT',
+          exchange: trade.exchange // Include exchange from database
         })
       } else if (trade.account_type === 'FUTURES') {
         futuresIncome.push({
@@ -238,7 +239,8 @@ export async function GET(request) {
           incomeType: trade.type,
           time: new Date(trade.trade_time).getTime(),
           tranId: trade.trade_id,
-          id: trade.trade_id
+          id: trade.trade_id,
+          exchange: trade.exchange // Include exchange from database
         })
       }
     })
@@ -269,37 +271,44 @@ export async function GET(request) {
     console.log(`💱 Detected primary currency: ${primaryCurrency} based on exchanges: ${uniqueExchanges.join(', ')}`)
     console.log(`💱 Currency switcher enabled: ${supportsCurrencySwitch}, Available currencies: ${availableCurrencies.join(', ')}`)
 
-    // Try to fetch portfolio snapshot(s)
+    // Try to fetch portfolio snapshot(s) - ONLY for display purposes, not for calculations
+    // Portfolio snapshots are preserved for historical value but analytics uses trades only
     let portfolioSnapshot = null
     try {
-      if (connectionId || exchange) {
-        // Viewing SINGLE exchange - fetch most recent snapshot for that exchange
-        let snapshotQuery = supabase
-          .from('portfolio_snapshots')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('snapshot_time', { ascending: false })
-          .limit(1)
+      // Only fetch portfolio snapshots if there are actual trades or connections
+      // This ensures we don't show stale portfolio data when exchanges are deleted
+      const hasTrades = spotTrades.length > 0 || futuresIncome.length > 0
+      const hasConnections = connectionId || connectionIds || exchange
+      
+      if (hasTrades || hasConnections) {
+        if (connectionId || exchange) {
+          // Viewing SINGLE exchange - fetch most recent snapshot for that exchange
+          let snapshotQuery = supabase
+            .from('portfolio_snapshots')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('snapshot_time', { ascending: false })
+            .limit(1)
 
-        if (connectionId) {
-          snapshotQuery = snapshotQuery.eq('connection_id', connectionId)
-        } else if (exchange) {
-          snapshotQuery = snapshotQuery.eq('exchange', exchange.toLowerCase())
-        }
+          if (connectionId) {
+            snapshotQuery = snapshotQuery.eq('connection_id', connectionId)
+          } else if (exchange) {
+            snapshotQuery = snapshotQuery.eq('exchange', exchange.toLowerCase())
+          }
 
-        const { data: snapshots, error: snapshotError } = await snapshotQuery
+          const { data: snapshots, error: snapshotError } = await snapshotQuery
 
-        if (!snapshotError && snapshots && snapshots.length > 0) {
-          portfolioSnapshot = snapshots[0]
-          console.log(`📊 Found portfolio snapshot from ${portfolioSnapshot.snapshot_time}: $${portfolioSnapshot.total_portfolio_value}`)
-          
-          // Normalize holdings structure for single exchange
-          if (portfolioSnapshot.holdings && Array.isArray(portfolioSnapshot.holdings)) {
-            const normalizedHoldings = portfolioSnapshot.holdings.map(h => {
-              const asset = h.asset || h.currency || 'UNKNOWN'
-              const quantity = parseFloat(h.quantity || h.qty || 0)
-              const price = parseFloat(h.price || 0)
-              const originalUsdValue = parseFloat(h.usdValue || 0)
+          if (!snapshotError && snapshots && snapshots.length > 0) {
+            portfolioSnapshot = snapshots[0]
+            console.log(`📊 Found portfolio snapshot from ${portfolioSnapshot.snapshot_time}: $${portfolioSnapshot.total_portfolio_value}`)
+            
+            // Normalize holdings structure for single exchange
+            if (portfolioSnapshot.holdings && Array.isArray(portfolioSnapshot.holdings)) {
+              const normalizedHoldings = portfolioSnapshot.holdings.map(h => {
+                const asset = h.asset || h.currency || 'UNKNOWN'
+                const quantity = parseFloat(h.quantity || h.qty || 0)
+                const price = parseFloat(h.price || 0)
+                const originalUsdValue = parseFloat(h.usdValue || 0)
               
               // Recalculate usdValue if quantity and price are available
               let usdValue = originalUsdValue
@@ -362,7 +371,7 @@ export async function GET(request) {
           }
           
           // Validate Binance holdings structure
-          if (portfolioSnapshot.exchange === 'binance' && portfolioSnapshot.holdings) {
+          if (portfolioSnapshot && portfolioSnapshot.exchange === 'binance' && portfolioSnapshot.holdings) {
             console.log(`🔍 Validating Binance holdings structure...`)
             const holdings = portfolioSnapshot.holdings || []
             console.log(`📊 Total holdings: ${holdings.length}`)
@@ -581,9 +590,33 @@ export async function GET(request) {
           console.log('📊 No portfolio snapshots found')
         }
       }
+      }
     } catch (snapshotErr) {
       console.error('Error fetching portfolio snapshot:', snapshotErr)
-      // Continue without snapshot
+      // Continue without snapshot - analytics uses trades only
+    }
+
+    // Check if user has no data - return early with graceful error
+    if (spotTrades.length === 0 && futuresIncome.length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: 'NO_DATA',
+        message: 'No trading data available. Please upload CSV files or connect an exchange to view analytics.',
+        spotTrades: [],
+        futuresIncome: [],
+        futuresPositions: [],
+        metadata: {
+          primaryCurrency: 'USD',
+          availableCurrencies: ['USD'],
+          supportsCurrencySwitch: false,
+          exchanges: [],
+          totalTrades: 0,
+          spotTrades: 0,
+          futuresIncome: 0,
+          hasSpot: false,
+          hasFutures: false
+        }
+      })
     }
 
     return NextResponse.json({

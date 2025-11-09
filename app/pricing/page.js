@@ -418,6 +418,12 @@ export default function PricingPage() {
             email: user.email || '',
             contact: user.user_metadata?.phone || ''
           },
+          readonly: {
+            // Make email readonly since we already have it from user account
+            email: true,
+            // Make contact readonly if we have it, otherwise let user fill it
+            contact: !!user.user_metadata?.phone
+          },
           notes: {
             userId: user.id,
             tier: tier,

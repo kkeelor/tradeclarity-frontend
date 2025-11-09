@@ -12,7 +12,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { filename, label, accountType, exchangeConnectionId, size, tradesCount } = await request.json()
+    const { filename, label, accountType, exchangeConnectionId, exchange, size, tradesCount } = await request.json()
 
     if (!filename || !accountType) {
       return NextResponse.json(
@@ -21,18 +21,28 @@ export async function POST(request) {
       )
     }
 
+    // Normalize exchange name to lowercase
+    const normalizedExchange = exchange ? exchange.toLowerCase().trim() : null
+
     // Insert CSV upload metadata
+    const insertData = {
+      user_id: user.id,
+      filename: filename,
+      label: label,
+      account_type: accountType,
+      exchange_connection_id: exchangeConnectionId || null,
+      size: size,
+      trades_count: tradesCount || 0
+    }
+
+    // Add exchange field if provided (for "Other" exchanges)
+    if (normalizedExchange) {
+      insertData.exchange = normalizedExchange
+    }
+
     const { data, error: insertError } = await supabase
       .from('csv_uploads')
-      .insert({
-        user_id: user.id,
-        filename: filename,
-        label: label,
-        account_type: accountType,
-        exchange_connection_id: exchangeConnectionId,
-        size: size,
-        trades_count: tradesCount || 0
-      })
+      .insert(insertData)
       .select()
       .single()
 

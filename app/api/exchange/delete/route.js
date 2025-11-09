@@ -7,10 +7,11 @@ import { NextResponse } from 'next/server'
  *
  * Flow:
  * 1. Delete all API-imported trades (where exchange_connection_id = connectionId)
- * 2. Handle linked CSV files:
+ * 2. Delete portfolio snapshots for this connection
+ * 3. Handle linked CSV files:
  *    - If deleteLinkedCSVs = true: Delete CSV files (cascade deletes their trades)
  *    - If deleteLinkedCSVs = false: Unlink CSVs (set exchange_connection_id = null)
- * 3. Delete the exchange connection
+ * 4. Delete the exchange connection
  */
 export async function POST(request) {
   try {
@@ -53,7 +54,24 @@ export async function POST(request) {
     const apiTradesDeleted = deletedApiTrades?.length || 0
     console.log(`✅ Deleted ${apiTradesDeleted} API-imported trades`)
 
-    // Step 2: Handle linked CSV files
+    // Step 2: Delete portfolio snapshots for this connection
+    const { data: deletedSnapshots, error: snapshotsError } = await supabase
+      .from('portfolio_snapshots')
+      .delete()
+      .eq('connection_id', connectionId)
+      .eq('user_id', user.id)
+      .select('id')
+
+    if (snapshotsError) {
+      console.error('Error deleting portfolio snapshots:', snapshotsError)
+      // Don't fail the entire request, just log the error
+      console.warn('⚠️  Continuing despite portfolio snapshot deletion error')
+    } else {
+      const snapshotsDeleted = deletedSnapshots?.length || 0
+      console.log(`✅ Deleted ${snapshotsDeleted} portfolio snapshots`)
+    }
+
+    // Step 3: Handle linked CSV files
     let csvFilesDeleted = 0
     let csvFilesUnlinked = 0
     let csvTradesDeleted = 0
