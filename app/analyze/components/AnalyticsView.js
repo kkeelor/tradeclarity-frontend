@@ -25,6 +25,7 @@ import { ExchangeIcon, SeparatorText, Separator, Card as ShadcnCard, CardHeader,
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { getCurrencySymbol } from '../utils/currencyFormatter'
 import {
   AreaChart, Area, BarChart, Bar, LineChart as RechartsLineChart,
@@ -1872,6 +1873,8 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
   const [showCharts, setShowCharts] = useState(false)
   const [showSymbols, setShowSymbols] = useState(false)
   const [showAllInsights, setShowAllInsights] = useState(false)
+  const [breakdownModalOpen, setBreakdownModalOpen] = useState(false)
+  const [selectedMetric, setSelectedMetric] = useState(null)
   const psychology = analytics.psychology || {}
 
   // Generate value-first insights with money calculations
@@ -2525,6 +2528,155 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
     return convertCurrencySync(metadata.totalPortfolioValue, 'USD', currency)
   }, [hasPortfolioData, metadata?.totalPortfolioValue, currency])
 
+  // Helper function to calculate exchange breakdowns
+  const calculateExchangeBreakdown = useMemo(() => {
+    return (metricType) => {
+      const breakdown = {}
+      const allTrades = analytics.allTrades || []
+      const exchanges = metadata?.exchanges || []
+      
+      // Initialize breakdown for all exchanges
+      exchanges.forEach(exchange => {
+        breakdown[exchange] = {
+          value: 0,
+          displayValue: 0
+        }
+      })
+
+      switch (metricType) {
+        case 'portfolio_value':
+          // Calculate portfolio value by exchange from holdings
+          if (metadata?.spotHoldings && Array.isArray(metadata.spotHoldings)) {
+            metadata.spotHoldings.forEach(holding => {
+              const exchange = holding.exchange || 'unknown'
+              const usdValue = parseFloat(holding.usdValue || 0)
+              if (breakdown[exchange] !== undefined) {
+                breakdown[exchange].value += usdValue
+              } else {
+                breakdown[exchange] = { value: usdValue, displayValue: 0 }
+              }
+            })
+          }
+          // Convert to display currency
+          Object.keys(breakdown).forEach(exchange => {
+            if (currency === 'USD') {
+              breakdown[exchange].displayValue = breakdown[exchange].value
+            } else {
+              breakdown[exchange].displayValue = convertCurrencySync(breakdown[exchange].value, 'USD', currency)
+            }
+          })
+          break
+
+        case 'realized_pnl':
+          // Calculate realized P&L by exchange from trades
+          allTrades.forEach(trade => {
+            const exchange = trade.exchange || 'unknown'
+            let pnl = 0
+            
+            // Spot trades - use realizedPnl if available
+            if (trade.type === 'spot' && trade.realizedPnl !== undefined) {
+              pnl = parseFloat(trade.realizedPnl || 0)
+            }
+            // Futures trades - use income for REALIZED_PNL type
+            else if (trade.type === 'futures' && trade.incomeType === 'REALIZED_PNL') {
+              pnl = parseFloat(trade.income || trade.realizedPnl || 0)
+            }
+            // Also check if trade has direct realizedPnl field
+            else if (trade.realizedPnl !== undefined) {
+              pnl = parseFloat(trade.realizedPnl || 0)
+            }
+            
+            if (breakdown[exchange] !== undefined) {
+              breakdown[exchange].value += pnl
+            } else {
+              breakdown[exchange] = { value: pnl, displayValue: 0 }
+            }
+          })
+          
+          // Convert to display currency
+          Object.keys(breakdown).forEach(exchange => {
+            if (currency === 'USD') {
+              breakdown[exchange].displayValue = breakdown[exchange].value
+            } else {
+              breakdown[exchange].displayValue = convertCurrencySync(breakdown[exchange].value, 'USD', currency)
+            }
+          })
+          break
+
+        case 'unrealized_pnl':
+          // Calculate unrealized P&L by exchange
+          // Check spot holdings for unrealized P&L
+          if (metadata?.spotHoldings && Array.isArray(metadata.spotHoldings)) {
+            metadata.spotHoldings.forEach(holding => {
+              const exchange = holding.exchange || 'unknown'
+              // Calculate unrealized P&L if we have position data
+              // This is simplified - ideally we'd track entry prices per exchange
+              if (breakdown[exchange] === undefined) {
+                breakdown[exchange] = { value: 0, displayValue: 0 }
+              }
+            })
+          }
+          
+          // Check futures positions
+          if (analytics.futuresOpenPositions && Array.isArray(analytics.futuresOpenPositions)) {
+            analytics.futuresOpenPositions.forEach(position => {
+              const exchange = position.exchange || exchanges[0] || 'unknown'
+              const unrealizedPnL = parseFloat(position.unrealizedProfit || 0)
+              if (breakdown[exchange] !== undefined) {
+                breakdown[exchange].value += unrealizedPnL
+              } else {
+                breakdown[exchange] = { value: unrealizedPnL, displayValue: 0 }
+              }
+            })
+          }
+          
+          // Convert to display currency
+          Object.keys(breakdown).forEach(exchange => {
+            if (currency === 'USD') {
+              breakdown[exchange].displayValue = breakdown[exchange].value
+            } else {
+              breakdown[exchange].displayValue = convertCurrencySync(breakdown[exchange].value, 'USD', currency)
+            }
+          })
+          break
+
+        case 'total_trades':
+          // Count trades by exchange
+          allTrades.forEach(trade => {
+            const exchange = trade.exchange || 'unknown'
+            if (breakdown[exchange] !== undefined) {
+              breakdown[exchange].value += 1
+              breakdown[exchange].displayValue += 1
+            } else {
+              breakdown[exchange] = { value: 1, displayValue: 1 }
+            }
+          })
+          break
+
+        case 'exchanges':
+          // Just show which exchanges are connected
+          exchanges.forEach(exchange => {
+            breakdown[exchange] = { value: 1, displayValue: 1 }
+          })
+          break
+
+        default:
+          break
+      }
+
+      return breakdown
+    }
+  }, [analytics, metadata, currency])
+
+  // Handle card click to open breakdown modal
+  const handleCardClick = (metricType) => {
+    setSelectedMetric(metricType)
+    setBreakdownModalOpen(true)
+  }
+
+  // Get breakdown data for selected metric
+  const breakdownData = selectedMetric ? calculateExchangeBreakdown(selectedMetric) : {}
+
   return (
     <div className="space-y-4 md:space-y-6">
       {/* TOP SECTION: Balanced Portfolio Overview + PnL Summary */}
@@ -2609,7 +2761,10 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
               <div className={`grid gap-3 ${(hasFuturesData || analytics.spotUnrealizedPnL) ? 'grid-cols-3' : 'grid-cols-2'}`}>
                 {/* Total Portfolio Value */}
                 {hasPortfolioData ? (
-                  <ShadcnCard className="border-slate-800 bg-slate-950 p-3 hover:border-blue-500/50 transition-all duration-200">
+                  <ShadcnCard 
+                    className="border-slate-800 bg-slate-950 p-3 hover:border-blue-500/50 transition-all duration-200 cursor-pointer"
+                    onClick={() => handleCardClick('portfolio_value')}
+                  >
                     <div className="flex items-center gap-1.5 mb-2">
                       <Wallet className="w-3 h-3 text-blue-400" />
                       <span className="text-[10px] font-medium text-slate-300">Total Portfolio Value</span>
@@ -2630,7 +2785,10 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
                 )}
 
                 {/* Realized P&L */}
-                <ShadcnCard className="border-slate-800 bg-slate-950 p-3 hover:border-slate-700 transition-all duration-200">
+                <ShadcnCard 
+                  className="border-slate-800 bg-slate-950 p-3 hover:border-slate-700 transition-all duration-200 cursor-pointer"
+                  onClick={() => handleCardClick('realized_pnl')}
+                >
                   <div className="flex items-center gap-1.5 mb-2">
                     <CheckCircle className="w-3 h-3 text-emerald-400" />
                     <span className="text-[10px] font-medium text-slate-300">Realized P&L</span>
@@ -2643,11 +2801,14 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
 
                 {/* Unrealized P&L */}
                 {(hasFuturesData || analytics.spotUnrealizedPnL) && (
-                  <ShadcnCard className={`p-3 hover:border-opacity-60 transition-all duration-200 ${
-                    (analytics.totalUnrealizedPnL || 0) >= 0 
-                      ? 'border-emerald-500/30 bg-slate-950' 
-                      : 'border-red-500/30 bg-slate-950'
-                  }`}>
+                  <ShadcnCard 
+                    className={`p-3 hover:border-opacity-60 transition-all duration-200 cursor-pointer ${
+                      (analytics.totalUnrealizedPnL || 0) >= 0 
+                        ? 'border-emerald-500/30 bg-slate-950' 
+                        : 'border-red-500/30 bg-slate-950'
+                    }`}
+                    onClick={() => handleCardClick('unrealized_pnl')}
+                  >
                     <div className="flex items-center gap-1.5 mb-2">
                       <TrendingUpIcon className={`w-3 h-3 ${
                         (analytics.totalUnrealizedPnL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
@@ -2673,14 +2834,20 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
 
               {/* Bottom Stats Row - Total Trades and Exchanges */}
               <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-800">
-                <div className="text-center p-3 rounded-lg bg-slate-950 border border-slate-800">
+                <div 
+                  className="text-center p-3 rounded-lg bg-slate-950 border border-slate-800 hover:border-slate-700 transition-all duration-200 cursor-pointer"
+                  onClick={() => handleCardClick('total_trades')}
+                >
                   <div className="text-[9px] font-medium text-slate-400 mb-1 uppercase tracking-wider">Total Trades</div>
                   <div className="text-xl font-bold text-white mb-1">{totalTrades.toLocaleString()}</div>
                   <div className="text-[10px] text-slate-400">
                     {analytics.spotTrades || 0}S + {analytics.futuresTrades || 0}F
                   </div>
                 </div>
-                <div className="text-center p-3 rounded-lg bg-slate-950 border border-slate-800">
+                <div 
+                  className="text-center p-3 rounded-lg bg-slate-950 border border-slate-800 hover:border-slate-700 transition-all duration-200 cursor-pointer"
+                  onClick={() => handleCardClick('exchanges')}
+                >
                   <div className="text-[9px] font-medium text-slate-400 mb-1 uppercase tracking-wider">Connected Exchanges</div>
                   <div className="text-xl font-bold text-white mb-1">{exchanges.length}</div>
                   <div className="text-[10px] text-slate-400">
@@ -3347,6 +3514,91 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
       {selectedInsight && (
         <InsightModal insight={selectedInsight} onClose={() => setSelectedInsight(null)} currSymbol={currSymbol} analytics={analytics} />
       )}
+
+      {/* Exchange Breakdown Modal */}
+      <Dialog open={breakdownModalOpen} onOpenChange={setBreakdownModalOpen}>
+        <DialogContent className="bg-slate-900 border-slate-700 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold text-slate-100">
+              {selectedMetric === 'portfolio_value' && 'Total Portfolio Value Breakdown'}
+              {selectedMetric === 'realized_pnl' && 'Realized P&L Breakdown'}
+              {selectedMetric === 'unrealized_pnl' && 'Unrealized P&L Breakdown'}
+              {selectedMetric === 'total_trades' && 'Total Trades Breakdown'}
+              {selectedMetric === 'exchanges' && 'Connected Exchanges'}
+            </DialogTitle>
+            <DialogDescription className="text-sm text-slate-400">
+              Breakdown by exchange
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 space-y-3">
+            {Object.keys(breakdownData).length === 0 ? (
+              <div className="text-center py-8 text-slate-400">
+                <p className="text-sm">No exchange data available</p>
+              </div>
+            ) : (
+              Object.entries(breakdownData)
+                .sort((a, b) => {
+                  // Sort by value descending
+                  return b[1].displayValue - a[1].displayValue
+                })
+                .map(([exchange, data]) => {
+                  const exchangeName = exchange.charAt(0).toUpperCase() + exchange.slice(1)
+                  const value = data.displayValue
+                  const isPositive = value >= 0
+                  const isNegative = value < 0
+                  
+                  // Format value based on metric type
+                  let displayValue = ''
+                  if (selectedMetric === 'total_trades' || selectedMetric === 'exchanges') {
+                    displayValue = value.toLocaleString()
+                  } else {
+                    const sign = (selectedMetric === 'realized_pnl' || selectedMetric === 'unrealized_pnl') && isPositive ? '+' : ''
+                    displayValue = `${sign}${currSymbol}${formatNumber(Math.abs(value), 2)}`
+                  }
+                  
+                  return (
+                    <div
+                      key={exchange}
+                      className="flex items-center justify-between p-3 rounded-lg border border-slate-800 bg-slate-950 hover:border-slate-700 transition-all"
+                    >
+                      <div className="flex items-center gap-2">
+                        <ExchangeIcon exchange={exchange} className="w-5 h-5" />
+                        <span className="text-sm font-medium text-slate-300">{exchangeName}</span>
+                      </div>
+                      <div className={`text-sm font-bold ${
+                        selectedMetric === 'realized_pnl' || selectedMetric === 'unrealized_pnl'
+                          ? isPositive ? 'text-emerald-400' : 'text-red-400'
+                          : selectedMetric === 'portfolio_value'
+                          ? 'text-blue-400'
+                          : 'text-white'
+                      }`}>
+                        {displayValue}
+                      </div>
+                    </div>
+                  )
+                })
+            )}
+            {selectedMetric && (selectedMetric === 'realized_pnl' || selectedMetric === 'unrealized_pnl' || selectedMetric === 'portfolio_value') && (
+              <div className="mt-4 pt-4 border-t border-slate-800">
+                <div className="flex items-center justify-between text-xs text-slate-400">
+                  <span>Total ({currency || 'USD'}):</span>
+                  <span className="font-semibold text-slate-300">
+                    {(() => {
+                      const total = Object.values(breakdownData).reduce((sum, data) => sum + data.displayValue, 0)
+                      if (selectedMetric === 'portfolio_value') {
+                        return `${currSymbol}${formatNumber(total, 2)}`
+                      } else {
+                        const sign = total >= 0 ? '+' : ''
+                        return `${sign}${currSymbol}${formatNumber(Math.abs(total), 2)}`
+                      }
+                    })()}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
