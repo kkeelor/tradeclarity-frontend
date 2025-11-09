@@ -43,7 +43,7 @@ const PRICING_PLANS = {
   trader: {
     name: 'Trader',
     price: 19,
-    priceAnnual: 190,
+    priceAnnual: 190, // ~10 months (save ~17%)
     description: 'Best for active traders',
     icon: TrendingUp,
     color: 'emerald',
@@ -69,7 +69,7 @@ const PRICING_PLANS = {
   pro: {
     name: 'Pro',
     price: 49,
-    priceAnnual: 490,
+    priceAnnual: 490, // ~10 months (save ~17%)
     description: 'For professional traders',
     icon: Crown,
     color: 'cyan',
@@ -243,13 +243,15 @@ export default function PricingPage() {
       return
     }
 
-    if (tier === 'free') {
-      toast.info('You are already on the Free plan')
+    // If clicking on current tier, show toast
+    if (tier === currentTier) {
+      toast.info(`You are already on the ${PRICING_PLANS[tier].name} plan`)
       return
     }
 
-    if (tier === currentTier) {
-      toast.info(`You are already on the ${PRICING_PLANS[tier].name} plan`)
+    // If clicking on free tier (downgrade), show info toast
+    if (tier === 'free') {
+      toast.info('To downgrade to Free plan, please contact support')
       return
     }
 
@@ -557,13 +559,13 @@ export default function PricingPage() {
         </div>
 
         {/* Unified Pricing & Feature Comparison Table */}
-        <div className="max-w-7xl mx-auto mb-16">
+        <div className="max-w-5xl mx-auto mb-16">
           <div className="rounded-2xl border border-white/5 bg-white/[0.03] overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-white/5">
-                    <th className="text-left p-6 text-base font-semibold text-slate-300 w-1/4">Plan</th>
+                    <th className="text-left px-3 py-3 text-sm font-semibold text-slate-300 w-[180px]">Plan</th>
                     {Object.entries(PRICING_PLANS).map(([key, plan]) => {
                       const Icon = plan.icon
                       const isCurrentTier = currentTier === key
@@ -596,40 +598,40 @@ export default function PricingPage() {
                       return (
                         <th 
                           key={key}
-                          className={`text-center p-6 ${isPopular ? 'bg-emerald-500/5' : key === 'pro' ? 'bg-cyan-500/5' : ''}`}
+                          className={`text-center px-2 py-3 ${isPopular ? 'bg-emerald-500/5' : key === 'pro' ? 'bg-cyan-500/5' : ''}`}
                         >
-                          <div className="flex flex-col items-center gap-3">
+                          <div className="flex flex-col items-center gap-1.5">
                             {key === 'pro' && (
-                              <Badge variant="warning" className="inline-flex items-center gap-1 animate-pulse px-2 py-0.5 text-xs mb-2">
+                              <Badge variant="warning" className="inline-flex items-center gap-1 animate-pulse px-1.5 py-0.5 text-[10px] mb-0.5">
                                 <Sparkles className="w-2 h-2" />
                                 50% off till Dec 31, 2025
                               </Badge>
                             )}
-                            <div className={`w-10 h-10 rounded-lg bg-gradient-to-br from-${plan.color}-500/20 to-${plan.color}-600/20 border border-${plan.color}-500/30 flex items-center justify-center`}>
-                              <Icon className={`w-5 h-5 text-${plan.color}-400`} />
+                            <div className={`w-8 h-8 rounded-lg bg-gradient-to-br from-${plan.color}-500/20 to-${plan.color}-600/20 border border-${plan.color}-500/30 flex items-center justify-center`}>
+                              <Icon className={`w-4 h-4 text-${plan.color}-400`} />
                             </div>
                             <div>
-                              <h3 className={`text-xl font-bold mb-1 ${isPopular ? 'text-emerald-400' : key === 'pro' ? 'text-cyan-400' : 'text-white'}`}>
+                              <h3 className={`text-base font-bold mb-0.5 ${isPopular ? 'text-emerald-400' : key === 'pro' ? 'text-cyan-400' : 'text-white'}`}>
                                 {plan.name}
                               </h3>
-                              <p className="text-xs text-slate-400 mb-3">{plan.description}</p>
+                              <p className="text-[10px] text-slate-400 mb-1.5 leading-tight">{plan.description}</p>
                               
                               {/* Pricing */}
-                              <div className="flex flex-col items-center gap-1">
+                              <div className="flex flex-col items-center gap-0.5">
                                 {(key === 'trader' || key === 'pro') && (
-                                  <span className="text-sm text-slate-500 line-through">
+                                  <span className="text-xs text-slate-500 line-through">
                                     {getCurrencySymbol(currency)}{formatPrice(convertedMonthlyPrice)}
                                   </span>
                                 )}
-                                <div className="flex items-baseline gap-1">
-                                  <span className={`${priceFontSize} font-bold tabular-nums text-white`}>
+                                <div className="flex items-baseline gap-0.5">
+                                  <span className={`text-lg font-bold tabular-nums text-white`}>
                                     {getCurrencySymbol(currency)}{discountedPriceString}
                                   </span>
-                                  <span className="text-sm text-slate-400">/month</span>
+                                  <span className="text-xs text-slate-400">/mo</span>
                                 </div>
                                 {billingCycle === 'annual' && (key === 'trader' || key === 'pro') && (
-                                  <span className="text-xs text-emerald-400 mt-1">
-                                    {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? plan.priceAnnual * discountMultiplier : convertCurrencySync(plan.priceAnnual * discountMultiplier, 'USD', currency))}/year
+                                  <span className="text-[10px] text-emerald-400">
+                                    {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? plan.priceAnnual * discountMultiplier : convertCurrencySync(plan.priceAnnual * discountMultiplier, 'USD', currency))}/yr
                                   </span>
                                 )}
                               </div>
@@ -655,19 +657,19 @@ export default function PricingPage() {
                     { feature: 'Priority Support', free: false, trader: true, pro: true },
                   ].map((row, idx) => (
                     <tr key={idx} className="border-b border-white/5 last:border-0">
-                      <td className="p-4 text-sm text-slate-300">{row.feature}</td>
+                      <td className="px-3 py-2 text-xs text-slate-300">{row.feature}</td>
                       {['free', 'trader', 'pro'].map((key) => {
                         const value = row[key]
                         return (
-                          <td key={key} className="p-4 text-center">
+                          <td key={key} className="px-2 py-2 text-center">
                             {typeof value === 'boolean' ? (
                               value ? (
-                                <Check className="w-5 h-5 text-emerald-400 mx-auto" />
+                                <Check className="w-4 h-4 text-emerald-400 mx-auto" />
                               ) : (
-                                <X className="w-5 h-5 text-slate-600 mx-auto" />
+                                <X className="w-4 h-4 text-slate-600 mx-auto" />
                               )
                             ) : (
-                              <span className={`text-sm ${key === 'free' ? 'text-slate-400' : key === 'trader' ? 'text-emerald-400' : 'text-cyan-400'}`}>
+                              <span className={`text-xs ${key === 'free' ? 'text-slate-400' : key === 'trader' ? 'text-emerald-400' : 'text-cyan-400'}`}>
                                 {value}
                               </span>
                             )}
@@ -679,18 +681,43 @@ export default function PricingPage() {
                   
                   {/* CTA Row */}
                   <tr className="border-t-2 border-white/10">
-                    <td className="p-4"></td>
+                    <td className="px-3 py-3"></td>
                     {Object.entries(PRICING_PLANS).map(([key, plan]) => {
                       const isCurrentTier = currentTier === key
                       const isPopular = plan.popular
                       
+                      // Determine if button should show check icon
+                      // - Free tier: only free button shows check
+                      // - Trader tier: free and trader buttons show check, pro is clickable
+                      // - Pro tier: all buttons show check
+                      const shouldShowCheck = 
+                        isCurrentTier || 
+                        (currentTier === 'trader' && key === 'free') || 
+                        (currentTier === 'pro' && key !== 'pro')
+                      const isDisabled = shouldShowCheck || loading
+                      
+                      // Determine button text
+                      let buttonText = ''
+                      if (shouldShowCheck) {
+                        if (isCurrentTier) {
+                          // Current tier: just check icon for free, "Current Plan" for trader/pro
+                          buttonText = key === 'free' ? '' : 'Current Plan'
+                        } else {
+                          // Other tiers showing check (downgrade scenarios): just check icon
+                          buttonText = ''
+                        }
+                      } else {
+                        // Upgrade button: "Upgrade to [Tier Name]"
+                        buttonText = `Upgrade to ${plan.name}`
+                      }
+                      
                       return (
-                        <td key={key} className="p-4">
+                        <td key={key} className="px-2 py-3">
                           <button
                             onClick={() => handleUpgrade(key)}
-                            disabled={loading || isCurrentTier}
-                            className={`w-full py-3 rounded-lg font-semibold transition-all duration-300 ${
-                              isCurrentTier
+                            disabled={isDisabled}
+                            className={`w-full py-2 rounded-lg text-xs font-semibold transition-all duration-300 ${
+                              shouldShowCheck
                                 ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
                                 : loading
                                 ? 'bg-slate-700 text-slate-300 cursor-wait opacity-75'
@@ -701,17 +728,17 @@ export default function PricingPage() {
                                 : 'bg-white/[0.05] hover:bg-white/[0.08] border border-white/10 hover:border-white/20 text-white'
                             }`}
                           >
-                            {isCurrentTier ? (
-                              <span className="flex items-center justify-center gap-2">
-                                <Check className="w-4 h-4" />
-                                Current Plan
+                            {shouldShowCheck ? (
+                              <span className="flex items-center justify-center gap-1.5">
+                                <Check className="w-3.5 h-3.5" />
+                                {buttonText && <span>{buttonText}</span>}
                               </span>
                             ) : loading ? (
                               'Processing...'
                             ) : (
-                              <span className="flex items-center justify-center gap-2">
-                                Get Started
-                                <ArrowRight className="w-4 h-4" />
+                              <span className="flex items-center justify-center gap-1.5">
+                                {buttonText}
+                                <ArrowRight className="w-3.5 h-3.5" />
                               </span>
                             )}
                           </button>

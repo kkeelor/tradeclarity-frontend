@@ -9,6 +9,11 @@ export const metadata = {
   keywords: 'trading analytics, crypto trading, trading psychology, behavioral analysis, trading patterns',
   authors: [{ name: 'TradeClarity' }],
   charset: 'UTF-8',
+  icons: {
+    icon: '/logo.png',
+    shortcut: '/logo.png',
+    apple: '/logo.png',
+  },
   openGraph: {
     title: 'TradeClarity - Your Trading Analytics',
     description: 'Your trading blind spots, finally revealed',
