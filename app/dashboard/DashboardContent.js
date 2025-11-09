@@ -322,11 +322,11 @@ export default function DashboardContent() {
     }
   }
 
-  // Navigate back to dashboard when loading completes (after exchange connection)
+  // Navigate to analytics page when loading completes (after exchange connection)
   useEffect(() => {
     if (loadingComplete && status === 'connecting') {
-      console.log('?? [DashboardContent] Loading complete, navigating back to dashboard...')
-      router.push('/dashboard')
+      console.log('?? [DashboardContent] Loading complete, navigating to analytics page...')
+      router.push('/analyze')
     }
   }, [loadingComplete, status, router])
 
