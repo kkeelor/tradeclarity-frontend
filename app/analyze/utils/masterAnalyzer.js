@@ -215,6 +215,21 @@ export const analyzeData = async (allData) => {
     const qty = parseFloat(trade.qty || 0)
     const price = parseFloat(trade.price || 0)
     const quoteQty = parseFloat(trade.quoteQty || qty * price)
+    
+    // Determine exchange: use trade.exchange if available, otherwise infer from symbol or use first exchange
+    let exchange = trade.exchange
+    if (!exchange) {
+      // Infer exchange from symbol patterns
+      const symbol = trade.symbol || ''
+      if (symbol.includes('INR')) {
+        exchange = 'coindcx'
+      } else if (symbol.includes('USDT') || symbol.includes('USDC') || symbol.includes('BUSD')) {
+        // Could be Binance or other exchanges, check metadata
+        exchange = metadata.exchanges?.find(ex => ex === 'binance') || metadata.exchanges?.[0] || 'unknown'
+      } else {
+        exchange = metadata.exchanges ? metadata.exchanges[0] : 'unknown'
+      }
+    }
 
     return {
       timestamp: trade.time ? new Date(trade.time).toISOString() : new Date().toISOString(),
@@ -224,13 +239,28 @@ export const analyzeData = async (allData) => {
       price: price,
       type: 'spot',
       side: trade.isBuyer ? 'buy' : 'sell',
-      exchange: metadata.exchanges ? metadata.exchanges[0] : 'unknown',
+      exchange: exchange.toLowerCase(),
       commission: commission
     }
   }
 
   const normalizeFuturesTrade = (income) => {
     const incomeAmount = parseFloat(income.income || 0)
+    
+    // Determine exchange: use income.exchange if available, otherwise infer from symbol or use first exchange
+    let exchange = income.exchange
+    if (!exchange) {
+      // Infer exchange from symbol patterns
+      const symbol = income.symbol || ''
+      if (symbol.includes('INR')) {
+        exchange = 'coindcx'
+      } else if (symbol.includes('USDT') || symbol.includes('USDC') || symbol.includes('BUSD')) {
+        // Could be Binance or other exchanges, check metadata
+        exchange = metadata.exchanges?.find(ex => ex === 'binance') || metadata.exchanges?.[0] || 'unknown'
+      } else {
+        exchange = metadata.exchanges ? metadata.exchanges[0] : 'unknown'
+      }
+    }
 
     return {
       timestamp: income.time ? new Date(income.time).toISOString() : new Date().toISOString(),
@@ -240,7 +270,7 @@ export const analyzeData = async (allData) => {
       price: 0,
       type: 'futures',
       side: income.incomeType === 'REALIZED_PNL' ? 'close' : income.incomeType?.toLowerCase() || 'unknown',
-      exchange: metadata.exchanges ? metadata.exchanges[0] : 'unknown',
+      exchange: exchange.toLowerCase(),
       incomeType: income.incomeType || 'UNKNOWN'
     }
   }

@@ -112,11 +112,19 @@ export const analyzeSpotTrades = (spotTrades) => {
         // SELL: Realize profit/loss
         if (position > 0) {
           const avgCost = totalCost / position
-          const pnl = (price - avgCost) * qty - commission
+          // CRITICAL FIX: Only calculate P&L for the amount we actually have
+          // If selling more than position (shouldn't happen, but handle gracefully)
+          const qtyToSell = Math.min(qty, position)
+          // Commission is proportional to the quantity being sold (if qty > position, only charge commission on what we have)
+          const commissionForPnL = commission * (qtyToSell / qty)
+          const pnl = (price - avgCost) * qtyToSell - commissionForPnL
           realized += pnl
           monthlyPnL[monthKey] += pnl
 
-          console.log(`  [${index}] SELL: ${qty} @ ${price} | AvgCost: ${avgCost.toFixed(2)} | PnL: ${pnl.toFixed(2)}`)
+          if (qty > position) {
+            console.warn(`  [${index}] SELL WARNING: Selling ${qty} but only ${position} available. Calculating P&L for ${qtyToSell} only.`)
+          }
+          console.log(`  [${index}] SELL: ${qtyToSell} @ ${price} | AvgCost: ${avgCost.toFixed(2)} | PnL: ${pnl.toFixed(2)}`)
 
           // Track win/loss - this creates a "completed trade"
           if (pnl > 0) {
@@ -154,10 +162,33 @@ export const analyzeSpotTrades = (spotTrades) => {
           tradesByDay[date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })].pnl += pnl
           tradesByHour[date.getUTCHours()].pnl += pnl
 
-          // Reduce position and adjust cost basis
-          position -= qty
+          // Reduce position and adjust cost basis - only by the amount actually sold
+          position -= qtyToSell
           // Remaining cost = position * avgCost (clearer than the confusing formula)
           totalCost = position > 0 ? position * avgCost : 0
+          
+          // If we tried to sell more than we had, treat the excess as external deposit sale
+          if (qty > qtyToSell) {
+            const excessQty = qty - qtyToSell
+            const excessValue = excessQty * price
+            const excessCommission = commission * (excessQty / qty) // Proportional commission
+            const excessSaleValue = excessValue - excessCommission
+            
+            console.log(`  [${index}] SELL (EXTERNAL EXCESS): ${excessQty} @ ${price} | Sale Value: ${excessSaleValue.toFixed(2)} | ⚠️ No cost basis (external deposit)`)
+            
+            // Track as external sale (informational only, not in P&L)
+            if (!symbolAnalytics[symbol]) symbolAnalytics[symbol] = {}
+            if (!symbolAnalytics[symbol].externalSales) {
+              symbolAnalytics[symbol].externalSales = {
+                count: 0,
+                totalValue: 0,
+                quantity: 0
+              }
+            }
+            symbolAnalytics[symbol].externalSales.count++
+            symbolAnalytics[symbol].externalSales.totalValue += excessSaleValue
+            symbolAnalytics[symbol].externalSales.quantity += excessQty
+          }
         } else {
           // SELL with no position = External deposit was sold
           // Don't count this in P&L, but track it separately

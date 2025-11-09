@@ -30,6 +30,7 @@ export default function CSVUploadFlow({ onBack }) {
   const [fileConfigs, setFileConfigs] = useState([])
   const [uploadedFiles, setUploadedFiles] = useState([])
   const [connectedExchanges, setConnectedExchanges] = useState([])
+  const [otherExchanges, setOtherExchanges] = useState([]) // Custom exchanges from CSV uploads
   const [loadingExchanges, setLoadingExchanges] = useState(true)
   const [loadingUploaded, setLoadingUploaded] = useState(true)
   const [dragActive, setDragActive] = useState(false)
@@ -72,6 +73,15 @@ export default function CSVUploadFlow({ onBack }) {
 
       if (data.success) {
         setUploadedFiles(data.files || [])
+        
+        // Extract unique "Other" exchanges (CSV files without exchange_connection_id but with exchange field)
+        const otherExchangesSet = new Set()
+        data.files?.forEach(file => {
+          if (!file.exchange_connection_id && file.exchange) {
+            otherExchangesSet.add(file.exchange.toLowerCase())
+          }
+        })
+        setOtherExchanges(Array.from(otherExchangesSet).sort())
       }
     } catch (error) {
       console.error('Error fetching uploaded files:', error)
@@ -103,7 +113,8 @@ export default function CSVUploadFlow({ onBack }) {
         id: Date.now() + Math.random(),
         file: file,
         label: '',
-        exchangeConnectionId: connectedExchanges.length === 1 ? connectedExchanges[0].id : null,
+        exchangeConnectionId: null, // No auto-selection - user must choose
+        useOtherExchange: false, // Explicitly set to false
         accountType: 'BOTH',
         status: 'detecting', // detecting, ready, processing, success, error
         message: '',
@@ -214,6 +225,21 @@ export default function CSVUploadFlow({ onBack }) {
   }
 
   const handleUploadAll = async () => {
+    // Validate all files have exchange selected before processing
+    const invalidFiles = fileConfigs.filter(config => {
+      if (config.status !== 'ready') return false
+      // Must have either exchangeConnectionId OR (useOtherExchange AND customExchangeName)
+      return !config.exchangeConnectionId && (!config.useOtherExchange || !config.customExchangeName?.trim())
+    })
+
+    if (invalidFiles.length > 0) {
+      toast.error('Exchange Required', {
+        description: `Please select an exchange for all files before uploading.`,
+        duration: 5000
+      })
+      return
+    }
+
     // Process each file sequentially
     for (const config of fileConfigs) {
       if (config.status !== 'ready') continue
@@ -232,10 +258,20 @@ export default function CSVUploadFlow({ onBack }) {
         progress: config.columnMapping ? 'Parsing with AI mapping...' : 'Parsing CSV...'
       })
 
-      // Get exchange - either from selection or auto-detect
+      // Get exchange - either from connection or custom name
       let exchange = config.exchangeConnectionId
         ? connectedExchanges.find(e => e.id === config.exchangeConnectionId)?.exchange
-        : (config.detectedExchange?.toLowerCase() || 'binance') // Use AI-detected or default
+        : (config.customExchangeName?.trim().toLowerCase() || null)
+
+      if (!exchange) {
+        const errorMsg = 'Exchange is required. Please select an exchange connection or enter an "Other" exchange name.'
+        updateConfig(configId, {
+          status: 'error',
+          message: errorMsg
+        })
+        toast.error('Exchange Required', { description: errorMsg })
+        return
+      }
 
       const formData = new FormData()
       formData.append('file', config.file)
@@ -281,6 +317,7 @@ export default function CSVUploadFlow({ onBack }) {
           label: config.label || null,
           accountType: config.accountType,
           exchangeConnectionId: config.exchangeConnectionId || null,
+          exchange: exchange, // Include exchange name (normalized)
           size: config.file.size,
           tradesCount: 0 // Will update after storing trades
         })
@@ -506,7 +543,7 @@ export default function CSVUploadFlow({ onBack }) {
                 </div>
                 <div className="flex-1">
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    Upload CSV files from your exchanges to analyze your trading data. You can optionally link files to connected exchanges.
+                    Upload CSV files from your exchanges to analyze your trading data. <span className="text-blue-300 font-semibold">Exchange selection is required</span> - either link to a connected exchange or enter an "Other" exchange name. This ensures accurate exchange-specific analytics and breakdowns.
                   </p>
                 </div>
               </div>
@@ -597,6 +634,7 @@ export default function CSVUploadFlow({ onBack }) {
                     key={config.id}
                     config={config}
                     connectedExchanges={connectedExchanges}
+                    otherExchanges={otherExchanges}
                     onUpdate={(updates) => updateConfig(config.id, updates)}
                     onRemove={() => removeFile(config.id)}
                     getStatusColor={getStatusColor}
@@ -649,10 +687,19 @@ export default function CSVUploadFlow({ onBack }) {
 }
 
 // Separate component for each file config card
-function FileConfigCard({ config, connectedExchanges, onUpdate, onRemove, getStatusColor }) {
+function FileConfigCard({ config, connectedExchanges, otherExchanges, onUpdate, onRemove, getStatusColor }) {
   const [showExchangeDropdown, setShowExchangeDropdown] = useState(false)
+  const [showOtherInput, setShowOtherInput] = useState(config.useOtherExchange || false)
 
   const selectedExchange = connectedExchanges.find(e => e.id === config.exchangeConnectionId)
+  
+  // Filter other exchanges for autocomplete suggestions
+  const filteredOtherExchanges = config.customExchangeName
+    ? otherExchanges.filter(ex => ex.toLowerCase().includes(config.customExchangeName.toLowerCase()))
+    : otherExchanges
+
+  // Check if exchange is valid (either connection selected OR other with name)
+  const isExchangeValid = config.exchangeConnectionId || (config.useOtherExchange && config.customExchangeName?.trim())
 
   return (
     <div className={`relative overflow-hidden border rounded-2xl p-5 transition-all backdrop-blur-sm ${getStatusColor(config.status)}`}>
@@ -703,39 +750,134 @@ function FileConfigCard({ config, connectedExchanges, onUpdate, onRemove, getSta
             />
           </div>
 
-          {/* Exchange selector */}
+          {/* Exchange selector - MANDATORY */}
           <div>
-            <Label htmlFor={`exchange-select-${config.id}`} className="block text-xs font-medium text-slate-300 mb-2">Link to Exchange (optional)</Label>
-            <DropdownMenu open={showExchangeDropdown} onOpenChange={setShowExchangeDropdown}>
-              <DropdownMenuTrigger asChild>
-                <button className="w-full px-4 py-2.5 bg-slate-800/60 border border-slate-600/50 rounded-xl text-sm text-left flex items-center justify-between hover:border-emerald-500/50 hover:bg-slate-800/80 transition-all">
-                  {selectedExchange ? (
-                    <span className="flex items-center gap-2">
-                      <ExchangeIcon exchange={selectedExchange.exchange} size={14} className="w-6 h-6 p-1" />
-                      <span className="text-slate-200">{selectedExchange.name}</span>
-                    </span>
-                  ) : (
-                    <span className="text-slate-500">Select exchange...</span>
+            <Label htmlFor={`exchange-select-${config.id}`} className="block text-xs font-medium text-slate-300 mb-2">
+              Exchange <span className="text-red-400">*</span>
+              <span className="text-[10px] text-slate-500 ml-2 font-normal">(Required for accurate analytics)</span>
+            </Label>
+            
+            {/* Option 1: Link to Existing Exchange */}
+            <div className="mb-3">
+              <div className="flex items-center gap-2 mb-2">
+                <input
+                  type="radio"
+                  id={`link-exchange-${config.id}`}
+                  checked={!config.useOtherExchange && !!config.exchangeConnectionId}
+                  onChange={() => {
+                    onUpdate({ useOtherExchange: false, customExchangeName: '' })
+                    setShowOtherInput(false)
+                  }}
+                  className="w-4 h-4 text-emerald-500 bg-slate-800 border-slate-600 focus:ring-emerald-500/50"
+                />
+                <label htmlFor={`link-exchange-${config.id}`} className="text-xs text-slate-300 cursor-pointer">
+                  link to existing exchange
+                </label>
+              </div>
+              
+              {!config.useOtherExchange && (
+                <DropdownMenu open={showExchangeDropdown} onOpenChange={setShowExchangeDropdown}>
+                  <DropdownMenuTrigger asChild>
+                    <button className="w-full px-4 py-2.5 bg-slate-800/60 border border-slate-600/50 rounded-xl text-sm text-left flex items-center justify-between hover:border-emerald-500/50 hover:bg-slate-800/80 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                      {selectedExchange ? (
+                        <span className="flex items-center gap-2">
+                          <ExchangeIcon exchange={selectedExchange.exchange} size={14} className="w-6 h-6 p-1" />
+                          <span className="text-slate-200">{selectedExchange.name}</span>
+                        </span>
+                      ) : (
+                        <span className="text-slate-500">
+                          {connectedExchanges.length > 0 ? 'Select exchange...' : 'No exchanges connected'}
+                        </span>
+                      )}
+                      <ChevronDown className="w-4 h-4 text-slate-400" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-full bg-slate-800 border-slate-700 max-h-48 overflow-y-auto">
+                    {connectedExchanges.length > 0 ? (
+                      connectedExchanges.map(exchange => (
+                        <DropdownMenuItem
+                          key={exchange.id}
+                          onClick={() => {
+                            onUpdate({ exchangeConnectionId: exchange.id, useOtherExchange: false, customExchangeName: '' })
+                            setShowExchangeDropdown(false)
+                            setShowOtherInput(false)
+                          }}
+                          className="text-sm hover:bg-slate-700/50 flex items-center gap-2 cursor-pointer"
+                        >
+                          <ExchangeIcon exchange={exchange.exchange} size={14} className="w-6 h-6 p-1" />
+                          <span className="text-slate-200">{exchange.name}</span>
+                        </DropdownMenuItem>
+                      ))
+                    ) : (
+                      <div className="px-3 py-2 text-xs text-slate-400">
+                        No exchanges connected. Use "Other Exchange" option below.
+                      </div>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+
+            {/* Option 2: Other Exchange */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <input
+                  type="radio"
+                  id={`other-exchange-${config.id}`}
+                  checked={config.useOtherExchange}
+                  onChange={() => {
+                    onUpdate({ useOtherExchange: true, exchangeConnectionId: null })
+                    setShowOtherInput(true)
+                    setShowExchangeDropdown(false)
+                  }}
+                  className="w-4 h-4 text-emerald-500 bg-slate-800 border-slate-600 focus:ring-emerald-500/50"
+                />
+                <label htmlFor={`other-exchange-${config.id}`} className="text-xs text-slate-300 cursor-pointer">
+                  Other Exchange
+                </label>
+              </div>
+              
+              {config.useOtherExchange && (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={config.customExchangeName || ''}
+                    onChange={(e) => onUpdate({ customExchangeName: e.target.value.trim() })}
+                    placeholder="e.g., Kraken, Coinbase, Bybit..."
+                    className={`w-full px-4 py-2.5 bg-slate-800/60 border rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 transition-all ${
+                      config.customExchangeName?.trim()
+                        ? 'border-emerald-500/50 focus:border-emerald-500/50 focus:ring-emerald-500/20'
+                        : 'border-red-500/50 focus:border-red-500/50 focus:ring-red-500/20'
+                    }`}
+                    list={`other-exchanges-${config.id}`}
+                  />
+                  {otherExchanges.length > 0 && (
+                    <datalist id={`other-exchanges-${config.id}`}>
+                      {filteredOtherExchanges.map(ex => (
+                        <option key={ex} value={ex} />
+                      ))}
+                    </datalist>
                   )}
-                  <ChevronDown className="w-4 h-4 text-slate-400" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-full bg-slate-800 border-slate-700 max-h-48">
-                {connectedExchanges.map(exchange => (
-                  <DropdownMenuItem
-                    key={exchange.id}
-                    onClick={() => {
-                      onUpdate({ exchangeConnectionId: exchange.id })
-                      setShowExchangeDropdown(false)
-                    }}
-                    className="text-sm hover:bg-slate-700/50 flex items-center gap-2 cursor-pointer"
-                  >
-                    <ExchangeIcon exchange={exchange.exchange} size={14} className="w-6 h-6 p-1" />
-                    <span className="text-slate-200">{exchange.name}</span>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  {!config.customExchangeName?.trim() && (
+                    <p className="text-[10px] text-red-400 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      Exchange name is required
+                    </p>
+                  )}
+                  <p className="text-[10px] text-slate-500">
+                    Enter the exchange name (e.g., "kraken", "coinbase"). This will be used for analytics breakdowns.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Validation message */}
+            {!isExchangeValid && (
+              <div className="mt-2 flex items-start gap-2 text-xs text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg p-2">
+                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                <span>Please select an exchange connection or enter an "Other" exchange name</span>
+              </div>
+            )}
           </div>
 
           {/* Account type dropdown */}
@@ -821,6 +963,7 @@ function UploadedFileCard({ file, connectedExchanges, onRefresh }) {
   const [isDeleting, setIsDeleting] = useState(false)
 
   const selectedExchange = connectedExchanges.find(e => e.id === file.exchange_connection_id)
+  const customExchangeName = file.exchange && !file.exchange_connection_id ? file.exchange : null
 
   const handleLinkExchange = async (exchangeId) => {
     setLinking(true)
@@ -909,6 +1052,8 @@ function UploadedFileCard({ file, connectedExchanges, onRefresh }) {
           <div className="flex items-center gap-2 mb-2">
             {selectedExchange ? (
               <ExchangeIcon exchange={selectedExchange.exchange} size={16} className="w-4 h-4 flex-shrink-0" />
+            ) : customExchangeName ? (
+              <ExchangeIcon exchange={customExchangeName} size={16} className="w-4 h-4 flex-shrink-0" />
             ) : (
               <FileText className="w-4 h-4 text-slate-400 flex-shrink-0" />
             )}
@@ -939,6 +1084,14 @@ function UploadedFileCard({ file, connectedExchanges, onRefresh }) {
                 <span className="flex items-center gap-1">
                   <ExchangeIcon exchange={selectedExchange.exchange} size={14} className="w-4 h-4" />
                   <span className="text-slate-300">{selectedExchange.name}</span>
+                </span>
+              </div>
+            ) : customExchangeName ? (
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-slate-500">Exchange:</span>
+                <span className="flex items-center gap-1">
+                  <ExchangeIcon exchange={customExchangeName} size={14} className="w-4 h-4" />
+                  <span className="text-slate-300 capitalize">{customExchangeName}</span>
                 </span>
               </div>
             ) : (

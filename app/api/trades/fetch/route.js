@@ -228,7 +228,8 @@ export async function GET(request) {
           time: new Date(trade.trade_time).getTime(),
           orderId: trade.order_id,
           id: trade.trade_id,
-          accountType: 'SPOT'
+          accountType: 'SPOT',
+          exchange: trade.exchange // Include exchange from database
         })
       } else if (trade.account_type === 'FUTURES') {
         futuresIncome.push({
@@ -238,7 +239,8 @@ export async function GET(request) {
           incomeType: trade.type,
           time: new Date(trade.trade_time).getTime(),
           tranId: trade.trade_id,
-          id: trade.trade_id
+          id: trade.trade_id,
+          exchange: trade.exchange // Include exchange from database
         })
       }
     })

@@ -2579,15 +2579,42 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
           let totalSpotTrades = 0
           let totalFuturesTrades = 0
           
+          // Debug: Log trades by exchange and symbol
+          const tradesByExchangeSymbol = {}
+          
           allTrades.forEach(trade => {
             const exchange = trade.exchange || 'unknown'
+            const symbol = trade.symbol || 'UNKNOWN'
+            
+            // Debug tracking
+            if (!tradesByExchangeSymbol[exchange]) {
+              tradesByExchangeSymbol[exchange] = {}
+            }
+            if (!tradesByExchangeSymbol[exchange][symbol]) {
+              tradesByExchangeSymbol[exchange][symbol] = { spot: 0, futures: 0 }
+            }
+            
             if (trade.type === 'spot') {
               spotTradesByExchange[exchange] = (spotTradesByExchange[exchange] || 0) + 1
               totalSpotTrades++
+              tradesByExchangeSymbol[exchange][symbol].spot++
             } else if (trade.type === 'futures' && trade.incomeType === 'REALIZED_PNL') {
               futuresTradesByExchange[exchange] = (futuresTradesByExchange[exchange] || 0) + 1
               totalFuturesTrades++
+              tradesByExchangeSymbol[exchange][symbol].futures++
             }
+          })
+          
+          // Debug logging
+          console.log('🔍 Realized P&L Breakdown Debug:', {
+            totalSpotPnL,
+            totalFuturesRealizedPnL,
+            totalRealizedPnL,
+            spotTradesByExchange,
+            futuresTradesByExchange,
+            tradesByExchangeSymbol,
+            totalSpotTrades,
+            totalFuturesTrades
           })
           
           // Distribute spot P&L proportionally by trade count

@@ -7,14 +7,17 @@ export async function POST(request) {
   try {
     const { spotTrades, futuresIncome, userId, exchange, connectionId, csvUploadId, metadata } = await request.json()
 
-    if (!userId || !exchange || !connectionId) {
+    if (!userId || !exchange) {
       return NextResponse.json(
-        { error: 'Missing required fields: userId, exchange, connectionId' },
+        { error: 'Missing required fields: userId, exchange' },
         { status: 400 }
       )
     }
 
-    console.log(`💾 [Background] Storing trades for user ${userId}, exchange ${exchange}...`)
+    // Normalize exchange name to lowercase
+    const normalizedExchange = exchange.toLowerCase().trim()
+
+    console.log(`💾 [Background] Storing trades for user ${userId}, exchange ${normalizedExchange}...`)
     if (metadata?.spotHoldings) {
       console.log(`📊 Portfolio data received: $${metadata.totalPortfolioValue?.toFixed(2) || 0}, ${metadata.spotHoldings?.length || 0} holdings`)
     }
@@ -26,8 +29,8 @@ export async function POST(request) {
       spotTrades.forEach(trade => {
         tradesToInsert.push({
           user_id: userId,
-          exchange: exchange,
-          exchange_connection_id: connectionId,
+          exchange: normalizedExchange,
+          exchange_connection_id: connectionId || null, // Optional for CSV uploads
           csv_upload_id: csvUploadId || null,
           symbol: trade.symbol,
           side: trade.isBuyer ? 'BUY' : 'SELL',
@@ -58,8 +61,8 @@ export async function POST(request) {
 
         tradesToInsert.push({
           user_id: userId,
-          exchange: exchange,
-          exchange_connection_id: connectionId,
+          exchange: normalizedExchange,
+          exchange_connection_id: connectionId || null, // Optional for CSV uploads
           csv_upload_id: csvUploadId || null,
           symbol: income.symbol || 'N/A',
           side: 'INCOME',
@@ -100,7 +103,7 @@ export async function POST(request) {
       .from('trades')
       .select('trade_id')
       .eq('user_id', userId)
-      .eq('exchange', exchange)
+      .eq('exchange', normalizedExchange)
       .in('trade_id', tradeIds)
 
     const existingTradeIds = new Set(existingTrades?.map(t => t.trade_id) || [])
@@ -186,5 +189,8 @@ export async function POST(request) {
       { error: 'Failed to store trades', details: error.message },
       { status: 500 }
     )
+  }
+}
+)
   }
 }
