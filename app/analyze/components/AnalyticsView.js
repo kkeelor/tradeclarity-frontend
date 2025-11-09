@@ -3353,6 +3353,13 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
 
 function SpotTab({ analytics, currSymbol, currency, metadata }) {
   const [showAllHoldings, setShowAllHoldings] = useState(false)
+  const [showAllTrades, setShowAllTrades] = useState(false)
+  const [sortBy, setSortBy] = useState('date') // 'date', 'symbol', 'pnl', 'value'
+  const [sortOrder, setSortOrder] = useState('desc') // 'asc', 'desc'
+  const [showFilters, setShowFilters] = useState(false)
+  const [filterSymbol, setFilterSymbol] = useState('')
+  const [filterSide, setFilterSide] = useState('') // 'buy', 'sell', or ''
+  const [filterExchange, setFilterExchange] = useState('')
   const spotAnalysis = analytics.spotAnalysis || {}
   const hasSpotData = analytics.spotTrades > 0
   const displayCurrency = currency || 'USD'
@@ -3402,9 +3409,18 @@ function SpotTab({ analytics, currSymbol, currency, metadata }) {
 
       {/* Current Holdings - Compact */}
       {metadata?.spotHoldings && metadata.spotHoldings.length > 0 && (() => {
-        const sortedHoldings = metadata.spotHoldings.sort((a, b) => b.usdValue - a.usdValue)
+        // Filter out holdings with value less than $1 USD
+        const filteredHoldings = metadata.spotHoldings.filter(holding => {
+          const usdValue = holding.usdValue || 0
+          return usdValue >= 1
+        })
+        
+        const sortedHoldings = filteredHoldings.sort((a, b) => b.usdValue - a.usdValue)
         const displayedHoldings = showAllHoldings ? sortedHoldings : sortedHoldings.slice(0, 5)
         const hasMore = sortedHoldings.length > 5
+        
+        // Calculate total value of filtered holdings
+        const totalFilteredValue = filteredHoldings.reduce((sum, holding) => sum + (holding.usdValue || 0), 0)
 
         return (
           <div className="bg-slate-800/20 border border-slate-700/30 rounded-lg overflow-hidden">
@@ -3470,11 +3486,328 @@ function SpotTab({ analytics, currSymbol, currency, metadata }) {
                 <tfoot className="bg-slate-800/50">
                   <tr className="font-bold">
                     <td className="px-2 py-2" colSpan="4">Total</td>
-                    <td className="px-2 py-2 text-right text-emerald-400 whitespace-nowrap">{currSymbol}{formatNumber(metadata?.totalSpotValue || 0, 2)} <span className="text-[9px] text-slate-400 font-normal">{displayCurrency}</span></td>
+                    <td className="px-2 py-2 text-right text-emerald-400 whitespace-nowrap">{currSymbol}{formatNumber(totalFilteredValue, 2)} <span className="text-[9px] text-slate-400 font-normal">{displayCurrency}</span></td>
                   </tr>
                 </tfoot>
               </table>
             </div>
+          </div>
+        )
+      })()}
+
+      {/* Spot Trades Table */}
+      {(() => {
+        // Extract spot trades from analytics.allTrades or metadata
+        let spotTradesList = []
+        
+        // Try analytics.allTrades first (normalized format)
+        if (Array.isArray(analytics.allTrades)) {
+          spotTradesList = analytics.allTrades
+            .filter(trade => trade.type === 'spot')
+            .map((trade, index) => ({
+              symbol: trade.symbol || 'UNKNOWN',
+              side: trade.side || (trade.isBuyer ? 'buy' : 'sell'),
+              quantity: trade.quantity || parseFloat(trade.qty || 0),
+              price: trade.price || 0,
+              value: (trade.quantity || parseFloat(trade.qty || 0)) * (trade.price || 0),
+              commission: trade.commission || 0,
+              timestamp: trade.timestamp || trade.time,
+              exchange: trade.exchange || metadata?.exchanges?.[0] || 'Unknown',
+              pnl: trade.realizedPnl || 0,
+              id: trade.id || trade.tradeId || trade.orderId || `${trade.symbol}-${trade.timestamp}-${trade.side || (trade.isBuyer ? 'buy' : 'sell')}-${index}-${trade.quantity || trade.qty || 0}`
+            }))
+        } else if (Array.isArray(metadata?.spotTrades)) {
+          // Fallback to raw metadata.spotTrades
+          spotTradesList = metadata.spotTrades.map((trade, index) => ({
+            symbol: trade.symbol || 'UNKNOWN',
+            side: trade.isBuyer ? 'buy' : 'sell',
+            quantity: parseFloat(trade.qty || 0),
+            price: parseFloat(trade.price || 0),
+            value: parseFloat(trade.quoteQty || trade.qty * trade.price || 0),
+            commission: parseFloat(trade.commission || 0),
+            timestamp: trade.time,
+            exchange: trade.exchange || metadata?.exchanges?.[0] || 'Unknown',
+            pnl: 0, // Will need to calculate from position tracking
+            id: trade.id || trade.orderId || `${trade.symbol}-${trade.time}-${trade.isBuyer ? 'buy' : 'sell'}-${index}-${trade.qty || 0}`
+          }))
+        }
+
+        // Apply filters first
+        let filteredTrades = spotTradesList.filter(trade => {
+          // Symbol filter
+          if (filterSymbol && !trade.symbol.toLowerCase().includes(filterSymbol.toLowerCase())) {
+            return false
+          }
+          // Side filter
+          if (filterSide && trade.side !== filterSide) {
+            return false
+          }
+          // Exchange filter
+          if (filterExchange && trade.exchange.toLowerCase() !== filterExchange.toLowerCase()) {
+            return false
+          }
+          return true
+        })
+
+        // Get unique symbols and exchanges for filter dropdowns
+        const uniqueSymbols = [...new Set(spotTradesList.map(t => t.symbol))].sort()
+        const uniqueExchanges = [...new Set(spotTradesList.map(t => t.exchange))].sort()
+        const activeFilterCount = (filterSymbol ? 1 : 0) + (filterSide ? 1 : 0) + (filterExchange ? 1 : 0)
+
+        // Apply sorting
+        const sortedTrades = [...filteredTrades].sort((a, b) => {
+          let aVal, bVal
+          switch (sortBy) {
+            case 'symbol':
+              aVal = a.symbol
+              bVal = b.symbol
+              break
+            case 'pnl':
+              aVal = a.pnl || 0
+              bVal = b.pnl || 0
+              break
+            case 'value':
+              aVal = a.value || 0
+              bVal = b.value || 0
+              break
+            case 'date':
+            default:
+              aVal = new Date(a.timestamp).getTime()
+              bVal = new Date(b.timestamp).getTime()
+          }
+          
+          if (sortOrder === 'asc') {
+            return aVal > bVal ? 1 : aVal < bVal ? -1 : 0
+          } else {
+            return aVal < bVal ? 1 : aVal > bVal ? -1 : 0
+          }
+        })
+
+        const displayedTrades = showAllTrades ? sortedTrades : sortedTrades.slice(0, 10)
+        const hasMoreTrades = sortedTrades.length > 10
+
+        if (spotTradesList.length === 0) {
+          return null // Don't show table if no trades
+        }
+
+        return (
+          <div className="bg-slate-800/20 border border-slate-700/30 rounded-lg overflow-hidden">
+            <div className="px-3 py-2 border-b border-slate-700/30 bg-slate-800/30 flex items-center justify-between">
+              <h3 className="text-xs font-semibold text-slate-300 flex items-center gap-2">
+                <Briefcase className="w-3 h-3 text-emerald-400" />
+                Spot Trades
+                <span className="text-[10px] text-slate-500 font-normal ml-1">
+                  ({sortedTrades.length} of {spotTradesList.length} {spotTradesList.length === 1 ? 'trade' : 'trades'})
+                </span>
+              </h3>
+              <div className="flex items-center gap-2">
+                {/* Filter Button */}
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`text-[10px] transition-colors flex items-center gap-1 px-2 py-1 rounded ${
+                    showFilters || activeFilterCount > 0
+                      ? 'bg-purple-500/20 text-purple-300 hover:bg-purple-500/30'
+                      : 'text-slate-400 hover:text-slate-300 hover:bg-white/5'
+                  }`}
+                >
+                  <Filter className="w-3 h-3" />
+                  Filter
+                  {activeFilterCount > 0 && (
+                    <span className="ml-1 px-1 py-0.5 bg-purple-500/30 rounded text-[9px] font-semibold">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="text-[10px] text-slate-400 hover:text-slate-300 transition-colors flex items-center gap-1 px-2 py-1 rounded hover:bg-white/5">
+                    Sort: {sortBy === 'date' ? 'Date' : sortBy === 'symbol' ? 'Symbol' : sortBy === 'pnl' ? 'P&L' : 'Value'}
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="bg-slate-800 border-slate-700">
+                    <DropdownMenuItem onClick={() => { setSortBy('date'); setSortOrder('desc') }} className="text-xs">
+                      Date (Newest)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { setSortBy('date'); setSortOrder('asc') }} className="text-xs">
+                      Date (Oldest)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { setSortBy('symbol'); setSortOrder('asc') }} className="text-xs">
+                      Symbol (A-Z)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { setSortBy('pnl'); setSortOrder('desc') }} className="text-xs">
+                      P&L (High to Low)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { setSortBy('value'); setSortOrder('desc') }} className="text-xs">
+                      Value (High to Low)
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                {hasMoreTrades && (
+                  <button
+                    onClick={() => setShowAllTrades(!showAllTrades)}
+                    className="text-[10px] text-purple-400 hover:text-purple-300 transition-colors flex items-center gap-1"
+                  >
+                    {showAllTrades ? (
+                      <>
+                        <ChevronUp className="w-3 h-3" />
+                        Show Less
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="w-3 h-3" />
+                        Show All
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Filter Panel */}
+            {showFilters && (
+              <div className="px-3 py-3 border-b border-slate-700/30 bg-slate-800/20 space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {/* Symbol Filter */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-slate-400 font-medium">Symbol</label>
+                    <input
+                      type="text"
+                      value={filterSymbol}
+                      onChange={(e) => setFilterSymbol(e.target.value)}
+                      placeholder="Filter by symbol..."
+                      className="w-full px-2 py-1.5 text-xs bg-slate-900/50 border border-slate-700 rounded text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-purple-500/50 focus:border-purple-500/50"
+                    />
+                  </div>
+
+                  {/* Side Filter */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-slate-400 font-medium">Type</label>
+                    <select
+                      value={filterSide}
+                      onChange={(e) => setFilterSide(e.target.value)}
+                      className="w-full px-2 py-1.5 text-xs bg-slate-900/50 border border-slate-700 rounded text-slate-200 focus:outline-none focus:ring-1 focus:ring-purple-500/50 focus:border-purple-500/50"
+                    >
+                      <option value="">All Types</option>
+                      <option value="buy">Buy</option>
+                      <option value="sell">Sell</option>
+                    </select>
+                  </div>
+
+                  {/* Exchange Filter */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-slate-400 font-medium">Exchange</label>
+                    <select
+                      value={filterExchange}
+                      onChange={(e) => setFilterExchange(e.target.value)}
+                      className="w-full px-2 py-1.5 text-xs bg-slate-900/50 border border-slate-700 rounded text-slate-200 focus:outline-none focus:ring-1 focus:ring-purple-500/50 focus:border-purple-500/50"
+                    >
+                      <option value="">All Exchanges</option>
+                      {uniqueExchanges.map(exchange => (
+                        <option key={exchange} value={exchange}>
+                          {exchange.charAt(0).toUpperCase() + exchange.slice(1)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Clear Filters Button */}
+                {activeFilterCount > 0 && (
+                  <div className="flex items-center justify-end">
+                    <button
+                      onClick={() => {
+                        setFilterSymbol('')
+                        setFilterSide('')
+                        setFilterExchange('')
+                      }}
+                      className="text-[10px] text-purple-400 hover:text-purple-300 transition-colors flex items-center gap-1"
+                    >
+                      <X className="w-3 h-3" />
+                      Clear Filters
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-slate-700/30 hover:bg-slate-800/30">
+                    <TableHead className="text-[10px] text-slate-400 font-medium">Date</TableHead>
+                    <TableHead className="text-[10px] text-slate-400 font-medium">Symbol</TableHead>
+                    <TableHead className="text-[10px] text-slate-400 font-medium">Type</TableHead>
+                    <TableHead className="text-[10px] text-slate-400 font-medium text-right">Quantity</TableHead>
+                    <TableHead className="text-[10px] text-slate-400 font-medium text-right">Price</TableHead>
+                    <TableHead className="text-[10px] text-slate-400 font-medium text-right">Value</TableHead>
+                    <TableHead className="text-[10px] text-slate-400 font-medium text-right">Commission</TableHead>
+                    <TableHead className="text-[10px] text-slate-400 font-medium">Exchange</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {displayedTrades.map((trade, idx) => {
+                    const tradeDate = new Date(trade.timestamp)
+                    const isBuy = trade.side === 'buy'
+                    // Use a unique key combining id with index to ensure uniqueness
+                    const uniqueKey = `${trade.id}-${idx}-${trade.timestamp}`
+                    
+                    return (
+                      <TableRow key={uniqueKey} className="border-slate-700/30 hover:bg-slate-700/10">
+                        <TableCell className="text-xs text-slate-300 font-mono">
+                          {tradeDate.toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </TableCell>
+                        <TableCell className="text-xs font-mono font-semibold text-slate-200">
+                          {trade.symbol}
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={isBuy ? 'default' : 'secondary'}
+                            className={`text-[10px] px-1.5 py-0.5 ${
+                              isBuy 
+                                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30' 
+                                : 'bg-red-500/20 text-red-300 border-red-400/30'
+                            }`}
+                          >
+                            {isBuy ? 'BUY' : 'SELL'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-right font-mono text-slate-300">
+                          {formatNumber(trade.quantity, 4)}
+                        </TableCell>
+                        <TableCell className="text-xs text-right font-mono text-slate-300">
+                          {currSymbol}{formatNumber(trade.price, 2)}
+                        </TableCell>
+                        <TableCell className="text-xs text-right font-mono text-slate-200">
+                          {currSymbol}{formatNumber(trade.value, 2)}
+                        </TableCell>
+                        <TableCell className="text-xs text-right font-mono text-slate-400">
+                          {trade.commission > 0 ? `${currSymbol}${formatNumber(trade.commission, 4)}` : '-'}
+                        </TableCell>
+                        <TableCell>
+                          <span className="inline-flex items-center gap-1 text-[10px] text-slate-400">
+                            <ExchangeIcon exchange={trade.exchange} size={10} className="w-3 h-3 p-0.5" />
+                            <span className="capitalize">{trade.exchange}</span>
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+            {hasMoreTrades && !showAllTrades && (
+              <div className="px-3 py-2 border-t border-slate-700/30 bg-slate-800/30 text-center">
+                <button
+                  onClick={() => setShowAllTrades(true)}
+                  className="text-[10px] text-purple-400 hover:text-purple-300 transition-colors"
+                >
+                  Show {sortedTrades.length - 10} more trades
+                </button>
+              </div>
+            )}
           </div>
         )
       })()}
@@ -4592,9 +4925,9 @@ export default function AnalyticsView({
 
       <main className="relative mx-auto w-full max-w-[1400px] px-4 pb-16 pt-10 space-y-10">
         {/* Page Header */}
-        <div className="space-y-2">
+        <div className="space-y-2 text-center">
           <h1 className="text-2xl md:text-3xl font-bold text-white">Trading Analytics</h1>
-          <p className="text-sm text-slate-400 max-w-3xl">
+          <p className="text-sm text-slate-400 max-w-3xl mx-auto">
             Comprehensive analysis of your trading performance, portfolio overview, behavioral patterns, and actionable insights to improve your results.
           </p>
         </div>
@@ -4603,24 +4936,26 @@ export default function AnalyticsView({
         <div className="overflow-hidden rounded-3xl border border-slate-800 bg-black shadow-xl">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             {/* Tab Headers */}
-            <div className="flex items-center border-b border-slate-800">
-              <TabsList className="flex flex-1 overflow-x-auto scrollbar-hide bg-transparent border-none h-auto p-0">
-                {tabs.map(tab => {
-                  const TabIcon = tab.icon
-                  return (
-                    <TabsTrigger
-                      key={tab.id}
-                      value={tab.id}
-                      className="whitespace-nowrap text-xs md:text-base data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 data-[state=active]:border-b-2 data-[state=active]:border-emerald-500 rounded-none border-b-2 border-transparent"
-                    >
-                      <div className="flex items-center gap-2">
-                        <TabIcon className="w-4 h-4" />
-                        <span>{tab.label}</span>
-                      </div>
-                    </TabsTrigger>
-                  )
-                })}
-              </TabsList>
+            <div className="flex items-center justify-between border-b border-slate-800">
+              <div className="flex-1 flex justify-center">
+                <TabsList className="flex overflow-x-auto scrollbar-hide bg-transparent border-none h-auto p-0">
+                  {tabs.map(tab => {
+                    const TabIcon = tab.icon
+                    return (
+                      <TabsTrigger
+                        key={tab.id}
+                        value={tab.id}
+                        className="whitespace-nowrap text-xs md:text-base data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 data-[state=active]:border-b-2 data-[state=active]:border-emerald-500 rounded-none border-b-2 border-transparent"
+                      >
+                        <div className="flex items-center gap-2">
+                          <TabIcon className="w-4 h-4" />
+                          <span>{tab.label}</span>
+                        </div>
+                      </TabsTrigger>
+                    )
+                  })}
+                </TabsList>
+              </div>
 
               {/* Filter Button */}
               <div className="flex-shrink-0 border-l border-white/5 px-3">

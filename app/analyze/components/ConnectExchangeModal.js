@@ -27,14 +27,18 @@ export default function ConnectExchangeModal({ isOpen, onClose, onSelectMethod }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-gradient-to-br from-slate-900/95 via-slate-900/95 to-slate-900/95 border-slate-700/50 max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">Connect Your Exchange</DialogTitle>
-          <DialogDescription className="mt-1">Choose how you'd like to import your trading data</DialogDescription>
+      <DialogContent className="bg-slate-900 border-slate-700/50 max-w-2xl max-h-[90vh] overflow-y-auto p-5 md:p-6">
+        <DialogHeader className="mb-4">
+          <DialogTitle className="text-xl md:text-2xl font-bold text-white">
+            Connect Your Exchange
+          </DialogTitle>
+          <DialogDescription className="mt-1.5 text-sm text-slate-300">
+            Choose how you'd like to import your trading data
+          </DialogDescription>
         </DialogHeader>
 
         {/* Content */}
-        <div className="p-6 space-y-4">
+        <div className="space-y-3">
           {methods.map((method) => {
             const Icon = method.icon
             return (
@@ -44,44 +48,51 @@ export default function ConnectExchangeModal({ isOpen, onClose, onSelectMethod }
                   e.preventDefault()
                   e.stopPropagation()
                   onSelectMethod(method.id)
-                  // Don't call onClose here - let the parent handle it
                 }}
-                className="group relative overflow-hidden w-full text-left p-6 bg-gradient-to-br from-slate-800/60 via-slate-800/40 to-slate-800/30 hover:from-slate-800/80 hover:to-slate-800/60 border border-slate-700/50 hover:border-emerald-500/50 rounded-2xl transition-all backdrop-blur-sm hover:scale-[1.02]"
+                className="group w-full text-left p-4 md:p-5 bg-slate-800/60 hover:bg-slate-800/80 border border-slate-700/50 hover:border-emerald-500/50 rounded-xl transition-all duration-200"
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative flex items-start gap-4">
-                  <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 transition-all border ${
+                <div className="flex items-start gap-3">
+                  {/* Icon */}
+                  <div className={`flex-shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center transition-all ${
                     method.recommended
-                      ? 'bg-emerald-500/20 group-hover:bg-emerald-500/30 border-emerald-500/30'
-                      : 'bg-blue-500/20 group-hover:bg-blue-500/30 border-blue-500/30'
+                      ? 'bg-emerald-500/20 border border-emerald-500/30 group-hover:bg-emerald-500/30'
+                      : 'bg-slate-700/50 border border-slate-600/50 group-hover:bg-slate-700/70'
                   }`}>
-                    <Icon className={`w-7 h-7 ${
-                      method.recommended ? 'text-emerald-400' : 'text-blue-400'
+                    <Icon className={`w-5 h-5 md:w-6 md:h-6 ${
+                      method.recommended ? 'text-emerald-400' : 'text-slate-300'
                     }`} />
                   </div>
 
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-lg font-semibold">{method.title}</h3>
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                      <h3 className="text-base md:text-lg font-semibold text-white">
+                        {method.title}
+                      </h3>
                       {method.recommended && (
-                        <Badge variant="profit" className="px-2.5 py-1 text-xs font-semibold">
+                        <Badge variant="profit" className="px-2 py-0.5 text-xs font-semibold !text-emerald-400">
                           Recommended
                         </Badge>
                       )}
                     </div>
-                    <p className="text-slate-400 text-sm mb-3">
+                    <p className="text-slate-300 text-sm mb-3 leading-relaxed">
                       {method.description}
                     </p>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       {method.benefits.map((benefit, idx) => (
-                        <Badge key={idx} variant="secondary" className="px-2 py-1 text-xs">
+                        <Badge 
+                          key={idx} 
+                          variant="secondary" 
+                          className="px-2 py-0.5 text-xs bg-slate-700/50 text-slate-200 border-slate-600/50"
+                        >
                           {benefit}
                         </Badge>
                       ))}
                     </div>
                   </div>
 
-                  <ArrowRight className="w-5 h-5 text-slate-500 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all flex-shrink-0 mt-1" />
+                  {/* Arrow */}
+                  <ArrowRight className="w-4 h-4 md:w-5 md:h-5 text-slate-400 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all flex-shrink-0 mt-1" />
                 </div>
               </button>
             )
@@ -89,11 +100,12 @@ export default function ConnectExchangeModal({ isOpen, onClose, onSelectMethod }
         </div>
 
         {/* Footer Info */}
-        <div className="border-t border-slate-700 p-6 bg-slate-800/30">
-          <div className="flex items-start gap-3 text-sm text-slate-400">
-            <FileText className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+        <div className="mt-5 pt-4 border-t border-slate-700/50">
+          <div className="flex items-start gap-2.5 text-xs md:text-sm text-slate-300">
+            <FileText className="w-4 h-4 md:w-5 md:h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
             <p>
-              <span className="font-medium text-slate-300">Supported exchanges:</span> Binance, CoinDCX (more coming soon)
+              <span className="font-semibold text-white">Supported exchanges:</span>{' '}
+              Binance, CoinDCX (more coming soon)
             </p>
           </div>
         </div>

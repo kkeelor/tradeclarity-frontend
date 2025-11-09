@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, X, Zap, TrendingUp, Crown, ArrowRight, Sparkles, Shield, Clock, CreditCard, ChevronDown, ArrowLeft } from 'lucide-react'
+import { Check, X, Zap, TrendingUp, Crown, ArrowRight, Sparkles, Shield, Clock, CreditCard, ChevronDown, ArrowLeft, Star, Users, TrendingDown } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { getTierDisplayName } from '@/lib/featureGates'
 import { toast } from 'sonner'
@@ -147,12 +147,61 @@ export default function PricingPage() {
   // Available currencies (same as analytics page)
   const availableCurrencies = ['USD', 'INR', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CNY', 'SGD', 'CHF']
 
-  // Initialize currency from localStorage
-  useEffect(() => {
-    const savedCurrency = typeof window !== 'undefined' ? localStorage.getItem('tradeclarity_currency') : null
-    if (savedCurrency && availableCurrencies.includes(savedCurrency)) {
-      setCurrency(savedCurrency)
+  // Detect if user is in India
+  const detectUserLocation = async () => {
+    try {
+      // Try to detect from browser timezone first (fastest)
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+      if (timezone.includes('Asia/Kolkata') || timezone.includes('Calcutta') || timezone.includes('Asia/Calcutta')) {
+        return 'IN'
+      }
+      
+      // Also check locale
+      const locale = Intl.DateTimeFormat().resolvedOptions().locale
+      if (locale.includes('IN') || locale.includes('hi-IN') || locale.includes('en-IN')) {
+        return 'IN'
+      }
+      
+      // Fallback to IP geolocation (requires API call)
+      // For now, we'll use timezone detection only
+      // TODO: Add IP geolocation service if needed
+      return null
+    } catch (error) {
+      console.warn('Could not detect user location:', error)
+      return null
     }
+  }
+
+  // Initialize currency from localStorage or detect India
+  useEffect(() => {
+    const initializeCurrency = async () => {
+      // First, detect if user is in India
+      const country = await detectUserLocation()
+      
+      // If user is in India, always use INR (override localStorage)
+      if (country === 'IN') {
+        setCurrency('INR')
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('tradeclarity_currency', 'INR')
+        }
+        return
+      }
+      
+      // For non-India users, check localStorage
+      const savedCurrency = typeof window !== 'undefined' ? localStorage.getItem('tradeclarity_currency') : null
+      if (savedCurrency && availableCurrencies.includes(savedCurrency)) {
+        setCurrency(savedCurrency)
+        return
+      }
+      
+      // Default to USD for all non-India users
+      setCurrency('USD')
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('tradeclarity_currency', 'USD')
+      }
+    }
+    
+    initializeCurrency()
     
     // Pre-fetch currency rates for conversion
     getCurrencyRates().catch(err => {
@@ -205,6 +254,24 @@ export default function PricingPage() {
     }
 
     setLoading(true)
+    
+    // Safety timeout: reset loading state after 2 minutes if something goes wrong
+    let loadingTimeout = setTimeout(() => {
+      console.warn('Loading timeout reached, resetting state')
+      setLoading(false)
+    }, 120000) // 2 minutes
+    
+    // Track if cleanup has been called to prevent multiple calls
+    let isCleanedUp = false
+    
+    // Helper function to cleanup
+    const cleanup = () => {
+      if (isCleanedUp) return
+      isCleanedUp = true
+      clearTimeout(loadingTimeout)
+      setLoading(false)
+    }
+    
     try {
       // Get Razorpay plan IDs from server
       const plansResponse = await fetch('/api/razorpay/get-plans')
@@ -222,8 +289,8 @@ export default function PricingPage() {
       }
 
       if (!planId) {
+        cleanup()
         toast.error('Plan configuration error. Please contact support.')
-        setLoading(false)
         return
       }
 
@@ -233,18 +300,23 @@ export default function PricingPage() {
       const discountMultiplier = 0.5 // 50% discount
       const discountedPriceUSD = monthlyPriceUSD * discountMultiplier
       
-      // Convert to INR for Razorpay (Razorpay primarily works with INR)
-      const amountInINR = currency === 'INR' 
-        ? discountedPriceUSD 
-        : convertCurrencySync(discountedPriceUSD, 'USD', 'INR')
+      // Determine payment currency: INR for India, USD for everyone else
+      const isIndia = currency === 'INR'
+      const paymentCurrency = isIndia ? 'INR' : 'USD'
+      
+      // Convert amount to payment currency
+      const paymentAmount = isIndia 
+        ? convertCurrencySync(discountedPriceUSD, 'USD', 'INR')
+        : discountedPriceUSD
 
       // Create order
+      console.log('Creating Razorpay order:', { paymentAmount, paymentCurrency, planId, tier, billingCycle })
       const orderResponse = await fetch('/api/razorpay/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: amountInINR,
-          currency: 'INR',
+          amount: paymentAmount,
+          currency: paymentCurrency,
           planId,
           userId: user.id,
           billingCycle,
@@ -252,11 +324,22 @@ export default function PricingPage() {
         })
       })
 
+      if (!orderResponse.ok) {
+        const errorData = await orderResponse.json().catch(() => ({ error: 'Failed to create order' }))
+        console.error('Order creation failed:', errorData)
+        console.error('Response status:', orderResponse.status)
+        cleanup()
+        toast.error(errorData.error || errorData.details || 'Failed to create order. Please try again.')
+        return
+      }
+
       const orderData = await orderResponse.json()
+      console.log('Order created successfully:', orderData)
       
       if (orderData.error) {
+        console.error('Order error:', orderData.error)
+        cleanup()
         toast.error(orderData.error)
-        setLoading(false)
         return
       }
 
@@ -268,11 +351,16 @@ export default function PricingPage() {
           currency: orderData.currency,
           name: 'TradeClarity',
           description: `${PRICING_PLANS[tier].name} Plan - ${billingCycle === 'annual' ? 'Annual' : 'Monthly'}`,
-          image: '/logo.png', // Update with your logo URL
+          image: 'https://www.tradeclarity.xyz/logo.png',
           order_id: orderData.orderId,
           handler: async function (response) {
             // Payment successful
             try {
+              console.log('Verifying payment:', {
+                payment_id: response.razorpay_payment_id,
+                order_id: response.razorpay_order_id
+              })
+              
               const verifyResponse = await fetch('/api/razorpay/verify-payment', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -287,10 +375,28 @@ export default function PricingPage() {
                 })
               })
 
+              if (!verifyResponse.ok) {
+                const errorData = await verifyResponse.json().catch(() => ({ error: 'Payment verification failed' }))
+                console.error('Payment verification failed:', errorData)
+                cleanup()
+                toast.error(errorData.error || 'Payment verification failed. Please contact support.')
+                return
+              }
+
               const verifyData = await verifyResponse.json()
+              console.log('Payment verification result:', verifyData)
 
               if (verifyData.success) {
+                cleanup()
                 toast.success('Payment successful! Your subscription is now active.')
+                
+                // Clear subscription cache so dashboard will fetch fresh data
+                if (user?.id) {
+                  const cacheKey = `subscription_${user.id}`
+                  localStorage.removeItem(cacheKey)
+                  console.log('Cleared subscription cache after upgrade')
+                }
+                
                 // Refresh subscription status
                 await fetchUserSubscription()
                 // Redirect to dashboard
@@ -298,13 +404,13 @@ export default function PricingPage() {
                   router.push('/dashboard')
                 }, 2000)
               } else {
+                cleanup()
                 toast.error(verifyData.error || 'Payment verification failed')
               }
             } catch (error) {
               console.error('Error verifying payment:', error)
+              cleanup()
               toast.error('Payment verification failed. Please contact support.')
-            } finally {
-              setLoading(false)
             }
           },
           prefill: {
@@ -319,6 +425,11 @@ export default function PricingPage() {
           },
           theme: {
             color: '#10b981' // emerald-500
+          },
+          // Handle modal close via onClose callback (primary method - fires when user closes modal)
+          onClose: function() {
+            console.log('Razorpay modal closed via onClose callback')
+            cleanup()
           }
         }
 
@@ -327,20 +438,26 @@ export default function PricingPage() {
         // Handle payment failure
         rzp.on('payment.failed', function (response) {
           console.error('Payment failed:', response.error)
+          cleanup()
           toast.error(`Payment failed: ${response.error.description || response.error.reason || 'Unknown error'}`)
-          setLoading(false)
+        })
+
+        // Handle modal close via event listener (backup - in case onClose doesn't fire)
+        rzp.on('modal.close', function () {
+          console.log('Razorpay modal closed via event listener')
+          cleanup()
         })
 
         // Open Razorpay checkout
         rzp.open()
       } else {
+        cleanup()
         toast.error('Razorpay checkout is loading. Please wait a moment and try again.')
-        setLoading(false)
       }
     } catch (error) {
       console.error('Error creating checkout:', error)
+      cleanup()
       toast.error('Failed to start checkout. Please try again.')
-      setLoading(false)
     }
   }
 
@@ -378,12 +495,25 @@ export default function PricingPage() {
           <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
             Choose Your Plan
           </h1>
-          <p className="text-lg text-slate-400 max-w-2xl mx-auto">
+          <p className="text-lg text-slate-400 max-w-2xl mx-auto mb-6">
             Transparent pricing for every trader. Start free, upgrade when you need more.
           </p>
+          
+          {/* Social Proof */}
+          <div className="flex items-center justify-center gap-4 mb-8">
+            <div className="flex items-center gap-2 text-sm text-slate-400">
+              <Users className="w-4 h-4 text-emerald-400" />
+              <span>Join <span className="text-emerald-400 font-semibold">500+</span> active traders</span>
+            </div>
+            <div className="h-4 w-px bg-white/10"></div>
+            <div className="flex items-center gap-2 text-sm text-slate-400">
+              <TrendingUp className="w-4 h-4 text-emerald-400" />
+              <span><span className="text-emerald-400 font-semibold">1M+</span> trades analyzed</span>
+            </div>
+          </div>
 
           {/* Billing Toggle and Currency Selector */}
-          <div className="mt-8 flex flex-col items-center gap-4">
+          <div className="mt-8 flex flex-row items-center justify-center gap-6 flex-wrap">
             <div className="flex items-center justify-center gap-4">
               <span className={`text-sm ${billingCycle === 'monthly' ? 'text-white' : 'text-slate-400'}`}>
                 Monthly
@@ -410,7 +540,7 @@ export default function PricingPage() {
             
             {/* Currency Dropdown */}
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400">Currency:</span>
+              <span className="text-sm text-slate-400">Currency:</span>
               <CurrencyDropdown
                 currencies={availableCurrencies}
                 selectedCurrency={currency}
@@ -420,151 +550,92 @@ export default function PricingPage() {
           </div>
         </div>
 
-        {/* Pricing Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 max-w-6xl mx-auto mb-16">
-          {Object.entries(PRICING_PLANS).map(([key, plan]) => {
-            const Icon = plan.icon
-            const isCurrentTier = currentTier === key
-            const isPopular = plan.popular
-            
-            // Calculate prices in USD first
-            // For monthly billing: show plan.price
-            // For annual billing: show monthly equivalent (plan.priceAnnual / 12)
-            const monthlyPriceUSD = billingCycle === 'annual' ? Math.round(plan.priceAnnual / 12) : plan.price
-            const annualPriceUSD = plan.priceAnnual
-            
-            // Apply 50% discount for paid plans
-            const discountMultiplier = (key === 'trader' || key === 'pro') ? 0.5 : 1
-            const discountedMonthlyPriceUSD = monthlyPriceUSD * discountMultiplier
-            const discountedAnnualPriceUSD = annualPriceUSD * discountMultiplier
-            
-            // Convert prices to selected currency
-            const convertedMonthlyPrice = currency === 'USD' ? monthlyPriceUSD : convertCurrencySync(monthlyPriceUSD, 'USD', currency)
-            const convertedAnnualPrice = currency === 'USD' ? annualPriceUSD : convertCurrencySync(annualPriceUSD, 'USD', currency)
-            const convertedDiscountedMonthlyPrice = currency === 'USD' ? discountedMonthlyPriceUSD : convertCurrencySync(discountedMonthlyPriceUSD, 'USD', currency)
-            const convertedDiscountedAnnualPrice = currency === 'USD' ? discountedAnnualPriceUSD : convertCurrencySync(discountedAnnualPriceUSD, 'USD', currency)
-            
-            // Format prices with appropriate decimals
-            const formatPrice = (price) => {
-              if (price === 0) return '0'
-              // Round to 2 decimals for most currencies, 0 for JPY
-              const decimals = currency === 'JPY' ? 0 : 2
-              return price.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-            }
-
-            return (
-              <div
-                key={key}
-                className={`relative rounded-3xl border backdrop-blur p-8 transition-all duration-300 ${
-                  isPopular
-                    ? 'border-emerald-500/50 bg-emerald-500/5 shadow-lg shadow-emerald-500/10 scale-105'
-                    : 'border-white/5 bg-white/[0.03] hover:border-white/10'
-                }`}
-              >
-                {isPopular && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full text-xs font-semibold text-white">
-                    Most Popular
-                  </div>
-                )}
-
-                <div className="mb-6">
-                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br from-${plan.color}-500/20 to-${plan.color}-600/20 border border-${plan.color}-500/30 flex items-center justify-center mb-4`}>
-                    <Icon className={`w-6 h-6 text-${plan.color}-400`} />
-                  </div>
-                  <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
-                  <p className="text-sm text-slate-400 mb-4">{plan.description}</p>
-                  
-                  {/* Launch Offer Badge for paid plans - inside card */}
-                  {(key === 'trader' || key === 'pro') && (
-                    <Badge variant="warning" className="inline-flex items-center gap-1.5 mb-4">
-                      <Sparkles className="w-3 h-3" />
-                      Launch Offer: 50% OFF
-                    </Badge>
-                  )}
-                  
-                  <div className="flex items-baseline gap-2">
-                    {(key === 'trader' || key === 'pro') && (
-                      <span className="text-xl text-slate-500 line-through">
-                        {getCurrencySymbol(currency)}{formatPrice(convertedMonthlyPrice)}
-                      </span>
-                    )}
-                    <span className="text-4xl font-bold">
-                      {getCurrencySymbol(currency)}{formatPrice(convertedDiscountedMonthlyPrice)}
-                    </span>
-                    <span className="text-slate-400">
-                      /{billingCycle === 'annual' ? 'month' : 'month'}
-                      {billingCycle === 'annual' && (
-                        <span className="block text-xs mt-1">
-                          {key === 'trader' || key === 'pro' ? (
-                            <>
-                              <span className="line-through text-slate-500">
-                                {getCurrencySymbol(currency)}{formatPrice(convertedAnnualPrice)}
-                              </span>
-                              {' '}
-                              <span className="text-emerald-400">
-                                {getCurrencySymbol(currency)}{formatPrice(convertedDiscountedAnnualPrice)}
-                              </span>
-                              /year
-                            </>
-                          ) : (
-                            <>
-                              billed {getCurrencySymbol(currency)}{formatPrice(convertedAnnualPrice)}/year
-                            </>
-                          )}
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => handleUpgrade(key)}
-                  disabled={loading || isCurrentTier}
-                  className={`w-full py-3 rounded-xl font-semibold transition-all duration-300 mb-6 ${
-                    isCurrentTier
-                      ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
-                      : isPopular
-                      ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-105'
-                      : 'bg-white/[0.05] hover:bg-white/[0.08] border border-white/10 hover:border-white/20 text-white'
-                  }`}
-                >
-                  {isCurrentTier ? 'Current Plan' : loading ? 'Processing...' : 'Upgrade'}
-                </button>
-
-                <div className="space-y-3">
-                  {plan.features.map((feature, idx) => (
-                    <div key={idx} className="flex items-start gap-2">
-                      <Check className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
-                      <span className="text-sm text-slate-300">{feature}</span>
-                    </div>
-                  ))}
-                  {plan.limitations && plan.limitations.map((limitation, idx) => (
-                    <div key={idx} className="flex items-start gap-2 opacity-50">
-                      <X className="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
-                      <span className="text-sm text-slate-400">{limitation}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Feature Comparison Table */}
-        <div className="max-w-5xl mx-auto mb-16">
-          <h2 className="text-2xl font-bold mb-6 text-center">Feature Comparison</h2>
+        {/* Unified Pricing & Feature Comparison Table */}
+        <div className="max-w-7xl mx-auto mb-16">
           <div className="rounded-2xl border border-white/5 bg-white/[0.03] overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-white/5">
-                    <th className="text-left p-4 text-sm font-semibold text-slate-300">Feature</th>
-                    <th className="text-center p-4 text-sm font-semibold text-slate-300">Free</th>
-                    <th className="text-center p-4 text-sm font-semibold text-emerald-400">Trader</th>
-                    <th className="text-center p-4 text-sm font-semibold text-cyan-400">Pro</th>
+                    <th className="text-left p-6 text-base font-semibold text-slate-300 w-1/4">Plan</th>
+                    {Object.entries(PRICING_PLANS).map(([key, plan]) => {
+                      const Icon = plan.icon
+                      const isCurrentTier = currentTier === key
+                      const isPopular = plan.popular
+                      
+                      // Calculate prices
+                      const monthlyPriceUSD = billingCycle === 'annual' ? Math.round(plan.priceAnnual / 12) : plan.price
+                      const discountMultiplier = (key === 'trader' || key === 'pro') ? 0.5 : 1
+                      const discountedMonthlyPriceUSD = monthlyPriceUSD * discountMultiplier
+                      const convertedMonthlyPrice = currency === 'USD' ? monthlyPriceUSD : convertCurrencySync(monthlyPriceUSD, 'USD', currency)
+                      const convertedDiscountedMonthlyPrice = currency === 'USD' ? discountedMonthlyPriceUSD : convertCurrencySync(discountedMonthlyPriceUSD, 'USD', currency)
+                      
+                      const formatPrice = (price) => {
+                        if (price === 0) return '0'
+                        const decimals = currency === 'JPY' ? 0 : 2
+                        return price.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+                      }
+                      
+                      const getPriceFontSize = (priceString) => {
+                        const length = priceString.length
+                        if (length <= 6) return 'text-2xl'
+                        if (length <= 8) return 'text-xl'
+                        if (length <= 10) return 'text-lg'
+                        return 'text-base'
+                      }
+                      
+                      const discountedPriceString = formatPrice(convertedDiscountedMonthlyPrice)
+                      const priceFontSize = getPriceFontSize(discountedPriceString)
+                      
+                      return (
+                        <th 
+                          key={key}
+                          className={`text-center p-6 ${isPopular ? 'bg-emerald-500/5' : key === 'pro' ? 'bg-cyan-500/5' : ''}`}
+                        >
+                          <div className="flex flex-col items-center gap-3">
+                            {key === 'pro' && (
+                              <Badge variant="warning" className="inline-flex items-center gap-1 animate-pulse px-2 py-0.5 text-xs mb-2">
+                                <Sparkles className="w-2 h-2" />
+                                50% off till Dec 31, 2025
+                              </Badge>
+                            )}
+                            <div className={`w-10 h-10 rounded-lg bg-gradient-to-br from-${plan.color}-500/20 to-${plan.color}-600/20 border border-${plan.color}-500/30 flex items-center justify-center`}>
+                              <Icon className={`w-5 h-5 text-${plan.color}-400`} />
+                            </div>
+                            <div>
+                              <h3 className={`text-xl font-bold mb-1 ${isPopular ? 'text-emerald-400' : key === 'pro' ? 'text-cyan-400' : 'text-white'}`}>
+                                {plan.name}
+                              </h3>
+                              <p className="text-xs text-slate-400 mb-3">{plan.description}</p>
+                              
+                              {/* Pricing */}
+                              <div className="flex flex-col items-center gap-1">
+                                {(key === 'trader' || key === 'pro') && (
+                                  <span className="text-sm text-slate-500 line-through">
+                                    {getCurrencySymbol(currency)}{formatPrice(convertedMonthlyPrice)}
+                                  </span>
+                                )}
+                                <div className="flex items-baseline gap-1">
+                                  <span className={`${priceFontSize} font-bold tabular-nums text-white`}>
+                                    {getCurrencySymbol(currency)}{discountedPriceString}
+                                  </span>
+                                  <span className="text-sm text-slate-400">/month</span>
+                                </div>
+                                {billingCycle === 'annual' && (key === 'trader' || key === 'pro') && (
+                                  <span className="text-xs text-emerald-400 mt-1">
+                                    {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? plan.priceAnnual * discountMultiplier : convertCurrencySync(plan.priceAnnual * discountMultiplier, 'USD', currency))}/year
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </th>
+                      )
+                    })}
                   </tr>
                 </thead>
                 <tbody>
+                  {/* Feature Rows */}
                   {[
                     { feature: 'Exchange Connections', free: '1', trader: '3', pro: 'Unlimited' },
                     { feature: 'Trades Analyzed/Month', free: '100', trader: '500', pro: 'Unlimited' },
@@ -579,29 +650,69 @@ export default function PricingPage() {
                   ].map((row, idx) => (
                     <tr key={idx} className="border-b border-white/5 last:border-0">
                       <td className="p-4 text-sm text-slate-300">{row.feature}</td>
-                      <td className="p-4 text-center">
-                        {typeof row.free === 'boolean' ? (
-                          row.free ? <Check className="w-5 h-5 text-emerald-400 mx-auto" /> : <X className="w-5 h-5 text-slate-600 mx-auto" />
-                        ) : (
-                          <span className="text-sm text-slate-400">{row.free}</span>
-                        )}
-                      </td>
-                      <td className="p-4 text-center">
-                        {typeof row.trader === 'boolean' ? (
-                          row.trader ? <Check className="w-5 h-5 text-emerald-400 mx-auto" /> : <X className="w-5 h-5 text-slate-600 mx-auto" />
-                        ) : (
-                          <span className="text-sm text-emerald-400">{row.trader}</span>
-                        )}
-                      </td>
-                      <td className="p-4 text-center">
-                        {typeof row.pro === 'boolean' ? (
-                          row.pro ? <Check className="w-5 h-5 text-cyan-400 mx-auto" /> : <X className="w-5 h-5 text-slate-600 mx-auto" />
-                        ) : (
-                          <span className="text-sm text-cyan-400">{row.pro}</span>
-                        )}
-                      </td>
+                      {['free', 'trader', 'pro'].map((key) => {
+                        const value = row[key]
+                        return (
+                          <td key={key} className="p-4 text-center">
+                            {typeof value === 'boolean' ? (
+                              value ? (
+                                <Check className="w-5 h-5 text-emerald-400 mx-auto" />
+                              ) : (
+                                <X className="w-5 h-5 text-slate-600 mx-auto" />
+                              )
+                            ) : (
+                              <span className={`text-sm ${key === 'free' ? 'text-slate-400' : key === 'trader' ? 'text-emerald-400' : 'text-cyan-400'}`}>
+                                {value}
+                              </span>
+                            )}
+                          </td>
+                        )
+                      })}
                     </tr>
                   ))}
+                  
+                  {/* CTA Row */}
+                  <tr className="border-t-2 border-white/10">
+                    <td className="p-4"></td>
+                    {Object.entries(PRICING_PLANS).map(([key, plan]) => {
+                      const isCurrentTier = currentTier === key
+                      const isPopular = plan.popular
+                      
+                      return (
+                        <td key={key} className="p-4">
+                          <button
+                            onClick={() => handleUpgrade(key)}
+                            disabled={loading || isCurrentTier}
+                            className={`w-full py-3 rounded-lg font-semibold transition-all duration-300 ${
+                              isCurrentTier
+                                ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                                : loading
+                                ? 'bg-slate-700 text-slate-300 cursor-wait opacity-75'
+                                : isPopular
+                                ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30'
+                                : key === 'pro'
+                                ? 'bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-400 hover:to-cyan-500 text-white shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/30'
+                                : 'bg-white/[0.05] hover:bg-white/[0.08] border border-white/10 hover:border-white/20 text-white'
+                            }`}
+                          >
+                            {isCurrentTier ? (
+                              <span className="flex items-center justify-center gap-2">
+                                <Check className="w-4 h-4" />
+                                Current Plan
+                              </span>
+                            ) : loading ? (
+                              'Processing...'
+                            ) : (
+                              <span className="flex items-center justify-center gap-2">
+                                Get Started
+                                <ArrowRight className="w-4 h-4" />
+                              </span>
+                            )}
+                          </button>
+                        </td>
+                      )
+                    })}
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -648,18 +759,22 @@ export default function PricingPage() {
 
         {/* Trust Signals */}
         <div className="max-w-4xl mx-auto text-center mb-12">
-          <div className="flex items-center justify-center gap-8 text-slate-400 text-sm">
-            <div className="flex items-center gap-2">
-              <Shield className="w-5 h-5 text-emerald-400" />
-              <span>Secure payments</span>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-slate-400">
+            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-emerald-500/20 transition-colors">
+              <Shield className="w-6 h-6 text-emerald-400" />
+              <span className="text-xs font-medium">Bank-Level Security</span>
             </div>
-            <div className="flex items-center gap-2">
-              <CreditCard className="w-5 h-5 text-emerald-400" />
-              <span>No credit card required for Free</span>
+            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-emerald-500/20 transition-colors">
+              <CreditCard className="w-6 h-6 text-emerald-400" />
+              <span className="text-xs font-medium">Secure Payments</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-emerald-400" />
-              <span>Cancel anytime</span>
+            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-emerald-500/20 transition-colors">
+              <Clock className="w-6 h-6 text-emerald-400" />
+              <span className="text-xs font-medium">Cancel Anytime</span>
+            </div>
+            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-emerald-500/20 transition-colors">
+              <Star className="w-6 h-6 text-emerald-400 fill-emerald-400" />
+              <span className="text-xs font-medium">7-Day Guarantee</span>
             </div>
           </div>
         </div>
