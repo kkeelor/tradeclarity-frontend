@@ -2568,29 +2568,42 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
           break
 
         case 'realized_pnl':
-          // Calculate realized P&L by exchange from trades
+          // Use the correct totals from analytics instead of summing from allTrades
+          const totalSpotPnL = analytics.spotPnL || 0
+          const totalFuturesRealizedPnL = analytics.futuresRealizedPnL || 0
+          const totalRealizedPnL = totalSpotPnL + totalFuturesRealizedPnL
+          
+          // Count spot and futures trades by exchange
+          const spotTradesByExchange = {}
+          const futuresTradesByExchange = {}
+          let totalSpotTrades = 0
+          let totalFuturesTrades = 0
+          
           allTrades.forEach(trade => {
             const exchange = trade.exchange || 'unknown'
-            let pnl = 0
+            if (trade.type === 'spot') {
+              spotTradesByExchange[exchange] = (spotTradesByExchange[exchange] || 0) + 1
+              totalSpotTrades++
+            } else if (trade.type === 'futures' && trade.incomeType === 'REALIZED_PNL') {
+              futuresTradesByExchange[exchange] = (futuresTradesByExchange[exchange] || 0) + 1
+              totalFuturesTrades++
+            }
+          })
+          
+          // Distribute spot P&L proportionally by trade count
+          Object.keys(breakdown).forEach(exchange => {
+            const spotTrades = spotTradesByExchange[exchange] || 0
+            const futuresTrades = futuresTradesByExchange[exchange] || 0
             
-            // Spot trades - use realizedPnl if available
-            if (trade.type === 'spot' && trade.realizedPnl !== undefined) {
-              pnl = parseFloat(trade.realizedPnl || 0)
+            let exchangePnL = 0
+            if (totalSpotTrades > 0) {
+              exchangePnL += (totalSpotPnL * spotTrades) / totalSpotTrades
             }
-            // Futures trades - use income for REALIZED_PNL type
-            else if (trade.type === 'futures' && trade.incomeType === 'REALIZED_PNL') {
-              pnl = parseFloat(trade.income || trade.realizedPnl || 0)
-            }
-            // Also check if trade has direct realizedPnl field
-            else if (trade.realizedPnl !== undefined) {
-              pnl = parseFloat(trade.realizedPnl || 0)
+            if (totalFuturesTrades > 0) {
+              exchangePnL += (totalFuturesRealizedPnL * futuresTrades) / totalFuturesTrades
             }
             
-            if (breakdown[exchange] !== undefined) {
-              breakdown[exchange].value += pnl
-            } else {
-              breakdown[exchange] = { value: pnl, displayValue: 0 }
-            }
+            breakdown[exchange].value = exchangePnL
           })
           
           // Convert to display currency
@@ -2604,31 +2617,57 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
           break
 
         case 'unrealized_pnl':
-          // Calculate unrealized P&L by exchange
-          // Check spot holdings for unrealized P&L
+          // Use the correct totals from analytics
+          const totalSpotUnrealizedPnL = analytics.spotUnrealizedPnL || 0
+          const totalFuturesUnrealizedPnL = analytics.futuresUnrealizedPnL || 0
+          const totalUnrealizedPnL = totalSpotUnrealizedPnL + totalFuturesUnrealizedPnL
+          
+          // Calculate spot holdings value by exchange for proportional distribution
+          const spotHoldingsValueByExchange = {}
+          let totalSpotHoldingsValue = 0
+          
           if (metadata?.spotHoldings && Array.isArray(metadata.spotHoldings)) {
             metadata.spotHoldings.forEach(holding => {
               const exchange = holding.exchange || 'unknown'
-              // Calculate unrealized P&L if we have position data
-              // This is simplified - ideally we'd track entry prices per exchange
-              if (breakdown[exchange] === undefined) {
-                breakdown[exchange] = { value: 0, displayValue: 0 }
-              }
+              const usdValue = parseFloat(holding.usdValue || 0)
+              spotHoldingsValueByExchange[exchange] = (spotHoldingsValueByExchange[exchange] || 0) + usdValue
+              totalSpotHoldingsValue += usdValue
             })
           }
           
-          // Check futures positions
+          // Calculate futures positions unrealized P&L by exchange
+          const futuresUnrealizedPnLByExchange = {}
+          let totalFuturesUnrealizedPnLFromPositions = 0
+          
           if (analytics.futuresOpenPositions && Array.isArray(analytics.futuresOpenPositions)) {
             analytics.futuresOpenPositions.forEach(position => {
               const exchange = position.exchange || exchanges[0] || 'unknown'
               const unrealizedPnL = parseFloat(position.unrealizedProfit || 0)
-              if (breakdown[exchange] !== undefined) {
-                breakdown[exchange].value += unrealizedPnL
-              } else {
-                breakdown[exchange] = { value: unrealizedPnL, displayValue: 0 }
-              }
+              futuresUnrealizedPnLByExchange[exchange] = (futuresUnrealizedPnLByExchange[exchange] || 0) + unrealizedPnL
+              totalFuturesUnrealizedPnLFromPositions += unrealizedPnL
             })
           }
+          
+          // Distribute unrealized P&L by exchange
+          Object.keys(breakdown).forEach(exchange => {
+            let exchangeUnrealizedPnL = 0
+            
+            // Distribute spot unrealized P&L proportionally by holdings value
+            if (totalSpotHoldingsValue > 0 && spotHoldingsValueByExchange[exchange]) {
+              exchangeUnrealizedPnL += (totalSpotUnrealizedPnL * spotHoldingsValueByExchange[exchange]) / totalSpotHoldingsValue
+            }
+            
+            // Distribute futures unrealized P&L from positions (if available) or proportionally
+            if (totalFuturesUnrealizedPnLFromPositions !== 0 && futuresUnrealizedPnLByExchange[exchange] !== undefined) {
+              // Use actual positions data if available
+              exchangeUnrealizedPnL += futuresUnrealizedPnLByExchange[exchange]
+            } else if (totalFuturesUnrealizedPnL > 0 && exchanges.length > 0) {
+              // Fallback: distribute evenly if no position data
+              exchangeUnrealizedPnL += totalFuturesUnrealizedPnL / exchanges.length
+            }
+            
+            breakdown[exchange].value = exchangeUnrealizedPnL
+          })
           
           // Convert to display currency
           Object.keys(breakdown).forEach(exchange => {
@@ -2641,14 +2680,26 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
           break
 
         case 'total_trades':
-          // Count trades by exchange
+          // Count trades by exchange - match the card logic (spot trades + futures trades)
           allTrades.forEach(trade => {
             const exchange = trade.exchange || 'unknown'
-            if (breakdown[exchange] !== undefined) {
-              breakdown[exchange].value += 1
-              breakdown[exchange].displayValue += 1
-            } else {
-              breakdown[exchange] = { value: 1, displayValue: 1 }
+            // Count spot trades (all spot transactions)
+            if (trade.type === 'spot') {
+              if (breakdown[exchange] !== undefined) {
+                breakdown[exchange].value += 1
+                breakdown[exchange].displayValue += 1
+              } else {
+                breakdown[exchange] = { value: 1, displayValue: 1 }
+              }
+            }
+            // Count futures trades (only REALIZED_PNL records count as completed trades)
+            else if (trade.type === 'futures' && trade.incomeType === 'REALIZED_PNL') {
+              if (breakdown[exchange] !== undefined) {
+                breakdown[exchange].value += 1
+                breakdown[exchange].displayValue += 1
+              } else {
+                breakdown[exchange] = { value: 1, displayValue: 1 }
+              }
             }
           })
           break
