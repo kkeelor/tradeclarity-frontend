@@ -4,7 +4,7 @@
 import { Database, BarChart3, FileText } from 'lucide-react'
 import { getRemainingQuota } from '@/lib/featureGates'
 
-export default function UsageLimits({ subscription, compact = false }) {
+export default function UsageLimits({ subscription, compact = false, actualUsage = null }) {
   if (!subscription) return null
 
   const quota = getRemainingQuota(subscription)
@@ -14,7 +14,8 @@ export default function UsageLimits({ subscription, compact = false }) {
     reports: subscription.tier === 'free' ? 0 : subscription.tier === 'trader' ? 10 : Infinity,
   }
 
-  const usage = {
+  // Use actual usage data if provided, otherwise fall back to subscription fields
+  const usage = actualUsage || {
     connections: subscription.exchanges_connected || 0,
     trades: subscription.trades_analyzed_this_month || 0,
     reports: subscription.reports_generated_this_month || 0,

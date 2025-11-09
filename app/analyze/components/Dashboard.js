@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, LogOut, BarChart3, Sparkles, Database, CheckSquare, Square, Loader2, ChevronRight, Zap, Brain, Clock, DollarSign, PieChart, TrendingDown, Target, Lightbulb, LayoutDashboard, Tag, CreditCard } from 'lucide-react'
+import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, LogOut, BarChart3, Sparkles, Database, CheckSquare, Square, Loader2, ChevronRight, Zap, Brain, Clock, DollarSign, PieChart, TrendingDown, Target, Lightbulb, LayoutDashboard, Tag, CreditCard, Crown, Infinity } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { toast } from 'sonner'
 import ThemeToggle from '@/app/components/ThemeToggle'
@@ -24,6 +24,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { ExchangeIcon, Separator } from '@/components/ui'
 import { Badge } from '@/components/ui/badge'
 import { DashboardStatsSkeleton, DataSourceSkeleton } from '@/app/components/LoadingSkeletons'
@@ -31,6 +32,237 @@ import ConnectExchangeModal from './ConnectExchangeModal'
 import Sidebar from './Sidebar'
 import Footer from '../../components/Footer'
 import UsageLimits from '../../components/UsageLimits'
+import { TIER_LIMITS } from '@/lib/featureGates'
+
+/**
+ * Plan Progress Bar Component
+ * Shows progress from current tier to next tier
+ */
+function PlanProgressBar({ currentTier, actualUsage, onClick }) {
+  const getNextTier = (tier) => {
+    if (tier === 'free') return 'trader'
+    if (tier === 'trader') return 'pro'
+    return null
+  }
+
+  const getProgress = () => {
+    const nextTier = getNextTier(currentTier)
+    if (!nextTier) return { percentage: 0, label: 'PRO', nextLabel: null }
+
+    const currentLimits = TIER_LIMITS[currentTier]
+    const nextLimits = TIER_LIMITS[nextTier]
+
+    // Calculate progress for each metric - bar fills as user approaches ANY limit
+    const progressMetrics = []
+
+    // Connections progress - fill based on how close to current limit
+    if (currentLimits.maxConnections !== Infinity) {
+      const currentLimit = currentLimits.maxConnections
+      const used = actualUsage.connections
+      // Progress is based on how close to hitting the current limit (0-100%)
+      const progress = Math.min(100, (used / currentLimit) * 100)
+      progressMetrics.push({ 
+        type: 'connections', 
+        progress, 
+        used, 
+        currentLimit, 
+        isAtLimit: used >= currentLimit 
+      })
+    }
+
+    // Trades progress - fill based on how close to current limit
+    if (currentLimits.maxTradesPerMonth !== Infinity) {
+      const currentLimit = currentLimits.maxTradesPerMonth
+      const used = actualUsage.trades
+      // Progress is based on how close to hitting the current limit (0-100%)
+      const progress = Math.min(100, (used / currentLimit) * 100)
+      progressMetrics.push({ 
+        type: 'trades', 
+        progress, 
+        used, 
+        currentLimit, 
+        isAtLimit: used >= currentLimit 
+      })
+    }
+
+    // Reports progress - fill based on how close to current limit
+    if (currentLimits.maxReportsPerMonth !== Infinity && currentLimits.maxReportsPerMonth > 0) {
+      const currentLimit = currentLimits.maxReportsPerMonth
+      const used = actualUsage.reports
+      // Progress is based on how close to hitting the current limit (0-100%)
+      const progress = Math.min(100, (used / currentLimit) * 100)
+      progressMetrics.push({ 
+        type: 'reports', 
+        progress, 
+        used, 
+        currentLimit, 
+        isAtLimit: used >= currentLimit 
+      })
+    }
+
+    // Use the maximum progress across all metrics - if ANY limit is hit, bar is full
+    const maxProgress = progressMetrics.length > 0 
+      ? Math.max(...progressMetrics.map(m => m.progress))
+      : 0
+
+    // Check if any limit is hit
+    const anyLimitHit = progressMetrics.some(m => m.isAtLimit)
+
+    return {
+      percentage: maxProgress,
+      label: currentTier.toUpperCase(),
+      nextLabel: nextTier.toUpperCase(),
+      metrics: progressMetrics,
+      anyLimitHit
+    }
+  }
+
+  const progress = getProgress()
+  if (!progress.nextLabel) return null
+
+  return (
+    <div 
+      onClick={onClick}
+      className="cursor-pointer group"
+    >
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+            {progress.label}
+          </span>
+          <span className="text-[10px] text-slate-600">━━━━━━━━━━━━━━━━━━━━</span>
+          <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider group-hover:text-emerald-300 transition-colors">
+            {progress.nextLabel}
+          </span>
+        </div>
+        <span className="text-[10px] text-slate-500 group-hover:text-slate-400 transition-colors">
+          {Math.round(progress.percentage)}%
+        </span>
+      </div>
+      <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+        <div
+          className="h-full bg-gradient-to-r from-emerald-500 to-cyan-500 transition-all duration-500"
+          style={{ width: `${Math.min(100, progress.percentage)}%` }}
+        />
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Usage Breakdown Modal Component
+ * Shows detailed usage breakdown similar to AnalyticsView breakdown modals
+ */
+function UsageBreakdownModal({ open, onOpenChange, subscription, actualUsage }) {
+  const router = useRouter()
+  
+  if (!subscription) return null
+
+  const currentTier = subscription.tier
+  const nextTier = currentTier === 'free' ? 'trader' : currentTier === 'trader' ? 'pro' : null
+
+  const currentLimits = TIER_LIMITS[currentTier]
+  const nextLimits = nextTier ? TIER_LIMITS[nextTier] : null
+
+  const usageData = [
+    {
+      label: 'Exchange Connections',
+      used: actualUsage.connections,
+      currentLimit: currentLimits.maxConnections,
+      nextLimit: nextLimits?.maxConnections,
+      icon: Database,
+      color: 'text-blue-400'
+    },
+    {
+      label: 'Trades Analyzed',
+      used: actualUsage.trades,
+      currentLimit: currentLimits.maxTradesPerMonth,
+      nextLimit: nextLimits?.maxTradesPerMonth,
+      icon: BarChart3,
+      color: 'text-emerald-400'
+    },
+    {
+      label: 'Reports Generated',
+      used: actualUsage.reports,
+      currentLimit: currentLimits.maxReportsPerMonth,
+      nextLimit: nextLimits?.maxReportsPerMonth,
+      icon: FileText,
+      color: 'text-purple-400'
+    }
+  ]
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="bg-slate-900 border-slate-700 max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-lg font-semibold text-slate-100">
+            Usage Breakdown
+          </DialogTitle>
+          <DialogDescription className="text-sm text-slate-400">
+            Your current usage and limits
+          </DialogDescription>
+        </DialogHeader>
+        <div className="mt-4 space-y-4">
+          {usageData.map((item) => {
+            const Icon = item.icon
+            const currentLimitDisplay = item.currentLimit === Infinity ? '∞' : item.currentLimit
+            const nextLimitDisplay = item.nextLimit === Infinity ? '∞' : item.nextLimit
+            const percentage = item.currentLimit === Infinity 
+              ? 0 
+              : Math.min(100, (item.used / item.currentLimit) * 100)
+            
+            return (
+              <div key={item.label} className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+                <div className="flex items-center gap-2 mb-2">
+                  <Icon className={`w-4 h-4 ${item.color}`} />
+                  <span className="text-sm font-medium text-slate-300">{item.label}</span>
+                </div>
+                <div className="flex items-baseline justify-between mb-2">
+                  <span className="text-2xl font-bold text-white">{item.used}</span>
+                  <span className="text-sm text-slate-400">
+                    / {currentLimitDisplay}
+                    {nextLimitDisplay && nextLimitDisplay !== currentLimitDisplay && (
+                      <span className="text-slate-600 ml-1">→ {nextLimitDisplay}</span>
+                    )}
+                  </span>
+                </div>
+                {item.currentLimit !== Infinity && (
+                  <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+                    <div
+                      className={`h-full ${percentage >= 90 ? 'bg-red-500' : percentage >= 75 ? 'bg-amber-500' : 'bg-emerald-500'} transition-all duration-300`}
+                      style={{ width: `${Math.min(100, percentage)}%` }}
+                    />
+                  </div>
+                )}
+                {item.currentLimit === Infinity && (
+                  <div className="w-full bg-slate-700 rounded-full h-2">
+                    <div className="h-full bg-emerald-500 w-full" />
+                  </div>
+                )}
+              </div>
+            )
+          })}
+          {nextTier && (
+            <div className="mt-4 pt-4 border-t border-slate-700">
+              <div className="flex items-center justify-center gap-2">
+                <p className="text-xs text-slate-400 text-center">
+                  Upgrade to <span className="text-emerald-400 font-semibold">{nextTier.toUpperCase()}</span> for higher limits
+                </p>
+                <button
+                  onClick={() => router.push('/pricing')}
+                  className="text-emerald-400 hover:text-emerald-300 transition-colors flex items-center"
+                  aria-label="View pricing"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 /**
  * Generate combined insights from balance sheet (overview) and behavioral tabs
@@ -231,6 +463,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
   const [isDeleting, setIsDeleting] = useState(false)
   const [subscription, setSubscription] = useState(null)
   const [loadingSubscription, setLoadingSubscription] = useState(true)
+  const [showUsageModal, setShowUsageModal] = useState(false)
 
   // Get time-based greeting
   const getGreeting = () => {
@@ -626,13 +859,30 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
         <header className="sticky top-0 z-30 border-b border-white/5 bg-slate-950/70 backdrop-blur-xl">
           <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-2 sm:gap-4 px-2 sm:px-4 py-3 sm:py-4 pl-14 md:pl-4">
             <div className="flex items-center gap-1 sm:gap-2 md:gap-4 lg:gap-8 min-w-0 flex-1">
-              <button
-                onClick={() => window.location.href = '/'}
-                className="flex items-center gap-1 sm:gap-2 rounded-full border border-white/5 bg-white/[0.03] px-2 sm:px-3 py-1 text-sm font-semibold text-white/90 transition-all duration-300 hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white flex-shrink-0"
-              >
-                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-300" />
-                <span className="hidden sm:inline">TradeClarity</span>
-              </button>
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+                <button
+                  onClick={() => window.location.href = '/'}
+                  className="flex items-center gap-1 sm:gap-2 rounded-full border border-white/5 bg-white/[0.03] px-2 sm:px-3 py-1 text-sm font-semibold text-white/90 transition-all duration-300 hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white flex-shrink-0"
+                >
+                  <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-300" />
+                  <span className="hidden sm:inline">TradeClarity</span>
+                </button>
+                {subscription && (
+                  <Badge 
+                    variant="outline" 
+                    className={`${
+                      subscription.tier === 'pro' 
+                        ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400' 
+                        : subscription.tier === 'trader'
+                        ? 'border-blue-500/50 bg-blue-500/10 text-blue-400'
+                        : 'border-slate-500/50 bg-slate-500/10 text-slate-400'
+                    } font-semibold uppercase tracking-wider text-[9px] px-1.5 py-0.5 flex items-center gap-1 hidden sm:flex`}
+                  >
+                    {subscription.tier === 'pro' && <Crown className="w-2.5 h-2.5" />}
+                    {subscription.tier}
+                  </Badge>
+                )}
+              </div>
 
               <nav className="hidden md:flex items-center gap-1 md:gap-2 overflow-x-auto scrollbar-hide min-w-0">
                 <button
@@ -768,9 +1018,26 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
         {/* Greeting Section */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-slate-100 tracking-tight">
-              {getGreeting()}{user?.user_metadata?.name ? `, ${user.user_metadata.name.split(' ')[0]}` : ''}
-            </h1>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-2xl md:text-3xl font-bold text-slate-100 tracking-tight">
+                {getGreeting()}{user?.user_metadata?.name ? `, ${user.user_metadata.name.split(' ')[0]}` : ''}
+              </h1>
+              {subscription && (
+                <Badge 
+                  variant="outline" 
+                  className={`${
+                    subscription.tier === 'pro' 
+                      ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400' 
+                      : subscription.tier === 'trader'
+                      ? 'border-blue-500/50 bg-blue-500/10 text-blue-400'
+                      : 'border-slate-500/50 bg-slate-500/10 text-slate-400'
+                  } font-semibold uppercase tracking-wider flex items-center gap-1.5`}
+                >
+                  {subscription.tier === 'pro' && <Crown className="w-3 h-3" />}
+                  {subscription.tier}
+                </Badge>
+              )}
+            </div>
             <p className="text-xs text-slate-400 mt-1 flex items-center gap-2">
               {user?.email}
               {tradesStats && tradesStats.totalTrades > 0 && (
@@ -783,58 +1050,218 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
           </div>
         </div>
 
-        {/* Usage Limits */}
-        {subscription && subscription.tier !== 'free' && (
-          <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4 md:p-6">
-            <UsageLimits subscription={subscription} compact={true} />
-          </div>
-        )}
 
             {/* Stats Overview & Smart Recommendations */}
             {loadingStats ? (
               <DashboardStatsSkeleton />
-            ) : tradesStats && tradesStats.totalTrades > 0 ? (
+            ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 px-1">
-                {/* Stats Card */}
-                <div className="relative overflow-hidden rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-emerald-500/5 backdrop-blur p-5 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:border-white/10">
-                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10" />
-                  <div className="absolute -top-24 -right-20 w-72 h-72 bg-emerald-500/20 blur-3xl rounded-full opacity-50" />
-                  <div className="relative">
-                    <h3 className="text-xs font-semibold text-slate-300 mb-4 uppercase tracking-wider">Your Trading Overview</h3>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.05] backdrop-blur-sm">
-                        <span className="text-xs text-slate-400">Total Trades</span>
-                        <span className="text-sm font-bold text-slate-100">{tradesStats.totalTrades.toLocaleString()}</span>
-                      </div>
-                      <div className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.05] backdrop-blur-sm">
-                        <span className="text-xs text-slate-400">Exchanges Connected</span>
-                        <span className="text-sm font-bold text-emerald-400 flex items-center gap-1">
-                          {connectedExchanges.length}
-                          {connectedExchanges.length > 0 && (
-                            <span className="text-slate-500 font-normal ml-1 flex items-center">
-                              (
-                              {connectedExchanges.map((exchange, index) => (
-                                <span key={exchange.id} className="inline-flex items-center">
-                                  <ExchangeIcon exchange={exchange.exchange} size={12} className="w-3 h-3" />
-                                  {index < connectedExchanges.length - 1 && <span className="mx-0.5">,</span>}
+                {/* Trading Overview / Progress Bar Card / Connect Exchange Card */}
+                {subscription && subscription.tier !== 'pro' ? (
+                  connectedExchanges.length > 0 ? (
+                    <div className="relative overflow-hidden rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-emerald-500/5 backdrop-blur p-5 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:border-white/10">
+                      <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10" />
+                      <div className="absolute -top-24 -right-20 w-72 h-72 bg-emerald-500/20 blur-3xl rounded-full opacity-50" />
+                      <div className="relative">
+                        <h3 className="text-xs font-semibold text-slate-300 mb-4 uppercase tracking-wider">Your Trading Overview</h3>
+                        {tradesStats && tradesStats.totalTrades > 0 ? (
+                          <div className="space-y-3 mb-4">
+                            <div className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.05] backdrop-blur-sm">
+                              <span className="text-xs text-slate-400">Total Trades</span>
+                              <span className="text-sm font-bold text-slate-100">{tradesStats.totalTrades.toLocaleString()}</span>
+                            </div>
+                            <div className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.05] backdrop-blur-sm">
+                              <span className="text-xs text-slate-400">Exchanges Connected</span>
+                              <span className="text-sm font-bold text-emerald-400 flex items-center gap-1">
+                                {connectedExchanges.length}
+                                {connectedExchanges.length > 0 && (
+                                  <span className="text-slate-500 font-normal ml-1 flex items-center">
+                                    (
+                                    {connectedExchanges.map((exchange, index) => (
+                                      <span key={exchange.id} className="inline-flex items-center">
+                                        <ExchangeIcon exchange={exchange.exchange} size={12} className="w-3 h-3" />
+                                        {index < connectedExchanges.length - 1 && <span className="mx-0.5">,</span>}
+                                      </span>
+                                    ))}
+                                    )
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                            {tradesStats.oldestTrade && (
+                              <div className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.05] backdrop-blur-sm">
+                                <span className="text-xs text-slate-400">Data Range</span>
+                                <span className="text-xs font-medium text-slate-300">
+                                  {new Date(tradesStats.oldestTrade).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - Present
                                 </span>
-                              ))}
-                              )
-                            </span>
-                          )}
-                        </span>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="space-y-3 mb-4">
+                            <div className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.05] backdrop-blur-sm">
+                              <span className="text-xs text-slate-400">Exchanges Connected</span>
+                              <span className="text-sm font-bold text-emerald-400 flex items-center gap-1">
+                                {connectedExchanges.length}
+                                {connectedExchanges.length > 0 && (
+                                  <span className="text-slate-500 font-normal ml-1 flex items-center">
+                                    (
+                                    {connectedExchanges.map((exchange, index) => (
+                                      <span key={exchange.id} className="inline-flex items-center">
+                                        <ExchangeIcon exchange={exchange.exchange} size={12} className="w-3 h-3" />
+                                        {index < connectedExchanges.length - 1 && <span className="mx-0.5">,</span>}
+                                      </span>
+                                    ))}
+                                    )
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Progress Bar */}
+                        <div className="pt-4 border-t border-white/5">
+                          <PlanProgressBar 
+                            currentTier={subscription.tier}
+                            actualUsage={{
+                              connections: connectedExchanges.length,
+                              trades: tradesStats?.totalTrades || 0,
+                              reports: subscription.reports_generated_this_month || 0
+                            }}
+                            onClick={() => setShowUsageModal(true)}
+                          />
+                        </div>
+                        
+                        {/* Connected Exchanges Summary */}
+                        {connectedExchanges.length > 0 && (
+                          <div className="mt-4 pt-4 border-t border-white/5">
+                            <div className="flex items-center justify-between p-2 rounded-lg bg-white/5">
+                              <span className="text-xs text-slate-400">Exchanges Connected</span>
+                              <span className="text-sm font-bold text-emerald-400 flex items-center gap-1">
+                                {connectedExchanges.length}
+                                <span className="text-slate-500 font-normal ml-1 flex items-center">
+                                  (
+                                  {connectedExchanges.map((exchange, index) => (
+                                    <span key={exchange.id} className="inline-flex items-center">
+                                      <ExchangeIcon exchange={exchange.exchange} size={12} className="w-3 h-3" />
+                                      {index < connectedExchanges.length - 1 && <span className="mx-0.5">,</span>}
+                                    </span>
+                                  ))}
+                                  )
+                                </span>
+                              </span>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      {tradesStats.oldestTrade && (
-                        <div className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.05] backdrop-blur-sm">
-                          <span className="text-xs text-slate-400">Data Range</span>
-                          <span className="text-xs font-medium text-slate-300">
-                            {new Date(tradesStats.oldestTrade).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - Present
-                          </span>
+                    </div>
+                  ) : (
+                    <div className="relative overflow-hidden rounded-3xl border border-emerald-500/20 bg-emerald-500/5 shadow-lg shadow-emerald-500/10 backdrop-blur p-5 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:border-emerald-500/40 hover:bg-emerald-500/10 group">
+                      <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10" />
+                      <div className="absolute -top-12 -right-12 w-32 h-32 bg-emerald-500/20 blur-2xl rounded-full opacity-50 group-hover:opacity-75 transition-opacity duration-300" />
+                      <div className="relative">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Database className="w-4 h-4 text-emerald-400" />
+                          <h3 className="text-xs font-semibold text-emerald-300 uppercase tracking-wider">Get Started</h3>
+                        </div>
+                        <p className="text-xs text-slate-300 leading-relaxed mb-4">
+                          Connect your exchange or upload CSV files to start analyzing your trading performance
+                        </p>
+                        <div className="space-y-2">
+                          <button
+                            onClick={() => setShowConnectModal(true)}
+                            className="w-full text-left text-xs text-slate-300 hover:text-emerald-300 font-medium transition-colors duration-200 flex items-center gap-2 p-2.5 rounded-lg hover:bg-white/5 border border-white/5 hover:border-emerald-500/30"
+                          >
+                            <LinkIcon className="w-4 h-4 text-emerald-400/70 flex-shrink-0" />
+                            <span>Connect Exchange via API</span>
+                            <ChevronRight className="w-3.5 h-3.5 ml-auto text-slate-500" />
+                          </button>
+                          <button
+                            onClick={() => router.push('/data')}
+                            className="w-full text-left text-xs text-slate-300 hover:text-emerald-300 font-medium transition-colors duration-200 flex items-center gap-2 p-2.5 rounded-lg hover:bg-white/5 border border-white/5 hover:border-emerald-500/30"
+                          >
+                            <Upload className="w-4 h-4 text-emerald-400/70 flex-shrink-0" />
+                            <span>Upload CSV Files</span>
+                            <ChevronRight className="w-3.5 h-3.5 ml-auto text-slate-500" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                ) : subscription && subscription.tier === 'pro' ? (
+                  <div className="relative overflow-hidden rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-cyan-500/10 shadow-lg shadow-emerald-500/20 backdrop-blur p-5 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:border-emerald-500/50 group">
+                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 via-transparent to-cyan-500/20 opacity-50" />
+                    <div className="absolute -top-24 -right-20 w-72 h-72 bg-emerald-500/30 blur-3xl rounded-full opacity-60 group-hover:opacity-80 transition-opacity" />
+                    <div className="absolute -bottom-24 -left-20 w-64 h-64 bg-cyan-500/20 blur-3xl rounded-full opacity-40" />
+                    <div className="relative">
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
+                          <Crown className="w-5 h-5 text-emerald-400" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-xs font-semibold text-emerald-300 mb-1 uppercase tracking-wider flex items-center gap-2">
+                            PRO Plan
+                            <Badge className="bg-emerald-500/20 border-emerald-500/40 text-emerald-300 text-[10px] px-1.5 py-0">
+                              Active
+                            </Badge>
+                          </h3>
+                          <p className="text-xs text-slate-300 leading-relaxed">
+                            You have unlimited access to all features
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2.5 mt-4">
+                        <div className="flex items-center gap-2 text-xs text-slate-300">
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                          <span>Unlimited exchange connections</span>
+                          <Infinity className="w-3.5 h-3.5 text-emerald-400 ml-auto" />
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-slate-300">
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                          <span>Unlimited trades analyzed</span>
+                          <Infinity className="w-3.5 h-3.5 text-emerald-400 ml-auto" />
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-slate-300">
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                          <span>Unlimited reports generated</span>
+                          <Infinity className="w-3.5 h-3.5 text-emerald-400 ml-auto" />
+                        </div>
+                      </div>
+
+                      {tradesStats && tradesStats.totalTrades > 0 && (
+                        <div className="mt-4 pt-4 border-t border-emerald-500/20">
+                          <div className="flex items-center justify-between p-2 rounded-lg bg-white/5">
+                            <span className="text-xs text-slate-400">Total Trades Analyzed</span>
+                            <span className="text-sm font-bold text-emerald-400">{tradesStats.totalTrades.toLocaleString()}</span>
+                          </div>
                         </div>
                       )}
+                      
+                      <div className="mt-4 pt-4 border-t border-emerald-500/20">
+                        <div className="flex items-center justify-between p-2 rounded-lg bg-white/5">
+                          <span className="text-xs text-slate-400">Exchanges Connected</span>
+                          <span className="text-sm font-bold text-emerald-400 flex items-center gap-1">
+                            {connectedExchanges.length}
+                            {connectedExchanges.length > 0 && (
+                              <span className="text-slate-500 font-normal ml-1 flex items-center">
+                                (
+                                {connectedExchanges.map((exchange, index) => (
+                                  <span key={exchange.id} className="inline-flex items-center">
+                                    <ExchangeIcon exchange={exchange.exchange} size={12} className="w-3 h-3" />
+                                    {index < connectedExchanges.length - 1 && <span className="mx-0.5">,</span>}
+                                  </span>
+                                ))}
+                                )
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : null}
 
                 {/* Smart Recommendations */}
                 <div className="relative overflow-hidden rounded-3xl border border-emerald-500/20 bg-emerald-500/5 shadow-lg shadow-emerald-500/10 backdrop-blur p-5 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:border-emerald-500/40 hover:bg-emerald-500/10 group">
@@ -950,6 +1377,20 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                           )}
                         </div>
                       </div>
+                    ) : connectedExchanges.length === 0 ? (
+                      <div className="space-y-3">
+                        <p className="text-xs text-slate-300 leading-relaxed mb-2">
+                          TradeClarity helps you analyze your trading performance, identify patterns, and make data-driven decisions. Get insights into your win rate, profit factors, best trading times, and more.
+                        </p>
+                        <button
+                          onClick={onTryDemo}
+                          className="group/btn w-full text-left text-xs text-emerald-400 hover:text-emerald-300 font-semibold transition-all duration-300 inline-flex items-center gap-2 p-2.5 rounded-lg hover:bg-white/5 border border-emerald-500/20 hover:border-emerald-500/40"
+                        >
+                          <Play className="w-3.5 h-3.5" />
+                          <span>Try Demo</span>
+                          <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover/btn:translate-x-1 ml-auto" />
+                        </button>
+                      </div>
                     ) : connectedExchanges.length === 1 ? (
                       <div className="space-y-3">
                         <p className="text-xs text-slate-300 leading-relaxed mb-2">
@@ -977,148 +1418,6 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                         </button>
                       </div>
                     )}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              /* First-time user experience - Enhanced */
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-                {/* Main CTA Card */}
-                <div className="lg:col-span-2 relative overflow-hidden rounded-3xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent shadow-lg shadow-emerald-500/10 backdrop-blur p-6 md:p-8">
-                  <div className="absolute -top-20 -right-20 w-64 h-64 bg-emerald-500/20 blur-3xl rounded-full opacity-50" />
-                  <div className="relative">
-                    <div className="flex items-center gap-2 mb-4">
-                      <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
-                        <Sparkles className="w-5 h-5 text-emerald-400" />
-                      </div>
-                      <div>
-                        <h2 className="text-lg md:text-xl font-semibold text-slate-100">
-                          {user?.user_metadata?.name ? `Welcome, ${user.user_metadata.name.split(' ')[0]}!` : 'Welcome to TradeClarity!'}
-                        </h2>
-                        <p className="text-xs text-slate-400 mt-0.5">Your trading blind spots, finally revealed</p>
-                      </div>
-                    </div>
-                    
-                    <p className="text-sm text-slate-300 leading-relaxed mb-6">
-                      Connect your exchange or upload CSV files to unlock powerful insights into your trading patterns, 
-                      psychology, and hidden opportunities. See what's really affecting your performance.
-                    </p>
-
-                    <div className="flex flex-col sm:flex-row gap-3 mb-6">
-                      <button
-                        onClick={() => setShowConnectModal(true)}
-                        className="group flex-1 px-5 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 rounded-xl text-sm font-semibold text-white transition-all duration-300 inline-flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-105"
-                      >
-                        <LinkIcon className="w-4 h-4" />
-                        Connect Exchange
-                        <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                      </button>
-                      <button
-                        onClick={() => router.push('/data')}
-                        className="group flex-1 px-5 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 rounded-xl text-sm font-semibold text-white transition-all duration-300 inline-flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 hover:scale-105"
-                      >
-                        <Upload className="w-4 h-4" />
-                        Upload CSV
-                        <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                      </button>
-                      <button
-                        onClick={onTryDemo}
-                        className="group px-5 py-3 bg-white/[0.05] hover:bg-white/[0.08] border border-white/10 hover:border-white/20 rounded-xl text-sm font-semibold text-slate-300 hover:text-white transition-all duration-300 inline-flex items-center justify-center gap-2 hover:scale-105"
-                      >
-                        <Play className="w-4 h-4" />
-                        Try Demo
-                      </button>
-                    </div>
-
-                    {/* Value Props */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-white/10">
-                      <div className="flex items-start gap-2">
-                        <div className="w-6 h-6 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <Brain className="w-3.5 h-3.5 text-emerald-400" />
-                        </div>
-                        <div>
-                          <div className="text-xs font-semibold text-slate-200">Psychology Insights</div>
-                          <div className="text-[10px] text-slate-400">Discover your hidden patterns</div>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <div className="w-6 h-6 rounded-lg bg-blue-500/20 border border-blue-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <BarChart3 className="w-3.5 h-3.5 text-blue-400" />
-                        </div>
-                        <div>
-                          <div className="text-xs font-semibold text-slate-200">Performance Analysis</div>
-                          <div className="text-[10px] text-slate-400">Find what's really working</div>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <div className="w-6 h-6 rounded-lg bg-purple-500/20 border border-purple-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <Lightbulb className="w-3.5 h-3.5 text-purple-400" />
-                        </div>
-                        <div>
-                          <div className="text-xs font-semibold text-slate-200">Actionable Tips</div>
-                          <div className="text-[10px] text-slate-400">Get personalized recommendations</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quick Start Guide */}
-                <div className="relative overflow-hidden rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-emerald-500/5 backdrop-blur p-5 md:p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Target className="w-5 h-5 text-emerald-400" />
-                    <h3 className="text-sm font-semibold text-slate-200">Quick Start</h3>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-xs font-bold text-emerald-400">1</span>
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-xs font-semibold text-slate-200 mb-1">Connect or Upload</div>
-                        <div className="text-[11px] text-slate-400 leading-relaxed">
-                          Link your exchange via API or upload CSV files with your trade history
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-lg bg-blue-500/20 border border-blue-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-xs font-bold text-blue-400">2</span>
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-xs font-semibold text-slate-200 mb-1">Analyze Your Data</div>
-                        <div className="text-[11px] text-slate-400 leading-relaxed">
-                          We'll analyze your trades and identify patterns you never knew existed
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-lg bg-purple-500/20 border border-purple-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-xs font-bold text-purple-400">3</span>
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-xs font-semibold text-slate-200 mb-1">Discover Insights</div>
-                        <div className="text-[11px] text-slate-400 leading-relaxed">
-                          Get actionable recommendations to improve your trading performance
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 pt-4 border-t border-white/10">
-                    <button
-                      onClick={onTryDemo}
-                      className="w-full px-4 py-2.5 bg-gradient-to-r from-emerald-500/20 to-emerald-500/10 hover:from-emerald-500/30 hover:to-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 rounded-xl text-xs font-semibold text-emerald-300 hover:text-emerald-200 transition-all flex items-center justify-center gap-2 group hover:scale-105"
-                    >
-                      <Sparkles className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
-                      Try Demo First
-                    </button>
-                    <p className="text-[10px] text-slate-500 text-center mt-2.5">
-                      Explore analytics with sample data
-                    </p>
                   </div>
                 </div>
               </div>
@@ -1577,6 +1876,18 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
         onSelectMethod={handleConnectionMethod}
       />
 
+      {/* Usage Breakdown Modal */}
+      <UsageBreakdownModal
+        open={showUsageModal}
+        onOpenChange={setShowUsageModal}
+        subscription={subscription}
+        actualUsage={{
+          connections: connectedExchanges.length,
+          trades: tradesStats?.totalTrades || 0,
+          reports: subscription?.reports_generated_this_month || 0
+        }}
+      />
+
       {/* Exchange Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteConfirm && deletingExchange && deleteStats} onOpenChange={(open) => {
         if (!open) {
@@ -1667,7 +1978,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      </div>
+    </div>
     </div>
   )
 }
