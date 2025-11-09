@@ -45,14 +45,6 @@ export async function POST(request) {
       )
     }
 
-    // Validate amount (minimum 100 paise = 1 INR)
-    if (amount < 1) {
-      return NextResponse.json(
-        { error: 'Amount must be at least 1 INR' },
-        { status: 400 }
-      )
-    }
-
     // Initialize Razorpay instance
     const razorpay = getRazorpayInstance()
 
@@ -131,20 +123,23 @@ export async function POST(request) {
     }
 
     // Create order in Razorpay
-    // Amount should be in paise (smallest currency unit) for INR
-    const amountInPaise = Math.round(amount * 100)
+    // Amount should be in smallest currency unit (paise for INR, cents for USD)
+    const amountInSmallestUnit = currency === 'INR' 
+      ? Math.round(amount * 100) // Convert to paise
+      : Math.round(amount * 100) // Convert to cents for USD
     
-    // Razorpay minimum amount is 100 paise (1 INR)
-    if (amountInPaise < 100) {
+    // Razorpay minimum amount is 100 paise (1 INR) or 100 cents (1 USD)
+    const minAmount = currency === 'INR' ? 100 : 100
+    if (amountInSmallestUnit < minAmount) {
       return NextResponse.json(
-        { error: 'Amount must be at least 1 INR (100 paise)' },
+        { error: `Amount must be at least 1 ${currency}` },
         { status: 400 }
       )
     }
 
     const orderOptions = {
-      amount: amountInPaise,
-      currency: currency,
+      amount: amountInSmallestUnit,
+      currency: currency, // INR or USD (if account supports it)
       receipt: `TC_${Date.now()}_${userId.slice(0, 8)}`, // Max 40 chars: TC_ (3) + timestamp (13) + _ (1) + userId (8) = 25 chars
       notes: {
         userId: userId,

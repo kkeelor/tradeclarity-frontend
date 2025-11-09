@@ -1,15 +1,14 @@
 // app/analyze/components/LoginForm.js
 
 import { useState } from 'react'
-import { TrendingUp, Lock, Loader2, AlertCircle, Eye, EyeOff, HelpCircle, Sparkles, ChevronRight, CheckCircle, Shield, ExternalLink, X, Play, FileText, Clock, BarChart3, Brain, Zap, Target, ArrowLeft, Mail, Plus } from 'lucide-react'
+import { TrendingUp, Lock, Loader2, AlertCircle, Eye, EyeOff, HelpCircle, Sparkles, ChevronRight, CheckCircle, Shield, ExternalLink, X, Play, FileText, Clock, BarChart3, Brain, Zap, Target, ArrowLeft, Mail, Plus, Info, ChevronDown } from 'lucide-react'
 import { ExchangeIcon, Separator } from '@/components/ui'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { Form } from '@/components/ui/form'
-import { useForm } from 'react-hook-form'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 // Step Progress Indicator Component
 function StepProgress({ currentStep, totalSteps }) {
@@ -311,6 +310,35 @@ export default function LoginForm({
     setApiSecretValid(isValid)
   }
 
+  // Exchange data map for preview
+  const exchangeDataMap = {
+    binance: {
+      displayName: 'Binance',
+      description: 'World\'s largest crypto exchange',
+      dataPoints: [
+        'How much money you\'re really making',
+        'When you trade your best',
+        'Where you\'re losing money (and how to stop)',
+        'Which assets are working for you',
+        'How fees are eating into your profits',
+        'Smart moves to improve your results'
+      ]
+    },
+    coindcx: {
+      displayName: 'CoinDCX',
+      description: 'India\'s #1 crypto exchange',
+      dataPoints: [
+        'How much money you\'re really making',
+        'When you trade your best',
+        'Where you\'re losing money (and how to stop)',
+        'Which assets are working for you',
+        'Smart moves to improve your results'
+      ]
+    }
+  }
+
+  const selectedExchangeData = exchange ? exchangeDataMap[exchange] : null
+
   // Step 1: Choose Exchange
   if (step === 1) {
     return (
@@ -341,90 +369,147 @@ export default function LoginForm({
             <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-cyan-500/5" />
             <div className="absolute -top-24 -right-24 w-64 h-64 bg-emerald-500/10 blur-3xl rounded-full opacity-50" />
             <div className="relative">
-            <div className="text-center space-y-1 sm:space-y-2 mb-6 sm:mb-8">
-              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">Which exchange do you trade on?</h2>
-              <p className="text-xs sm:text-sm text-slate-400">Select your trading platform to get started</p>
-            </div>
-            
-            {/* Exchange Cards - More scalable grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
-              {exchangeList.map((ex) => (
-                <button
-                  key={ex.id}
-                  type="button"
-                  onClick={() => {
-                    setExchange(ex.id)
-                    setStep(2)
-                  }}
-                  className={`group relative overflow-hidden p-3 sm:p-4 rounded-xl sm:rounded-2xl border transition-all hover:scale-[1.02] backdrop-blur-sm ${
-                    exchange === ex.id
-                      ? 'bg-gradient-to-br from-emerald-500/20 via-emerald-500/10 to-transparent border-emerald-500/50 shadow-lg shadow-emerald-500/10'
-                      : 'bg-gradient-to-br from-slate-800/50 to-slate-800/30 border-slate-700/50 hover:border-emerald-500/40'
-                  }`}
-                >
-                  {exchange === ex.id && (
-                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/5" />
-                  )}
-                  <div className="relative flex flex-col items-center text-center gap-2 sm:gap-3">
-                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center border transition-all ${
-                      exchange === ex.id 
-                        ? 'bg-emerald-500/20 border-emerald-500/30 shadow-lg shadow-emerald-500/20' 
-                        : 'bg-slate-700/30 border-slate-600/50 group-hover:bg-slate-700/40'
-                    }`}>
-                      <ExchangeIcon exchange={ex.id} size={24} className="w-full h-full p-1.5 sm:p-2" />
-                    </div>
-                    <div className="flex-1 w-full">
-                      <div className="font-bold text-sm sm:text-base lg:text-lg mb-0.5 sm:mb-1">{ex.displayName}</div>
-                      <div className="text-xs sm:text-sm text-slate-400 mb-2">
-                        {ex.id === 'binance' && 'World\'s largest crypto exchange'}
-                        {ex.id === 'coindcx' && 'India\'s #1 crypto exchange'}
-                      </div>
-                      {ex.id === 'binance' && (
-                        <Badge variant="profit" className="inline-flex items-center gap-1">
-                          <Sparkles className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                          Most Popular
-                        </Badge>
-                      )}
-                    </div>
-                    <ChevronRight className={`w-4 h-4 sm:w-5 sm:h-5 transition-all group-hover:translate-x-0.5 ${
-                      exchange === ex.id ? 'text-emerald-400' : 'text-slate-400 group-hover:text-white'
-                    }`} />
-                  </div>
-                </button>
-              ))}
+              <div className="text-center space-y-1 sm:space-y-2 mb-6 sm:mb-8">
+                <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">Which exchange do you trade on?</h2>
+                <p className="text-xs sm:text-sm text-slate-400">Select your trading platform to get started</p>
+              </div>
               
-              {/* Request Exchange Card */}
-              <button
-                type="button"
-                onClick={handleRequestExchange}
-                className="group relative overflow-hidden p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-700/50 hover:border-blue-500/40 bg-gradient-to-br from-slate-800/50 to-slate-800/30 backdrop-blur-sm transition-all hover:scale-[1.02]"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative flex flex-col items-center text-center gap-2 sm:gap-3">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center border border-slate-600/50 bg-slate-700/30 group-hover:bg-blue-500/20 group-hover:border-blue-500/30 transition-all">
-                    <Plus className="w-5 h-5 sm:w-6 sm:h-6 text-slate-400 group-hover:text-blue-400 transition-colors" />
-                  </div>
-                  <div className="flex-1 w-full">
-                    <div className="font-bold text-sm sm:text-base lg:text-lg mb-0.5 sm:mb-1 flex items-center justify-center gap-1.5">
-                      <Mail className="w-3 h-3 sm:w-4 sm:h-4" />
-                      Request Exchange
-                    </div>
-                    <div className="text-xs sm:text-sm text-slate-400">
-                      Don't see your exchange?
-                    </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400 group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all" />
+              {/* 2 Column Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                {/* Left: Exchange Selection */}
+                <div className="space-y-4">
+                  <Label className="text-sm font-semibold text-slate-300">Select Exchange</Label>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger className="w-full px-4 py-3 bg-slate-900/80 border border-slate-700/50 rounded-xl hover:border-emerald-500/50 transition-all flex items-center justify-between text-left">
+                      <div className="flex items-center gap-3">
+                        {exchange ? (
+                          <>
+                            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
+                              <ExchangeIcon exchange={exchange} size={20} className="w-full h-full p-1.5" />
+                            </div>
+                            <div>
+                              <div className="font-semibold text-sm">{exchangeDataMap[exchange].displayName}</div>
+                              <div className="text-xs text-slate-400">{exchangeDataMap[exchange].description}</div>
+                            </div>
+                          </>
+                        ) : (
+                          <span className="text-slate-400">Choose an exchange...</span>
+                        )}
+                      </div>
+                      <ChevronDown className="w-4 h-4 text-slate-400" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="bg-slate-800 border-slate-700 w-[var(--radix-dropdown-menu-trigger-width)] text-white">
+                      {exchangeList.map((ex) => (
+                        <DropdownMenuItem
+                          key={ex.id}
+                          onClick={() => setExchange(ex.id)}
+                          className="flex items-center gap-3 p-3 cursor-pointer hover:bg-emerald-500/20 text-white focus:bg-emerald-500/20 focus:text-white"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-slate-700/50 flex items-center justify-center">
+                            <ExchangeIcon exchange={ex.id} size={20} className="w-full h-full p-1.5" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-semibold text-sm text-white">{ex.displayName}</div>
+                            <div className="text-xs text-slate-400">{exchangeDataMap[ex.id]?.description}</div>
+                          </div>
+                          {ex.id === 'binance' && (
+                            <Badge variant="profit" className="text-xs !text-emerald-400">
+                              Popular
+                            </Badge>
+                          )}
+                        </DropdownMenuItem>
+                      ))}
+                      <DropdownMenuItem
+                        onClick={handleRequestExchange}
+                        className="flex items-center gap-3 p-3 cursor-pointer border-t border-slate-700 mt-1 hover:bg-blue-500/20 text-white focus:bg-blue-500/20 focus:text-white"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                          <Plus className="w-4 h-4 text-blue-400" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-semibold text-sm flex items-center gap-2 text-white">
+                            <Mail className="w-3 h-3" />
+                            Request Exchange
+                          </div>
+                          <div className="text-xs text-slate-400">Don't see your exchange?</div>
+                        </div>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  {/* Continue Button */}
+                  {exchange && (
+                    <button
+                      onClick={() => setStep(2)}
+                      className="w-full px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-105"
+                    >
+                      Continue
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
-              </button>
-            </div>
-            
-            {/* Minimal Security Badge */}
-            <div className="flex items-center justify-center gap-2 text-xs sm:text-sm text-slate-400">
-              <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
-              <span>Read-only access</span>
-              <Separator className="mx-1" />
-              <span>Encrypted storage</span>
-            </div>
+
+                {/* Right: Data Preview */}
+                <div className="space-y-4">
+                  <Label className="text-sm font-semibold text-slate-300">What you'll get</Label>
+                  {selectedExchangeData ? (
+                    <div className="bg-slate-900/50 border border-slate-700/50 rounded-xl p-4 sm:p-6 space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
+                          <ExchangeIcon exchange={exchange} size={24} className="w-full h-full p-2" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-lg">{selectedExchangeData.displayName}</h3>
+                          <p className="text-xs text-slate-400">{selectedExchangeData.description}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Info className="w-4 h-4 text-emerald-400" />
+                          <span className="text-xs font-semibold text-slate-300">You'll see:</span>
+                        </div>
+                        <ul className="space-y-2 ml-6">
+                          {selectedExchangeData.dataPoints.map((point, idx) => (
+                            <li key={idx} className="text-sm text-slate-300 flex items-center gap-2">
+                              <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                              {point}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      
+                      {/* Data Limitations Note */}
+                      <div className="mt-4 pt-4 border-t border-slate-700/50">
+                        <div className="flex items-start gap-2 text-xs text-slate-400">
+                          <Info className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
+                          <div className="space-y-1">
+                            <p className="text-slate-300 font-medium">Complete your picture</p>
+                            <p>
+                              API data retrieval is subject to exchange rate limits and may not include your complete trading history. For comprehensive analysis, you can supplement this by uploading your trade history CSV files directly from your exchange's account settings or data export section.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-slate-900/50 border border-slate-700/50 rounded-xl p-4 sm:p-6 flex items-center justify-center min-h-[200px]">
+                      <div className="text-center space-y-2">
+                        <Info className="w-8 h-8 text-slate-600 mx-auto" />
+                        <p className="text-sm text-slate-400">Select an exchange to see what data will be fetched</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Minimal Security Badge */}
+              <div className="flex items-center justify-center gap-2 text-xs sm:text-sm text-slate-400">
+                <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
+                <span>Read-only access</span>
+                <Separator className="mx-1" />
+                <span>Encrypted storage</span>
+              </div>
             </div>
           </div>
           
@@ -492,7 +577,6 @@ export default function LoginForm({
               </div>
               
               {/* API Key Field */}
-              <Form {...form}>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="api-key" className="text-slate-300">
@@ -598,7 +682,6 @@ export default function LoginForm({
                   </div>
                 )}
               </div>
-              </Form>
 
               {(error || submitError) && (
                 <Alert variant="destructive" className="bg-red-500/10 border-red-500/30">

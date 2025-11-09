@@ -242,9 +242,15 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
 
   // Fetch connected exchanges and uploaded files on mount
   useEffect(() => {
-    fetchConnectedExchanges()
-    fetchUploadedFiles()
-    fetchTradesStats()
+    // Parallelize all API calls for faster loading
+    Promise.all([
+      fetchConnectedExchanges(),
+      fetchUploadedFiles(),
+      fetchTradesStats(),
+      fetchSubscription()
+    ]).catch(error => {
+      console.error('Error loading dashboard data:', error)
+    })
 
     // Check if we should show connect modal (from DataManagement page)
     const shouldShowModal = sessionStorage.getItem('showConnectModal')
@@ -329,41 +335,27 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
   const fetchTradesStats = async () => {
     const startTime = Date.now()
     try {
-      const response = await fetch('/api/trades/fetch')
+      // Only fetch metadata/stats, not full trade data
+      // This is much faster as it doesn't load all trades
+      const response = await fetch('/api/trades/stats')
       const data = await response.json()
 
       if (data.success && data.metadata) {
         setTradesStats(data.metadata)
-
-        // Analyze data to get critical insight - only if we have actual trades
-        const hasTrades = (data.spotTrades && data.spotTrades.length > 0) || 
-                          (data.futuresIncome && data.futuresIncome.length > 0) ||
-                          (data.futuresUserTrades && data.futuresUserTrades.length > 0)
-        
-        if (hasTrades) {
-          try {
-            // analyzeData is now async due to currency conversion
-            const analytics = await analyzeData(data)
-            const psychology = analytics.psychology || {}
-            const insight = getMostCriticalInsight(analytics, psychology)
-            
-            // Generate combined insights from balance sheet and behavioral tabs
-            const combinedInsights = generateCombinedInsights(analytics, psychology, data.spotTrades || [], data.futuresIncome || [])
-            
-            setCriticalInsight(insight)
-            setAllInsights(combinedInsights)
-            setCurrentInsightIndex(0) // Reset to first insight
-          } catch (error) {
-            console.error('Error analyzing trades for insight:', error)
-          }
-        } else {
-          // No trades - clear insights
-          setCriticalInsight(null)
-          setAllInsights([])
-        }
+        // Don't analyze here - lazy load analysis only when viewing analytics
       }
     } catch (error) {
       console.error('Error fetching trades stats:', error)
+      // Fallback: try the old endpoint if stats endpoint doesn't exist yet
+      try {
+        const fallbackResponse = await fetch('/api/trades/fetch?metadataOnly=true')
+        const fallbackData = await fallbackResponse.json()
+        if (fallbackData.success && fallbackData.metadata) {
+          setTradesStats(fallbackData.metadata)
+        }
+      } catch (fallbackError) {
+        console.error('Fallback fetch also failed:', fallbackError)
+      }
     } finally {
       // Ensure minimum 350ms loading time for skeleton visibility
       const elapsed = Date.now() - startTime
@@ -374,12 +366,39 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
 
   const fetchSubscription = async () => {
     try {
+      // Check cache first (5 minute TTL)
+      const cacheKey = `subscription_${user?.id}`
+      const cached = localStorage.getItem(cacheKey)
+      if (cached) {
+        try {
+          const { data: subscriptionData, timestamp } = JSON.parse(cached)
+          const age = Date.now() - timestamp
+          const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+          
+          if (age < CACHE_TTL) {
+            console.log('?? Using cached subscription data')
+            setSubscription(subscriptionData)
+            setLoadingSubscription(false)
+            return
+          }
+        } catch (e) {
+          // Invalid cache, continue to fetch
+        }
+      }
+
       setLoadingSubscription(true)
       if (user?.id) {
         const response = await fetch(`/api/subscriptions/current?userId=${user.id}`)
         if (response.ok) {
           const data = await response.json()
-          setSubscription(data.subscription)
+          const subscriptionData = data.subscription
+          setSubscription(subscriptionData)
+          
+          // Cache the subscription data
+          localStorage.setItem(cacheKey, JSON.stringify({
+            data: subscriptionData,
+            timestamp: Date.now()
+          }))
         }
       }
     } catch (error) {
@@ -887,7 +906,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                           )}
                           
                           {/* Behavioral CTA */}
-                          {criticalInsight && (
+                          {tradesStats && tradesStats.totalTrades > 0 && (
                             <button
                               onClick={() => router.push('/analyze?tab=behavioral')}
                               className="text-left text-xs text-slate-300 hover:text-emerald-300 font-medium transition-colors duration-200 flex items-start gap-2 p-2 rounded-lg hover:bg-white/5"
@@ -898,7 +917,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                           )}
                           
                           {/* Fee Analysis CTA */}
-                          {criticalInsight && tradesStats.totalTrades > 20 && (
+                          {tradesStats && tradesStats.totalTrades > 20 && (
                             <button
                               onClick={() => router.push('/analyze?tab=behavioral')}
                               className="text-left text-xs text-slate-300 hover:text-emerald-300 font-medium transition-colors duration-200 flex items-start gap-2 p-2 rounded-lg hover:bg-white/5"
@@ -1105,8 +1124,9 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
               </div>
             )}
 
-            {/* Trading Insights Section - Horizontal scrolling row */}
-            {!loadingStats && allInsights.length > 0 && tradesStats && tradesStats.totalTrades > 0 && (
+            {/* Trading Insights Section - Lazy loaded (only shown when analysis is performed) */}
+            {/* Analysis is now lazy loaded - insights will be empty on dashboard load for better performance */}
+            {false && !loadingStats && allInsights.length > 0 && tradesStats && tradesStats.totalTrades > 0 && (
               <section className="space-y-3">
                 <div className="flex items-center gap-2 mb-3 px-1">
                   <Sparkles className="w-4 h-4 text-emerald-400" />

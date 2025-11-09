@@ -89,6 +89,78 @@ export async function GET(request) {
     const exchange = searchParams.get('exchange')          // Single exchange (legacy)
     const connectionIds = searchParams.get('connectionIds') // Multiple connections (new)
     const csvIds = searchParams.get('csvIds')              // Multiple CSV files (new)
+    const metadataOnly = searchParams.get('metadataOnly') === 'true' // Only return metadata, not trade data
+
+    // If metadataOnly is true, return lightweight stats without fetching all trades
+    if (metadataOnly) {
+      // Use count queries instead of fetching all trades
+      const { count: totalTrades } = await supabase
+        .from('trades')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+
+      const { count: spotCount } = await supabase
+        .from('trades')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('account_type', 'SPOT')
+
+      const { count: futuresCount } = await supabase
+        .from('trades')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('account_type', 'FUTURES')
+
+      const { data: oldestTrade } = await supabase
+        .from('trades')
+        .select('trade_time')
+        .eq('user_id', user.id)
+        .order('trade_time', { ascending: true })
+        .limit(1)
+        .single()
+
+      const { data: newestTrade } = await supabase
+        .from('trades')
+        .select('trade_time')
+        .eq('user_id', user.id)
+        .order('trade_time', { ascending: false })
+        .limit(1)
+        .single()
+
+      const { data: exchangeData } = await supabase
+        .from('trades')
+        .select('exchange')
+        .eq('user_id', user.id)
+
+      const uniqueExchanges = [...new Set(exchangeData?.map(t => t.exchange) || [])]
+      let primaryCurrency = 'USD'
+      if (uniqueExchanges.length === 1 && uniqueExchanges[0] === 'coindcx') {
+        primaryCurrency = 'INR'
+      } else if (uniqueExchanges.includes('coindcx')) {
+        primaryCurrency = 'INR'
+      }
+
+      return NextResponse.json({
+        success: true,
+        spotTrades: [],
+        futuresIncome: [],
+        futuresPositions: [],
+        metadata: {
+          primaryCurrency,
+          availableCurrencies: ['USD', 'INR', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CNY', 'SGD', 'CHF'],
+          supportsCurrencySwitch: true,
+          exchanges: uniqueExchanges,
+          totalTrades: totalTrades || 0,
+          spotTrades: spotCount || 0,
+          futuresIncome: futuresCount || 0,
+          oldestTrade: oldestTrade?.trade_time || null,
+          newestTrade: newestTrade?.trade_time || null,
+          accountType: (spotCount || 0) > 0 && (futuresCount || 0) > 0 ? 'MIXED' : (spotCount || 0) > 0 ? 'SPOT' : 'FUTURES',
+          hasSpot: (spotCount || 0) > 0,
+          hasFutures: (futuresCount || 0) > 0
+        }
+      })
+    }
 
     // Build query with optional filters
     let query = supabase
@@ -220,6 +292,76 @@ export async function GET(request) {
         if (!snapshotError && snapshots && snapshots.length > 0) {
           portfolioSnapshot = snapshots[0]
           console.log(`📊 Found portfolio snapshot from ${portfolioSnapshot.snapshot_time}: $${portfolioSnapshot.total_portfolio_value}`)
+          
+          // Normalize holdings structure for single exchange
+          if (portfolioSnapshot.holdings && Array.isArray(portfolioSnapshot.holdings)) {
+            portfolioSnapshot.holdings = portfolioSnapshot.holdings.map(h => {
+              const asset = h.asset || h.currency || 'UNKNOWN'
+              const quantity = parseFloat(h.quantity || h.qty || 0)
+              const price = parseFloat(h.price || 0)
+              const originalUsdValue = parseFloat(h.usdValue || 0)
+              
+              // Recalculate usdValue if quantity and price are available
+              let usdValue = originalUsdValue
+              if (quantity > 0 && price > 0) {
+                const calculatedValue = quantity * price
+                // Use calculated value if stored value is 0 or significantly different
+                if (originalUsdValue === 0 || Math.abs(calculatedValue - originalUsdValue) / Math.max(calculatedValue, originalUsdValue) > 0.01) {
+                  console.log(`🔧 Recalculating holding ${asset}: ${originalUsdValue.toFixed(2)} → ${calculatedValue.toFixed(2)}`)
+                  usdValue = calculatedValue
+                }
+              }
+              
+              return {
+                asset: asset,
+                currency: asset,
+                quantity: quantity,
+                qty: quantity,
+                price: price,
+                usdValue: usdValue,
+                exchange: portfolioSnapshot.exchange || h.exchange,
+                ...h // Keep other fields
+              }
+            })
+          }
+          
+          // Validate Binance holdings structure
+          if (portfolioSnapshot.exchange === 'binance' && portfolioSnapshot.holdings) {
+            console.log(`🔍 Validating Binance holdings structure...`)
+            const holdings = portfolioSnapshot.holdings || []
+            console.log(`📊 Total holdings: ${holdings.length}`)
+            
+            // Check for discrepancies
+            holdings.forEach((h, idx) => {
+              const quantity = parseFloat(h.quantity || 0)
+              const price = parseFloat(h.price || 0)
+              const usdValue = parseFloat(h.usdValue || 0)
+              const calculatedValue = quantity * price
+              
+              // Check if calculated value matches stored usdValue (allow 1% tolerance for rounding)
+              if (calculatedValue > 0 && usdValue > 0) {
+                const diff = Math.abs(calculatedValue - usdValue)
+                const diffPercent = (diff / calculatedValue) * 100
+                
+                if (diffPercent > 1) {
+                  console.warn(`⚠️  Holding ${idx} (${h.asset || h.currency || 'UNKNOWN'}): Value mismatch!`)
+                  console.warn(`   Quantity: ${quantity}, Price: ${price}`)
+                  console.warn(`   Calculated: $${calculatedValue.toFixed(2)}, Stored: $${usdValue.toFixed(2)}, Diff: ${diffPercent.toFixed(2)}%`)
+                }
+              }
+              
+              // Check for missing required fields
+              if (!h.asset && !h.currency) {
+                console.warn(`⚠️  Holding ${idx}: Missing asset/currency field`)
+              }
+              if (!h.quantity && !h.qty) {
+                console.warn(`⚠️  Holding ${idx}: Missing quantity field`)
+              }
+              if (!h.price) {
+                console.warn(`⚠️  Holding ${idx}: Missing price field`)
+              }
+            })
+          }
         } else {
           console.log('📊 No portfolio snapshot found for this exchange')
         }
@@ -307,19 +449,40 @@ export async function GET(request) {
             // Merge holdings with exchange attribution
             if (snap.holdings && Array.isArray(snap.holdings) && snap.holdings.length > 0) {
               const exchangeHoldings = snap.holdings.map(h => {
+                // Normalize holding structure (handle both 'asset' and 'currency' fields)
+                const asset = h.asset || h.currency || 'UNKNOWN'
+                const quantity = parseFloat(h.quantity || h.qty || 0)
+                const price = parseFloat(h.price || 0)
+                const originalUsdValue = parseFloat(h.usdValue || 0)
+                
+                // Recalculate usdValue if quantity and price are available (more accurate)
+                let usdValue = originalUsdValue
+                if (quantity > 0 && price > 0) {
+                  const calculatedValue = quantity * price
+                  // Use calculated value if it's significantly different (likely more accurate)
+                  if (originalUsdValue === 0 || Math.abs(calculatedValue - originalUsdValue) / Math.max(calculatedValue, originalUsdValue) > 0.01) {
+                    console.log(`🔧 Recalculating holding ${asset}: ${originalUsdValue.toFixed(2)} → ${calculatedValue.toFixed(2)}`)
+                    usdValue = calculatedValue
+                  }
+                }
+                
                 // Convert holding value to USD using live rates
                 const holdingValueUSD = convertCurrency(
-                  h.usdValue || 0,
+                  usdValue,
                   snapCurrency,
                   'USD',
                   currencyRates
                 )
 
                 return {
-                  ...h,
-                  exchange: snap.exchange,
+                  asset: asset,
+                  currency: asset, // Keep both for compatibility
+                  quantity: quantity,
+                  qty: quantity, // Keep both for compatibility
+                  price: price,
                   usdValue: holdingValueUSD,
-                  originalValue: h.usdValue,
+                  exchange: snap.exchange,
+                  originalValue: originalUsdValue,
                   originalCurrency: snapCurrency
                 }
               })
