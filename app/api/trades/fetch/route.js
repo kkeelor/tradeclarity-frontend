@@ -295,7 +295,7 @@ export async function GET(request) {
           
           // Normalize holdings structure for single exchange
           if (portfolioSnapshot.holdings && Array.isArray(portfolioSnapshot.holdings)) {
-            portfolioSnapshot.holdings = portfolioSnapshot.holdings.map(h => {
+            const normalizedHoldings = portfolioSnapshot.holdings.map(h => {
               const asset = h.asset || h.currency || 'UNKNOWN'
               const quantity = parseFloat(h.quantity || h.qty || 0)
               const price = parseFloat(h.price || 0)
@@ -323,6 +323,42 @@ export async function GET(request) {
                 ...h // Keep other fields
               }
             })
+            
+            // Deduplicate holdings by asset+exchange (keep the one with highest value if duplicates exist)
+            const holdingsMap = new Map()
+            normalizedHoldings.forEach(holding => {
+              const key = `${holding.asset}-${holding.exchange}`.toUpperCase()
+              const existing = holdingsMap.get(key)
+              
+              if (!existing) {
+                holdingsMap.set(key, holding)
+              } else {
+                // Duplicate found - keep the one with higher value
+                if (holding.usdValue > existing.usdValue) {
+                  console.log(`🔍 Deduplicating ${holding.asset} on ${holding.exchange}: keeping higher value (${holding.usdValue.toFixed(2)} vs ${existing.usdValue.toFixed(2)})`)
+                  holdingsMap.set(key, holding)
+                } else {
+                  console.log(`🔍 Deduplicating ${holding.asset} on ${holding.exchange}: keeping existing (${existing.usdValue.toFixed(2)} vs ${holding.usdValue.toFixed(2)})`)
+                }
+              }
+            })
+            
+            portfolioSnapshot.holdings = Array.from(holdingsMap.values())
+            
+            if (normalizedHoldings.length !== portfolioSnapshot.holdings.length) {
+              console.log(`🔍 Deduplicated holdings: ${normalizedHoldings.length} → ${portfolioSnapshot.holdings.length} unique`)
+            }
+
+            // Recalculate total portfolio value from deduplicated holdings to avoid double-counting
+            const recalculatedValue = portfolioSnapshot.holdings.reduce((sum, holding) => {
+              return sum + (holding.usdValue || 0)
+            }, 0)
+
+            const originalValue = parseFloat(portfolioSnapshot.total_portfolio_value || 0)
+            if (Math.abs(recalculatedValue - originalValue) > 0.01) {
+              console.log(`🔧 Single exchange portfolio value recalculation: $${originalValue.toFixed(2)} → $${recalculatedValue.toFixed(2)} (difference: $${Math.abs(recalculatedValue - originalValue).toFixed(2)})`)
+              portfolioSnapshot.total_portfolio_value = recalculatedValue
+            }
           }
           
           // Validate Binance holdings structure
@@ -416,6 +452,8 @@ export async function GET(request) {
           let totalSpotValue = 0
           let totalFuturesValue = 0
           let allHoldings = []
+          // Map to track holdings by asset+exchange for deduplication
+          const holdingsMap = new Map()
 
           for (const snap of recentSnapshots) {
             const snapCurrency = snap.primary_currency || 'USD'
@@ -486,17 +524,50 @@ export async function GET(request) {
                   originalCurrency: snapCurrency
                 }
               })
-              allHoldings.push(...exchangeHoldings)
-              console.log(`    Added ${exchangeHoldings.length} holdings from ${snap.exchange}`)
+              
+              // Deduplicate holdings by asset+exchange (keep the one with highest value if duplicates exist)
+              exchangeHoldings.forEach(holding => {
+                const key = `${holding.asset}-${holding.exchange}`.toUpperCase()
+                const existing = holdingsMap.get(key)
+                
+                if (!existing) {
+                  // First occurrence - add it
+                  holdingsMap.set(key, holding)
+                } else {
+                  // Duplicate found - keep the one with higher value (more recent/larger position)
+                  if (holding.usdValue > existing.usdValue) {
+                    console.log(`🔍 Deduplicating ${holding.asset} on ${holding.exchange}: keeping higher value (${holding.usdValue.toFixed(2)} vs ${existing.usdValue.toFixed(2)})`)
+                    holdingsMap.set(key, holding)
+                  } else {
+                    console.log(`🔍 Deduplicating ${holding.asset} on ${holding.exchange}: keeping existing (${existing.usdValue.toFixed(2)} vs ${holding.usdValue.toFixed(2)})`)
+                  }
+                }
+              })
+              
+              console.log(`    Processed ${exchangeHoldings.length} holdings from ${snap.exchange} (${holdingsMap.size} unique after deduplication)`)
             } else {
               console.warn(`    ⚠️  No holdings found for ${snap.exchange} (connection: ${snap.connection_id})`)
             }
           }
 
+          // Convert map values to array
+          allHoldings = Array.from(holdingsMap.values())
+
+          // Recalculate total portfolio value from deduplicated holdings to avoid double-counting
+          // This ensures the total matches the actual holdings after deduplication
+          const recalculatedPortfolioValue = allHoldings.reduce((sum, holding) => {
+            return sum + (holding.usdValue || 0)
+          }, 0)
+
+          // Log comparison for debugging
+          if (Math.abs(recalculatedPortfolioValue - totalPortfolioValue) > 0.01) {
+            console.log(`🔧 Portfolio value recalculation: $${totalPortfolioValue.toFixed(2)} → $${recalculatedPortfolioValue.toFixed(2)} (difference: $${Math.abs(recalculatedPortfolioValue - totalPortfolioValue).toFixed(2)})`)
+          }
+
           // Create aggregated portfolio snapshot
           portfolioSnapshot = {
-            total_portfolio_value: totalPortfolioValue,
-            total_spot_value: totalSpotValue,
+            total_portfolio_value: recalculatedPortfolioValue, // Use recalculated value from deduplicated holdings
+            total_spot_value: totalSpotValue, // Keep spot/futures breakdowns from snapshots (they should be accurate)
             total_futures_value: totalFuturesValue,
             holdings: allHoldings,
             snapshot_time: recentSnapshots[0].snapshot_time, // Use most recent timestamp
@@ -505,7 +576,7 @@ export async function GET(request) {
             _exchanges: recentSnapshots.map(s => s.exchange)
           }
 
-          console.log(`✅ Aggregated portfolio: $${totalPortfolioValue.toFixed(2)} USD (${allHoldings.length} holdings from ${recentSnapshots.length} exchanges: ${recentSnapshots.map(s => s.exchange).join(', ')})`)
+          console.log(`✅ Aggregated portfolio: $${recalculatedPortfolioValue.toFixed(2)} USD (${allHoldings.length} unique holdings from ${recentSnapshots.length} exchanges: ${recentSnapshots.map(s => s.exchange).join(', ')})`)
         } else {
           console.log('📊 No portfolio snapshots found')
         }
