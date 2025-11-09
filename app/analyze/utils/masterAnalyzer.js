@@ -339,41 +339,84 @@ export const analyzeData = async (allData) => {
                posSymbol.replace(/[\/\-]/g, '').replace('USDT', '') === normalizedHoldingAsset
       })
       
-      if (openPosition && holding.price && holding.quantity) {
-        const currentPrice = parseFloat(holding.price)
-        const avgEntryPrice = parseFloat(openPosition.avgEntryPrice)
+      if (openPosition && holding.quantity) {
         const holdingQuantity = parseFloat(holding.quantity)
         const positionQuantity = parseFloat(openPosition.quantity || 0)
+        const holdingUsdValue = parseFloat(holding.usdValue || 0)
+        const avgEntryPrice = parseFloat(openPosition.avgEntryPrice)
+        const costBasis = parseFloat(openPosition.costBasis || (avgEntryPrice * positionQuantity))
         
         // Use the minimum of holding quantity and position quantity to avoid overstating P&L
         // This handles cases where holdings include external deposits
         const quantityToUse = Math.min(holdingQuantity, positionQuantity > 0 ? positionQuantity : holdingQuantity)
         
-        // Calculate unrealized P&L: (currentPrice - avgEntryPrice) * quantity
-        if (!isNaN(currentPrice) && !isNaN(avgEntryPrice) && !isNaN(quantityToUse) && avgEntryPrice > 0 && quantityToUse > 0) {
-          const unrealizedPnL = (currentPrice - avgEntryPrice) * quantityToUse
+        // CRITICAL FIX: Use USD value-based calculation instead of price-based to avoid currency mismatches
+        // Calculate current market value for the quantity we're tracking
+        const currentMarketValue = holdingUsdValue > 0 && holdingQuantity > 0
+          ? (holdingUsdValue / holdingQuantity) * quantityToUse
+          : 0
+        
+        // Calculate entry cost for the quantity we're tracking
+        const entryCost = costBasis > 0 && positionQuantity > 0
+          ? (costBasis / positionQuantity) * quantityToUse
+          : avgEntryPrice * quantityToUse
+        
+        // Validate values are reasonable
+        const isValid = !isNaN(currentMarketValue) && !isNaN(entryCost) && 
+                       quantityToUse > 0 && entryCost > 0
+        
+        if (isValid) {
+          // Calculate unrealized P&L: currentMarketValue - entryCost
+          const unrealizedPnL = currentMarketValue - entryCost
           
-          matchedPairs.push({
-            asset: holdingAsset,
-            holdingQuantity,
-            positionQuantity,
-            quantityUsed: quantityToUse,
-            currentPrice,
-            avgEntryPrice,
-            unrealizedPnL,
-            match: 'full'
-          })
+          // CRITICAL: Validate unrealized P&L is reasonable
+          // Unrealized P&L shouldn't exceed the holding's USD value by more than 2x (allows for leverage/volatility)
+          const maxReasonablePnL = Math.abs(currentMarketValue) * 2
+          const isPnLReasonable = Math.abs(unrealizedPnL) <= maxReasonablePnL || currentMarketValue === 0
           
-          return total + unrealizedPnL
+          if (isPnLReasonable) {
+            matchedPairs.push({
+              asset: holdingAsset,
+              holdingQuantity,
+              positionQuantity,
+              quantityUsed: quantityToUse,
+              currentMarketValue,
+              entryCost,
+              unrealizedPnL,
+              holdingUsdValue,
+              match: 'full'
+            })
+            
+            return total + unrealizedPnL
+          } else {
+            // P&L is unreasonable - likely data issue, skip this holding
+            console.warn(`⚠️ Skipping ${holdingAsset}: Unrealized P&L ${unrealizedPnL.toFixed(2)} exceeds reasonable bounds (market value: ${currentMarketValue.toFixed(2)})`)
+            matchedPairs.push({
+              asset: holdingAsset,
+              holdingQuantity,
+              positionQuantity,
+              quantityUsed: quantityToUse,
+              currentMarketValue,
+              entryCost,
+              unrealizedPnL,
+              holdingUsdValue,
+              match: 'skipped',
+              reason: `Unrealized P&L ${unrealizedPnL.toFixed(2)} exceeds reasonable bounds (market value: ${currentMarketValue.toFixed(2)})`
+            })
+          }
         } else {
+          // Invalid values
+          const reason = `Invalid values: currentMarketValue=${currentMarketValue}, entryCost=${entryCost}, quantityToUse=${quantityToUse}`
+          console.warn(`⚠️ Skipping ${holdingAsset}: ${reason}`)
           matchedPairs.push({
             asset: holdingAsset,
             holdingQuantity,
             positionQuantity,
-            currentPrice,
-            avgEntryPrice,
+            currentMarketValue,
+            entryCost,
+            holdingUsdValue,
             match: 'invalid',
-            reason: `Invalid values: currentPrice=${currentPrice}, avgEntryPrice=${avgEntryPrice}, quantityToUse=${quantityToUse}`
+            reason
           })
         }
       } else {

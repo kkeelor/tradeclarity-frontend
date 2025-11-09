@@ -480,7 +480,12 @@ export default function AnalyticsContent() {
           const data = await response.json()
           
           if (!data.success) {
-            throw new Error('No trading data available')
+            // Check if it's a NO_DATA error (graceful)
+            if (data.error === 'NO_DATA') {
+              setStatus('no_data')
+              return
+            }
+            throw new Error(data.message || 'No trading data available')
           }
 
           setCachedData(data)
@@ -621,6 +626,40 @@ export default function AnalyticsContent() {
           >
             Go to Dashboard
           </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (status === 'no_data') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center px-4">
+        <div className="max-w-md w-full text-center space-y-6">
+          <div className="w-20 h-20 mx-auto bg-slate-800/50 border border-slate-700/50 rounded-2xl flex items-center justify-center">
+            <svg className="w-10 h-10 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-2xl font-semibold text-slate-100 mb-2">No Trading Data Available</h2>
+            <p className="text-slate-400 text-sm leading-relaxed">
+              You don't have any trading data yet. Please upload CSV files or connect an exchange to view analytics.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={() => router.push('/data')}
+              className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 rounded-xl font-semibold text-sm transition-all shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-105"
+            >
+              Upload CSV Files
+            </button>
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="px-6 py-3 bg-slate-800/60 hover:bg-slate-800/80 border border-slate-700/50 hover:border-slate-600/70 rounded-xl font-semibold text-sm transition-all"
+            >
+              Connect Exchange
+            </button>
+          </div>
         </div>
       </div>
     )
