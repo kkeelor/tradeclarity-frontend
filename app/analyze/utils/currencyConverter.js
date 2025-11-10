@@ -18,6 +18,22 @@ let cacheTimestamp = null
 const CACHE_DURATION = 15 * 60 * 1000 // 15 minutes
 
 /**
+ * Static fallback rates (last resort)
+ */
+const STATIC_FALLBACK_RATES = {
+  'USD': 1.0,
+  'INR': 87.0,
+  'EUR': 0.92,
+  'GBP': 0.79,
+  'JPY': 149.5,
+  'AUD': 1.52,
+  'CAD': 1.36,
+  'CNY': 7.24,
+  'SGD': 1.34,
+  'CHF': 0.88
+}
+
+/**
  * Get cached rates synchronously (returns fallback if cache not ready)
  * @returns {Object} Rates object
  */
@@ -28,53 +44,148 @@ export function getCachedRatesSync() {
   }
   // Return fallback rates if cache not ready
   console.log('💱 Using fallback rates for conversion (cache not ready)')
-  const fallbackRates = {
-    'USD': 1.0,
-    'INR': 87.0,
-    'EUR': 0.92,
-    'GBP': 0.79,
-    'JPY': 149.5,
-    'AUD': 1.52,
-    'CAD': 1.36,
-    'CNY': 7.24,
-    'SGD': 1.34,
-    'CHF': 0.88
+  return STATIC_FALLBACK_RATES
+}
+
+/**
+ * Validate conversion result
+ * @param {number} amount - Amount to validate
+ * @param {string} from - Source currency
+ * @param {string} to - Target currency
+ * @returns {Object} { valid: boolean, error?: string }
+ */
+function validateConversionResult(amount, from, to) {
+  if (typeof amount !== 'number') {
+    return { valid: false, error: `Invalid amount type: ${typeof amount}` }
   }
-  return fallbackRates
+  
+  if (isNaN(amount)) {
+    return { valid: false, error: `Conversion resulted in NaN (${from} → ${to})` }
+  }
+  
+  if (!isFinite(amount)) {
+    return { valid: false, error: `Conversion resulted in Infinity (${from} → ${to})` }
+  }
+  
+  if (amount < 0) {
+    return { valid: false, error: `Conversion resulted in negative amount: ${amount}` }
+  }
+  
+  if (amount === 0 && from !== to) {
+    // Zero is valid, but log if it's unexpected
+    console.warn(`⚠️ Conversion resulted in zero: ${from} → ${to}`)
+  }
+  
+  return { valid: true }
 }
 
 /**
  * Convert amount from one currency to another (synchronous version using cache)
+ * Validates result and handles errors gracefully
  * @param {number} amount - Amount to convert
  * @param {string} from - Source currency code (e.g., 'USD')
  * @param {string} to - Target currency code (e.g., 'INR')
- * @returns {number} Converted amount
+ * @returns {number|Object} Converted amount if successful, or { error: string, success: false } if failed
  */
 export function convertCurrencySync(amount, from, to) {
-  // No conversion needed if currencies are the same
-  if (from === to) {
-    return amount
+  try {
+    // Validate input
+    if (typeof amount !== 'number' || isNaN(amount) || !isFinite(amount)) {
+      const error = `Invalid input amount: ${amount}`
+      console.error(`❌ Currency conversion error: ${error}`)
+      return { success: false, error }
+    }
+    
+    if (amount < 0) {
+      const error = `Negative amount not allowed: ${amount}`
+      console.error(`❌ Currency conversion error: ${error}`)
+      return { success: false, error }
+    }
+    
+    // No conversion needed if currencies are the same
+    if (from === to) {
+      return amount
+    }
+
+    // Get cached rates (or fallback)
+    const rates = getCachedRatesSync()
+    
+    if (!rates || typeof rates !== 'object') {
+      const error = 'Currency rates not available'
+      console.error(`❌ Currency conversion error: ${error}`)
+      return { success: false, error }
+    }
+
+    // All rates are relative to USD (base currency)
+    const fromRate = rates[from]
+    const toRate = rates[to]
+    
+    // Check if rates exist, use static fallback if missing
+    let effectiveFromRate = fromRate
+    let effectiveToRate = toRate
+    
+    if (fromRate === undefined || fromRate === null) {
+      const staticFromRate = STATIC_FALLBACK_RATES[from]
+      if (staticFromRate !== undefined) {
+        console.log(`⚠️ Using static fallback rate for ${from}: ${staticFromRate}`)
+        effectiveFromRate = staticFromRate
+      } else {
+        const error = `Currency rate not found for ${from}`
+        console.error(`❌ Currency conversion error: ${error}`)
+        return { success: false, error }
+      }
+    }
+    
+    if (toRate === undefined || toRate === null) {
+      const staticToRate = STATIC_FALLBACK_RATES[to]
+      if (staticToRate !== undefined) {
+        console.log(`⚠️ Using static fallback rate for ${to}: ${staticToRate}`)
+        effectiveToRate = staticToRate
+      } else {
+        const error = `Currency rate not found for ${to}`
+        console.error(`❌ Currency conversion error: ${error}`)
+        return { success: false, error }
+      }
+    }
+    
+    // Validate rates
+    if (effectiveFromRate <= 0 || !isFinite(effectiveFromRate)) {
+      const error = `Invalid rate for ${from}: ${effectiveFromRate}`
+      console.error(`❌ Currency conversion error: ${error}`)
+      return { success: false, error }
+    }
+    
+    if (effectiveToRate <= 0 || !isFinite(effectiveToRate)) {
+      const error = `Invalid rate for ${to}: ${effectiveToRate}`
+      console.error(`❌ Currency conversion error: ${error}`)
+      return { success: false, error }
+    }
+
+    // Convert: amount in FROM → USD → TO
+    const usdAmount = amount / effectiveFromRate
+    const convertedAmount = usdAmount * effectiveToRate
+
+    // Validate result
+    const validation = validateConversionResult(convertedAmount, from, to)
+    if (!validation.valid) {
+      console.error(`❌ Currency conversion validation failed: ${validation.error}`)
+      return { success: false, error: validation.error }
+    }
+
+    console.log(`💱 Converting ${amount} ${from} → ${convertedAmount.toFixed(2)} ${to} (rate: ${effectiveFromRate} → ${effectiveToRate})`)
+
+    return convertedAmount
+  } catch (error) {
+    const errorMsg = `Unexpected error during conversion: ${error.message}`
+    console.error(`❌ Currency conversion exception: ${errorMsg}`, error)
+    return { success: false, error: errorMsg }
   }
-
-  // Get cached rates (or fallback)
-  const rates = getCachedRatesSync()
-
-  // All rates are relative to USD (base currency)
-  const fromRate = rates[from] || 1.0
-  const toRate = rates[to] || 1.0
-
-  // Convert: amount in FROM → USD → TO
-  const usdAmount = amount / fromRate
-  const convertedAmount = usdAmount * toRate
-
-  console.log(`💱 Converting ${amount} ${from} → ${convertedAmount.toFixed(2)} ${to} (rate: ${fromRate} → ${toRate})`)
-
-  return convertedAmount
 }
 
 /**
  * Fetch currency rates from backend
  * Uses cached rates if available and not expired
+ * Returns rates with metadata about source and age
  */
 export async function getCurrencyRates() {
   const now = Date.now()
@@ -95,31 +206,37 @@ export async function getCurrencyRates() {
 
     const data = await response.json()
 
-    if (data.success && data.rates) {
+    // Handle error response from API
+    if (!data.success) {
+      console.error('⚠️ API returned error:', data.error)
+      // Still try to use rates if available (might be static fallback)
+      if (data.rates) {
+        ratesCache = data.rates
+        cacheTimestamp = now
+        console.log('⚠️ Using rates from error response:', Object.keys(data.rates).length, 'currencies')
+        return data.rates
+      }
+      throw new Error(data.error || 'Failed to fetch rates')
+    }
+
+    if (data.rates) {
       ratesCache = data.rates
       cacheTimestamp = now
-      console.log('✅ Exchange rates fetched:', Object.keys(data.rates).length, 'currencies')
+      const source = data.source || 'unknown'
+      const ageDays = data.ageDays !== undefined ? data.ageDays : 0
+      console.log(`✅ Exchange rates fetched (source: ${source}, age: ${ageDays} days):`, Object.keys(data.rates).length, 'currencies')
       return data.rates
     }
 
-    throw new Error('Invalid response format')
+    throw new Error('Invalid response format: no rates')
   } catch (error) {
     console.error('⚠️ Failed to fetch exchange rates:', error.message)
 
-    // Return fallback rates if fetch fails
-    console.log('⚠️ Using fallback exchange rates')
-    return {
-      'USD': 1.0,
-      'INR': 87.0,
-      'EUR': 0.92,
-      'GBP': 0.79,
-      'JPY': 149.5,
-      'AUD': 1.52,
-      'CAD': 1.36,
-      'CNY': 7.24,
-      'SGD': 1.34,
-      'CHF': 0.88
-    }
+    // Return static fallback rates if fetch fails
+    console.log('⚠️ Using static fallback exchange rates')
+    ratesCache = STATIC_FALLBACK_RATES
+    cacheTimestamp = now
+    return STATIC_FALLBACK_RATES
   }
 }
 
