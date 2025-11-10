@@ -38,9 +38,49 @@ export async function POST(request) {
 
     console.log('Create order request:', { amount, currency, planId, userId, billingCycle, tier })
 
+    // Validate required fields
     if (!amount || !userId || !tier) {
+      console.error('Missing required fields:', { amount: !!amount, userId: !!userId, tier: !!tier })
       return NextResponse.json(
         { error: 'Amount, User ID, and Tier are required' },
+        { status: 400 }
+      )
+    }
+
+    // Validate amount is a valid number
+    const amountNum = typeof amount === 'number' ? amount : parseFloat(amount)
+    
+    if (isNaN(amountNum) || !isFinite(amountNum)) {
+      console.error('Invalid amount:', amount)
+      return NextResponse.json(
+        { error: 'This action could not be completed. Please contact support at tradeclarity-help@gmail.com' },
+        { status: 400 }
+      )
+    }
+
+    // Validate amount is positive and reasonable
+    if (amountNum <= 0) {
+      console.error('Amount must be positive:', amountNum)
+      return NextResponse.json(
+        { error: 'Invalid payment amount' },
+        { status: 400 }
+      )
+    }
+
+    // Validate amount is within reasonable bounds (e.g., between 0.01 and 1000000)
+    if (amountNum < 0.01 || amountNum > 1000000) {
+      console.error('Amount out of bounds:', amountNum)
+      return NextResponse.json(
+        { error: 'Payment amount is outside acceptable range' },
+        { status: 400 }
+      )
+    }
+
+    // Validate currency
+    if (typeof currency !== 'string' || currency.length !== 3) {
+      console.error('Invalid currency:', currency)
+      return NextResponse.json(
+        { error: 'Invalid currency code' },
         { status: 400 }
       )
     }
@@ -124,9 +164,16 @@ export async function POST(request) {
 
     // Create order in Razorpay
     // Amount should be in smallest currency unit (paise for INR, cents for USD)
-    const amountInSmallestUnit = currency === 'INR' 
-      ? Math.round(amount * 100) // Convert to paise
-      : Math.round(amount * 100) // Convert to cents for USD
+    const amountInSmallestUnit = Math.round(amountNum * 100)
+    
+    // Validate conversion didn't result in invalid value
+    if (!isFinite(amountInSmallestUnit) || amountInSmallestUnit <= 0) {
+      console.error('Invalid amount after conversion to smallest unit:', amountInSmallestUnit)
+      return NextResponse.json(
+        { error: 'This action could not be completed. Please contact support at tradeclarity-help@gmail.com' },
+        { status: 500 }
+      )
+    }
     
     // Razorpay minimum amount is 100 paise (1 INR) or 100 cents (1 USD)
     const minAmount = currency === 'INR' ? 100 : 100

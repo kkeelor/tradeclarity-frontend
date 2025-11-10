@@ -147,6 +147,27 @@ export default function PricingPage() {
   // Available currencies (same as analytics page)
   const availableCurrencies = ['USD', 'INR', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CNY', 'SGD', 'CHF']
 
+  // Helper function to safely convert currency for display
+  const safeConvertForDisplay = (amountUSD, targetCurrency) => {
+    if (targetCurrency === 'USD') return amountUSD
+    
+    const result = convertCurrencySync(amountUSD, 'USD', targetCurrency)
+    
+    // If conversion failed, return USD amount as fallback
+    if (result && typeof result === 'object' && result.success === false) {
+      console.warn('Currency conversion failed for display:', result.error)
+      return amountUSD // Fallback to USD
+    }
+    
+    // Validate result
+    if (typeof result !== 'number' || !isFinite(result) || result <= 0) {
+      console.warn('Invalid conversion result for display:', result)
+      return amountUSD // Fallback to USD
+    }
+    
+    return result
+  }
+
   // Detect if user is in India
   const detectUserLocation = async () => {
     try {
@@ -307,9 +328,38 @@ export default function PricingPage() {
       const paymentCurrency = isIndia ? 'INR' : 'USD'
       
       // Convert amount to payment currency
-      const paymentAmount = isIndia 
-        ? convertCurrencySync(discountedPriceUSD, 'USD', 'INR')
-        : discountedPriceUSD
+      let paymentAmount
+      if (isIndia) {
+        const conversionResult = convertCurrencySync(discountedPriceUSD, 'USD', 'INR')
+        
+        // Check if conversion failed
+        if (conversionResult && typeof conversionResult === 'object' && conversionResult.success === false) {
+          console.error('Currency conversion failed:', conversionResult.error)
+          cleanup()
+          toast.error('This action could not be completed. Please contact support at tradeclarity-help@gmail.com')
+          return
+        }
+        
+        // Validate conversion result is a valid number
+        if (typeof conversionResult !== 'number' || !isFinite(conversionResult) || conversionResult <= 0) {
+          console.error('Invalid conversion result:', conversionResult)
+          cleanup()
+          toast.error('This action could not be completed. Please contact support at tradeclarity-help@gmail.com')
+          return
+        }
+        
+        paymentAmount = conversionResult
+      } else {
+        paymentAmount = discountedPriceUSD
+      }
+
+      // Validate payment amount before proceeding
+      if (!paymentAmount || !isFinite(paymentAmount) || paymentAmount <= 0) {
+        console.error('Invalid payment amount:', paymentAmount)
+        cleanup()
+        toast.error('This action could not be completed. Please contact support at tradeclarity-help@gmail.com')
+        return
+      }
 
       // Create order
       console.log('Creating Razorpay order:', { paymentAmount, paymentCurrency, planId, tier, billingCycle })
@@ -575,8 +625,8 @@ export default function PricingPage() {
                       const monthlyPriceUSD = billingCycle === 'annual' ? Math.round(plan.priceAnnual / 12) : plan.price
                       const discountMultiplier = (key === 'trader' || key === 'pro') ? 0.5 : 1
                       const discountedMonthlyPriceUSD = monthlyPriceUSD * discountMultiplier
-                      const convertedMonthlyPrice = currency === 'USD' ? monthlyPriceUSD : convertCurrencySync(monthlyPriceUSD, 'USD', currency)
-                      const convertedDiscountedMonthlyPrice = currency === 'USD' ? discountedMonthlyPriceUSD : convertCurrencySync(discountedMonthlyPriceUSD, 'USD', currency)
+                      const convertedMonthlyPrice = currency === 'USD' ? monthlyPriceUSD : safeConvertForDisplay(monthlyPriceUSD, currency)
+                      const convertedDiscountedMonthlyPrice = currency === 'USD' ? discountedMonthlyPriceUSD : safeConvertForDisplay(discountedMonthlyPriceUSD, currency)
                       
                       const formatPrice = (price) => {
                         if (price === 0) return '0'
@@ -631,7 +681,7 @@ export default function PricingPage() {
                                 </div>
                                 {billingCycle === 'annual' && (key === 'trader' || key === 'pro') && (
                                   <span className="text-[10px] text-emerald-400">
-                                    {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? plan.priceAnnual * discountMultiplier : convertCurrencySync(plan.priceAnnual * discountMultiplier, 'USD', currency))}/yr
+                                    {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? plan.priceAnnual * discountMultiplier : safeConvertForDisplay(plan.priceAnnual * discountMultiplier, currency))}/yr
                                   </span>
                                 )}
                               </div>
