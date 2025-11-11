@@ -106,7 +106,7 @@ async function fetchRatesFromFreeAPI() {
       USD: 1.0
     }
 
-    // Verify we have all required currencies
+    // Verify we have all required currencies (but save all currencies)
     if (!hasAllRequiredCurrencies(rates)) {
       console.warn('⚠️ Free API missing some required currencies')
       // Check which ones are missing
@@ -115,7 +115,8 @@ async function fetchRatesFromFreeAPI() {
       return null
     }
 
-    console.log(`✅ Fetched ${Object.keys(rates).length} currencies from free API`)
+    // Save all currencies (no filtering) - frontend will filter when reading
+    console.log(`✅ Fetched ${Object.keys(rates).length} currencies from free API (saving all to DB)`)
     return rates
   } catch (error) {
     console.error('❌ Error fetching from free API:', error.message)
@@ -181,12 +182,36 @@ export async function GET(request) {
     return NextResponse.json({
       success: true,
       message: 'Currency rates updated successfully',
-      currencies: Object.keys(rates).length,
+      currenciesSaved: Object.keys(rates).length,
+      requiredCurrencies: REQUIRED_CURRENCIES.length,
       timestamp: new Date().toISOString(),
       duration: `${duration}ms`
     })
 
   } catch (error) {
+    const duration = Date.now() - startTime
+    console.error('❌ Cron job failed:', error.message)
+    console.error('Error stack:', error.stack)
+
+    return NextResponse.json({
+      success: false,
+      error: error.message || 'Unknown error',
+      timestamp: new Date().toISOString(),
+      duration: `${duration}ms`
+    }, { status: 500 })
+  }
+}
+ error: error.message || 'Unknown error',
+      timestamp: new Date().toISOString(),
+      duration: `${duration}ms`
+    }, { status: 500 })
+  }
+}
+duration}ms`
+    }, { status: 500 })
+  }
+}
+ {
     const duration = Date.now() - startTime
     console.error('❌ Cron job failed:', error.message)
     console.error('Error stack:', error.stack)

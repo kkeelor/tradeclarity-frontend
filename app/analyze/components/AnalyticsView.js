@@ -26,7 +26,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { getCurrencySymbol } from '../utils/currencyFormatter'
+import { getCurrencySymbol, formatCurrencyNumber } from '../utils/currencyFormatter'
 import {
   AreaChart, Area, BarChart, Bar, LineChart as RechartsLineChart,
   Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart,
@@ -49,13 +49,9 @@ import {
 } from '../../components'
 import Footer from '../../components/Footer'
 
-// Helper function to format numbers with commas
-const formatNumber = (num, decimals = 2) => {
-  if (num === null || num === undefined || isNaN(num)) return '0'
-  return Number(num).toLocaleString('en-US', {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals
-  })
+// Helper function to format numbers with commas (currency-aware)
+const formatNumber = (num, decimals = 2, currency = 'USD') => {
+  return formatCurrencyNumber(num, currency, decimals)
 }
 
 // Icon mapper for string icon names to Lucide components
@@ -291,7 +287,7 @@ function AccountTypeCard({ type, trades, pnl, winRate, currSymbol, currency, ico
           </div>
         </div>
         <div className={`text-2xl font-bold ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`}>
-          {isProfitable ? '+' : ''}{currSymbol}{pnl.toFixed(2)} <span className="text-xs text-slate-400 font-normal">{displayCurrency}</span>
+          {isProfitable ? '+' : ''}{currSymbol}{formatNumber(pnl, 2, currency || 'USD')} <span className="text-xs text-slate-400 font-normal">{displayCurrency}</span>
         </div>
       </div>
       <div className="flex items-center gap-4 text-sm text-slate-400">
@@ -2848,7 +2844,7 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
                       <span className="text-[10px] font-medium text-slate-300">Total Portfolio Value</span>
                     </div>
                     <div className="text-xl md:text-2xl font-bold text-blue-400 mb-1">
-                      {currSymbol}{formatNumber(convertedPortfolioValue || 0, 2)}
+                      {currSymbol}{formatNumber(convertedPortfolioValue || 0, 2, currency || 'USD')}
                     </div>
                     <div className="text-[10px] text-slate-400">{currency || 'USD'}</div>
                   </ShadcnCard>
@@ -2872,7 +2868,7 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
                     <span className="text-[10px] font-medium text-slate-300">Realized P&L</span>
                   </div>
                   <div className="text-xl md:text-2xl font-bold text-white mb-1">
-                    {currSymbol}{formatNumber((analytics.spotPnL || 0) + (analytics.futuresRealizedPnL || 0), 2)}
+                    {currSymbol}{formatNumber((analytics.spotPnL || 0) + (analytics.futuresRealizedPnL || 0), 2, currency || 'USD')}
                   </div>
                   <div className="text-[10px] text-slate-400">{currency || 'USD'}</div>
                 </ShadcnCard>
@@ -2896,14 +2892,14 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
                     <div className={`text-xl md:text-2xl font-bold mb-1 ${
                       (analytics.totalUnrealizedPnL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
                     }`}>
-                      {(analytics.totalUnrealizedPnL || 0) >= 0 ? '+' : ''}{currSymbol}{formatNumber(analytics.totalUnrealizedPnL || 0, 2)}
+                      {(analytics.totalUnrealizedPnL || 0) >= 0 ? '+' : ''}{currSymbol}{formatNumber(analytics.totalUnrealizedPnL || 0, 2, currency || 'USD')}
                     </div>
                     <div className="text-[10px] text-slate-400">{currency || 'USD'}</div>
                     {(analytics.spotUnrealizedPnL || analytics.futuresUnrealizedPnL) && (
                       <div className="text-[9px] text-slate-500 mt-2 pt-2 border-t border-slate-800 flex items-center gap-1">
-                        {analytics.spotUnrealizedPnL && `Spot: ${currSymbol}${formatNumber(analytics.spotUnrealizedPnL, 2)}`}
+                        {analytics.spotUnrealizedPnL && `Spot: ${currSymbol}${formatNumber(analytics.spotUnrealizedPnL, 2, currency || 'USD')}`}
                         {analytics.spotUnrealizedPnL && analytics.futuresUnrealizedPnL && <Separator className="text-[9px]" />}
-                        {analytics.futuresUnrealizedPnL && `Futures: ${currSymbol}${formatNumber(analytics.futuresUnrealizedPnL, 2)}`}
+                        {analytics.futuresUnrealizedPnL && `Futures: ${currSymbol}${formatNumber(analytics.futuresUnrealizedPnL, 2, currency || 'USD')}`}
                       </div>
                     )}
                   </ShadcnCard>
@@ -3486,11 +3482,11 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
                       <span className="text-sm font-semibold text-cyan-400">Futures Trading</span>
                     </div>
                     <div className="text-xs text-slate-300 mb-1">
-                      {futuresValue >= 0 ? `+${currSymbol}${formatNumber(futuresValue, 2)} realized` : `${currSymbol}${formatNumber(Math.abs(futuresValue), 2)} loss`}
+                      {futuresValue >= 0 ? `+${currSymbol}${formatNumber(futuresValue, 2, currency || 'USD')} realized` : `${currSymbol}${formatNumber(Math.abs(futuresValue), 2, currency || 'USD')} loss`}
                       {openPositions > 0 && (
                         <span className={`ml-1 flex items-center ${unrealizedPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                           <Separator className="mx-1" />
-                          {unrealizedPnL >= 0 ? '+' : ''}{currSymbol}{formatNumber(Math.abs(unrealizedPnL), 2)} unrealized
+                          {unrealizedPnL >= 0 ? '+' : ''}{currSymbol}{formatNumber(Math.abs(unrealizedPnL), 2, currency || 'USD')} unrealized
                         </span>
                       )}
                     </div>
@@ -3631,7 +3627,7 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
                     displayValue = value.toLocaleString()
                   } else {
                     const sign = (selectedMetric === 'realized_pnl' || selectedMetric === 'unrealized_pnl') && isPositive ? '+' : ''
-                    displayValue = `${sign}${currSymbol}${formatNumber(Math.abs(value), 2)}`
+                    displayValue = `${sign}${currSymbol}${formatNumber(Math.abs(value), 2, currency || 'USD')}`
                   }
                   
                   return (
@@ -3664,10 +3660,10 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
                     {(() => {
                       const total = Object.values(breakdownData).reduce((sum, data) => sum + data.displayValue, 0)
                       if (selectedMetric === 'portfolio_value') {
-                        return `${currSymbol}${formatNumber(total, 2)}`
+                        return `${currSymbol}${formatNumber(total, 2, currency || 'USD')}`
                       } else {
                         const sign = total >= 0 ? '+' : ''
-                        return `${sign}${currSymbol}${formatNumber(Math.abs(total), 2)}`
+                        return `${sign}${currSymbol}${formatNumber(Math.abs(total), 2, currency || 'USD')}`
                       }
                     })()}
                   </span>
@@ -3684,6 +3680,9 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
 function SpotTab({ analytics, currSymbol, currency, metadata }) {
   const [showAllHoldings, setShowAllHoldings] = useState(false)
   const [showAllTrades, setShowAllTrades] = useState(false)
+  const [showLowBalances, setShowLowBalances] = useState(false) // Toggle for showing assets < 1 USD equivalent
+  const [holdingsSortBy, setHoldingsSortBy] = useState('value') // 'exchange', 'asset', 'quantity', 'price', 'value'
+  const [holdingsSortOrder, setHoldingsSortOrder] = useState('desc') // 'asc', 'desc'
   const [sortBy, setSortBy] = useState('date') // 'date', 'symbol', 'pnl', 'value'
   const [sortOrder, setSortOrder] = useState('desc') // 'asc', 'desc'
   const [showFilters, setShowFilters] = useState(false)
@@ -3716,7 +3715,7 @@ function SpotTab({ analytics, currSymbol, currency, metadata }) {
         }`}>
           <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">Spot P&L</div>
           <div className={`text-xl md:text-2xl font-bold mb-1 ${analytics.spotPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {currSymbol}{formatNumber(analytics.spotPnL || 0, 2)} <span className="text-xs text-slate-400 font-normal">{currency || 'USD'}</span>
+            {currSymbol}{formatNumber(analytics.spotPnL || 0, 2, currency || 'USD')} <span className="text-xs text-slate-400 font-normal">{currency || 'USD'}</span>
           </div>
           <div className="text-xs text-slate-500">{analytics.spotRoi?.toFixed(1) || '0.0'}% ROI</div>
         </div>
@@ -3727,30 +3726,98 @@ function SpotTab({ analytics, currSymbol, currency, metadata }) {
         </div>
         <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-emerald-400/30 hover:bg-emerald-500/5 transition-all duration-300 hover:scale-[1.02]">
           <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">Invested</div>
-          <div className="text-xl md:text-2xl font-bold text-white mb-1">{currSymbol}{formatNumber(analytics.spotInvested || 0, 0)} <span className="text-xs text-slate-400 font-normal">{displayCurrency}</span></div>
+          <div className="text-xl md:text-2xl font-bold text-white mb-1">{currSymbol}{formatNumber(analytics.spotInvested || 0, 0, currency || 'USD')} <span className="text-xs text-slate-400 font-normal">{displayCurrency}</span></div>
           <div className="text-xs text-slate-500">{analytics.spotTrades || 0} trades</div>
         </div>
         <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-4 hover:border-emerald-400/30 hover:bg-emerald-500/5 transition-all duration-300 hover:scale-[1.02]">
           <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">Best Win</div>
-          <div className="text-xl md:text-2xl font-bold text-emerald-400 mb-1">{currSymbol}{formatNumber(spotAnalysis.largestWin || 0, 2)} <span className="text-xs text-slate-400 font-normal">{displayCurrency}</span></div>
+          <div className="text-xl md:text-2xl font-bold text-emerald-400 mb-1">{currSymbol}{formatNumber(spotAnalysis.largestWin || 0, 2, currency || 'USD')} <span className="text-xs text-slate-400 font-normal">{displayCurrency}</span></div>
           <div className="text-xs text-slate-500">Max gain</div>
         </div>
       </div>
 
       {/* Current Holdings - Compact */}
       {metadata?.spotHoldings && metadata.spotHoldings.length > 0 && (() => {
-        // Filter out holdings with value less than $1 USD
-        const filteredHoldings = metadata.spotHoldings.filter(holding => {
+        // Convert 1 USD to selected currency for threshold
+        // This will update when displayCurrency changes
+        let minValueThreshold = 1
+        if (displayCurrency !== 'USD') {
+          const thresholdConverted = convertCurrencySync(1, 'USD', displayCurrency)
+          if (typeof thresholdConverted === 'number' && !isNaN(thresholdConverted) && isFinite(thresholdConverted)) {
+            minValueThreshold = thresholdConverted
+          }
+        }
+        
+        // Helper function to get display value (matches Value column calculation)
+        // This ensures consistency with what's displayed
+        const getDisplayValue = (holding) => {
           const usdValue = holding.usdValue || 0
-          return usdValue >= 1
+          const converted = convertCurrencySync(usdValue, 'USD', displayCurrency)
+          // Fallback to USD value if conversion fails
+          return converted !== null && converted !== undefined && !isNaN(converted) ? converted : usdValue
+        }
+        
+        // Filter holdings based on toggle state
+        // Uses the same Value column calculation for consistency
+        const filteredHoldings = metadata.spotHoldings.filter(holding => {
+          const displayValue = getDisplayValue(holding)
+          
+          // If toggle is OFF (default), hide low balances
+          if (!showLowBalances) {
+            return displayValue >= minValueThreshold
+          }
+          // If toggle is ON, show all holdings
+          return true
         })
         
-        const sortedHoldings = filteredHoldings.sort((a, b) => b.usdValue - a.usdValue)
+        // Sort holdings based on selected sort option
+        const sortedHoldings = [...filteredHoldings].sort((a, b) => {
+          let comparison = 0
+          
+          switch (holdingsSortBy) {
+            case 'exchange':
+              const exchangeA = (a.exchange || metadata.exchanges?.[0] || 'Unknown').toLowerCase()
+              const exchangeB = (b.exchange || metadata.exchanges?.[0] || 'Unknown').toLowerCase()
+              comparison = exchangeA.localeCompare(exchangeB)
+              break
+              
+            case 'asset':
+              comparison = (a.asset || '').localeCompare(b.asset || '')
+              break
+              
+            case 'quantity':
+              comparison = (a.quantity || 0) - (b.quantity || 0)
+              break
+              
+            case 'price':
+              comparison = (a.price || 0) - (b.price || 0)
+              break
+              
+            case 'value':
+            default:
+              // Sort by display value (converted to display currency)
+              const valueA = getDisplayValue(a)
+              const valueB = getDisplayValue(b)
+              comparison = valueA - valueB
+              break
+          }
+          
+          // Apply sort order
+          return holdingsSortOrder === 'asc' ? comparison : -comparison
+        })
+        
         const displayedHoldings = showAllHoldings ? sortedHoldings : sortedHoldings.slice(0, 5)
         const hasMore = sortedHoldings.length > 5
         
         // Calculate total value of filtered holdings
         const totalFilteredValue = filteredHoldings.reduce((sum, holding) => sum + (holding.usdValue || 0), 0)
+        
+        // Count low balance holdings based on Value column (display currency)
+        // This recalculates when displayCurrency changes
+        const lowBalanceCount = metadata.spotHoldings.filter(holding => {
+          const displayValue = getDisplayValue(holding)
+          return displayValue < minValueThreshold
+        }).length
 
         return (
           <div className="bg-slate-800/20 border border-slate-700/30 rounded-lg overflow-hidden">
@@ -3762,30 +3829,122 @@ function SpotTab({ analytics, currSymbol, currency, metadata }) {
                   ({showAllHoldings ? sortedHoldings.length : `Top ${Math.min(5, sortedHoldings.length)} of ${sortedHoldings.length}`})
                 </span>
               </h3>
-              {hasMore && (
-                <button
-                  onClick={() => setShowAllHoldings(!showAllHoldings)}
-                  className="text-[10px] text-purple-400 hover:text-purple-300 transition-colors flex items-center gap-1"
-                >
-                  {showAllHoldings ? (
-                    <>
-                      <ChevronUp className="w-3 h-3" />
-                      Show Less
-                    </>
-                  ) : (
-                    <>
-                      <ChevronDown className="w-3 h-3" />
-                      Show All
-                    </>
-                  )}
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {/* Sort dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="text-[10px] text-slate-400 hover:text-slate-300 transition-colors flex items-center gap-1 px-2 py-1 rounded hover:bg-white/5">
+                    <Shuffle className="w-3 h-3" />
+                    <span>Sort:</span>
+                    <span className="font-medium">
+                      {holdingsSortBy === 'exchange' ? 'Exchange' : 
+                       holdingsSortBy === 'asset' ? 'Asset' :
+                       holdingsSortBy === 'quantity' ? 'Quantity' :
+                       holdingsSortBy === 'price' ? 'Price' : 'Value'}
+                    </span>
+                    <ChevronDown className="w-3 h-3" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="bg-slate-800 border-slate-700">
+                    <DropdownMenuItem 
+                      onClick={() => { setHoldingsSortBy('exchange'); setHoldingsSortOrder('asc') }} 
+                      className="text-xs"
+                    >
+                      Exchange (A-Z)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => { setHoldingsSortBy('exchange'); setHoldingsSortOrder('desc') }} 
+                      className="text-xs"
+                    >
+                      Exchange (Z-A)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => { setHoldingsSortBy('asset'); setHoldingsSortOrder('asc') }} 
+                      className="text-xs"
+                    >
+                      Asset (A-Z)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => { setHoldingsSortBy('asset'); setHoldingsSortOrder('desc') }} 
+                      className="text-xs"
+                    >
+                      Asset (Z-A)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => { setHoldingsSortBy('value'); setHoldingsSortOrder('desc') }} 
+                      className="text-xs"
+                    >
+                      Value (High to Low)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => { setHoldingsSortBy('value'); setHoldingsSortOrder('asc') }} 
+                      className="text-xs"
+                    >
+                      Value (Low to High)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => { setHoldingsSortBy('quantity'); setHoldingsSortOrder('desc') }} 
+                      className="text-xs"
+                    >
+                      Quantity (High to Low)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => { setHoldingsSortBy('quantity'); setHoldingsSortOrder('asc') }} 
+                      className="text-xs"
+                    >
+                      Quantity (Low to High)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => { setHoldingsSortBy('price'); setHoldingsSortOrder('desc') }} 
+                      className="text-xs"
+                    >
+                      Price (High to Low)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => { setHoldingsSortBy('price'); setHoldingsSortOrder('asc') }} 
+                      className="text-xs"
+                    >
+                      Price (Low to High)
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                {/* Toggle for low balances */}
+                {lowBalanceCount > 0 && (
+                  <button
+                    onClick={() => setShowLowBalances(!showLowBalances)}
+                    className={`text-[10px] px-2 py-1 rounded transition-colors flex items-center gap-1 ${
+                      showLowBalances 
+                        ? 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30' 
+                        : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700/70'
+                    }`}
+                    title={`${showLowBalances ? 'Hide' : 'Show'} ${lowBalanceCount} low balance asset${lowBalanceCount !== 1 ? 's' : ''} (< ${currSymbol}${minValueThreshold.toFixed(2)})`}
+                  >
+                    <Eye className="w-3 h-3" />
+                    {showLowBalances ? 'Showing low balances' : 'Low balances hidden'} ({lowBalanceCount})
+                  </button>
+                )}
+                {hasMore && (
+                  <button
+                    onClick={() => setShowAllHoldings(!showAllHoldings)}
+                    className="text-[10px] text-purple-400 hover:text-purple-300 transition-colors flex items-center gap-1"
+                  >
+                    {showAllHoldings ? (
+                      <>
+                        <ChevronUp className="w-3 h-3" />
+                        Show Less
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="w-3 h-3" />
+                        Show All
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
             <div className="overflow-x-auto -mx-4 px-4">
               <table className="w-full text-xs min-w-[500px]">
                 <thead className="bg-slate-800/30">
                   <tr className="text-left text-[10px] text-slate-400">
-                    <th className="px-2 py-2 whitespace-nowrap">Asset</th>
                     <th className="px-2 py-2 whitespace-nowrap">Exchange</th>
                     <th className="px-2 py-2 text-right whitespace-nowrap">Qty</th>
                     <th className="px-2 py-2 text-right whitespace-nowrap">Price</th>
@@ -3799,24 +3958,31 @@ function SpotTab({ analytics, currSymbol, currency, metadata }) {
 
                     return (
                       <tr key={`${holding.asset}-${idx}`} className="border-b border-slate-800/30 hover:bg-slate-700/10">
-                        <td className="px-2 py-2 font-mono font-semibold whitespace-nowrap">{holding.asset}</td>
                         <td className="px-2 py-2">
                           <span className="inline-flex items-center gap-1 text-[10px] text-slate-400 whitespace-nowrap">
                             <ExchangeIcon exchange={exchangeName} size={10} className="w-4 h-4 p-0.5" />
                             <span className="capitalize">{exchangeName}</span>
                           </span>
                         </td>
-                        <td className="px-2 py-2 text-right font-mono text-slate-300 whitespace-nowrap">{formatNumber(holding.quantity || 0, 4)}</td>
-                        <td className="px-2 py-2 text-right font-mono text-slate-400 whitespace-nowrap">{currSymbol}{formatNumber(holding.price || 0, 2)} <span className="text-[9px] text-slate-500">{displayCurrency}</span></td>
-                        <td className="px-2 py-2 text-right font-bold text-emerald-400 whitespace-nowrap">{currSymbol}{formatNumber(holding.usdValue || 0, 2)} <span className="text-[9px] text-slate-400 font-normal">{displayCurrency}</span></td>
+                        <td className="px-2 py-2 text-right font-mono text-slate-300 whitespace-nowrap">
+                          {formatNumber(holding.quantity || 0, 4)} <span className="text-slate-500 font-semibold">{holding.asset}</span>
+                        </td>
+                        <td className="px-2 py-2 text-right font-mono text-slate-400 whitespace-nowrap">
+                          {currSymbol}{formatNumber(convertCurrencySync(holding.price || 0, 'USD', displayCurrency) || holding.price || 0, 2, displayCurrency)} <span className="text-[9px] text-slate-500">{displayCurrency}</span>
+                        </td>
+                        <td className="px-2 py-2 text-right font-bold text-emerald-400 whitespace-nowrap">
+                          {currSymbol}{formatNumber(convertCurrencySync(holding.usdValue || 0, 'USD', displayCurrency) || holding.usdValue || 0, 2, displayCurrency)} <span className="text-[9px] text-slate-400 font-normal">{displayCurrency}</span>
+                        </td>
                       </tr>
                     )
                   })}
                 </tbody>
                 <tfoot className="bg-slate-800/50">
                   <tr className="font-bold">
-                    <td className="px-2 py-2" colSpan="4">Total</td>
-                    <td className="px-2 py-2 text-right text-emerald-400 whitespace-nowrap">{currSymbol}{formatNumber(totalFilteredValue, 2)} <span className="text-[9px] text-slate-400 font-normal">{displayCurrency}</span></td>
+                    <td className="px-2 py-2" colSpan="3">Total</td>
+                    <td className="px-2 py-2 text-right text-emerald-400 whitespace-nowrap">
+                      {currSymbol}{formatNumber(convertCurrencySync(totalFilteredValue, 'USD', displayCurrency) || totalFilteredValue, 2)} <span className="text-[9px] text-slate-400 font-normal">{displayCurrency}</span>
+                    </td>
                   </tr>
                 </tfoot>
               </table>
@@ -4108,13 +4274,13 @@ function SpotTab({ analytics, currSymbol, currency, metadata }) {
                           {formatNumber(trade.quantity, 4)}
                         </TableCell>
                         <TableCell className="text-xs text-right font-mono text-slate-300">
-                          {currSymbol}{formatNumber(trade.price, 2)}
+                          {currSymbol}{formatNumber(trade.price, 2, currency || 'USD')}
                         </TableCell>
                         <TableCell className="text-xs text-right font-mono text-slate-200">
-                          {currSymbol}{formatNumber(trade.value, 2)}
+                          {currSymbol}{formatNumber(trade.value, 2, currency || 'USD')}
                         </TableCell>
                         <TableCell className="text-xs text-right font-mono text-slate-400">
-                          {trade.commission > 0 ? `${currSymbol}${formatNumber(trade.commission, 4)}` : '-'}
+                          {trade.commission > 0 ? `${currSymbol}${formatNumber(trade.commission, 4, currency || 'USD')}` : '-'}
                         </TableCell>
                         <TableCell>
                           <span className="inline-flex items-center gap-1 text-[10px] text-slate-400">
@@ -4314,7 +4480,7 @@ function FuturesTab({ analytics, currSymbol, currency, metadata }) {
         }`}>
           <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-medium">Unrealized</div>
           <div className={`text-xl md:text-2xl font-bold mb-1 ${analytics.futuresUnrealizedPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {currSymbol}{formatNumber(analytics.futuresUnrealizedPnL || 0, 2)} <span className="text-xs text-slate-400 font-normal">{displayCurrency}</span>
+            {currSymbol}{formatNumber(analytics.futuresUnrealizedPnL || 0, 2, currency || 'USD')} <span className="text-xs text-slate-400 font-normal">{displayCurrency}</span>
           </div>
           <div className="text-xs text-slate-500">
             {analytics.futuresOpenPositions?.length || 0} open
@@ -4342,7 +4508,7 @@ function FuturesTab({ analytics, currSymbol, currency, metadata }) {
             <span className="text-xs text-slate-400 uppercase tracking-wider font-medium">Funding Fees</span>
           </div>
           <div className={`text-xl md:text-2xl font-bold mb-1 ${(analytics.futuresFundingFees || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {(analytics.futuresFundingFees || 0) >= 0 ? '+' : ''}{currSymbol}{formatNumber(Math.abs(analytics.futuresFundingFees || 0), 2)} <span className="text-xs text-slate-400 font-normal">{displayCurrency}</span>
+            {(analytics.futuresFundingFees || 0) >= 0 ? '+' : ''}{currSymbol}{formatNumber(Math.abs(analytics.futuresFundingFees || 0), 2, currency || 'USD')} <span className="text-xs text-slate-400 font-normal">{displayCurrency}</span>
           </div>
           <div className="text-xs text-slate-500">
             {(analytics.futuresFundingFees || 0) >= 0 ? 'Earned' : 'Paid'}

@@ -4,6 +4,131 @@
 import { convertCurrencySync } from './currencyConverter'
 
 /**
+ * Currency formatting configuration
+ * Defines formatting rules for each supported currency
+ */
+const CURRENCY_FORMATTING_RULES = {
+  // Indian Rupee - Indian numbering system
+  // First comma after 3 digits from right, then every 2 digits
+  // Example: 123456789 → 12,34,56,789
+  'INR': {
+    type: 'indian',
+    locale: 'en-IN'
+  },
+  // Western currencies - Standard formatting (commas every 3 digits)
+  // USD, EUR, GBP, AUD, CAD, SGD, CHF, JPY, CNY
+  'USD': { type: 'western', locale: 'en-US' },
+  'USDT': { type: 'western', locale: 'en-US' },
+  'USDC': { type: 'western', locale: 'en-US' },
+  'EUR': { type: 'western', locale: 'en-US' },
+  'GBP': { type: 'western', locale: 'en-US' },
+  'JPY': { type: 'western', locale: 'en-US' },
+  'AUD': { type: 'western', locale: 'en-US' },
+  'CAD': { type: 'western', locale: 'en-US' },
+  'CNY': { type: 'western', locale: 'en-US' },
+  'SGD': { type: 'western', locale: 'en-US' },
+  'CHF': { type: 'western', locale: 'en-US' }
+}
+
+/**
+ * Format a number according to Indian numbering system
+ * First comma after 3 digits from right, then every 2 digits
+ * @param {string} numStr - Number as string (without decimals)
+ * @returns {string} Formatted number with commas
+ */
+function formatIndianNumber(numStr) {
+  // Remove any existing commas
+  const cleanNum = numStr.replace(/,/g, '')
+  
+  // Split into integer and decimal parts
+  const parts = cleanNum.split('.')
+  const integerPart = parts[0]
+  const decimalPart = parts[1] || ''
+  
+  // Format integer part using Indian numbering system
+  let formatted = ''
+  const len = integerPart.length
+  
+  if (len <= 3) {
+    // No commas needed for numbers <= 999
+    formatted = integerPart
+  } else {
+    // First 3 digits from right (ones, tens, hundreds)
+    const lastThree = integerPart.slice(-3)
+    const remaining = integerPart.slice(0, -3)
+    
+    // Format remaining digits: groups of 2 from right
+    let formattedRemaining = ''
+    for (let i = remaining.length; i > 0; i -= 2) {
+      const start = Math.max(0, i - 2)
+      const group = remaining.slice(start, i)
+      formattedRemaining = group + (formattedRemaining ? ',' + formattedRemaining : '')
+    }
+    
+    formatted = formattedRemaining + ',' + lastThree
+  }
+  
+  // Add decimal part if present
+  return formatted + (decimalPart ? '.' + decimalPart : '')
+}
+
+/**
+ * Format a number according to Western numbering system
+ * Commas every 3 digits from right
+ * @param {string} numStr - Number as string (without decimals)
+ * @returns {string} Formatted number with commas
+ */
+function formatWesternNumber(numStr) {
+  // Remove any existing commas
+  const cleanNum = numStr.replace(/,/g, '')
+  
+  // Split into integer and decimal parts
+  const parts = cleanNum.split('.')
+  const integerPart = parts[0]
+  const decimalPart = parts[1] || ''
+  
+  // Format integer part: commas every 3 digits from right
+  const formatted = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  
+  // Add decimal part if present
+  return formatted + (decimalPart ? '.' + decimalPart : '')
+}
+
+/**
+ * Format a number with currency-specific comma rules
+ * This is the core formatting function used throughout the app
+ * @param {number} value - The numeric value to format
+ * @param {string} currency - Currency code (USD, INR, etc.)
+ * @param {number} decimals - Number of decimal places (default: 2)
+ * @returns {string} Formatted number string with commas
+ */
+export function formatCurrencyNumber(value, currency = 'USD', decimals = 2) {
+  if (value === null || value === undefined || isNaN(value)) {
+    return '0' + (decimals > 0 ? '.' + '0'.repeat(decimals) : '')
+  }
+
+  const num = parseFloat(value)
+  const absNum = Math.abs(num)
+  
+  // Format to fixed decimals
+  const numStr = absNum.toFixed(decimals)
+  
+  // Get formatting rule for currency (default to Western)
+  const rule = CURRENCY_FORMATTING_RULES[currency] || CURRENCY_FORMATTING_RULES['USD']
+  
+  // Format according to currency rules
+  let formatted
+  if (rule.type === 'indian') {
+    formatted = formatIndianNumber(numStr)
+  } else {
+    formatted = formatWesternNumber(numStr)
+  }
+  
+  // Add negative sign if needed
+  return (num < 0 ? '-' : '') + formatted
+}
+
+/**
  * Format currency value based on the primary currency
  * @param {number} value - The numeric value to format
  * @param {string} currency - Currency code (USD, INR, etc.)
@@ -49,8 +174,8 @@ export function formatCurrency(value, currency = 'USD', short = false) {
   const symbol = symbols[currency] || '$'
   const decimals = Math.abs(num) < 1 ? 4 : 2
 
-  // Format with commas
-  const formatted = Math.abs(num).toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  // Use the new modular formatting function
+  const formatted = formatCurrencyNumber(Math.abs(num), currency, decimals)
 
   return `${num < 0 ? '-' : ''}${symbol}${formatted}`
 }
@@ -67,10 +192,10 @@ export function getCurrencySymbol(currency = 'USD') {
     'EUR': '€',
     'GBP': '£',
     'JPY': '¥',
-    'AUD': 'A$',
-    'CAD': 'C$',
+    'AUD': '$',
+    'CAD': '$',
     'CNY': '¥',
-    'SGD': 'S$',
+    'SGD': '$',
     'CHF': 'CHF '
   }
   return symbols[currency] || '$'
