@@ -201,26 +201,3 @@ export async function GET(request) {
     }, { status: 500 })
   }
 }
- error: error.message || 'Unknown error',
-      timestamp: new Date().toISOString(),
-      duration: `${duration}ms`
-    }, { status: 500 })
-  }
-}
-duration}ms`
-    }, { status: 500 })
-  }
-}
- {
-    const duration = Date.now() - startTime
-    console.error('❌ Cron job failed:', error.message)
-    console.error('Error stack:', error.stack)
-
-    return NextResponse.json({
-      success: false,
-      error: error.message || 'Unknown error',
-      timestamp: new Date().toISOString(),
-      duration: `${duration}ms`
-    }, { status: 500 })
-  }
-}
