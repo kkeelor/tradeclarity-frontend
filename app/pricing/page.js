@@ -34,8 +34,8 @@ const PRICING_PLANS = {
   },
   trader: {
     name: 'Trader',
-    price: 1,
-    priceAnnual: 12, // 12 months
+    price: 29,
+    priceAnnual: 348, // 12 months (29 * 12)
     description: 'Best for active traders',
     icon: TrendingUp,
     color: 'emerald',
@@ -49,8 +49,8 @@ const PRICING_PLANS = {
   },
   pro: {
     name: 'Pro',
-    price: 2,
-    priceAnnual: 24, // 12 months
+    price: 79,
+    priceAnnual: 948, // 12 months (79 * 12)
     description: 'For professional traders',
     icon: Crown,
     color: 'cyan',
