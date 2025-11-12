@@ -24,68 +24,41 @@ const PRICING_PLANS = {
     icon: Sparkles,
     color: 'slate',
     features: [
+      '500 trades analyzed per month',
       '1 exchange connection',
-      'Up to 100 trades analyzed per month',
-      'Basic analytics (P&L, win rate, etc.)',
-      'Psychology score',
-      'Top 3 behavioral insights',
-      'Current snapshot only (no history)',
-      'Manual CSV upload'
+      'Full analytics on those trades',
+      'All insights, patterns, psychology scores',
+      'CSV upload capability'
     ],
-    limitations: [
-      'No historical tracking',
-      'No progress charts',
-      'No comparisons',
-      'No full pattern details',
-      'No PDF reports'
-    ]
+    limitations: []
   },
   trader: {
     name: 'Trader',
-    price: 19,
-    priceAnnual: 190, // ~10 months (save ~17%)
+    price: 29,
+    priceAnnual: 290, // ~10 months (save ~17%)
     description: 'Best for active traders',
     icon: TrendingUp,
     color: 'emerald',
     popular: true,
     features: [
-      'Everything in Free, plus:',
+      '1,000 trades analyzed per month',
       '3 exchange connections',
-      'Up to 500 trades analyzed per month',
-      'Unlimited historical tracking',
-      'Progress charts & trends',
-      'All behavioral pattern details',
-      'Period comparisons (this month vs. last)',
-      '10 PDF reports per month',
-      'Email alerts for critical patterns',
-      'Priority support'
+      'Everything else unlimited'
     ],
-    limitations: [
-      'No advanced comparisons',
-      'No cohort analytics',
-      'No API access'
-    ]
+    limitations: []
   },
   pro: {
     name: 'Pro',
-    price: 49,
-    priceAnnual: 490, // ~10 months (save ~17%)
+    price: 79,
+    priceAnnual: 790, // ~10 months (save ~17%)
     description: 'For professional traders',
     icon: Crown,
     color: 'cyan',
     features: [
-      'Everything in Trader, plus:',
-      'Unlimited exchange connections',
       'Unlimited trades analyzed',
-      'Advanced comparisons (best/worst periods)',
-      'Cohort analytics (compare to similar traders)',
-      'Unlimited PDF reports',
-      'Custom report branding',
-      'Weekly summary emails',
-      'Export raw analytics data (JSON/CSV)',
-      'API access (beta)',
-      'Early access to new features',
-      'Premium support (24hr response)'
+      'Unlimited exchange connections',
+      'Priority support',
+      'Early access to new features'
     ]
   }
 }
@@ -651,7 +624,7 @@ export default function PricingPage() {
                           className={`text-center px-2 py-3 ${isPopular ? 'bg-emerald-500/5' : key === 'pro' ? 'bg-cyan-500/5' : ''}`}
                         >
                           <div className="flex flex-col items-center gap-1.5">
-                            {key === 'pro' && (
+                            {(key === 'trader' || key === 'pro') && (
                               <Badge variant="warning" className="inline-flex items-center gap-1 animate-pulse px-1.5 py-0.5 text-[10px] mb-0.5">
                                 <Sparkles className="w-2 h-2" />
                                 50% off till Dec 31, 2025
@@ -695,16 +668,14 @@ export default function PricingPage() {
                 <tbody>
                   {/* Feature Rows */}
                   {[
+                    { feature: 'Trades Analyzed/Month', free: '500', trader: '1,000', pro: 'Unlimited' },
                     { feature: 'Exchange Connections', free: '1', trader: '3', pro: 'Unlimited' },
-                    { feature: 'Trades Analyzed/Month', free: '100', trader: '500', pro: 'Unlimited' },
-                    { feature: 'Historical Tracking', free: false, trader: true, pro: true },
-                    { feature: 'Progress Charts', free: false, trader: true, pro: true },
-                    { feature: 'PDF Reports/Month', free: '0', trader: '10', pro: 'Unlimited' },
-                    { feature: 'Period Comparisons', free: false, trader: true, pro: true },
-                    { feature: 'Cohort Analytics', free: false, trader: false, pro: true },
-                    { feature: 'API Access', free: false, trader: false, pro: true },
-                    { feature: 'Email Alerts', free: false, trader: true, pro: true },
-                    { feature: 'Priority Support', free: false, trader: true, pro: true },
+                    { feature: 'Full Analytics', free: true, trader: true, pro: true },
+                    { feature: 'All Insights & Patterns', free: true, trader: true, pro: true },
+                    { feature: 'Psychology Scores', free: true, trader: true, pro: true },
+                    { feature: 'CSV Upload', free: true, trader: true, pro: true },
+                    { feature: 'Priority Support', free: false, trader: false, pro: true },
+                    { feature: 'Early Access Features', free: false, trader: false, pro: true },
                   ].map((row, idx) => (
                     <tr key={idx} className="border-b border-white/5 last:border-0">
                       <td className="px-3 py-2 text-xs text-slate-300">{row.feature}</td>

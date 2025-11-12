@@ -10,6 +10,7 @@ import ThemeToggle from '@/app/components/ThemeToggle'
 import { getMostCriticalInsight, getAllInsights, generatePerformanceAnalogies } from '../utils/performanceAnalogies'
 import { generateValueFirstInsights } from '../utils/insights/valueFirstInsights'
 import { prioritizeInsights, enhanceInsightForDisplay } from '../utils/insights/insightsPrioritizationEngine'
+import { generateWhatsNextActions } from '../utils/insights/whatsNextActions'
 import { analyzeDrawdowns } from '../utils/drawdownAnalysis'
 import { analyzeTimeBasedPerformance } from '../utils/timeBasedAnalysis'
 import { analyzeSymbols } from '../utils/symbolAnalysis'
@@ -85,21 +86,6 @@ function PlanProgressBar({ currentTier, actualUsage, onClick }) {
       })
     }
 
-    // Reports progress - fill based on how close to current limit
-    if (currentLimits.maxReportsPerMonth !== Infinity && currentLimits.maxReportsPerMonth > 0) {
-      const currentLimit = currentLimits.maxReportsPerMonth
-      const used = actualUsage.reports
-      // Progress is based on how close to hitting the current limit (0-100%)
-      const progress = Math.min(100, (used / currentLimit) * 100)
-      progressMetrics.push({ 
-        type: 'reports', 
-        progress, 
-        used, 
-        currentLimit, 
-        isAtLimit: used >= currentLimit 
-      })
-    }
-
     // Use the maximum progress across all metrics - if ANY limit is hit, bar is full
     const maxProgress = progressMetrics.length > 0 
       ? Math.max(...progressMetrics.map(m => m.progress))
@@ -120,31 +106,55 @@ function PlanProgressBar({ currentTier, actualUsage, onClick }) {
   const progress = getProgress()
   if (!progress.nextLabel) return null
 
+  const router = useRouter()
+  const nextTierName = currentTier === 'free' ? 'Trader' : currentTier === 'trader' ? 'Pro' : null
+  const isAtLimit = progress.percentage >= 100
+
+  const handleUpgradeClick = (e) => {
+    e.stopPropagation()
+    router.push('/pricing')
+  }
+
   return (
-    <div 
-      onClick={onClick}
-      className="cursor-pointer group"
-    >
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-            {progress.label}
-          </span>
-          <span className="text-[10px] text-slate-600">━━━━━━━━━━━━━━━━━━━━</span>
-          <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider group-hover:text-emerald-300 transition-colors">
-            {progress.nextLabel}
+    <div className="space-y-2">
+      <div 
+        onClick={onClick}
+        className="cursor-pointer group"
+      >
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+              {progress.label}
+            </span>
+            <span className="text-[10px] text-slate-600">━━━━━━━━━━━━━━━━━━━━</span>
+            <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider group-hover:text-emerald-300 transition-colors">
+              {progress.nextLabel}
+            </span>
+          </div>
+          <span className="text-[10px] text-slate-500 group-hover:text-slate-400 transition-colors">
+            {Math.round(progress.percentage)}%
           </span>
         </div>
-        <span className="text-[10px] text-slate-500 group-hover:text-slate-400 transition-colors">
-          {Math.round(progress.percentage)}%
-        </span>
+        <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-emerald-500 to-cyan-500 transition-all duration-500"
+            style={{ width: `${Math.min(100, progress.percentage)}%` }}
+          />
+        </div>
       </div>
-      <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
-        <div
-          className="h-full bg-gradient-to-r from-emerald-500 to-cyan-500 transition-all duration-500"
-          style={{ width: `${Math.min(100, progress.percentage)}%` }}
-        />
-      </div>
+      
+      {/* Upgrade Button - Shows when at 100%, positioned below progress bar, 1/4 width, aligned right */}
+      {isAtLimit && nextTierName && (
+        <div className="flex justify-end">
+          <button
+            onClick={handleUpgradeClick}
+            className="w-1/4 py-2 px-3 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white text-xs font-semibold transition-all duration-300 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 flex items-center justify-center gap-1.5"
+          >
+            <Sparkles className="w-3 h-3" />
+            <span>Upgrade</span>
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -180,14 +190,6 @@ function UsageBreakdownModal({ open, onOpenChange, subscription, actualUsage }) 
       nextLimit: nextLimits?.maxTradesPerMonth,
       icon: BarChart3,
       color: 'text-emerald-400'
-    },
-    {
-      label: 'Reports Generated',
-      used: actualUsage.reports,
-      currentLimit: currentLimits.maxReportsPerMonth,
-      nextLimit: nextLimits?.maxReportsPerMonth,
-      icon: FileText,
-      color: 'text-purple-400'
     }
   ]
 
@@ -207,9 +209,13 @@ function UsageBreakdownModal({ open, onOpenChange, subscription, actualUsage }) 
             const Icon = item.icon
             const currentLimitDisplay = item.currentLimit === Infinity ? '∞' : item.currentLimit
             const nextLimitDisplay = item.nextLimit === Infinity ? '∞' : item.nextLimit
+            // Calculate percentage - handle edge cases
+            const used = item.used || 0  // Ensure used is always a number
             const percentage = item.currentLimit === Infinity 
               ? 0 
-              : Math.min(100, (item.used / item.currentLimit) * 100)
+              : item.currentLimit === 0 || item.currentLimit === null || item.currentLimit === undefined
+              ? 0  // If limit is 0/null/undefined, show 0% (unfilled)
+              : Math.min(100, Math.max(0, (used / item.currentLimit) * 100))  // Ensure percentage is between 0-100
             
             return (
               <div key={item.label} className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
@@ -218,7 +224,7 @@ function UsageBreakdownModal({ open, onOpenChange, subscription, actualUsage }) 
                   <span className="text-sm font-medium text-slate-300">{item.label}</span>
                 </div>
                 <div className="flex items-baseline justify-between mb-2">
-                  <span className="text-2xl font-bold text-white">{item.used}</span>
+                  <span className="text-2xl font-bold text-white">{used}</span>
                   <span className="text-sm text-slate-400">
                     / {currentLimitDisplay}
                     {nextLimitDisplay && nextLimitDisplay !== currentLimitDisplay && (
@@ -438,6 +444,25 @@ function generateCombinedInsights(analytics, psychology, spotTrades, futuresInco
   }
 }
 
+/**
+ * Get icon component by name
+ */
+function getIconComponent(iconName) {
+  const iconMap = {
+    Target: Target,
+    DollarSign: DollarSign,
+    Clock: Clock,
+    TrendingUp: TrendingUp,
+    Brain: Brain,
+    BarChart3: BarChart3,
+    PieChart: PieChart,
+    Zap: Zap,
+    TrendingDown: TrendingDown,
+    Lightbulb: Lightbulb
+  }
+  return iconMap[iconName] || Lightbulb
+}
+
 export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithCSV, onViewAnalytics }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -454,6 +479,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
   const [allInsights, setAllInsights] = useState([])
   const [currentInsightIndex, setCurrentInsightIndex] = useState(0)
   const [selectedSources, setSelectedSources] = useState([]) // Array of {type: 'exchange'|'csv', id: string}
+  const [whatsNextActions, setWhatsNextActions] = useState(null)
 
   // Exchange deletion state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -513,6 +539,35 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
       insightElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
     }
   }, [currentInsightIndex, allInsights.length])
+
+  // Generate "What's Next" actions when tradesStats is available
+  useEffect(() => {
+    if (!tradesStats || tradesStats.totalTrades === 0) {
+      setWhatsNextActions(null)
+      return
+    }
+
+    // Try to get cached analytics data if available
+    const cachedAnalytics = sessionStorage.getItem('lastAnalytics')
+    let analyticsData = null
+    let psychologyData = null
+    let allTradesData = null
+
+    if (cachedAnalytics) {
+      try {
+        const parsed = JSON.parse(cachedAnalytics)
+        analyticsData = parsed.analytics || null
+        psychologyData = parsed.psychology || null
+        allTradesData = parsed.allTrades || null
+      } catch (e) {
+        console.warn('Failed to parse cached analytics:', e)
+      }
+    }
+
+    // Generate actions (works with minimal data too)
+    const actions = generateWhatsNextActions(analyticsData, psychologyData, allTradesData, tradesStats)
+    setWhatsNextActions(actions)
+  }, [tradesStats])
 
   const fetchConnectedExchanges = async () => {
     const startTime = Date.now()
@@ -1126,8 +1181,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                             currentTier={subscription.tier}
                             actualUsage={{
                               connections: connectedExchanges.length,
-                              trades: tradesStats?.totalTrades || 0,
-                              reports: subscription.reports_generated_this_month || 0
+                              trades: tradesStats?.totalTrades || 0
                             }}
                             onClick={() => setShowUsageModal(true)}
                           />
@@ -1273,13 +1327,211 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                       <h3 className="text-xs font-semibold text-emerald-300 uppercase tracking-wider">What's Next</h3>
                     </div>
                     
-                    {tradesStats && tradesStats.totalTrades > 0 ? (
+                    {tradesStats && tradesStats.totalTrades > 0 && whatsNextActions ? (
+                      <div className="space-y-4">
+                        {/* High Impact Actions */}
+                        {whatsNextActions.highImpact && whatsNextActions.highImpact.length > 0 && (
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-semibold text-emerald-400/80 uppercase tracking-wider">High Impact</p>
+                            <div className="space-y-2">
+                              {whatsNextActions.highImpact.map((action) => {
+                                const IconComponent = getIconComponent(action.icon)
+                                const isAmber = action.color === 'amber'
+                                const isRed = action.color === 'red'
+                                const isEmerald = action.color === 'emerald'
+                                const isCyan = action.color === 'cyan'
+                                const isPurple = action.color === 'purple'
+                                const isCritical = action.urgency === 'critical'
+                                
+                                const borderClass = isAmber ? 'border-amber-500/20 hover:border-amber-500/40' :
+                                                   isRed ? 'border-red-500/20 hover:border-red-500/40' :
+                                                   isEmerald ? 'border-emerald-500/20 hover:border-emerald-500/40' :
+                                                   isCyan ? 'border-cyan-500/20 hover:border-cyan-500/40' :
+                                                   isPurple ? 'border-purple-500/20 hover:border-purple-500/40' :
+                                                   'border-slate-500/20 hover:border-slate-500/40'
+                                
+                                const bgClass = isAmber ? 'bg-amber-500/5 hover:bg-amber-500/10' :
+                                                isRed ? 'bg-red-500/5 hover:bg-red-500/10' :
+                                                isEmerald ? 'bg-emerald-500/5 hover:bg-emerald-500/10' :
+                                                isCyan ? 'bg-cyan-500/5 hover:bg-cyan-500/10' :
+                                                isPurple ? 'bg-purple-500/5 hover:bg-purple-500/10' :
+                                                'bg-slate-500/5 hover:bg-slate-500/10'
+                                
+                                const iconClass = isAmber ? 'text-amber-400' :
+                                                 isRed ? 'text-red-400' :
+                                                 isEmerald ? 'text-emerald-400' :
+                                                 isCyan ? 'text-cyan-400' :
+                                                 isPurple ? 'text-purple-400' :
+                                                 'text-slate-400'
+                                
+                                const savingsClass = isCritical && isAmber ? 'text-amber-300' :
+                                                    isAmber ? 'text-amber-400' :
+                                                    isRed ? 'text-red-300' :
+                                                    isEmerald ? 'text-emerald-300' :
+                                                    isCyan ? 'text-cyan-300' :
+                                                    isPurple ? 'text-purple-300' :
+                                                    'text-slate-300'
+                                
+                                return (
+                                  <button
+                                    key={action.id}
+                                    onClick={() => {
+                                      if (action.actionType === 'navigation' && action.action?.route) {
+                                        router.push(action.action.route)
+                                      } else {
+                                        onViewAnalytics()
+                                      }
+                                    }}
+                                    className={`w-full text-left p-3 rounded-xl border transition-all duration-200 hover:scale-[1.02] ${borderClass} ${bgClass}`}
+                                  >
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="flex items-start gap-2 flex-1 min-w-0">
+                                        <IconComponent className={`w-4 h-4 ${iconClass} flex-shrink-0 mt-0.5`} />
+                                        <div className="flex-1 min-w-0">
+                                          <div className="text-xs font-semibold text-slate-200 mb-0.5">{action.title}</div>
+                                          <div className="text-[10px] text-slate-400 leading-relaxed">{action.description}</div>
+                                          {action.potentialSavings > 0 && (
+                                            <div className={`text-[10px] font-medium mt-1 ${savingsClass}`}>
+                                              Potential savings: ${action.potentialSavings.toFixed(0)}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <ChevronRight className={`w-3.5 h-3.5 ${iconClass} opacity-50 flex-shrink-0 mt-1`} />
+                                    </div>
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Quick Actions */}
+                        {whatsNextActions.quickActions && whatsNextActions.quickActions.length > 0 && (
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-semibold text-slate-400/80 uppercase tracking-wider">Quick Wins</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {whatsNextActions.quickActions.map((action) => {
+                                const IconComponent = getIconComponent(action.icon)
+                                const isAmber = action.color === 'amber'
+                                const isRed = action.color === 'red'
+                                const isEmerald = action.color === 'emerald'
+                                const isCyan = action.color === 'cyan'
+                                const isPurple = action.color === 'purple'
+                                
+                                const borderClass = isAmber ? 'border-amber-500/20 hover:border-amber-500/40' :
+                                                   isRed ? 'border-red-500/20 hover:border-red-500/40' :
+                                                   isEmerald ? 'border-emerald-500/20 hover:border-emerald-500/40' :
+                                                   isCyan ? 'border-cyan-500/20 hover:border-cyan-500/40' :
+                                                   isPurple ? 'border-purple-500/20 hover:border-purple-500/40' :
+                                                   'border-slate-500/20 hover:border-slate-500/40'
+                                
+                                const bgClass = isAmber ? 'bg-amber-500/5 hover:bg-amber-500/10' :
+                                                isRed ? 'bg-red-500/5 hover:bg-red-500/10' :
+                                                isEmerald ? 'bg-emerald-500/5 hover:bg-emerald-500/10' :
+                                                isCyan ? 'bg-cyan-500/5 hover:bg-cyan-500/10' :
+                                                isPurple ? 'bg-purple-500/5 hover:bg-purple-500/10' :
+                                                'bg-slate-500/5 hover:bg-slate-500/10'
+                                
+                                const iconClass = isAmber ? 'text-amber-400' :
+                                                 isRed ? 'text-red-400' :
+                                                 isEmerald ? 'text-emerald-400' :
+                                                 isCyan ? 'text-cyan-400' :
+                                                 isPurple ? 'text-purple-400' :
+                                                 'text-slate-400'
+                                
+                                return (
+                                  <button
+                                    key={action.id}
+                                    onClick={() => {
+                                      if (action.actionType === 'navigation' && action.action?.route) {
+                                        router.push(action.action.route)
+                                      } else {
+                                        onViewAnalytics()
+                                      }
+                                    }}
+                                    className={`text-left p-2.5 rounded-lg border transition-all duration-200 hover:scale-[1.02] ${borderClass} ${bgClass}`}
+                                  >
+                                    <div className="flex items-start gap-2">
+                                      <IconComponent className={`w-3.5 h-3.5 ${iconClass} flex-shrink-0 mt-0.5`} />
+                                      <div className="flex-1 min-w-0">
+                                        <div className="text-[11px] font-semibold text-slate-200 mb-0.5">{action.title}</div>
+                                        <div className="text-[10px] text-slate-400 leading-relaxed line-clamp-2">{action.description}</div>
+                                      </div>
+                                    </div>
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Explore Deeper */}
+                        {whatsNextActions.explore && whatsNextActions.explore.length > 0 && (
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-semibold text-slate-400/80 uppercase tracking-wider">Explore Deeper</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {whatsNextActions.explore.map((action) => {
+                                const IconComponent = getIconComponent(action.icon)
+                                const isAmber = action.color === 'amber'
+                                const isRed = action.color === 'red'
+                                const isEmerald = action.color === 'emerald'
+                                const isCyan = action.color === 'cyan'
+                                const isPurple = action.color === 'purple'
+                                
+                                const borderClass = isAmber ? 'border-amber-500/20 hover:border-amber-500/40' :
+                                                   isRed ? 'border-red-500/20 hover:border-red-500/40' :
+                                                   isEmerald ? 'border-emerald-500/20 hover:border-emerald-500/40' :
+                                                   isCyan ? 'border-cyan-500/20 hover:border-cyan-500/40' :
+                                                   isPurple ? 'border-purple-500/20 hover:border-purple-500/40' :
+                                                   'border-slate-500/20 hover:border-slate-500/40'
+                                
+                                const bgClass = isAmber ? 'bg-amber-500/5 hover:bg-amber-500/10' :
+                                                isRed ? 'bg-red-500/5 hover:bg-red-500/10' :
+                                                isEmerald ? 'bg-emerald-500/5 hover:bg-emerald-500/10' :
+                                                isCyan ? 'bg-cyan-500/5 hover:bg-cyan-500/10' :
+                                                isPurple ? 'bg-purple-500/5 hover:bg-purple-500/10' :
+                                                'bg-slate-500/5 hover:bg-slate-500/10'
+                                
+                                const iconClass = isAmber ? 'text-amber-400' :
+                                                 isRed ? 'text-red-400' :
+                                                 isEmerald ? 'text-emerald-400' :
+                                                 isCyan ? 'text-cyan-400' :
+                                                 isPurple ? 'text-purple-400' :
+                                                 'text-slate-400'
+                                
+                                return (
+                                  <button
+                                    key={action.id}
+                                    onClick={() => {
+                                      if (action.actionType === 'navigation' && action.action?.route) {
+                                        router.push(action.action.route)
+                                      } else {
+                                        onViewAnalytics()
+                                      }
+                                    }}
+                                    className={`text-left p-2.5 rounded-lg border transition-all duration-200 hover:scale-[1.02] ${borderClass} ${bgClass}`}
+                                  >
+                                    <div className="flex items-start gap-2">
+                                      <IconComponent className={`w-3.5 h-3.5 ${iconClass} flex-shrink-0 mt-0.5`} />
+                                      <div className="flex-1 min-w-0">
+                                        <div className="text-[11px] font-semibold text-slate-200 mb-0.5">{action.title}</div>
+                                        <div className="text-[10px] text-slate-400 leading-relaxed">{action.description}</div>
+                                      </div>
+                                    </div>
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : tradesStats && tradesStats.totalTrades > 0 ? (
                       <div className="space-y-4">
                         <p className="text-xs text-slate-300 leading-relaxed">
                           Explore deeper insights into your trading patterns:
                         </p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {/* Overview CTA */}
                           <button
                             onClick={() => router.push('/analyze?tab=overview')}
                             className="text-left text-xs text-slate-300 hover:text-emerald-300 font-medium transition-colors duration-200 flex items-start gap-2 p-2 rounded-lg hover:bg-white/5"
@@ -1287,8 +1539,6 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                             <BarChart3 className="w-4 h-4 text-emerald-400/70 flex-shrink-0 mt-0.5" />
                             <span>View complete trading overview</span>
                           </button>
-                          
-                          {/* Spot Trading CTA */}
                           {tradesStats.spotTrades > 0 && (
                             <button
                               onClick={() => router.push('/analyze?tab=spot')}
@@ -1298,8 +1548,6 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                               <span>Analyze {tradesStats.spotTrades} spot trades</span>
                             </button>
                           )}
-                          
-                          {/* Futures Trading CTA */}
                           {(tradesStats.futuresIncome > 0 || tradesStats.futuresPositions > 0) && (
                             <button
                               onClick={() => router.push('/analyze?tab=futures')}
@@ -1309,70 +1557,13 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                               <span>Review futures performance</span>
                             </button>
                           )}
-                          
-                          {/* Time-based Analysis CTA */}
-                          {tradesStats.totalTrades > 10 && (
-                            <button
-                              onClick={() => router.push('/analyze?tab=overview')}
-                              className="text-left text-xs text-slate-300 hover:text-emerald-300 font-medium transition-colors duration-200 flex items-start gap-2 p-2 rounded-lg hover:bg-white/5"
-                            >
-                              <Clock className="w-4 h-4 text-emerald-400/70 flex-shrink-0 mt-0.5" />
-                              <span>Discover peak trading hours</span>
-                            </button>
-                          )}
-                          
-                          {/* Symbol Analysis CTA */}
-                          {tradesStats.spotTrades > 5 && (
-                            <button
-                              onClick={() => router.push('/analyze?tab=spot')}
-                              className="text-left text-xs text-slate-300 hover:text-emerald-300 font-medium transition-colors duration-200 flex items-start gap-2 p-2 rounded-lg hover:bg-white/5"
-                            >
-                              <TrendingUp className="w-4 h-4 text-emerald-400/70 flex-shrink-0 mt-0.5" />
-                              <span>Find most profitable coins</span>
-                            </button>
-                          )}
-                          
-                          {/* Behavioral CTA */}
-                          {tradesStats && tradesStats.totalTrades > 0 && (
+                          {tradesStats.totalTrades > 0 && (
                             <button
                               onClick={() => router.push('/analyze?tab=behavioral')}
                               className="text-left text-xs text-slate-300 hover:text-emerald-300 font-medium transition-colors duration-200 flex items-start gap-2 p-2 rounded-lg hover:bg-white/5"
                             >
                               <Brain className="w-4 h-4 text-emerald-400/70 flex-shrink-0 mt-0.5" />
                               <span>Discover trading psychology score</span>
-                            </button>
-                          )}
-                          
-                          {/* Fee Analysis CTA */}
-                          {tradesStats && tradesStats.totalTrades > 20 && (
-                            <button
-                              onClick={() => router.push('/analyze?tab=behavioral')}
-                              className="text-left text-xs text-slate-300 hover:text-emerald-300 font-medium transition-colors duration-200 flex items-start gap-2 p-2 rounded-lg hover:bg-white/5"
-                            >
-                              <DollarSign className="w-4 h-4 text-emerald-400/70 flex-shrink-0 mt-0.5" />
-                              <span>Optimize trading fees</span>
-                            </button>
-                          )}
-                          
-                          {/* Combined Analytics CTA */}
-                          {connectedExchanges.length > 1 && (
-                            <button
-                              onClick={() => onViewAnalytics()}
-                              className="text-left text-xs text-slate-300 hover:text-emerald-300 font-medium transition-colors duration-200 flex items-start gap-2 p-2 rounded-lg hover:bg-white/5"
-                            >
-                              <LinkIcon className="w-4 h-4 text-emerald-400/70 flex-shrink-0 mt-0.5" />
-                              <span>Compare all {connectedExchanges.length} exchanges</span>
-                            </button>
-                          )}
-                          
-                          {/* Add Exchange CTA */}
-                          {connectedExchanges.length === 1 && (
-                            <button
-                              onClick={() => setShowConnectModal(true)}
-                              className="text-left text-xs text-slate-300 hover:text-emerald-300 font-medium transition-colors duration-200 flex items-start gap-2 p-2 rounded-lg hover:bg-white/5"
-                            >
-                              <Plus className="w-4 h-4 text-emerald-400/70 flex-shrink-0 mt-0.5" />
-                              <span>Add another exchange</span>
                             </button>
                           )}
                         </div>
@@ -1883,8 +2074,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
         subscription={subscription}
         actualUsage={{
           connections: connectedExchanges.length,
-          trades: tradesStats?.totalTrades || 0,
-          reports: subscription?.reports_generated_this_month || 0
+          trades: tradesStats?.totalTrades || 0
         }}
       />
 
