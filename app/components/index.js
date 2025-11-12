@@ -18,3 +18,4 @@ export {
   FullPageSkeleton
 } from './LoadingSkeletons'
 export { default as Footer } from './Footer'
+export { default as UpgradePrompt, getUpgradeToastConfig, getUpgradePromptFromApiError } from './UpgradePrompt'

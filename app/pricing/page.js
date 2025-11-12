@@ -34,8 +34,8 @@ const PRICING_PLANS = {
   },
   trader: {
     name: 'Trader',
-    price: 29,
-    priceAnnual: 290, // ~10 months (save ~17%)
+    price: 1,
+    priceAnnual: 12, // 12 months
     description: 'Best for active traders',
     icon: TrendingUp,
     color: 'emerald',
@@ -49,8 +49,8 @@ const PRICING_PLANS = {
   },
   pro: {
     name: 'Pro',
-    price: 79,
-    priceAnnual: 790, // ~10 months (save ~17%)
+    price: 2,
+    priceAnnual: 24, // 12 months
     description: 'For professional traders',
     icon: Crown,
     color: 'cyan',
@@ -116,6 +116,7 @@ export default function PricingPage() {
   const [currentTier, setCurrentTier] = useState('free')
   const [currency, setCurrency] = useState('USD')
   const [razorpayLoaded, setRazorpayLoaded] = useState(false)
+  const razorpayInstanceRef = useRef(null)
   
   // Available currencies (same as analytics page)
   const availableCurrencies = ['USD', 'INR', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CNY', 'SGD', 'CHF']
@@ -249,23 +250,52 @@ export default function PricingPage() {
       return
     }
 
+    // Reset any existing Razorpay instance
+    if (razorpayInstanceRef.current) {
+      try {
+        razorpayInstanceRef.current.close()
+      } catch (e) {
+        // Ignore errors if already closed
+      }
+      razorpayInstanceRef.current = null
+    }
+    
     setLoading(true)
     
     // Safety timeout: reset loading state after 2 minutes if something goes wrong
-    let loadingTimeout = setTimeout(() => {
+    const loadingTimeout = setTimeout(() => {
       console.warn('Loading timeout reached, resetting state')
       setLoading(false)
+      razorpayInstanceRef.current = null
     }, 120000) // 2 minutes
     
     // Track if cleanup has been called to prevent multiple calls
     let isCleanedUp = false
+    let safetyCheckTimeout = null
+    const eventListenersToRemove = []
+    const timeoutsToClear = []
     
     // Helper function to cleanup
     const cleanup = () => {
-      if (isCleanedUp) return
+      if (isCleanedUp) {
+        console.log('Cleanup already called, skipping')
+        return
+      }
       isCleanedUp = true
       clearTimeout(loadingTimeout)
+      if (safetyCheckTimeout) {
+        clearTimeout(safetyCheckTimeout)
+        safetyCheckTimeout = null
+      }
+      // Clear all registered timeouts
+      timeoutsToClear.forEach(timeout => clearTimeout(timeout))
+      timeoutsToClear.length = 0
+      // Remove all event listeners
+      eventListenersToRemove.forEach(remove => remove())
+      eventListenersToRemove.length = 0
       setLoading(false)
+      razorpayInstanceRef.current = null
+      console.log('✅ Cleanup completed - loading state reset')
     }
     
     try {
@@ -424,9 +454,24 @@ export default function PricingPage() {
                 
                 // Refresh subscription status
                 await fetchUserSubscription()
-                // Redirect to dashboard
+                
+                // Check if user was upgrading to connect an exchange
+                const pendingConnection = sessionStorage.getItem('pendingExchangeConnection')
+                const returnUrl = sessionStorage.getItem('upgradeReturnUrl')
+                
+                // Redirect to dashboard (with autoConnect flag if pending connection exists)
+                const redirectUrl = pendingConnection 
+                  ? '/dashboard?autoConnect=true' 
+                  : returnUrl || '/dashboard'
+                
+                // Clean up sessionStorage
+                if (pendingConnection) {
+                  console.log('Pending exchange connection found, will auto-connect after redirect')
+                }
+                sessionStorage.removeItem('upgradeReturnUrl')
+                
                 setTimeout(() => {
-                  router.push('/dashboard')
+                  router.push(redirectUrl)
                 }, 2000)
               } else {
                 cleanup()
@@ -465,6 +510,7 @@ export default function PricingPage() {
         }
 
         const rzp = new window.Razorpay(options)
+        razorpayInstanceRef.current = rzp
         
         // Handle payment failure
         rzp.on('payment.failed', function (response) {
@@ -481,6 +527,84 @@ export default function PricingPage() {
 
         // Open Razorpay checkout
         rzp.open()
+        
+        // Polling approach: Check if Razorpay modal DOM element exists
+        // Razorpay creates modal elements - we'll check for common selectors
+        let pollInterval = null
+        let modalWasOpen = false
+        
+        const checkRazorpayModal = () => {
+          if (isCleanedUp) {
+            if (pollInterval) {
+              clearInterval(pollInterval)
+              pollInterval = null
+            }
+            return
+          }
+          
+          // Check multiple possible Razorpay modal selectors
+          const razorpaySelectors = [
+            '.razorpay-container',
+            '[id^="razorpay"]',
+            '.razorpay-checkout-frame',
+            'iframe[src*="razorpay"]',
+            '.razorpay-modal',
+            '[class*="razorpay"]'
+          ]
+          
+          let modalFound = false
+          for (const selector of razorpaySelectors) {
+            if (document.querySelector(selector)) {
+              modalFound = true
+              modalWasOpen = true
+              break
+            }
+          }
+          
+          // If modal was open before but now it's gone, cleanup
+          if (modalWasOpen && !modalFound) {
+            console.log('Razorpay modal closed (DOM check) - cleaning up')
+            if (pollInterval) {
+              clearInterval(pollInterval)
+              pollInterval = null
+            }
+            cleanup()
+            return
+          }
+          
+          // Mark that modal was open if we found it
+          if (modalFound) {
+            modalWasOpen = true
+          }
+        }
+        
+        // Start polling after a short delay to let modal render
+        setTimeout(() => {
+          if (!isCleanedUp) {
+            pollInterval = setInterval(checkRazorpayModal, 200) // Check every 200ms
+          }
+        }, 500)
+        
+        // Store cleanup for polling interval
+        eventListenersToRemove.push(() => {
+          if (pollInterval) {
+            clearInterval(pollInterval)
+            pollInterval = null
+          }
+        })
+        
+        // Short timeout fallback: Reset after 8 seconds if still loading
+        // This handles cases where modal opens but callbacks never fire
+        // 8 seconds gives user time to interact but resets if stuck
+        const shortTimeout = setTimeout(() => {
+          if (!isCleanedUp) {
+            console.log('Short timeout reached (8s) - forcing cleanup')
+            cleanup()
+          }
+        }, 8000) // 8 seconds
+        
+        // Register timeout for cleanup
+        timeoutsToClear.push(shortTimeout)
       } else {
         cleanup()
         toast.error('Razorpay checkout is loading. Please wait a moment and try again.')

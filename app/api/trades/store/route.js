@@ -2,6 +2,7 @@
 // Background endpoint to store fetched trades to database
 import { createAdminClient } from '@/lib/supabase-admin'
 import { NextResponse } from 'next/server'
+import { TIER_LIMITS, canAnalyzeTrades } from '@/lib/featureGates'
 
 export async function POST(request) {
   try {
@@ -94,10 +95,45 @@ export async function POST(request) {
       })
     }
 
+    // Check trade analysis limit before storing
     // Use admin client for database operations (bypasses RLS for trusted server-side operations)
     const adminClient = createAdminClient()
+    
+    // Get user's subscription
+    const { data: subscription } = await adminClient
+      .from('subscriptions')
+      .select('tier, trades_analyzed_this_month, last_trade_reset_date')
+      .eq('user_id', userId)
+      .single()
 
-    // Get existing trade IDs to prevent duplicates
+    const userTier = subscription?.tier || 'free'
+    const limit = TIER_LIMITS[userTier]?.maxTradesPerMonth || 500
+
+    // Check if we need to reset monthly counter (new month)
+    const now = new Date()
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const lastResetDate = subscription?.last_trade_reset_date 
+      ? new Date(subscription.last_trade_reset_date)
+      : null
+
+    let currentMonthTrades = subscription?.trades_analyzed_this_month || 0
+
+    // Reset counter if we're in a new month
+    if (!lastResetDate || lastResetDate < startOfMonth) {
+      console.log(`📅 Resetting monthly trade counter for user ${userId} (new month)`)
+      currentMonthTrades = 0
+      
+      // Update subscription with reset date
+      await adminClient
+        .from('subscriptions')
+        .update({
+          trades_analyzed_this_month: 0,
+          last_trade_reset_date: startOfMonth.toISOString()
+        })
+        .eq('user_id', userId)
+    }
+
+    // Count only NEW trades (not duplicates) for limit check
     const tradeIds = tradesToInsert.map(t => t.trade_id)
     const { data: existingTrades } = await adminClient
       .from('trades')
@@ -107,8 +143,26 @@ export async function POST(request) {
       .in('trade_id', tradeIds)
 
     const existingTradeIds = new Set(existingTrades?.map(t => t.trade_id) || [])
+    const newTradesCount = tradesToInsert.filter(trade => !existingTradeIds.has(trade.trade_id)).length
 
-    // Filter out duplicates
+    // Check if adding new trades would exceed limit
+    if (limit !== Infinity && (currentMonthTrades + newTradesCount) > limit) {
+      const nextTier = userTier === 'free' ? 'Trader' : userTier === 'trader' ? 'Pro' : null
+      const remaining = Math.max(0, limit - currentMonthTrades)
+      
+      return NextResponse.json({
+        error: 'TRADE_LIMIT_EXCEEDED',
+        message: `Adding ${newTradesCount} trades would exceed your monthly limit (${limit}). You have ${remaining} trades remaining this month. ${nextTier ? `Upgrade to ${nextTier} for ${TIER_LIMITS[nextTier.toLowerCase()]?.maxTradesPerMonth === Infinity ? 'unlimited' : TIER_LIMITS[nextTier.toLowerCase()]?.maxTradesPerMonth} trades.` : ''}`,
+        limit,
+        current: currentMonthTrades,
+        attempted: newTradesCount,
+        remaining,
+        tier: userTier,
+        upgradeTier: nextTier?.toLowerCase() || null
+      }, { status: 403 })
+    }
+
+    // Filter out duplicates (existingTradeIds already defined above for limit check)
     const newTrades = tradesToInsert.filter(trade => !existingTradeIds.has(trade.trade_id))
 
     console.log(`📊 Found ${existingTradeIds.size} existing trades, inserting ${newTrades.length} new trades`)
@@ -141,6 +195,20 @@ export async function POST(request) {
     }
 
     console.log(`✅ Successfully stored ${insertedCount}/${newTrades.length} new trades`)
+
+    // Update monthly trade counter in subscription
+    if (insertedCount > 0) {
+      const newCount = currentMonthTrades + insertedCount
+      await adminClient
+        .from('subscriptions')
+        .update({
+          trades_analyzed_this_month: newCount,
+          last_trade_reset_date: startOfMonth.toISOString()
+        })
+        .eq('user_id', userId)
+      
+      console.log(`📊 Updated monthly trade count: ${currentMonthTrades} → ${newCount} (limit: ${limit === Infinity ? 'unlimited' : limit})`)
+    }
 
     // Store portfolio snapshot if metadata is provided
     let snapshotStored = false

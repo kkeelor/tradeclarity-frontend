@@ -2,6 +2,7 @@
 import { createClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 import { encrypt } from '@/lib/encryption'
+import { TIER_LIMITS, canAddConnection } from '@/lib/featureGates'
 
 export async function POST(request) {
   console.log('📡 [API] /api/exchange/connect called')
@@ -47,6 +48,52 @@ export async function POST(request) {
       .eq('user_id', user.id)
       .eq('exchange', exchange.toLowerCase())
       .single()
+
+    console.log('🔍 [API] Existing connection check:', { existing: !!existing, exchange: exchange.toLowerCase() })
+
+    // Only check connection limit for NEW connections (not updates)
+    if (!existing) {
+      console.log('🆕 [API] New connection - checking limits...')
+      // Get user's subscription
+      const { data: subscription } = await supabase
+        .from('subscriptions')
+        .select('tier, exchanges_connected')
+        .eq('user_id', user.id)
+        .single()
+
+      console.log('📊 [API] Subscription data:', { tier: subscription?.tier, exchanges_connected: subscription?.exchanges_connected })
+
+      // Count current active connections
+      const { count: currentConnections } = await supabase
+        .from('exchange_connections')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+
+      console.log('🔢 [API] Current active connections:', currentConnections)
+
+      // Check if user can add another connection
+      const userTier = subscription?.tier || 'free'
+      const limit = TIER_LIMITS[userTier]?.maxConnections || 1
+      
+      console.log('⚖️ [API] Limit check:', { userTier, limit, currentConnections, canAdd: limit === Infinity || (currentConnections || 0) < limit })
+      
+      if (limit !== Infinity && (currentConnections || 0) >= limit) {
+        const nextTier = userTier === 'free' ? 'Trader' : userTier === 'trader' ? 'Pro' : null
+        console.log('🚫 [API] Connection limit reached! Returning 403')
+        return NextResponse.json({
+          error: 'CONNECTION_LIMIT_REACHED',
+          message: `You've reached your connection limit (${limit}). ${nextTier ? `Upgrade to ${nextTier} to add more exchanges.` : ''}`,
+          limit,
+          current: currentConnections || 0,
+          tier: userTier,
+          upgradeTier: nextTier?.toLowerCase() || null
+        }, { status: 403 })
+      }
+      console.log('✅ [API] Limit check passed, proceeding with connection')
+    } else {
+      console.log('🔄 [API] Existing connection - updating (limit check skipped)')
+    }
 
     let connectionData
 

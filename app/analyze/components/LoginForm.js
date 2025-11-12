@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import UpgradeRequiredModal from '@/app/components/UpgradeRequiredModal'
 
 // Step Progress Indicator Component
 function StepProgress({ currentStep, totalSteps }) {
@@ -196,6 +197,8 @@ export default function LoginForm({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [localProgress, setLocalProgress] = useState('')
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const [upgradeModalData, setUpgradeModalData] = useState(null)
 
   const handleRequestExchange = () => {
     const subject = encodeURIComponent('Exchange Integration Request')
@@ -210,15 +213,11 @@ export default function LoginForm({
     setSubmitError('')
     setLocalProgress('Connecting to exchange...')
 
-    // Show loader immediately by calling onConnect BEFORE API call
-    // This ensures the loading screen appears immediately
-    console.log('🟢 [LoginForm] Showing loader immediately...')
-    onConnect(apiKey, apiSecret, null) // Pass null to indicate data will come later
-
     try {
       // Call the new API endpoint to save credentials and fetch data
+      // Check limit FIRST before showing loader/navigating
       console.log('🟡 [LoginForm] Calling /api/exchange/connect...', { exchange, apiKeyLength: apiKey.length })
-      setLocalProgress('Saving credentials...')
+      setLocalProgress('Checking connection limit...')
       
       const response = await fetch('/api/exchange/connect', {
         method: 'POST',
@@ -236,8 +235,52 @@ export default function LoginForm({
 
       if (!response.ok) {
         console.error('❌ [LoginForm] API error:', data)
-        throw new Error(data.error || 'Failed to connect exchange')
+        console.log('❌ [LoginForm] Response status:', response.status, 'Error code:', data.error)
+        
+        // Handle connection limit error - show upgrade modal instead of error
+        if (response.status === 403 && data.error === 'CONNECTION_LIMIT_REACHED') {
+          console.log('🔒 [LoginForm] Connection limit reached, showing upgrade modal')
+          setIsSubmitting(false)
+          setLocalProgress('')
+          
+          // Store API keys in sessionStorage for auto-connect after upgrade
+          sessionStorage.setItem('pendingExchangeConnection', JSON.stringify({
+            exchange: exchange.toLowerCase(),
+            apiKey,
+            apiSecret,
+            timestamp: Date.now()
+          }))
+          
+          // Show upgrade modal
+          const exchangeDisplayName = exchangeDataMap[exchange]?.displayName || exchange
+          console.log('📝 [LoginForm] Setting upgrade modal data:', {
+            type: 'connection',
+            current: data.current,
+            limit: data.limit,
+            tier: data.tier || 'free',
+            upgradeTier: data.upgradeTier,
+            exchangeName: exchangeDisplayName
+          })
+          setUpgradeModalData({
+            type: 'connection',
+            current: data.current,
+            limit: data.limit,
+            tier: data.tier || 'free',
+            upgradeTier: data.upgradeTier,
+            exchangeName: exchangeDisplayName
+          })
+          setShowUpgradeModal(true)
+          console.log('✅ [LoginForm] Upgrade modal should be visible now')
+          return // Don't throw error, just return - don't call onConnect
+        }
+        
+        throw new Error(data.error || data.message || 'Failed to connect exchange')
       }
+
+      // Only call onConnect AFTER successful API response
+      console.log('🟢 [LoginForm] Connection successful, showing loader...')
+      setLocalProgress('Preparing analytics...')
+      onConnect(apiKey, apiSecret, null) // Pass null to indicate data will come later
 
       console.log('✅ Exchange connected successfully:', data)
 
@@ -249,7 +292,7 @@ export default function LoginForm({
       setLocalProgress('Preparing analytics...')
 
       // Update the parent with the fetched data
-      // The parent already has status='connecting' and loader showing
+      // onConnect was already called above, now update with actual data
       if (data.data) {
         console.log('🟢 [LoginForm] Data fetched, updating parent...')
         // Call onConnect again with the actual data - this will trigger analysis
@@ -340,8 +383,28 @@ export default function LoginForm({
   const selectedExchangeData = exchange ? exchangeDataMap[exchange] : null
 
   // Step 1: Choose Exchange
+  // Render upgrade modal wrapper
+  const renderWithModal = (content) => (
+    <>
+      {content}
+      {/* Upgrade Required Modal */}
+      {upgradeModalData && (
+        <UpgradeRequiredModal
+          open={showUpgradeModal}
+          onOpenChange={setShowUpgradeModal}
+          {...upgradeModalData}
+          onCancel={() => {
+            // Clear stored keys on cancel
+            sessionStorage.removeItem('pendingExchangeConnection')
+            setShowUpgradeModal(false)
+          }}
+        />
+      )}
+    </>
+  )
+
   if (step === 1) {
-    return (
+    return renderWithModal(
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center p-4 sm:p-6">
         <div className="max-w-6xl w-full space-y-4 sm:space-y-6">
           {/* Header */}
@@ -530,7 +593,7 @@ export default function LoginForm({
   
   // Step 2: Enter API Keys
   if (step === 2) {
-    return (
+    return renderWithModal(
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center p-6">
         <div className="max-w-4xl w-full space-y-6">
           <HelpModal 
@@ -824,5 +887,5 @@ export default function LoginForm({
     )
   }
   
-  return null
+  return renderWithModal(null)
 }

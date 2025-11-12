@@ -6,6 +6,7 @@ import { TrendingUp, Upload, FileText, X, AlertCircle, CheckCircle, Trash2, Home
 import { useAuth } from '@/lib/AuthContext'
 import { ExchangeIcon, Separator } from '@/components/ui'
 import { toast } from 'sonner'
+import { getUpgradeToastConfig, getUpgradePromptFromApiError } from '@/app/components/UpgradePrompt'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -366,11 +367,29 @@ export default function CSVUploadFlow({ onBack }) {
 
       if (!storeResponse.ok || !storeData.success) {
         const errorMsg = storeData.error || 'Failed to store trades'
-        updateConfig(configId, {
-          status: 'error',
-          message: errorMsg
-        })
-        toast.error('Storage Error', { description: errorMsg })
+        
+        // Handle trade limit error with upgrade prompt
+        if (storeResponse.status === 403 && storeData.error === 'TRADE_LIMIT_EXCEEDED') {
+          const promptProps = getUpgradePromptFromApiError(storeData)
+          const toastConfig = promptProps ? getUpgradeToastConfig(promptProps) : null
+          
+          updateConfig(configId, {
+            status: 'error',
+            message: storeData.message || errorMsg
+          })
+          
+          if (toastConfig) {
+            toast.error('Trade Limit Exceeded', toastConfig)
+          } else {
+            toast.error('Trade Limit Exceeded', { description: storeData.message || errorMsg })
+          }
+        } else {
+          updateConfig(configId, {
+            status: 'error',
+            message: errorMsg
+          })
+          toast.error('Storage Error', { description: errorMsg })
+        }
         return
       }
 

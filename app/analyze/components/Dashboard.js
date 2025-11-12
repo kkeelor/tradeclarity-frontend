@@ -2,7 +2,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, LogOut, BarChart3, Sparkles, Database, CheckSquare, Square, Loader2, ChevronRight, Zap, Brain, Clock, DollarSign, PieChart, TrendingDown, Target, Lightbulb, LayoutDashboard, Tag, CreditCard, Crown, Infinity } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { toast } from 'sonner'
@@ -33,7 +33,8 @@ import ConnectExchangeModal from './ConnectExchangeModal'
 import Sidebar from './Sidebar'
 import Footer from '../../components/Footer'
 import UsageLimits from '../../components/UsageLimits'
-import { TIER_LIMITS } from '@/lib/featureGates'
+import { TIER_LIMITS, canAddConnection, getTierDisplayName } from '@/lib/featureGates'
+import { getUpgradeToastConfig } from '@/app/components/UpgradePrompt'
 
 /**
  * Plan Progress Bar Component
@@ -466,6 +467,7 @@ function getIconComponent(iconName) {
 export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithCSV, onViewAnalytics }) {
   const router = useRouter()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const { user } = useAuth()
   const [uploadedFiles, setUploadedFiles] = useState([])
   const [connectedExchanges, setConnectedExchanges] = useState([])
@@ -518,6 +520,151 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
       setShowConnectModal(true)
     }
   }, [])
+
+  // Auto-connect exchange after upgrade
+  useEffect(() => {
+    const autoConnect = searchParams?.get('autoConnect')
+    if (autoConnect === 'true') {
+      const pendingConnection = sessionStorage.getItem('pendingExchangeConnection')
+      
+      if (pendingConnection) {
+        try {
+          const connectionData = JSON.parse(pendingConnection)
+          const { exchange, apiKey, apiSecret, timestamp } = connectionData
+          
+          // Check if data is not too old (24 hours max)
+          const age = Date.now() - timestamp
+          const MAX_AGE = 24 * 60 * 60 * 1000 // 24 hours
+          
+          if (age > MAX_AGE) {
+            console.log('Pending connection data expired, clearing')
+            sessionStorage.removeItem('pendingExchangeConnection')
+            // Remove autoConnect param
+            router.replace('/dashboard', { scroll: false })
+            return
+          }
+          
+          console.log('🔄 Auto-connecting exchange after upgrade:', exchange)
+          
+          // Auto-connect the exchange
+          const connectExchange = async () => {
+            try {
+              console.log('🔄 [Dashboard] Attempting auto-connect for:', exchange)
+              
+              const response = await fetch('/api/exchange/connect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  exchange,
+                  apiKey,
+                  apiSecret
+                })
+              })
+              
+              const data = await response.json()
+              console.log('🔄 [Dashboard] Auto-connect response:', { status: response.status, ok: response.ok, success: data.success })
+              
+              // Refresh exchanges list to check actual connection state
+              await fetchConnectedExchanges()
+              
+              // Check if exchange is actually connected (even if API returned error)
+              const exchangeLower = exchange.toLowerCase()
+              const isActuallyConnected = connectedExchanges.some(ex => ex.name.toLowerCase() === exchangeLower)
+              
+              if (response.ok && data.success) {
+                // API says success - connection created
+                console.log('✅ [Dashboard] Auto-connect succeeded (API success)')
+                sessionStorage.removeItem('pendingExchangeConnection')
+                router.replace('/dashboard', { scroll: false })
+                
+                toast.success(
+                  `${exchange.charAt(0).toUpperCase() + exchange.slice(1)} connected successfully!`,
+                  {
+                    description: 'Your exchange has been connected and data is being fetched.',
+                    duration: 5000
+                  }
+                )
+              } else if (isActuallyConnected) {
+                // Exchange is connected despite API error - treat as success
+                console.log('✅ [Dashboard] Exchange is connected despite API error - showing success')
+                sessionStorage.removeItem('pendingExchangeConnection')
+                router.replace('/dashboard', { scroll: false })
+                
+                // Check if it's a duplicate connection error
+                if (data.error === 'DUPLICATE_CONNECTION' || data.message?.includes('already')) {
+                  toast.success(
+                    `${exchange.charAt(0).toUpperCase() + exchange.slice(1)} is already connected!`,
+                    {
+                      duration: 5000
+                    }
+                  )
+                } else {
+                  toast.success(
+                    `${exchange.charAt(0).toUpperCase() + exchange.slice(1)} connected successfully!`,
+                    {
+                      description: 'Your exchange has been connected.',
+                      duration: 5000
+                    }
+                  )
+                }
+              } else {
+                // Real error - exchange is not connected
+                console.error('❌ [Dashboard] Auto-connect failed:', data)
+                sessionStorage.removeItem('pendingExchangeConnection')
+                router.replace('/dashboard', { scroll: false })
+                
+                toast.error('Auto-connect failed', {
+                  description: data.message || 'Please try connecting manually from the dashboard.',
+                  duration: 6000
+                })
+              }
+            } catch (error) {
+              console.error('❌ [Dashboard] Error during auto-connect:', error)
+              
+              // Check if connection might have succeeded despite exception
+              await fetchConnectedExchanges()
+              const exchangeLower = exchange.toLowerCase()
+              const isActuallyConnected = connectedExchanges.some(ex => ex.name.toLowerCase() === exchangeLower)
+              
+              if (isActuallyConnected) {
+                // Exchange is connected, show success
+                console.log('✅ [Dashboard] Exchange connected despite exception')
+                sessionStorage.removeItem('pendingExchangeConnection')
+                router.replace('/dashboard', { scroll: false })
+                
+                toast.success(
+                  `${exchange.charAt(0).toUpperCase() + exchange.slice(1)} connected successfully!`,
+                  {
+                    description: 'Your exchange has been connected.',
+                    duration: 5000
+                  }
+                )
+              } else {
+                // Real error
+                sessionStorage.removeItem('pendingExchangeConnection')
+                router.replace('/dashboard', { scroll: false })
+                
+                toast.error('Auto-connect error', {
+                  description: 'Please try connecting manually from the dashboard.',
+                  duration: 6000
+                })
+              }
+            }
+          }
+          
+          // Small delay to ensure subscription is updated
+          setTimeout(connectExchange, 1000)
+        } catch (error) {
+          console.error('Error parsing pending connection:', error)
+          sessionStorage.removeItem('pendingExchangeConnection')
+          router.replace('/dashboard', { scroll: false })
+        }
+      } else {
+        // No pending connection, just remove param
+        router.replace('/dashboard', { scroll: false })
+      }
+    }
+  }, [searchParams, router])
 
   // Auto-rotate through insights every 6 seconds - highlights active insight
   useEffect(() => {
@@ -843,6 +990,40 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
       hour: '2-digit',
       minute: '2-digit'
     })
+  }
+
+  const handleOpenConnectModal = async () => {
+    // Check connection limit before opening modal
+    if (!subscription) {
+      // If subscription not loaded yet, just open modal (will be checked on backend)
+      setShowConnectModal(true)
+      return
+    }
+
+    // Check if user can add another connection
+    const canAdd = canAddConnection({
+      ...subscription,
+      exchanges_connected: connectedExchanges.length
+    })
+
+    if (!canAdd) {
+      const limit = TIER_LIMITS[subscription.tier || 'free'].maxConnections
+      const toastConfig = getUpgradeToastConfig({
+        type: 'connection',
+        current: connectedExchanges.length,
+        limit,
+        tier: subscription.tier || 'free'
+      })
+      
+      if (toastConfig) {
+        toast.error('Connection Limit Reached', toastConfig)
+      } else {
+        toast.error(`Connection limit reached (${connectedExchanges.length}/${limit})`)
+      }
+      return
+    }
+
+    setShowConnectModal(true)
   }
 
   const handleConnectionMethod = (method) => {
@@ -1224,7 +1405,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                         </p>
                         <div className="space-y-2">
                           <button
-                            onClick={() => setShowConnectModal(true)}
+                            onClick={handleOpenConnectModal}
                             className="w-full text-left text-xs text-slate-300 hover:text-emerald-300 font-medium transition-colors duration-200 flex items-center gap-2 p-2.5 rounded-lg hover:bg-white/5 border border-white/5 hover:border-emerald-500/30"
                           >
                             <LinkIcon className="w-4 h-4 text-emerald-400/70 flex-shrink-0" />
