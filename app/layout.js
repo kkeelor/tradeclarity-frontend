@@ -2,6 +2,7 @@
 import './globals.css'
 import { AuthProvider } from '@/lib/AuthContext'
 import { Toaster } from 'sonner'
+import { Analytics } from '@vercel/analytics/react'
 
 export const metadata = {
   title: 'TradeClarity - Your Trading Analytics',
@@ -58,6 +59,7 @@ export default function RootLayout({ children }) {
             closeButton
             duration={5000}
           />
+          <Analytics />
         </AuthProvider>
       </body>
     </html>
