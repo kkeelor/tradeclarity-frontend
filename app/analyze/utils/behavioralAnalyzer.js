@@ -231,18 +231,58 @@ function analyzeFeeEfficiency(trades) {
  * Analyze position sizing discipline
  */
 function analyzePositionSizing(trades) {
-  const tradeSizes = trades.map(t => parseFloat(t.quoteQty || 0))
+  // Calculate quoteQty if missing: qty * price
+  const tradeSizes = trades.map(t => {
+    if (t.quoteQty && parseFloat(t.quoteQty) > 0) {
+      return parseFloat(t.quoteQty)
+    }
+    // Fallback: calculate from qty and price
+    const qty = parseFloat(t.qty || 0)
+    const price = parseFloat(t.price || 0)
+    return qty * price
+  }).filter(size => size > 0 && !isNaN(size)) // Filter out invalid sizes
 
   if (tradeSizes.length === 0) {
-    return { consistent: true, score: 100 }
+    return { 
+      consistent: true, 
+      score: 100,
+      consistencyScore: 100,
+      avgSize: 0,
+      stdDev: 0,
+      coefficientOfVariation: 0,
+      label: 'No Data',
+      largestTrade: 0,
+      smallestTrade: 0,
+      isConsistent: true,
+      hasStrategy: true
+    }
   }
 
   const avgSize = tradeSizes.reduce((a, b) => a + b, 0) / tradeSizes.length
+  if (avgSize <= 0 || isNaN(avgSize)) {
+    return {
+      consistent: true,
+      score: 100,
+      consistencyScore: 100,
+      avgSize: 0,
+      stdDev: 0,
+      coefficientOfVariation: 0,
+      label: 'No Data',
+      largestTrade: 0,
+      smallestTrade: 0,
+      isConsistent: true,
+      hasStrategy: true
+    }
+  }
+
   const variance = tradeSizes.reduce((sq, n) => sq + Math.pow(n - avgSize, 2), 0) / tradeSizes.length
-  const stdDev = Math.sqrt(variance)
+  let stdDev = Math.sqrt(variance)
+  if (isNaN(stdDev)) {
+    stdDev = 0
+  }
 
   const coefficientOfVariation = avgSize > 0 ? (stdDev / avgSize) : 0
-  const consistencyScore = Math.max(0, 100 - (coefficientOfVariation * 100))
+  const consistencyScore = Math.max(0, Math.min(100, 100 - (coefficientOfVariation * 100)))
   const score = consistencyScore / 100 // Normalize to 0-1
 
   const largestTrade = Math.max(...tradeSizes)
@@ -368,12 +408,19 @@ function calculateConsistency(trades) {
 function calculateBehavioralHealthScore(analysis) {
   let score = 100
 
+  // Helper function to safely get numeric value
+  const safeNumber = (value, defaultValue = 0) => {
+    const num = typeof value === 'number' ? value : parseFloat(value)
+    return isNaN(num) ? defaultValue : num
+  }
+
   // Deduct for panic selling (up to -30 points)
-  score -= analysis.panicPatterns.score * 0.3
+  const panicScore = safeNumber(analysis.panicPatterns?.score, 0)
+  score -= panicScore * 0.3
 
   // Deduct for poor fee efficiency (up to -20 points)
   // Efficiency is a percentage (0-100), penalize if < 40%
-  const feeEfficiency = analysis.feeAnalysis.efficiency || 0
+  const feeEfficiency = safeNumber(analysis.feeAnalysis?.efficiency, 0)
   if (feeEfficiency < 40) {
     score -= 20
   } else if (feeEfficiency < 60) {
@@ -381,27 +428,33 @@ function calculateBehavioralHealthScore(analysis) {
   }
 
   // Deduct for taker addiction (up to -15 points)
-  if (analysis.tradingStyle.takerPercentage > 80) {
+  const takerPercentage = safeNumber(analysis.tradingStyle?.takerPercentage, 0)
+  if (takerPercentage > 80) {
     score -= 15
-  } else if (analysis.tradingStyle.takerPercentage > 50) {
+  } else if (takerPercentage > 50) {
     score -= 7
   }
 
   // Deduct for inconsistent position sizing (up to -15 points)
-  score -= (100 - analysis.positionSizing.consistencyScore) * 0.15
+  const positionConsistencyScore = safeNumber(analysis.positionSizing?.consistencyScore, 100)
+  score -= (100 - positionConsistencyScore) * 0.15
 
   // Deduct for emotional trading (up to -20 points)
-  score -= analysis.emotionalState.emotionalScore * 0.2
+  const emotionalScore = safeNumber(analysis.emotionalState?.emotionalScore, 0)
+  score -= emotionalScore * 0.2
 
   // Deduct for overtrading (up to -10 points)
-  if (analysis.tradingStyle.isOvertrading) {
+  if (analysis.tradingStyle?.isOvertrading) {
     score -= 10
   }
 
   // Bonus for good consistency
-  score += (analysis.consistencyScore - 50) * 0.1
+  const consistencyScore = safeNumber(analysis.consistencyScore, 50)
+  score += (consistencyScore - 50) * 0.1
 
-  return Math.round(Math.max(0, Math.min(100, score)))
+  // Ensure final score is a valid number
+  const finalScore = Math.round(Math.max(0, Math.min(100, score)))
+  return isNaN(finalScore) ? 50 : finalScore
 }
 
 /**

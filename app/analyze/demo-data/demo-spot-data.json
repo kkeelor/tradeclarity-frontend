@@ -6,10 +6,11 @@
     "commission": "0.00005",
     "commissionAsset": "BTC",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1758601800000,
     "orderId": 50000,
-    "id": 1000
+    "id": 1000,
+    "quoteQty": "2100.00"
   },
   {
     "symbol": "BTCUSDT",
@@ -21,7 +22,8 @@
     "isMaker": false,
     "time": 1758706200000,
     "orderId": 50001,
-    "id": 1001
+    "id": 1001,
+    "quoteQty": "2175.00"
   },
   {
     "symbol": "ETHUSDT",
@@ -30,14 +32,15 @@
     "commission": "0.0012",
     "commissionAsset": "ETH",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1758778200000,
     "orderId": 50002,
-    "id": 1002
+    "id": 1002,
+    "quoteQty": "2736.00"
   },
   {
     "symbol": "ETHUSDT",
-    "qty": "1.2",
+    "qty": "2.03482521",
     "price": "2450.00",
     "commission": "2.940",
     "commissionAsset": "USDT",
@@ -45,7 +48,8 @@
     "isMaker": false,
     "time": 1758875400000,
     "orderId": 50003,
-    "id": 1003
+    "id": 1003,
+    "quoteQty": "4985.32"
   },
   {
     "symbol": "SOLUSDT",
@@ -57,11 +61,12 @@
     "isMaker": false,
     "time": 1758958200000,
     "orderId": 50004,
-    "id": 1004
+    "id": 1004,
+    "quoteQty": "2462.50"
   },
   {
     "symbol": "SOLUSDT",
-    "qty": "25",
+    "qty": "19.91143223",
     "price": "118.20",
     "commission": "2.955",
     "commissionAsset": "USDT",
@@ -69,7 +74,8 @@
     "isMaker": false,
     "time": 1759055400000,
     "orderId": 50005,
-    "id": 1005
+    "id": 1005,
+    "quoteQty": "2353.53"
   },
   {
     "symbol": "SOLUSDT",
@@ -78,10 +84,11 @@
     "commission": "0.030",
     "commissionAsset": "SOL",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1759134600000,
     "orderId": 50006,
-    "id": 1006
+    "id": 1006,
+    "quoteQty": "3150.00"
   },
   {
     "symbol": "SOLUSDT",
@@ -93,11 +100,12 @@
     "isMaker": false,
     "time": 1759206600000,
     "orderId": 50007,
-    "id": 1007
+    "id": 1007,
+    "quoteQty": "3765.00"
   },
   {
     "symbol": "PEPEUSDT",
-    "qty": "25000000",
+    "qty": "110295234.70737609",
     "price": "0.00001250",
     "commission": "25000",
     "commissionAsset": "PEPE",
@@ -105,7 +113,8 @@
     "isMaker": false,
     "time": 1759289400000,
     "orderId": 50008,
-    "id": 1008
+    "id": 1008,
+    "quoteQty": "1378.69"
   },
   {
     "symbol": "PEPEUSDT",
@@ -117,23 +126,51 @@
     "isMaker": false,
     "time": 1759401000000,
     "orderId": 50009,
-    "id": 1009
+    "id": 1009,
+    "quoteQty": "230.00"
+  },
+  {
+    "symbol": "DOGEUSDT",
+    "qty": "67050004.06332963",
+    "price": "0.91959785",
+    "commission": "61659.03930514",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 1759402580624.938,
+    "orderId": 70000,
+    "id": 20000,
+    "quoteQty": "61659039.58"
   },
   {
     "symbol": "SHIBUSDT",
-    "qty": "35000000",
+    "qty": "337846202.86451393",
     "price": "0.00001150",
     "commission": "35000",
     "commissionAsset": "SHIB",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1759458600000,
     "orderId": 50010,
-    "id": 1010
+    "id": 1010,
+    "quoteQty": "3885.23"
+  },
+  {
+    "symbol": "BONKUSDT",
+    "qty": "616135434.67510200",
+    "price": "0.55131591",
+    "commission": "339685.27068824",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 1759459080624.0474,
+    "orderId": 70001,
+    "id": 20001,
+    "quoteQty": "339685267.85"
   },
   {
     "symbol": "SHIBUSDT",
-    "qty": "35000000",
+    "qty": "523925143.14036256",
     "price": "0.00000890",
     "commission": "0.3115",
     "commissionAsset": "USDT",
@@ -141,7 +178,21 @@
     "isMaker": false,
     "time": 1759566600000,
     "orderId": 50011,
-    "id": 1011
+    "id": 1011,
+    "quoteQty": "4662.93"
+  },
+  {
+    "symbol": "DOGEUSDT",
+    "qty": "808985467.85450089",
+    "price": "0.54039911",
+    "commission": "437175.02492443",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 1759568168075.093,
+    "orderId": 70002,
+    "id": 20002,
+    "quoteQty": "437175026.83"
   },
   {
     "symbol": "DOGEUSDT",
@@ -153,11 +204,25 @@
     "isMaker": false,
     "time": 1759613400000,
     "orderId": 50012,
-    "id": 1012
+    "id": 1012,
+    "quoteQty": "588.00"
+  },
+  {
+    "symbol": "SHIBUSDT",
+    "qty": "6499.22014450",
+    "price": "0.89571081",
+    "commission": "5.82142174",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 1759614958959.1438,
+    "orderId": 70003,
+    "id": 20003,
+    "quoteQty": "5821.42"
   },
   {
     "symbol": "DOGEUSDT",
-    "qty": "3500",
+    "qty": "39551.64212813",
     "price": "0.158",
     "commission": "0.553",
     "commissionAsset": "USDT",
@@ -165,7 +230,21 @@
     "isMaker": false,
     "time": 1759717800000,
     "orderId": 50013,
-    "id": 1013
+    "id": 1013,
+    "quoteQty": "6249.16"
+  },
+  {
+    "symbol": "WIFUSDT",
+    "qty": "76103.66095851",
+    "price": "0.78367128",
+    "commission": "59.64025345",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 1759718750214.5608,
+    "orderId": 70004,
+    "id": 20004,
+    "quoteQty": "59640.25"
   },
   {
     "symbol": "DOGEUSDT",
@@ -177,7 +256,21 @@
     "isMaker": false,
     "time": 1759782600000,
     "orderId": 50014,
-    "id": 1014
+    "id": 1014,
+    "quoteQty": "810.00"
+  },
+  {
+    "symbol": "BONKUSDT",
+    "qty": "13219.77954681",
+    "price": "2.25738897",
+    "commission": "29.84218457",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 1759783421173.812,
+    "orderId": 70005,
+    "id": 20005,
+    "quoteQty": "29842.18"
   },
   {
     "symbol": "DOGEUSDT",
@@ -189,7 +282,21 @@
     "isMaker": false,
     "time": 1759876200000,
     "orderId": 50015,
-    "id": 1015
+    "id": 1015,
+    "quoteQty": "740.00"
+  },
+  {
+    "symbol": "PEPEUSDT",
+    "qty": "8404.39048259",
+    "price": "1.04522844",
+    "commission": "8.78450799",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 1759876802573.9307,
+    "orderId": 70006,
+    "id": 20006,
+    "quoteQty": "8784.51"
   },
   {
     "symbol": "DOGEUSDT",
@@ -198,14 +305,15 @@
     "commission": "7.0",
     "commissionAsset": "DOGE",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1759951800000,
     "orderId": 50016,
-    "id": 1016
+    "id": 1016,
+    "quoteQty": "1085.00"
   },
   {
     "symbol": "DOGEUSDT",
-    "qty": "7000",
+    "qty": "33177.64044839",
     "price": "0.142",
     "commission": "0.994",
     "commissionAsset": "USDT",
@@ -213,11 +321,12 @@
     "isMaker": false,
     "time": 1760041800000,
     "orderId": 50017,
-    "id": 1017
+    "id": 1017,
+    "quoteQty": "4711.22"
   },
   {
     "symbol": "WIFUSDT",
-    "qty": "500",
+    "qty": "3009.63116291",
     "price": "2.15",
     "commission": "0.5",
     "commissionAsset": "WIF",
@@ -225,7 +334,8 @@
     "isMaker": false,
     "time": 1760128200000,
     "orderId": 50018,
-    "id": 1018
+    "id": 1018,
+    "quoteQty": "6470.71"
   },
   {
     "symbol": "WIFUSDT",
@@ -237,23 +347,25 @@
     "isMaker": false,
     "time": 1760218200000,
     "orderId": 50019,
-    "id": 1019
+    "id": 1019,
+    "quoteQty": "890.00"
   },
   {
     "symbol": "BONKUSDT",
-    "qty": "10000000",
+    "qty": "195359812.95334610",
     "price": "0.000024",
     "commission": "10000",
     "commissionAsset": "BONK",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1760304600000,
     "orderId": 50020,
-    "id": 1020
+    "id": 1020,
+    "quoteQty": "4688.64"
   },
   {
     "symbol": "BONKUSDT",
-    "qty": "10000000",
+    "qty": "93309374.39811929",
     "price": "0.000019",
     "commission": "0.190",
     "commissionAsset": "USDT",
@@ -261,7 +373,8 @@
     "isMaker": false,
     "time": 1760394600000,
     "orderId": 50021,
-    "id": 1021
+    "id": 1021,
+    "quoteQty": "1772.88"
   },
   {
     "symbol": "BTCUSDT",
@@ -270,14 +383,15 @@
     "commission": "0.00004",
     "commissionAsset": "BTC",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1760506200000,
     "orderId": 50022,
-    "id": 1022
+    "id": 1022,
+    "quoteQty": "1768.00"
   },
   {
     "symbol": "BTCUSDT",
-    "qty": "0.04",
+    "qty": "0.06313944",
     "price": "45800.00",
     "commission": "1.832",
     "commissionAsset": "USDT",
@@ -285,7 +399,8 @@
     "isMaker": false,
     "time": 1760599800000,
     "orderId": 50023,
-    "id": 1023
+    "id": 1023,
+    "quoteQty": "2891.79"
   },
   {
     "symbol": "ETHUSDT",
@@ -294,10 +409,11 @@
     "commission": "0.0015",
     "commissionAsset": "ETH",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1760671800000,
     "orderId": 50024,
-    "id": 1024
+    "id": 1024,
+    "quoteQty": "3480.00"
   },
   {
     "symbol": "ETHUSDT",
@@ -309,7 +425,8 @@
     "isMaker": false,
     "time": 1760769000000,
     "orderId": 50025,
-    "id": 1025
+    "id": 1025,
+    "quoteQty": "3780.00"
   },
   {
     "symbol": "ADAUSDT",
@@ -318,14 +435,15 @@
     "commission": "1.2",
     "commissionAsset": "ADA",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1760837400000,
     "orderId": 50026,
-    "id": 1026
+    "id": 1026,
+    "quoteQty": "696.00"
   },
   {
     "symbol": "ADAUSDT",
-    "qty": "1200",
+    "qty": "6726.29067780",
     "price": "0.64",
     "commission": "0.768",
     "commissionAsset": "USDT",
@@ -333,7 +451,8 @@
     "isMaker": false,
     "time": 1760934600000,
     "orderId": 50027,
-    "id": 1027
+    "id": 1027,
+    "quoteQty": "4304.83"
   },
   {
     "symbol": "SOLUSDT",
@@ -345,7 +464,21 @@
     "isMaker": false,
     "time": 1761006600000,
     "orderId": 50028,
-    "id": 1028
+    "id": 1028,
+    "quoteQty": "2240.00"
+  },
+  {
+    "symbol": "SHIBUSDT",
+    "qty": "39.36867417",
+    "price": "2.45925474",
+    "commission": "0.09681760",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 1761007157964.2173,
+    "orderId": 70007,
+    "id": 20007,
+    "quoteQty": "96.82"
   },
   {
     "symbol": "SOLUSDT",
@@ -357,19 +490,21 @@
     "isMaker": false,
     "time": 1761100200000,
     "orderId": 50029,
-    "id": 1029
+    "id": 1029,
+    "quoteQty": "2710.00"
   },
   {
     "symbol": "AVAXUSDT",
-    "qty": "60",
+    "qty": "132.21820402",
     "price": "34.50",
     "commission": "0.060",
     "commissionAsset": "AVAX",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1761175800000,
     "orderId": 50030,
-    "id": 1030
+    "id": 1030,
+    "quoteQty": "4561.53"
   },
   {
     "symbol": "AVAXUSDT",
@@ -381,23 +516,25 @@
     "isMaker": false,
     "time": 1761269400000,
     "orderId": 50031,
-    "id": 1031
+    "id": 1031,
+    "quoteQty": "2292.00"
   },
   {
     "symbol": "LINKUSDT",
-    "qty": "50",
+    "qty": "118.79636686",
     "price": "15.80",
     "commission": "0.050",
     "commissionAsset": "LINK",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1761345000000,
     "orderId": 50032,
-    "id": 1032
+    "id": 1032,
+    "quoteQty": "1876.98"
   },
   {
     "symbol": "LINKUSDT",
-    "qty": "50",
+    "qty": "77.20942519",
     "price": "17.40",
     "commission": "0.870",
     "commissionAsset": "USDT",
@@ -405,7 +542,8 @@
     "isMaker": false,
     "time": 1761438600000,
     "orderId": 50033,
-    "id": 1033
+    "id": 1033,
+    "quoteQty": "1343.44"
   },
   {
     "symbol": "ARBUSDT",
@@ -417,7 +555,8 @@
     "isMaker": false,
     "time": 1761514200000,
     "orderId": 50034,
-    "id": 1034
+    "id": 1034,
+    "quoteQty": "1350.00"
   },
   {
     "symbol": "ARBUSDT",
@@ -426,10 +565,11 @@
     "commission": "1.220",
     "commissionAsset": "USDT",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1761607800000,
     "orderId": 50035,
-    "id": 1035
+    "id": 1035,
+    "quoteQty": "1220.00"
   },
   {
     "symbol": "SOLUSDT",
@@ -438,14 +578,15 @@
     "commission": "0.018",
     "commissionAsset": "SOL",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1761683400000,
     "orderId": 50036,
-    "id": 1036
+    "id": 1036,
+    "quoteQty": "2160.00"
   },
   {
     "symbol": "SOLUSDT",
-    "qty": "18",
+    "qty": "43.20255198",
     "price": "142.50",
     "commission": "2.565",
     "commissionAsset": "USDT",
@@ -453,7 +594,8 @@
     "isMaker": false,
     "time": 1761777000000,
     "orderId": 50037,
-    "id": 1037
+    "id": 1037,
+    "quoteQty": "6156.36"
   },
   {
     "symbol": "BNBUSDT",
@@ -462,10 +604,11 @@
     "commission": "0.005",
     "commissionAsset": "BNB",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1761852600000,
     "orderId": 50038,
-    "id": 1038
+    "id": 1038,
+    "quoteQty": "1575.00"
   },
   {
     "symbol": "BNBUSDT",
@@ -477,7 +620,8 @@
     "isMaker": false,
     "time": 1761946200000,
     "orderId": 50039,
-    "id": 1039
+    "id": 1039,
+    "quoteQty": "1690.00"
   },
   {
     "symbol": "FETUSDT",
@@ -486,10 +630,11 @@
     "commission": "0.8",
     "commissionAsset": "FET",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1762021800000,
     "orderId": 50040,
-    "id": 1040
+    "id": 1040,
+    "quoteQty": "1184.00"
   },
   {
     "symbol": "FETUSDT",
@@ -501,19 +646,21 @@
     "isMaker": false,
     "time": 1762115400000,
     "orderId": 50041,
-    "id": 1041
+    "id": 1041,
+    "quoteQty": "1296.00"
   },
   {
     "symbol": "BNBUSDT",
-    "qty": "0.0778",
+    "qty": "12.95427729",
     "price": "320.68",
     "commission": "0.02494856",
     "commissionAsset": "USDT",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1762115400000,
     "orderId": 50042,
-    "id": 1042
+    "id": 1042,
+    "quoteQty": "4154.18"
   },
   {
     "symbol": "BNBUSDT",
@@ -525,31 +672,34 @@
     "isMaker": false,
     "time": 1762187072624,
     "orderId": 50043,
-    "id": 1043
+    "id": 1043,
+    "quoteQty": "26.73"
   },
   {
     "symbol": "OPUSDT",
-    "qty": "264.23",
+    "qty": "1350.39684068",
     "price": "2.43",
     "commission": "0.64251646",
     "commissionAsset": "USDT",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1762359872624,
     "orderId": 50046,
-    "id": 1046
+    "id": 1046,
+    "quoteQty": "3281.46"
   },
   {
     "symbol": "OPUSDT",
-    "qty": "264.23",
+    "qty": "2148.20109573",
     "price": "2.79",
     "commission": "0.73647464",
     "commissionAsset": "USDT",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1762397402916,
     "orderId": 50047,
-    "id": 1047
+    "id": 1047,
+    "quoteQty": "5993.48"
   },
   {
     "symbol": "NEARUSDT",
@@ -561,7 +711,8 @@
     "isMaker": false,
     "time": 1762743002916,
     "orderId": 50050,
-    "id": 1050
+    "id": 1050,
+    "quoteQty": "6063.21"
   },
   {
     "symbol": "NEARUSDT",
@@ -573,7 +724,8 @@
     "isMaker": false,
     "time": 1762800225050,
     "orderId": 50051,
-    "id": 1051
+    "id": 1051,
+    "quoteQty": "7060.15"
   },
   {
     "symbol": "APTUSDT",
@@ -582,22 +734,24 @@
     "commission": "0.48274",
     "commissionAsset": "APT",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1763318625050,
     "orderId": 50054,
-    "id": 1054
+    "id": 1054,
+    "quoteQty": "4808.09"
   },
   {
     "symbol": "APTUSDT",
-    "qty": "482.74",
+    "qty": "410.86190238",
     "price": "12.13",
     "commission": "0.48274",
     "commissionAsset": "APT",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1763330301518,
     "orderId": 50055,
-    "id": 1055
+    "id": 1055,
+    "quoteQty": "4983.75"
   },
   {
     "symbol": "BONKUSDT",
@@ -609,7 +763,8 @@
     "isMaker": false,
     "time": 1764021501518,
     "orderId": 50058,
-    "id": 1058
+    "id": 1058,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "BONKUSDT",
@@ -618,22 +773,24 @@
     "commission": "3327.165",
     "commissionAsset": "BONK",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1764100766382,
     "orderId": 50059,
-    "id": 1059
+    "id": 1059,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "LINKUSDT",
-    "qty": "5.46",
+    "qty": "81.53222120",
     "price": "17.02",
     "commission": "0.00546",
     "commissionAsset": "LINK",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1764964766382,
     "orderId": 50062,
-    "id": 1062
+    "id": 1062,
+    "quoteQty": "1387.68"
   },
   {
     "symbol": "LINKUSDT",
@@ -642,10 +799,11 @@
     "commission": "0.00546",
     "commissionAsset": "LINK",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1764992196646,
     "orderId": 50063,
-    "id": 1063
+    "id": 1063,
+    "quoteQty": "114.88"
   },
   {
     "symbol": "BONKUSDT",
@@ -657,23 +815,25 @@
     "isMaker": false,
     "time": 1766028996646,
     "orderId": 50066,
-    "id": 1066
+    "id": 1066,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "BONKUSDT",
-    "qty": "39729009.0",
+    "qty": "Infinity",
     "price": "0.00",
     "commission": "39729.009",
     "commissionAsset": "BONK",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1766114679916,
     "orderId": 50067,
-    "id": 1067
+    "id": 1067,
+    "quoteQty": "NaN"
   },
   {
     "symbol": "LINKUSDT",
-    "qty": "13.01",
+    "qty": "364.93463835",
     "price": "18.21",
     "commission": "0.01301",
     "commissionAsset": "LINK",
@@ -681,31 +841,34 @@
     "isMaker": false,
     "time": 1767324279916,
     "orderId": 50070,
-    "id": 1070
+    "id": 1070,
+    "quoteQty": "6645.46"
   },
   {
     "symbol": "LINKUSDT",
-    "qty": "13.01",
+    "qty": "156.95302144",
     "price": "19.11",
     "commission": "0.01301",
     "commissionAsset": "LINK",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1767369684655,
     "orderId": 50071,
-    "id": 1071
+    "id": 1071,
+    "quoteQty": "2999.37"
   },
   {
     "symbol": "FETUSDT",
-    "qty": "45.53",
+    "qty": "3225.11163960",
     "price": "1.41",
     "commission": "0.04553",
     "commissionAsset": "FET",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1768752084655,
     "orderId": 50074,
-    "id": 1074
+    "id": 1074,
+    "quoteQty": "4547.41"
   },
   {
     "symbol": "FETUSDT",
@@ -717,7 +880,8 @@
     "isMaker": false,
     "time": 1768818730957,
     "orderId": 50075,
-    "id": 1075
+    "id": 1075,
+    "quoteQty": "70.57"
   },
   {
     "symbol": "OPUSDT",
@@ -726,14 +890,15 @@
     "commission": "0.24695",
     "commissionAsset": "OP",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1770373930957,
     "orderId": 50078,
-    "id": 1078
+    "id": 1078,
+    "quoteQty": "716.15"
   },
   {
     "symbol": "OPUSDT",
-    "qty": "246.95",
+    "qty": "1883.98756666",
     "price": "2.87",
     "commission": "0.24695",
     "commissionAsset": "OP",
@@ -741,11 +906,12 @@
     "isMaker": false,
     "time": 1770408175382,
     "orderId": 50079,
-    "id": 1079
+    "id": 1079,
+    "quoteQty": "5407.04"
   },
   {
     "symbol": "NEARUSDT",
-    "qty": "435.45",
+    "qty": "115.13132853",
     "price": "5.59",
     "commission": "0.43545",
     "commissionAsset": "NEAR",
@@ -753,11 +919,12 @@
     "isMaker": false,
     "time": 1772136175382,
     "orderId": 50082,
-    "id": 1082
+    "id": 1082,
+    "quoteQty": "643.58"
   },
   {
     "symbol": "NEARUSDT",
-    "qty": "435.45",
+    "qty": "94.21728969",
     "price": "6.56",
     "commission": "0.43545",
     "commissionAsset": "NEAR",
@@ -765,11 +932,12 @@
     "isMaker": false,
     "time": 1772142710882,
     "orderId": 50083,
-    "id": 1083
+    "id": 1083,
+    "quoteQty": "618.07"
   },
   {
     "symbol": "MATICUSDT",
-    "qty": "205.29",
+    "qty": "2051.58219073",
     "price": "0.96",
     "commission": "0.19794791",
     "commissionAsset": "USDT",
@@ -777,7 +945,8 @@
     "isMaker": false,
     "time": 1774043510882,
     "orderId": 50086,
-    "id": 1086
+    "id": 1086,
+    "quoteQty": "1969.52"
   },
   {
     "symbol": "MATICUSDT",
@@ -789,7 +958,8 @@
     "isMaker": false,
     "time": 1774092207856,
     "orderId": 50087,
-    "id": 1087
+    "id": 1087,
+    "quoteQty": "188.87"
   },
   {
     "symbol": "APTUSDT",
@@ -798,14 +968,15 @@
     "commission": "4.60007358",
     "commissionAsset": "USDT",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1776165807856,
     "orderId": 50090,
-    "id": 1090
+    "id": 1090,
+    "quoteQty": "4601.40"
   },
   {
     "symbol": "APTUSDT",
-    "qty": "388.96",
+    "qty": "371.65955601",
     "price": "14.19",
     "commission": "5.51801681",
     "commissionAsset": "USDT",
@@ -813,7 +984,8 @@
     "isMaker": false,
     "time": 1776205938404,
     "orderId": 50091,
-    "id": 1091
+    "id": 1091,
+    "quoteQty": "5273.85"
   },
   {
     "symbol": "LINKUSDT",
@@ -822,14 +994,15 @@
     "commission": "0.04871",
     "commissionAsset": "LINK",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1778452338404,
     "orderId": 50094,
-    "id": 1094
+    "id": 1094,
+    "quoteQty": "698.01"
   },
   {
     "symbol": "LINKUSDT",
-    "qty": "48.71",
+    "qty": "377.95559184",
     "price": "14.53",
     "commission": "0.04871",
     "commissionAsset": "LINK",
@@ -837,7 +1010,8 @@
     "isMaker": false,
     "time": 1778537451433,
     "orderId": 50095,
-    "id": 1095
+    "id": 1095,
+    "quoteQty": "5491.69"
   },
   {
     "symbol": "SHIBUSDT",
@@ -849,7 +1023,8 @@
     "isMaker": false,
     "time": 1780956651433,
     "orderId": 50098,
-    "id": 1098
+    "id": 1098,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "SHIBUSDT",
@@ -861,11 +1036,12 @@
     "isMaker": false,
     "time": 1780993843981,
     "orderId": 50099,
-    "id": 1099
+    "id": 1099,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "FTMUSDT",
-    "qty": "130.34",
+    "qty": "3463.48239841",
     "price": "0.79",
     "commission": "0.13034",
     "commissionAsset": "FTM",
@@ -873,19 +1049,21 @@
     "isMaker": false,
     "time": 1783585843981,
     "orderId": 50102,
-    "id": 1102
+    "id": 1102,
+    "quoteQty": "2736.15"
   },
   {
     "symbol": "FTMUSDT",
-    "qty": "130.34",
+    "qty": "1146.43172967",
     "price": "0.96",
     "commission": "0.12568745",
     "commissionAsset": "USDT",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1783600603499,
     "orderId": 50103,
-    "id": 1103
+    "id": 1103,
+    "quoteQty": "1100.57"
   },
   {
     "symbol": "FTMUSDT",
@@ -894,10 +1072,11 @@
     "commission": "0.69732707",
     "commissionAsset": "USDT",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1786365403499,
     "orderId": 50106,
-    "id": 1106
+    "id": 1106,
+    "quoteQty": "695.49"
   },
   {
     "symbol": "FTMUSDT",
@@ -906,46 +1085,50 @@
     "commission": "0.67722461",
     "commissionAsset": "USDT",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1786392320999,
     "orderId": 50107,
-    "id": 1107
+    "id": 1107,
+    "quoteQty": "680.20"
   },
   {
     "symbol": "BONKUSDT",
-    "qty": "42792258.0",
+    "qty": "Infinity",
     "price": "0.00",
     "commission": "42792.258",
     "commissionAsset": "BONK",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1789329920999,
     "orderId": 50110,
-    "id": 1110
+    "id": 1110,
+    "quoteQty": "NaN"
   },
   {
     "symbol": "BONKUSDT",
-    "qty": "42792258.0",
+    "qty": "Infinity",
     "price": "0.00",
     "commission": "0.96044758",
     "commissionAsset": "USDT",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1789385436386,
     "orderId": 50111,
-    "id": 1111
+    "id": 1111,
+    "quoteQty": "NaN"
   },
   {
     "symbol": "DOGEUSDT",
-    "qty": "2881.0",
+    "qty": "12698.32829015",
     "price": "0.15",
     "commission": "2.881",
     "commissionAsset": "DOGE",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1792495836386,
     "orderId": 50114,
-    "id": 1114
+    "id": 1114,
+    "quoteQty": "1904.75"
   },
   {
     "symbol": "DOGEUSDT",
@@ -954,10 +1137,11 @@
     "commission": "2.881",
     "commissionAsset": "DOGE",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1792508438205,
     "orderId": 50115,
-    "id": 1115
+    "id": 1115,
+    "quoteQty": "460.96"
   },
   {
     "symbol": "UNIUSDT",
@@ -969,7 +1153,8 @@
     "isMaker": false,
     "time": 1795791638205,
     "orderId": 50118,
-    "id": 1118
+    "id": 1118,
+    "quoteQty": "4999.60"
   },
   {
     "symbol": "UNIUSDT",
@@ -981,11 +1166,12 @@
     "isMaker": false,
     "time": 1795799511941,
     "orderId": 50119,
-    "id": 1119
+    "id": 1119,
+    "quoteQty": "5845.02"
   },
   {
     "symbol": "WIFUSDT",
-    "qty": "863.3",
+    "qty": "1515.46556281",
     "price": "1.87",
     "commission": "0.8633",
     "commissionAsset": "WIF",
@@ -993,7 +1179,8 @@
     "isMaker": false,
     "time": 1799255511941,
     "orderId": 50122,
-    "id": 1122
+    "id": 1122,
+    "quoteQty": "2833.92"
   },
   {
     "symbol": "WIFUSDT",
@@ -1002,10 +1189,11 @@
     "commission": "0.8633",
     "commissionAsset": "WIF",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1799281816776,
     "orderId": 50123,
-    "id": 1123
+    "id": 1123,
+    "quoteQty": "1812.93"
   },
   {
     "symbol": "ETHUSDT",
@@ -1014,10 +1202,11 @@
     "commission": "0.10367277",
     "commissionAsset": "USDT",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1802910616776,
     "orderId": 50126,
-    "id": 1126
+    "id": 1126,
+    "quoteQty": "103.67"
   },
   {
     "symbol": "ETHUSDT",
@@ -1029,11 +1218,12 @@
     "isMaker": false,
     "time": 1802984310753,
     "orderId": 50127,
-    "id": 1127
+    "id": 1127,
+    "quoteQty": "116.88"
   },
   {
     "symbol": "ALGOUSDT",
-    "qty": "876.72",
+    "qty": "3493.01412040",
     "price": "0.24",
     "commission": "0.20908391",
     "commissionAsset": "USDT",
@@ -1041,7 +1231,8 @@
     "isMaker": false,
     "time": 1806785910753,
     "orderId": 50130,
-    "id": 1130
+    "id": 1130,
+    "quoteQty": "838.32"
   },
   {
     "symbol": "ALGOUSDT",
@@ -1050,10 +1241,11 @@
     "commission": "0.25942218",
     "commissionAsset": "USDT",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1806810167975,
     "orderId": 50131,
-    "id": 1131
+    "id": 1131,
+    "quoteQty": "263.02"
   },
   {
     "symbol": "BTCUSDT",
@@ -1065,19 +1257,21 @@
     "isMaker": false,
     "time": 1810784567975,
     "orderId": 50134,
-    "id": 1134
+    "id": 1134,
+    "quoteQty": "1278.11"
   },
   {
     "symbol": "BTCUSDT",
-    "qty": "0.0257",
+    "qty": "0.00787122",
     "price": "45947.30",
     "commission": "0.0000257",
     "commissionAsset": "BTC",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1810859474517,
     "orderId": 50135,
-    "id": 1135
+    "id": 1135,
+    "quoteQty": "361.66"
   },
   {
     "symbol": "XRPUSDT",
@@ -1086,10 +1280,11 @@
     "commission": "0.76369605",
     "commissionAsset": "USDT",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1815006674517,
     "orderId": 50138,
-    "id": 1138
+    "id": 1138,
+    "quoteQty": "768.56"
   },
   {
     "symbol": "XRPUSDT",
@@ -1098,10 +1293,11 @@
     "commission": "0.84529106",
     "commissionAsset": "USDT",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1815039384331,
     "orderId": 50139,
-    "id": 1139
+    "id": 1139,
+    "quoteQty": "842.46"
   },
   {
     "symbol": "PEPEUSDT",
@@ -1113,7 +1309,8 @@
     "isMaker": false,
     "time": 1819359384331,
     "orderId": 50142,
-    "id": 1142
+    "id": 1142,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "PEPEUSDT",
@@ -1125,7 +1322,8 @@
     "isMaker": false,
     "time": 1819419005646,
     "orderId": 50143,
-    "id": 1143
+    "id": 1143,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "OPUSDT",
@@ -1137,55 +1335,60 @@
     "isMaker": false,
     "time": 1823911805646,
     "orderId": 50146,
-    "id": 1146
+    "id": 1146,
+    "quoteQty": "328.06"
   },
   {
     "symbol": "OPUSDT",
-    "qty": "131.75",
+    "qty": "581.98151021",
     "price": "2.75",
     "commission": "0.36288621",
     "commissionAsset": "USDT",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1823926757831,
     "orderId": 50147,
-    "id": 1147
+    "id": 1147,
+    "quoteQty": "1600.45"
   },
   {
     "symbol": "PEPEUSDT",
-    "qty": "42242037.0",
+    "qty": "Infinity",
     "price": "0.00",
     "commission": "0.44069362",
     "commissionAsset": "USDT",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1828592357831,
     "orderId": 50150,
-    "id": 1150
+    "id": 1150,
+    "quoteQty": "NaN"
   },
   {
     "symbol": "PEPEUSDT",
-    "qty": "42242037.0",
+    "qty": "Infinity",
     "price": "0.00",
     "commission": "0.54445031",
     "commissionAsset": "USDT",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1828606261138,
     "orderId": 50151,
-    "id": 1151
+    "id": 1151,
+    "quoteQty": "NaN"
   },
   {
     "symbol": "SHIBUSDT",
-    "qty": "41464118.0",
+    "qty": "Infinity",
     "price": "0.00",
     "commission": "41464.118",
     "commissionAsset": "SHIB",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1833444661138,
     "orderId": 50154,
-    "id": 1154
+    "id": 1154,
+    "quoteQty": "NaN"
   },
   {
     "symbol": "SHIBUSDT",
@@ -1194,10 +1397,11 @@
     "commission": "41464.118",
     "commissionAsset": "SHIB",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1833473809563,
     "orderId": 50155,
-    "id": 1155
+    "id": 1155,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "BNBUSDT",
@@ -1209,23 +1413,25 @@
     "isMaker": false,
     "time": 1838485009563,
     "orderId": 50158,
-    "id": 1158
+    "id": 1158,
+    "quoteQty": "13.33"
   },
   {
     "symbol": "BNBUSDT",
-    "qty": "0.0361",
+    "qty": "5.00711048",
     "price": "351.05",
     "commission": "0.0000361",
     "commissionAsset": "BNB",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1838548168975,
     "orderId": 50159,
-    "id": 1159
+    "id": 1159,
+    "quoteQty": "1757.75"
   },
   {
     "symbol": "XRPUSDT",
-    "qty": "2063.0",
+    "qty": "10667.91607511",
     "price": "0.53",
     "commission": "2.063",
     "commissionAsset": "XRP",
@@ -1233,7 +1439,8 @@
     "isMaker": false,
     "time": 1843732168975,
     "orderId": 50162,
-    "id": 1162
+    "id": 1162,
+    "quoteQty": "5654.00"
   },
   {
     "symbol": "XRPUSDT",
@@ -1245,7 +1452,8 @@
     "isMaker": false,
     "time": 1843782898795,
     "orderId": 50163,
-    "id": 1163
+    "id": 1163,
+    "quoteQty": "1299.69"
   },
   {
     "symbol": "AVAXUSDT",
@@ -1257,7 +1465,8 @@
     "isMaker": false,
     "time": 1849139698795,
     "orderId": 50166,
-    "id": 1166
+    "id": 1166,
+    "quoteQty": "1780.89"
   },
   {
     "symbol": "AVAXUSDT",
@@ -1269,7 +1478,8 @@
     "isMaker": false,
     "time": 1849183220055,
     "orderId": 50167,
-    "id": 1167
+    "id": 1167,
+    "quoteQty": "1764.29"
   },
   {
     "symbol": "DOTUSDT",
@@ -1281,7 +1491,8 @@
     "isMaker": false,
     "time": 1854712820055,
     "orderId": 50170,
-    "id": 1170
+    "id": 1170,
+    "quoteQty": "4440.68"
   },
   {
     "symbol": "DOTUSDT",
@@ -1293,7 +1504,8 @@
     "isMaker": false,
     "time": 1854769895738,
     "orderId": 50171,
-    "id": 1171
+    "id": 1171,
+    "quoteQty": "5461.60"
   },
   {
     "symbol": "BONKUSDT",
@@ -1302,14 +1514,15 @@
     "commission": "0.98876616",
     "commissionAsset": "USDT",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1860472295738,
     "orderId": 50174,
-    "id": 1174
+    "id": 1174,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "BONKUSDT",
-    "qty": "43278390.0",
+    "qty": "Infinity",
     "price": "0.00",
     "commission": "0.98198011",
     "commissionAsset": "USDT",
@@ -1317,7 +1530,8 @@
     "isMaker": false,
     "time": 1860552567232,
     "orderId": 50175,
-    "id": 1175
+    "id": 1175,
+    "quoteQty": "NaN"
   },
   {
     "symbol": "DOTUSDT",
@@ -1329,7 +1543,8 @@
     "isMaker": false,
     "time": 1866427767232,
     "orderId": 50178,
-    "id": 1178
+    "id": 1178,
+    "quoteQty": "2101.16"
   },
   {
     "symbol": "DOTUSDT",
@@ -1341,7 +1556,8 @@
     "isMaker": false,
     "time": 1866467431281,
     "orderId": 50179,
-    "id": 1179
+    "id": 1179,
+    "quoteQty": "2483.75"
   },
   {
     "symbol": "BTCUSDT",
@@ -1353,7 +1569,8 @@
     "isMaker": false,
     "time": 1872515431281,
     "orderId": 50182,
-    "id": 1182
+    "id": 1182,
+    "quoteQty": "2844.82"
   },
   {
     "symbol": "BTCUSDT",
@@ -1365,19 +1582,21 @@
     "isMaker": false,
     "time": 1872520228535,
     "orderId": 50183,
-    "id": 1183
+    "id": 1183,
+    "quoteQty": "2858.82"
   },
   {
     "symbol": "DOTUSDT",
-    "qty": "88.03",
+    "qty": "56.43479661",
     "price": "8.12",
     "commission": "0.08803",
     "commissionAsset": "DOT",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1878741028535,
     "orderId": 50186,
-    "id": 1186
+    "id": 1186,
+    "quoteQty": "458.25"
   },
   {
     "symbol": "DOTUSDT",
@@ -1386,10 +1605,11 @@
     "commission": "0.73241186",
     "commissionAsset": "USDT",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1878779658463,
     "orderId": 50187,
-    "id": 1187
+    "id": 1187,
+    "quoteQty": "732.41"
   },
   {
     "symbol": "UNIUSDT",
@@ -1401,7 +1621,8 @@
     "isMaker": false,
     "time": 1885173258463,
     "orderId": 50190,
-    "id": 1190
+    "id": 1190,
+    "quoteQty": "6586.89"
   },
   {
     "symbol": "UNIUSDT",
@@ -1410,22 +1631,24 @@
     "commission": "7.51294521",
     "commissionAsset": "USDT",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1885201245581,
     "orderId": 50191,
-    "id": 1191
+    "id": 1191,
+    "quoteQty": "7514.99"
   },
   {
     "symbol": "LINKUSDT",
-    "qty": "18.07",
+    "qty": "148.50386553",
     "price": "16.49",
     "commission": "0.29796816",
     "commissionAsset": "USDT",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1891767645581,
     "orderId": 50194,
-    "id": 1194
+    "id": 1194,
+    "quoteQty": "2448.83"
   },
   {
     "symbol": "LINKUSDT",
@@ -1437,7 +1660,8 @@
     "isMaker": false,
     "time": 1891794239050,
     "orderId": 50195,
-    "id": 1195
+    "id": 1195,
+    "quoteQty": "339.90"
   },
   {
     "symbol": "BTCUSDT",
@@ -1446,10 +1670,11 @@
     "commission": "0.000051",
     "commissionAsset": "BTC",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1898533439050,
     "orderId": 50198,
-    "id": 1198
+    "id": 1198,
+    "quoteQty": "2520.48"
   },
   {
     "symbol": "BTCUSDT",
@@ -1461,7 +1686,8 @@
     "isMaker": false,
     "time": 1898615478245,
     "orderId": 50199,
-    "id": 1199
+    "id": 1199,
+    "quoteQty": "2954.62"
   },
   {
     "symbol": "DOGEUSDT",
@@ -1473,11 +1699,12 @@
     "isMaker": false,
     "time": 1905527478245,
     "orderId": 50202,
-    "id": 1202
+    "id": 1202,
+    "quoteQty": "292.23"
   },
   {
     "symbol": "DOGEUSDT",
-    "qty": "1719.0",
+    "qty": "31642.90996048",
     "price": "0.18",
     "commission": "1.719",
     "commissionAsset": "DOGE",
@@ -1485,11 +1712,12 @@
     "isMaker": false,
     "time": 1905604105378,
     "orderId": 50203,
-    "id": 1203
+    "id": 1203,
+    "quoteQty": "5695.72"
   },
   {
     "symbol": "SHIBUSDT",
-    "qty": "2697296.0",
+    "qty": "Infinity",
     "price": "0.00",
     "commission": "2697.296",
     "commissionAsset": "SHIB",
@@ -1497,7 +1725,8 @@
     "isMaker": false,
     "time": 1912688905378,
     "orderId": 50206,
-    "id": 1206
+    "id": 1206,
+    "quoteQty": "NaN"
   },
   {
     "symbol": "SHIBUSDT",
@@ -1509,7 +1738,8 @@
     "isMaker": false,
     "time": 1912754237966,
     "orderId": 50207,
-    "id": 1207
+    "id": 1207,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "DOTUSDT",
@@ -1518,14 +1748,15 @@
     "commission": "0.171798",
     "commissionAsset": "USDT",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1920011837966,
     "orderId": 50210,
-    "id": 1210
+    "id": 1210,
+    "quoteQty": "171.85"
   },
   {
     "symbol": "DOTUSDT",
-    "qty": "20.17",
+    "qty": "501.28155682",
     "price": "8.32",
     "commission": "0.02017",
     "commissionAsset": "DOT",
@@ -1533,11 +1764,12 @@
     "isMaker": false,
     "time": 1920058118379,
     "orderId": 50211,
-    "id": 1211
+    "id": 1211,
+    "quoteQty": "4170.66"
   },
   {
     "symbol": "ADAUSDT",
-    "qty": "2029.0",
+    "qty": "7727.42810377",
     "price": "0.56",
     "commission": "2.029",
     "commissionAsset": "ADA",
@@ -1545,7 +1777,8 @@
     "isMaker": false,
     "time": 1927488518379,
     "orderId": 50214,
-    "id": 1214
+    "id": 1214,
+    "quoteQty": "4327.36"
   },
   {
     "symbol": "ADAUSDT",
@@ -1557,7 +1790,8 @@
     "isMaker": false,
     "time": 1927559991260,
     "orderId": 50215,
-    "id": 1215
+    "id": 1215,
+    "quoteQty": "1176.82"
   },
   {
     "symbol": "NEARUSDT",
@@ -1569,7 +1803,8 @@
     "isMaker": false,
     "time": 1935163191260,
     "orderId": 50218,
-    "id": 1218
+    "id": 1218,
+    "quoteQty": "1398.04"
   },
   {
     "symbol": "NEARUSDT",
@@ -1578,22 +1813,24 @@
     "commission": "1.731382",
     "commissionAsset": "USDT",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1935188680383,
     "orderId": 50219,
-    "id": 1219
+    "id": 1219,
+    "quoteQty": "1731.75"
   },
   {
     "symbol": "BTCUSDT",
-    "qty": "0.0448",
+    "qty": "0.01462437",
     "price": "46131.90",
     "commission": "0.0000448",
     "commissionAsset": "BTC",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1942964680383,
     "orderId": 50222,
-    "id": 1222
+    "id": 1222,
+    "quoteQty": "674.65"
   },
   {
     "symbol": "BTCUSDT",
@@ -1605,11 +1842,12 @@
     "isMaker": false,
     "time": 1942984623676,
     "orderId": 50223,
-    "id": 1223
+    "id": 1223,
+    "quoteQty": "1984.45"
   },
   {
     "symbol": "ARBUSDT",
-    "qty": "141.35",
+    "qty": "1071.67295505",
     "price": "1.25",
     "commission": "0.14135",
     "commissionAsset": "ARB",
@@ -1617,7 +1855,8 @@
     "isMaker": false,
     "time": 1950933423676,
     "orderId": 50226,
-    "id": 1226
+    "id": 1226,
+    "quoteQty": "1339.59"
   },
   {
     "symbol": "ARBUSDT",
@@ -1629,11 +1868,12 @@
     "isMaker": false,
     "time": 1950951303353,
     "orderId": 50227,
-    "id": 1227
+    "id": 1227,
+    "quoteQty": "213.44"
   },
   {
     "symbol": "MATICUSDT",
-    "qty": "864.39",
+    "qty": "2309.17246707",
     "price": "0.76",
     "commission": "0.6579902",
     "commissionAsset": "USDT",
@@ -1641,7 +1881,8 @@
     "isMaker": false,
     "time": 1959072903353,
     "orderId": 50230,
-    "id": 1230
+    "id": 1230,
+    "quoteQty": "1754.97"
   },
   {
     "symbol": "MATICUSDT",
@@ -1650,10 +1891,11 @@
     "commission": "0.73107659",
     "commissionAsset": "USDT",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 1959137335632,
     "orderId": 50231,
-    "id": 1231
+    "id": 1231,
+    "quoteQty": "734.73"
   },
   {
     "symbol": "BONKUSDT",
@@ -1665,11 +1907,12 @@
     "isMaker": false,
     "time": 1967431735632,
     "orderId": 50234,
-    "id": 1234
+    "id": 1234,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "BONKUSDT",
-    "qty": "27140393.0",
+    "qty": "Infinity",
     "price": "0.00",
     "commission": "27140.393",
     "commissionAsset": "BONK",
@@ -1677,11 +1920,12 @@
     "isMaker": false,
     "time": 1967459118920,
     "orderId": 50235,
-    "id": 1235
+    "id": 1235,
+    "quoteQty": "NaN"
   },
   {
     "symbol": "ETHUSDT",
-    "qty": "0.0106",
+    "qty": "1.90053245",
     "price": "2740.73",
     "commission": "0.02905175",
     "commissionAsset": "USDT",
@@ -1689,7 +1933,8 @@
     "isMaker": false,
     "time": 1975926318920,
     "orderId": 50238,
-    "id": 1238
+    "id": 1238,
+    "quoteQty": "5208.85"
   },
   {
     "symbol": "ETHUSDT",
@@ -1701,11 +1946,12 @@
     "isMaker": false,
     "time": 1975998301853,
     "orderId": 50239,
-    "id": 1239
+    "id": 1239,
+    "quoteQty": "27.67"
   },
   {
     "symbol": "ARBUSDT",
-    "qty": "539.88",
+    "qty": "1882.10874810",
     "price": "1.34",
     "commission": "0.53988",
     "commissionAsset": "ARB",
@@ -1713,11 +1959,12 @@
     "isMaker": false,
     "time": 1984638301853,
     "orderId": 50242,
-    "id": 1242
+    "id": 1242,
+    "quoteQty": "2522.03"
   },
   {
     "symbol": "ARBUSDT",
-    "qty": "539.88",
+    "qty": "2578.66849853",
     "price": "1.43",
     "commission": "0.77227813",
     "commissionAsset": "USDT",
@@ -1725,7 +1972,8 @@
     "isMaker": false,
     "time": 1984651775206,
     "orderId": 50243,
-    "id": 1243
+    "id": 1243,
+    "quoteQty": "3687.50"
   },
   {
     "symbol": "WIFUSDT",
@@ -1737,11 +1985,12 @@
     "isMaker": false,
     "time": 1993464575206,
     "orderId": 50246,
-    "id": 1246
+    "id": 1246,
+    "quoteQty": "906.42"
   },
   {
     "symbol": "WIFUSDT",
-    "qty": "469.65",
+    "qty": "2145.01693576",
     "price": "2.15",
     "commission": "0.46965",
     "commissionAsset": "WIF",
@@ -1749,7 +1998,8 @@
     "isMaker": false,
     "time": 1993525710842,
     "orderId": 50247,
-    "id": 1247
+    "id": 1247,
+    "quoteQty": "4611.79"
   },
   {
     "symbol": "DOGEUSDT",
@@ -1758,14 +2008,15 @@
     "commission": "3.882",
     "commissionAsset": "DOGE",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 2002511310842,
     "orderId": 50250,
-    "id": 1250
+    "id": 1250,
+    "quoteQty": "543.48"
   },
   {
     "symbol": "DOGEUSDT",
-    "qty": "3882.0",
+    "qty": "42860.80584669",
     "price": "0.15",
     "commission": "0.59222376",
     "commissionAsset": "USDT",
@@ -1773,7 +2024,60 @@
     "isMaker": false,
     "time": 2002534388498,
     "orderId": 50251,
-    "id": 1251
+    "id": 1251,
+    "quoteQty": "6429.12"
+  },
+  {
+    "symbol": "DOGEUSDT",
+    "qty": "1943.16645408",
+    "price": "0.15",
+    "commission": "0.29093045",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2002534568498,
+    "orderId": 60012,
+    "id": 10012,
+    "quoteQty": "291.47"
+  },
+  {
+    "symbol": "DOGEUSDT",
+    "qty": "23829.11860611",
+    "price": "0.15",
+    "commission": "0.17538388",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2002534748498,
+    "orderId": 60013,
+    "id": 10013,
+    "quoteQty": "3574.37"
+  },
+  {
+    "symbol": "DOGEUSDT",
+    "qty": "2071.47405518",
+    "price": "0.15",
+    "commission": "0.30503758",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2002534928498,
+    "orderId": 60014,
+    "id": 10014,
+    "quoteQty": "310.72"
+  },
+  {
+    "symbol": "DOGEUSDT",
+    "qty": "2100.35798921",
+    "price": "0.15",
+    "commission": "0.31433861",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2002535108498,
+    "orderId": 60015,
+    "id": 10015,
+    "quoteQty": "315.05"
   },
   {
     "symbol": "DOTUSDT",
@@ -1782,10 +2086,11 @@
     "commission": "0.65892",
     "commissionAsset": "DOT",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 2011692788498,
     "orderId": 50254,
-    "id": 1254
+    "id": 1254,
+    "quoteQty": "5304.31"
   },
   {
     "symbol": "DOTUSDT",
@@ -1797,7 +2102,8 @@
     "isMaker": false,
     "time": 2011716786995,
     "orderId": 50255,
-    "id": 1255
+    "id": 1255,
+    "quoteQty": "5330.66"
   },
   {
     "symbol": "BONKUSDT",
@@ -1806,10 +2112,11 @@
     "commission": "0.85037493",
     "commissionAsset": "USDT",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 2021047986995,
     "orderId": 50258,
-    "id": 1258
+    "id": 1258,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "BONKUSDT",
@@ -1818,10 +2125,11 @@
     "commission": "46179.167",
     "commissionAsset": "BONK",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 2021124812885,
     "orderId": 50259,
-    "id": 1259
+    "id": 1259,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "BONKUSDT",
@@ -1830,14 +2138,15 @@
     "commission": "0.70058895",
     "commissionAsset": "USDT",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 2030628812885,
     "orderId": 50262,
-    "id": 1262
+    "id": 1262,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "BONKUSDT",
-    "qty": "29926562.0",
+    "qty": "Infinity",
     "price": "0.00",
     "commission": "0.65887323",
     "commissionAsset": "USDT",
@@ -1845,11 +2154,12 @@
     "isMaker": false,
     "time": 2030668150335,
     "orderId": 50263,
-    "id": 1263
+    "id": 1263,
+    "quoteQty": "NaN"
   },
   {
     "symbol": "FETUSDT",
-    "qty": "209.85",
+    "qty": "3230.43456395",
     "price": "1.52",
     "commission": "0.20985",
     "commissionAsset": "FET",
@@ -1857,7 +2167,8 @@
     "isMaker": false,
     "time": 2040344950335,
     "orderId": 50266,
-    "id": 1266
+    "id": 1266,
+    "quoteQty": "4910.26"
   },
   {
     "symbol": "FETUSDT",
@@ -1869,11 +2180,12 @@
     "isMaker": false,
     "time": 2040360952447,
     "orderId": 50267,
-    "id": 1267
+    "id": 1267,
+    "quoteQty": "310.58"
   },
   {
     "symbol": "BTCUSDT",
-    "qty": "0.024",
+    "qty": "0.10810409",
     "price": "50062.95",
     "commission": "1.20151089",
     "commissionAsset": "USDT",
@@ -1881,7 +2193,8 @@
     "isMaker": false,
     "time": 2050210552447,
     "orderId": 50270,
-    "id": 1270
+    "id": 1270,
+    "quoteQty": "5412.01"
   },
   {
     "symbol": "BTCUSDT",
@@ -1890,14 +2203,67 @@
     "commission": "0.000024",
     "commissionAsset": "BTC",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 2050276161783,
     "orderId": 50271,
-    "id": 1271
+    "id": 1271,
+    "quoteQty": "1344.33"
+  },
+  {
+    "symbol": "BTCUSDT",
+    "qty": "0.03656154",
+    "price": "55710.91",
+    "commission": "0.60421077",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2050276341783,
+    "orderId": 60000,
+    "id": 10000,
+    "quoteQty": "2036.88"
+  },
+  {
+    "symbol": "BTCUSDT",
+    "qty": "0.11370708",
+    "price": "55011.52",
+    "commission": "0.76953570",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2050276521783,
+    "orderId": 60001,
+    "id": 10001,
+    "quoteQty": "6255.20"
+  },
+  {
+    "symbol": "BTCUSDT",
+    "qty": "0.01046113",
+    "price": "55321.74",
+    "commission": "0.57872782",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2050276701783,
+    "orderId": 60002,
+    "id": 10002,
+    "quoteQty": "578.73"
+  },
+  {
+    "symbol": "BTCUSDT",
+    "qty": "0.07600422",
+    "price": "55118.20",
+    "commission": "0.70012372",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2050276881783,
+    "orderId": 60003,
+    "id": 10003,
+    "quoteQty": "4189.22"
   },
   {
     "symbol": "WIFUSDT",
-    "qty": "466.25",
+    "qty": "3367.17606663",
     "price": "1.98",
     "commission": "0.92256111",
     "commissionAsset": "USDT",
@@ -1905,7 +2271,8 @@
     "isMaker": false,
     "time": 2060298561783,
     "orderId": 50274,
-    "id": 1274
+    "id": 1274,
+    "quoteQty": "6667.01"
   },
   {
     "symbol": "WIFUSDT",
@@ -1914,10 +2281,11 @@
     "commission": "1.04733111",
     "commissionAsset": "USDT",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 2060349688442,
     "orderId": 50275,
-    "id": 1275
+    "id": 1275,
+    "quoteQty": "1049.06"
   },
   {
     "symbol": "ATOMUSDT",
@@ -1929,7 +2297,8 @@
     "isMaker": false,
     "time": 2070544888442,
     "orderId": 50278,
-    "id": 1278
+    "id": 1278,
+    "quoteQty": "2852.42"
   },
   {
     "symbol": "ATOMUSDT",
@@ -1938,22 +2307,24 @@
     "commission": "2.87535221",
     "commissionAsset": "USDT",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 2070625871572,
     "orderId": 50279,
-    "id": 1279
+    "id": 1279,
+    "quoteQty": "2874.44"
   },
   {
     "symbol": "AVAXUSDT",
-    "qty": "32.95",
+    "qty": "136.53139404",
     "price": "38.00",
     "commission": "0.03295",
     "commissionAsset": "AVAX",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 2080993871572,
     "orderId": 50282,
-    "id": 1282
+    "id": 1282,
+    "quoteQty": "5188.19"
   },
   {
     "symbol": "AVAXUSDT",
@@ -1965,7 +2336,8 @@
     "isMaker": false,
     "time": 2081071383213,
     "orderId": 50283,
-    "id": 1283
+    "id": 1283,
+    "quoteQty": "1492.31"
   },
   {
     "symbol": "AVAXUSDT",
@@ -1974,10 +2346,11 @@
     "commission": "0.43308701",
     "commissionAsset": "USDT",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 2091612183213,
     "orderId": 50286,
-    "id": 1286
+    "id": 1286,
+    "quoteQty": "433.03"
   },
   {
     "symbol": "AVAXUSDT",
@@ -1989,7 +2362,8 @@
     "isMaker": false,
     "time": 2091674960993,
     "orderId": 50287,
-    "id": 1287
+    "id": 1287,
+    "quoteQty": "431.75"
   },
   {
     "symbol": "SUIUSDT",
@@ -2001,7 +2375,8 @@
     "isMaker": false,
     "time": 2102388560993,
     "orderId": 50290,
-    "id": 1290
+    "id": 1290,
+    "quoteQty": "1666.63"
   },
   {
     "symbol": "SUIUSDT",
@@ -2010,14 +2385,15 @@
     "commission": "1.81449453",
     "commissionAsset": "USDT",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 2102470460104,
     "orderId": 50291,
-    "id": 1291
+    "id": 1291,
+    "quoteQty": "1818.96"
   },
   {
     "symbol": "AVAXUSDT",
-    "qty": "16.47",
+    "qty": "17.82133046",
     "price": "38.86",
     "commission": "0.63999864",
     "commissionAsset": "USDT",
@@ -2025,7 +2401,8 @@
     "isMaker": false,
     "time": 2113356860104,
     "orderId": 50294,
-    "id": 1294
+    "id": 1294,
+    "quoteQty": "692.54"
   },
   {
     "symbol": "AVAXUSDT",
@@ -2034,10 +2411,11 @@
     "commission": "0.70995298",
     "commissionAsset": "USDT",
     "isBuyer": false,
-    "isMaker": true,
+    "isMaker": false,
     "time": 2113416897364,
     "orderId": 50295,
-    "id": 1295
+    "id": 1295,
+    "quoteQty": "710.02"
   },
   {
     "symbol": "APTUSDT",
@@ -2046,10 +2424,11 @@
     "commission": "10.3648416",
     "commissionAsset": "USDT",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 2124476097364,
     "orderId": 50298,
-    "id": 1298
+    "id": 1298,
+    "quoteQty": "10364.85"
   },
   {
     "symbol": "APTUSDT",
@@ -2061,7 +2440,8 @@
     "isMaker": false,
     "time": 2124538882975,
     "orderId": 50299,
-    "id": 1299
+    "id": 1299,
+    "quoteQty": "9451.17"
   },
   {
     "symbol": "SUIUSDT",
@@ -2070,10 +2450,11 @@
     "commission": "0.48982",
     "commissionAsset": "SUI",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 2135770882975,
     "orderId": 50302,
-    "id": 1302
+    "id": 1302,
+    "quoteQty": "1053.11"
   },
   {
     "symbol": "SUIUSDT",
@@ -2085,7 +2466,8 @@
     "isMaker": false,
     "time": 2135837008668,
     "orderId": 50303,
-    "id": 1303
+    "id": 1303,
+    "quoteQty": "1013.93"
   },
   {
     "symbol": "FETUSDT",
@@ -2094,14 +2476,15 @@
     "commission": "0.89769",
     "commissionAsset": "FET",
     "isBuyer": true,
-    "isMaker": true,
+    "isMaker": false,
     "time": 2147241808668,
     "orderId": 50306,
-    "id": 1306
+    "id": 1306,
+    "quoteQty": "1418.35"
   },
   {
     "symbol": "FETUSDT",
-    "qty": "897.69",
+    "qty": "3003.51915898",
     "price": "1.85",
     "commission": "1.66276198",
     "commissionAsset": "USDT",
@@ -2109,7 +2492,8 @@
     "isMaker": true,
     "time": 2147316035186,
     "orderId": 50307,
-    "id": 1307
+    "id": 1307,
+    "quoteQty": "5556.51"
   },
   {
     "symbol": "SUIUSDT",
@@ -2121,7 +2505,8 @@
     "isMaker": false,
     "time": 2158893635186,
     "orderId": 50310,
-    "id": 1310
+    "id": 1310,
+    "quoteQty": "1275.86"
   },
   {
     "symbol": "SUIUSDT",
@@ -2133,11 +2518,12 @@
     "isMaker": false,
     "time": 2158928758093,
     "orderId": 50311,
-    "id": 1311
+    "id": 1311,
+    "quoteQty": "1184.29"
   },
   {
     "symbol": "OPUSDT",
-    "qty": "824.02",
+    "qty": "1407.60069387",
     "price": "2.45",
     "commission": "2.01910123",
     "commissionAsset": "USDT",
@@ -2145,7 +2531,8 @@
     "isMaker": true,
     "time": 2170679158093,
     "orderId": 50314,
-    "id": 1314
+    "id": 1314,
+    "quoteQty": "3448.62"
   },
   {
     "symbol": "OPUSDT",
@@ -2157,7 +2544,8 @@
     "isMaker": false,
     "time": 2170710220666,
     "orderId": 50315,
-    "id": 1315
+    "id": 1315,
+    "quoteQty": "1854.05"
   },
   {
     "symbol": "XRPUSDT",
@@ -2169,7 +2557,8 @@
     "isMaker": false,
     "time": 2182633420666,
     "orderId": 50318,
-    "id": 1318
+    "id": 1318,
+    "quoteQty": "659.04"
   },
   {
     "symbol": "XRPUSDT",
@@ -2181,11 +2570,12 @@
     "isMaker": false,
     "time": 2182692277934,
     "orderId": 50319,
-    "id": 1319
+    "id": 1319,
+    "quoteQty": "604.12"
   },
   {
     "symbol": "FETUSDT",
-    "qty": "493.26",
+    "qty": "237.50164078",
     "price": "1.47",
     "commission": "0.7257463",
     "commissionAsset": "USDT",
@@ -2193,11 +2583,12 @@
     "isMaker": false,
     "time": 2194788277934,
     "orderId": 50322,
-    "id": 1322
+    "id": 1322,
+    "quoteQty": "349.13"
   },
   {
     "symbol": "FETUSDT",
-    "qty": "493.26",
+    "qty": "339.73125117",
     "price": "1.32",
     "commission": "0.65355454",
     "commissionAsset": "USDT",
@@ -2205,11 +2596,12 @@
     "isMaker": false,
     "time": 2194865961852,
     "orderId": 50323,
-    "id": 1323
+    "id": 1323,
+    "quoteQty": "448.45"
   },
   {
     "symbol": "ALGOUSDT",
-    "qty": "505.1",
+    "qty": "7615.16258869",
     "price": "0.23",
     "commission": "0.11582814",
     "commissionAsset": "USDT",
@@ -2217,11 +2609,12 @@
     "isMaker": false,
     "time": 2207134761852,
     "orderId": 50326,
-    "id": 1326
+    "id": 1326,
+    "quoteQty": "1751.49"
   },
   {
     "symbol": "ALGOUSDT",
-    "qty": "505.1",
+    "qty": "22400.73776033",
     "price": "0.23",
     "commission": "0.11712686",
     "commissionAsset": "USDT",
@@ -2229,7 +2622,8 @@
     "isMaker": true,
     "time": 2207200990197,
     "orderId": 50327,
-    "id": 1327
+    "id": 1327,
+    "quoteQty": "5152.17"
   },
   {
     "symbol": "DOTUSDT",
@@ -2241,7 +2635,8 @@
     "isMaker": false,
     "time": 2219642590197,
     "orderId": 50330,
-    "id": 1330
+    "id": 1330,
+    "quoteQty": "6458.10"
   },
   {
     "symbol": "DOTUSDT",
@@ -2253,11 +2648,12 @@
     "isMaker": false,
     "time": 2219684396156,
     "orderId": 50331,
-    "id": 1331
+    "id": 1331,
+    "quoteQty": "6128.70"
   },
   {
     "symbol": "ETHUSDT",
-    "qty": "0.028",
+    "qty": "1.22133181",
     "price": "2484.45",
     "commission": "0.000028",
     "commissionAsset": "ETH",
@@ -2265,11 +2661,12 @@
     "isMaker": false,
     "time": 2232298796156,
     "orderId": 50334,
-    "id": 1334
+    "id": 1334,
+    "quoteQty": "3034.34"
   },
   {
     "symbol": "ETHUSDT",
-    "qty": "0.028",
+    "qty": "0.25857385",
     "price": "2382.27",
     "commission": "0.06670358",
     "commissionAsset": "USDT",
@@ -2277,11 +2674,12 @@
     "isMaker": true,
     "time": 2232346053931,
     "orderId": 50335,
-    "id": 1335
+    "id": 1335,
+    "quoteQty": "615.99"
   },
   {
     "symbol": "UNIUSDT",
-    "qty": "753.35",
+    "qty": "745.89031628",
     "price": "9.58",
     "commission": "0.75335",
     "commissionAsset": "UNI",
@@ -2289,7 +2687,8 @@
     "isMaker": true,
     "time": 2245133253931,
     "orderId": 50338,
-    "id": 1338
+    "id": 1338,
+    "quoteQty": "7145.63"
   },
   {
     "symbol": "UNIUSDT",
@@ -2301,7 +2700,8 @@
     "isMaker": false,
     "time": 2245146342079,
     "orderId": 50339,
-    "id": 1339
+    "id": 1339,
+    "quoteQty": "8904.60"
   },
   {
     "symbol": "BNBUSDT",
@@ -2313,7 +2713,8 @@
     "isMaker": true,
     "time": 2258106342079,
     "orderId": 50342,
-    "id": 1342
+    "id": 1342,
+    "quoteQty": "10.18"
   },
   {
     "symbol": "BNBUSDT",
@@ -2325,7 +2726,8 @@
     "isMaker": true,
     "time": 2258164775031,
     "orderId": 50343,
-    "id": 1343
+    "id": 1343,
+    "quoteQty": "12.33"
   },
   {
     "symbol": "PEPEUSDT",
@@ -2337,7 +2739,8 @@
     "isMaker": true,
     "time": 2271297575031,
     "orderId": 50346,
-    "id": 1346
+    "id": 1346,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "PEPEUSDT",
@@ -2349,7 +2752,8 @@
     "isMaker": false,
     "time": 2271303467027,
     "orderId": 50347,
-    "id": 1347
+    "id": 1347,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "WIFUSDT",
@@ -2361,7 +2765,8 @@
     "isMaker": false,
     "time": 2284609067027,
     "orderId": 50350,
-    "id": 1350
+    "id": 1350,
+    "quoteQty": "192.24"
   },
   {
     "symbol": "WIFUSDT",
@@ -2373,11 +2778,12 @@
     "isMaker": false,
     "time": 2284692192281,
     "orderId": 50351,
-    "id": 1351
+    "id": 1351,
+    "quoteQty": "186.99"
   },
   {
     "symbol": "FTMUSDT",
-    "qty": "680.41",
+    "qty": "5334.97155361",
     "price": "0.79",
     "commission": "0.68041",
     "commissionAsset": "FTM",
@@ -2385,7 +2791,8 @@
     "isMaker": true,
     "time": 2298170592281,
     "orderId": 50354,
-    "id": 1354
+    "id": 1354,
+    "quoteQty": "4214.63"
   },
   {
     "symbol": "FTMUSDT",
@@ -2397,7 +2804,8 @@
     "isMaker": false,
     "time": 2298192258992,
     "orderId": 50355,
-    "id": 1355
+    "id": 1355,
+    "quoteQty": "544.33"
   },
   {
     "symbol": "OPUSDT",
@@ -2409,11 +2817,12 @@
     "isMaker": false,
     "time": 2311843458992,
     "orderId": 50358,
-    "id": 1358
+    "id": 1358,
+    "quoteQty": "734.77"
   },
   {
     "symbol": "OPUSDT",
-    "qty": "228.19",
+    "qty": "2209.51133431",
     "price": "3.03",
     "commission": "0.69031396",
     "commissionAsset": "USDT",
@@ -2421,7 +2830,8 @@
     "isMaker": true,
     "time": 2311880665212,
     "orderId": 50359,
-    "id": 1359
+    "id": 1359,
+    "quoteQty": "6694.82"
   },
   {
     "symbol": "ALGOUSDT",
@@ -2433,7 +2843,8 @@
     "isMaker": true,
     "time": 2325704665212,
     "orderId": 50362,
-    "id": 1362
+    "id": 1362,
+    "quoteQty": "202.27"
   },
   {
     "symbol": "ALGOUSDT",
@@ -2445,7 +2856,8 @@
     "isMaker": false,
     "time": 2325729489053,
     "orderId": 50363,
-    "id": 1363
+    "id": 1363,
+    "quoteQty": "202.27"
   },
   {
     "symbol": "AVAXUSDT",
@@ -2457,11 +2869,12 @@
     "isMaker": false,
     "time": 2339726289053,
     "orderId": 50366,
-    "id": 1366
+    "id": 1366,
+    "quoteQty": "167.35"
   },
   {
     "symbol": "AVAXUSDT",
-    "qty": "5.03",
+    "qty": "124.00364023",
     "price": "33.82",
     "commission": "0.17012962",
     "commissionAsset": "USDT",
@@ -2469,7 +2882,8 @@
     "isMaker": true,
     "time": 2339778902010,
     "orderId": 50367,
-    "id": 1367
+    "id": 1367,
+    "quoteQty": "4193.80"
   },
   {
     "symbol": "DOGEUSDT",
@@ -2481,11 +2895,12 @@
     "isMaker": false,
     "time": 2353948502010,
     "orderId": 50370,
-    "id": 1370
+    "id": 1370,
+    "quoteQty": "122.22"
   },
   {
     "symbol": "DOGEUSDT",
-    "qty": "873.0",
+    "qty": "37756.88427803",
     "price": "0.16",
     "commission": "0.14001836",
     "commissionAsset": "USDT",
@@ -2493,11 +2908,12 @@
     "isMaker": false,
     "time": 2353955298213,
     "orderId": 50371,
-    "id": 1371
+    "id": 1371,
+    "quoteQty": "6041.10"
   },
   {
     "symbol": "MATICUSDT",
-    "qty": "990.35",
+    "qty": "5750.35442921",
     "price": "0.89",
     "commission": "0.99035",
     "commissionAsset": "MATIC",
@@ -2505,7 +2921,8 @@
     "isMaker": true,
     "time": 2368297698213,
     "orderId": 50374,
-    "id": 1374
+    "id": 1374,
+    "quoteQty": "5117.82"
   },
   {
     "symbol": "MATICUSDT",
@@ -2517,7 +2934,8 @@
     "isMaker": false,
     "time": 2368313426676,
     "orderId": 50375,
-    "id": 1375
+    "id": 1375,
+    "quoteQty": "1020.06"
   },
   {
     "symbol": "BTCUSDT",
@@ -2529,11 +2947,12 @@
     "isMaker": false,
     "time": 2382828626676,
     "orderId": 50378,
-    "id": 1378
+    "id": 1378,
+    "quoteQty": "1387.15"
   },
   {
     "symbol": "BTCUSDT",
-    "qty": "0.0285",
+    "qty": "0.10415709",
     "price": "58458.44",
     "commission": "0.0000285",
     "commissionAsset": "BTC",
@@ -2541,7 +2960,8 @@
     "isMaker": true,
     "time": 2382869187912,
     "orderId": 50379,
-    "id": 1379
+    "id": 1379,
+    "quoteQty": "6088.86"
   },
   {
     "symbol": "FETUSDT",
@@ -2553,7 +2973,8 @@
     "isMaker": false,
     "time": 2397557187912,
     "orderId": 50382,
-    "id": 1382
+    "id": 1382,
+    "quoteQty": "193.65"
   },
   {
     "symbol": "FETUSDT",
@@ -2565,11 +2986,12 @@
     "isMaker": true,
     "time": 2397560943150,
     "orderId": 50383,
-    "id": 1383
+    "id": 1383,
+    "quoteQty": "214.25"
   },
   {
     "symbol": "ADAUSDT",
-    "qty": "988.0",
+    "qty": "3136.85299967",
     "price": "0.63",
     "commission": "0.988",
     "commissionAsset": "ADA",
@@ -2577,7 +2999,8 @@
     "isMaker": true,
     "time": 2412421743150,
     "orderId": 50386,
-    "id": 1386
+    "id": 1386,
+    "quoteQty": "1976.22"
   },
   {
     "symbol": "ADAUSDT",
@@ -2589,7 +3012,8 @@
     "isMaker": false,
     "time": 2412466554846,
     "orderId": 50387,
-    "id": 1387
+    "id": 1387,
+    "quoteQty": "760.76"
   },
   {
     "symbol": "AVAXUSDT",
@@ -2601,11 +3025,12 @@
     "isMaker": true,
     "time": 2427500154846,
     "orderId": 50390,
-    "id": 1390
+    "id": 1390,
+    "quoteQty": "1759.29"
   },
   {
     "symbol": "AVAXUSDT",
-    "qty": "42.92",
+    "qty": "97.26729694",
     "price": "50.78",
     "commission": "2.17934917",
     "commissionAsset": "USDT",
@@ -2613,7 +3038,8 @@
     "isMaker": false,
     "time": 2427531410428,
     "orderId": 50391,
-    "id": 1391
+    "id": 1391,
+    "quoteQty": "4939.23"
   },
   {
     "symbol": "XRPUSDT",
@@ -2625,11 +3051,12 @@
     "isMaker": true,
     "time": 2442737810428,
     "orderId": 50394,
-    "id": 1394
+    "id": 1394,
+    "quoteQty": "2377.10"
   },
   {
     "symbol": "XRPUSDT",
-    "qty": "4322.0",
+    "qty": "3027.97756781",
     "price": "0.51",
     "commission": "2.19425924",
     "commissionAsset": "USDT",
@@ -2637,11 +3064,12 @@
     "isMaker": false,
     "time": 2442812970871,
     "orderId": 50395,
-    "id": 1395
+    "id": 1395,
+    "quoteQty": "1544.27"
   },
   {
     "symbol": "SHIBUSDT",
-    "qty": "36493013.0",
+    "qty": "Infinity",
     "price": "0.00",
     "commission": "0.34674306",
     "commissionAsset": "USDT",
@@ -2649,11 +3077,12 @@
     "isMaker": true,
     "time": 2458192170871,
     "orderId": 50398,
-    "id": 1398
+    "id": 1398,
+    "quoteQty": "NaN"
   },
   {
     "symbol": "SHIBUSDT",
-    "qty": "36493013.0",
+    "qty": "Infinity",
     "price": "0.00",
     "commission": "36493.013",
     "commissionAsset": "SHIB",
@@ -2661,11 +3090,12 @@
     "isMaker": true,
     "time": 2458199440625,
     "orderId": 50399,
-    "id": 1399
+    "id": 1399,
+    "quoteQty": "NaN"
   },
   {
     "symbol": "XRPUSDT",
-    "qty": "2053.0",
+    "qty": "5612.92686487",
     "price": "0.57",
     "commission": "2.053",
     "commissionAsset": "XRP",
@@ -2673,7 +3103,8 @@
     "isMaker": true,
     "time": 2473751440625,
     "orderId": 50402,
-    "id": 1402
+    "id": 1402,
+    "quoteQty": "3199.37"
   },
   {
     "symbol": "XRPUSDT",
@@ -2685,11 +3116,12 @@
     "isMaker": false,
     "time": 2473804761605,
     "orderId": 50403,
-    "id": 1403
+    "id": 1403,
+    "quoteQty": "1170.21"
   },
   {
     "symbol": "WIFUSDT",
-    "qty": "108.69",
+    "qty": "1786.36567268",
     "price": "1.96",
     "commission": "0.21267508",
     "commissionAsset": "USDT",
@@ -2697,11 +3129,12 @@
     "isMaker": false,
     "time": 2489529561605,
     "orderId": 50406,
-    "id": 1406
+    "id": 1406,
+    "quoteQty": "3501.28"
   },
   {
     "symbol": "WIFUSDT",
-    "qty": "108.69",
+    "qty": "2949.91422022",
     "price": "2.38",
     "commission": "0.10869",
     "commissionAsset": "WIF",
@@ -2709,11 +3142,12 @@
     "isMaker": false,
     "time": 2489608735413,
     "orderId": 50407,
-    "id": 1407
+    "id": 1407,
+    "quoteQty": "7020.80"
   },
   {
     "symbol": "MATICUSDT",
-    "qty": "986.28",
+    "qty": "4056.11963183",
     "price": "0.74",
     "commission": "0.98628",
     "commissionAsset": "MATIC",
@@ -2721,7 +3155,8 @@
     "isMaker": true,
     "time": 2505506335413,
     "orderId": 50410,
-    "id": 1410
+    "id": 1410,
+    "quoteQty": "3001.53"
   },
   {
     "symbol": "MATICUSDT",
@@ -2733,7 +3168,8 @@
     "isMaker": true,
     "time": 2505566926164,
     "orderId": 50411,
-    "id": 1411
+    "id": 1411,
+    "quoteQty": "798.89"
   },
   {
     "symbol": "SUIUSDT",
@@ -2745,7 +3181,8 @@
     "isMaker": false,
     "time": 2521637326164,
     "orderId": 50414,
-    "id": 1414
+    "id": 1414,
+    "quoteQty": "500.70"
   },
   {
     "symbol": "SUIUSDT",
@@ -2757,11 +3194,12 @@
     "isMaker": false,
     "time": 2521721341251,
     "orderId": 50415,
-    "id": 1415
+    "id": 1415,
+    "quoteQty": "582.34"
   },
   {
     "symbol": "NEARUSDT",
-    "qty": "959.74",
+    "qty": "695.73276231",
     "price": "7.28",
     "commission": "6.98840952",
     "commissionAsset": "USDT",
@@ -2769,7 +3207,8 @@
     "isMaker": true,
     "time": 2537964541251,
     "orderId": 50418,
-    "id": 1418
+    "id": 1418,
+    "quoteQty": "5064.93"
   },
   {
     "symbol": "NEARUSDT",
@@ -2781,11 +3220,12 @@
     "isMaker": false,
     "time": 2537983597677,
     "orderId": 50419,
-    "id": 1419
+    "id": 1419,
+    "quoteQty": "8359.34"
   },
   {
     "symbol": "BTCUSDT",
-    "qty": "0.0511",
+    "qty": "0.13398281",
     "price": "50663.19",
     "commission": "2.58888898",
     "commissionAsset": "USDT",
@@ -2793,7 +3233,8 @@
     "isMaker": false,
     "time": 2554399597677,
     "orderId": 50422,
-    "id": 1422
+    "id": 1422,
+    "quoteQty": "6788.00"
   },
   {
     "symbol": "BTCUSDT",
@@ -2805,7 +3246,8 @@
     "isMaker": true,
     "time": 2554411653409,
     "orderId": 50423,
-    "id": 1423
+    "id": 1423,
+    "quoteQty": "3006.89"
   },
   {
     "symbol": "XRPUSDT",
@@ -2817,7 +3259,8 @@
     "isMaker": false,
     "time": 2571000453409,
     "orderId": 50426,
-    "id": 1426
+    "id": 1426,
+    "quoteQty": "820.80"
   },
   {
     "symbol": "XRPUSDT",
@@ -2829,11 +3272,12 @@
     "isMaker": false,
     "time": 2571065791650,
     "orderId": 50427,
-    "id": 1427
+    "id": 1427,
+    "quoteQty": "1008.90"
   },
   {
     "symbol": "MATICUSDT",
-    "qty": "229.58",
+    "qty": "3840.23810634",
     "price": "0.78",
     "commission": "0.22958",
     "commissionAsset": "MATIC",
@@ -2841,7 +3285,8 @@
     "isMaker": false,
     "time": 2587827391650,
     "orderId": 50430,
-    "id": 1430
+    "id": 1430,
+    "quoteQty": "2995.39"
   },
   {
     "symbol": "MATICUSDT",
@@ -2853,7 +3298,8 @@
     "isMaker": true,
     "time": 2587845757992,
     "orderId": 50431,
-    "id": 1431
+    "id": 1431,
+    "quoteQty": "190.55"
   },
   {
     "symbol": "ADAUSDT",
@@ -2865,7 +3311,8 @@
     "isMaker": true,
     "time": 2604780157992,
     "orderId": 50434,
-    "id": 1434
+    "id": 1434,
+    "quoteQty": "831.60"
   },
   {
     "symbol": "ADAUSDT",
@@ -2877,7 +3324,8 @@
     "isMaker": false,
     "time": 2604824626688,
     "orderId": 50435,
-    "id": 1435
+    "id": 1435,
+    "quoteQty": "816.48"
   },
   {
     "symbol": "SHIBUSDT",
@@ -2889,11 +3337,12 @@
     "isMaker": true,
     "time": 2621931826688,
     "orderId": 50438,
-    "id": 1438
+    "id": 1438,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "SHIBUSDT",
-    "qty": "15091200.0",
+    "qty": "Infinity",
     "price": "0.00",
     "commission": "0.14778184",
     "commissionAsset": "USDT",
@@ -2901,7 +3350,8 @@
     "isMaker": false,
     "time": 2621950653051,
     "orderId": 50439,
-    "id": 1439
+    "id": 1439,
+    "quoteQty": "NaN"
   },
   {
     "symbol": "BONKUSDT",
@@ -2913,7 +3363,8 @@
     "isMaker": true,
     "time": 2639230653051,
     "orderId": 50442,
-    "id": 1442
+    "id": 1442,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "BONKUSDT",
@@ -2925,7 +3376,8 @@
     "isMaker": true,
     "time": 2639251093296,
     "orderId": 50443,
-    "id": 1443
+    "id": 1443,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "BNBUSDT",
@@ -2937,7 +3389,8 @@
     "isMaker": false,
     "time": 2656703893296,
     "orderId": 50446,
-    "id": 1446
+    "id": 1446,
+    "quoteQty": "28.97"
   },
   {
     "symbol": "BNBUSDT",
@@ -2949,7 +3402,8 @@
     "isMaker": false,
     "time": 2656731680207,
     "orderId": 50447,
-    "id": 1447
+    "id": 1447,
+    "quoteQty": "30.60"
   },
   {
     "symbol": "ADAUSDT",
@@ -2961,11 +3415,12 @@
     "isMaker": false,
     "time": 2674357280207,
     "orderId": 50450,
-    "id": 1450
+    "id": 1450,
+    "quoteQty": "1677.52"
   },
   {
     "symbol": "ADAUSDT",
-    "qty": "3226.0",
+    "qty": "1060.17594135",
     "price": "0.62",
     "commission": "3.226",
     "commissionAsset": "ADA",
@@ -2973,11 +3428,12 @@
     "isMaker": true,
     "time": 2674389638341,
     "orderId": 50451,
-    "id": 1451
+    "id": 1451,
+    "quoteQty": "657.31"
   },
   {
     "symbol": "BONKUSDT",
-    "qty": "16782996.0",
+    "qty": "Infinity",
     "price": "0.00",
     "commission": "16782.996",
     "commissionAsset": "BONK",
@@ -2985,11 +3441,12 @@
     "isMaker": false,
     "time": 2692188038341,
     "orderId": 50454,
-    "id": 1454
+    "id": 1454,
+    "quoteQty": "NaN"
   },
   {
     "symbol": "BONKUSDT",
-    "qty": "16782996.0",
+    "qty": "Infinity",
     "price": "0.00",
     "commission": "16782.996",
     "commissionAsset": "BONK",
@@ -2997,7 +3454,8 @@
     "isMaker": true,
     "time": 2692198822483,
     "orderId": 50455,
-    "id": 1455
+    "id": 1455,
+    "quoteQty": "NaN"
   },
   {
     "symbol": "ATOMUSDT",
@@ -3009,11 +3467,12 @@
     "isMaker": true,
     "time": 2710170022483,
     "orderId": 50458,
-    "id": 1458
+    "id": 1458,
+    "quoteQty": "4168.08"
   },
   {
     "symbol": "ATOMUSDT",
-    "qty": "372.15",
+    "qty": "443.63195926",
     "price": "13.32",
     "commission": "4.95855111",
     "commissionAsset": "USDT",
@@ -3021,7 +3480,8 @@
     "isMaker": false,
     "time": 2710223496977,
     "orderId": 50459,
-    "id": 1459
+    "id": 1459,
+    "quoteQty": "5909.18"
   },
   {
     "symbol": "AVAXUSDT",
@@ -3033,11 +3493,12 @@
     "isMaker": false,
     "time": 2728367496977,
     "orderId": 50462,
-    "id": 1462
+    "id": 1462,
+    "quoteQty": "1876.76"
   },
   {
     "symbol": "AVAXUSDT",
-    "qty": "47.84",
+    "qty": "29.57041699",
     "price": "44.75",
     "commission": "2.14105465",
     "commissionAsset": "USDT",
@@ -3045,11 +3506,12 @@
     "isMaker": false,
     "time": 2728429050043,
     "orderId": 50463,
-    "id": 1463
+    "id": 1463,
+    "quoteQty": "1323.28"
   },
   {
     "symbol": "NEARUSDT",
-    "qty": "478.42",
+    "qty": "1080.66332821",
     "price": "5.84",
     "commission": "0.47842",
     "commissionAsset": "NEAR",
@@ -3057,7 +3519,8 @@
     "isMaker": false,
     "time": 2746745850043,
     "orderId": 50466,
-    "id": 1466
+    "id": 1466,
+    "quoteQty": "6311.07"
   },
   {
     "symbol": "NEARUSDT",
@@ -3069,7 +3532,8 @@
     "isMaker": false,
     "time": 2746802039816,
     "orderId": 50467,
-    "id": 1467
+    "id": 1467,
+    "quoteQty": "2698.29"
   },
   {
     "symbol": "ETHUSDT",
@@ -3081,7 +3545,8 @@
     "isMaker": true,
     "time": 2765291639816,
     "orderId": 50470,
-    "id": 1470
+    "id": 1470,
+    "quoteQty": "189.34"
   },
   {
     "symbol": "ETHUSDT",
@@ -3093,7 +3558,8 @@
     "isMaker": true,
     "time": 2765367702616,
     "orderId": 50471,
-    "id": 1471
+    "id": 1471,
+    "quoteQty": "187.76"
   },
   {
     "symbol": "ADAUSDT",
@@ -3105,7 +3571,8 @@
     "isMaker": false,
     "time": 2784030102616,
     "orderId": 50474,
-    "id": 1474
+    "id": 1474,
+    "quoteQty": "1933.14"
   },
   {
     "symbol": "ADAUSDT",
@@ -3117,7 +3584,8 @@
     "isMaker": true,
     "time": 2784085040584,
     "orderId": 50475,
-    "id": 1475
+    "id": 1475,
+    "quoteQty": "1815.98"
   },
   {
     "symbol": "BTCUSDT",
@@ -3129,7 +3597,8 @@
     "isMaker": false,
     "time": 2802920240584,
     "orderId": 50478,
-    "id": 1478
+    "id": 1478,
+    "quoteQty": "658.41"
   },
   {
     "symbol": "BTCUSDT",
@@ -3141,11 +3610,12 @@
     "isMaker": false,
     "time": 2802936973566,
     "orderId": 50479,
-    "id": 1479
+    "id": 1479,
+    "quoteQty": "726.79"
   },
   {
     "symbol": "ADAUSDT",
-    "qty": "2921.0",
+    "qty": "10326.88981988",
     "price": "0.67",
     "commission": "2.921",
     "commissionAsset": "ADA",
@@ -3153,11 +3623,12 @@
     "isMaker": false,
     "time": 2821944973566,
     "orderId": 50482,
-    "id": 1482
+    "id": 1482,
+    "quoteQty": "6919.02"
   },
   {
     "symbol": "ADAUSDT",
-    "qty": "2921.0",
+    "qty": "9595.14607779",
     "price": "0.74",
     "commission": "2.921",
     "commissionAsset": "ADA",
@@ -3165,11 +3636,12 @@
     "isMaker": true,
     "time": 2822028647316,
     "orderId": 50483,
-    "id": 1483
+    "id": 1483,
+    "quoteQty": "7100.41"
   },
   {
     "symbol": "ADAUSDT",
-    "qty": "1233.0",
+    "qty": "658.99791378",
     "price": "0.61",
     "commission": "1.233",
     "commissionAsset": "ADA",
@@ -3177,11 +3649,12 @@
     "isMaker": true,
     "time": 2841209447316,
     "orderId": 50486,
-    "id": 1486
+    "id": 1486,
+    "quoteQty": "401.99"
   },
   {
     "symbol": "ADAUSDT",
-    "qty": "1233.0",
+    "qty": "1857.72543927",
     "price": "0.66",
     "commission": "1.233",
     "commissionAsset": "ADA",
@@ -3189,11 +3662,12 @@
     "isMaker": false,
     "time": 2841252879705,
     "orderId": 50487,
-    "id": 1487
+    "id": 1487,
+    "quoteQty": "1226.10"
   },
   {
     "symbol": "PEPEUSDT",
-    "qty": "38302367.0",
+    "qty": "Infinity",
     "price": "0.00",
     "commission": "0.39679526",
     "commissionAsset": "USDT",
@@ -3201,7 +3675,8 @@
     "isMaker": true,
     "time": 2860606479705,
     "orderId": 50490,
-    "id": 1490
+    "id": 1490,
+    "quoteQty": "NaN"
   },
   {
     "symbol": "PEPEUSDT",
@@ -3213,7 +3688,8 @@
     "isMaker": false,
     "time": 2860670735220,
     "orderId": 50491,
-    "id": 1491
+    "id": 1491,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "AVAXUSDT",
@@ -3225,11 +3701,12 @@
     "isMaker": true,
     "time": 2880197135220,
     "orderId": 50494,
-    "id": 1494
+    "id": 1494,
+    "quoteQty": "642.56"
   },
   {
     "symbol": "AVAXUSDT",
-    "qty": "17.77",
+    "qty": "179.41208574",
     "price": "38.69",
     "commission": "0.68756099",
     "commissionAsset": "USDT",
@@ -3237,7 +3714,567 @@
     "isMaker": true,
     "time": 2880205404652,
     "orderId": 50495,
-    "id": 1495
+    "id": 1495,
+    "quoteQty": "6941.45"
+  },
+  {
+    "symbol": "AVAXUSDT",
+    "qty": "86.62697596",
+    "price": "38.48",
+    "commission": "0.30668434",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2880205584652,
+    "orderId": 60016,
+    "id": 10016,
+    "quoteQty": "3333.41"
+  },
+  {
+    "symbol": "AVAXUSDT",
+    "qty": "178.13189839",
+    "price": "38.48",
+    "commission": "0.26855313",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2880205764652,
+    "orderId": 60017,
+    "id": 10017,
+    "quoteQty": "6854.52"
+  },
+  {
+    "symbol": "AVAXUSDT",
+    "qty": "107.47129306",
+    "price": "38.43",
+    "commission": "0.35405288",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2880205944652,
+    "orderId": 60018,
+    "id": 10018,
+    "quoteQty": "4130.12"
+  },
+  {
+    "symbol": "AVAXUSDT",
+    "qty": "115.79589590",
+    "price": "38.37",
+    "commission": "0.36872394",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2880206124652,
+    "orderId": 60019,
+    "id": 10019,
+    "quoteQty": "4443.09"
+  },
+  {
+    "symbol": "DOGEUSDT",
+    "qty": "624.25833639",
+    "price": "0.18244085",
+    "commission": "1.55699503",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 2880403224652,
+    "orderId": 80000,
+    "id": 30000,
+    "quoteQty": "113.89"
+  },
+  {
+    "symbol": "SHIBUSDT",
+    "qty": "627.34481671",
+    "price": "0.55381742",
+    "commission": "1.15798948",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 2881011504652,
+    "orderId": 80001,
+    "id": 30001,
+    "quoteQty": "347.43"
+  },
+  {
+    "symbol": "PEPEUSDT",
+    "qty": "121.27656184",
+    "price": "0.31739243",
+    "commission": "0.87596300",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 2881534284652,
+    "orderId": 80002,
+    "id": 30002,
+    "quoteQty": "38.49"
+  },
+  {
+    "symbol": "FLOKIUSDT",
+    "qty": "2681.87206875",
+    "price": "0.10549013",
+    "commission": "0.28291103",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 2881534284652,
+    "orderId": 90000,
+    "id": 40000,
+    "quoteQty": "282.91"
+  },
+  {
+    "symbol": "FLOKIUSDT",
+    "qty": "2681.87206875",
+    "price": "0.09888387",
+    "commission": "0.26519389",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2881551977873.4946,
+    "orderId": 90001,
+    "id": 40001,
+    "quoteQty": "265.19"
+  },
+  {
+    "symbol": "FLOKIUSDT",
+    "qty": "4862.58915452",
+    "price": "0.07079649",
+    "commission": "0.34425422",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 2881555884652,
+    "orderId": 90002,
+    "id": 40002,
+    "quoteQty": "344.25"
+  },
+  {
+    "symbol": "FLOKIUSDT",
+    "qty": "4862.58915452",
+    "price": "0.06247939",
+    "commission": "0.30381158",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2881567010673.95,
+    "orderId": 90003,
+    "id": 40003,
+    "quoteQty": "303.81"
+  },
+  {
+    "symbol": "FLOKIUSDT",
+    "qty": "1108.53245942",
+    "price": "0.06727305",
+    "commission": "0.07457436",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 2881577484652,
+    "orderId": 90004,
+    "id": 40004,
+    "quoteQty": "74.57"
+  },
+  {
+    "symbol": "FLOKIUSDT",
+    "qty": "1108.53245942",
+    "price": "0.06096239",
+    "commission": "0.06757878",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2881593034107.8,
+    "orderId": 90005,
+    "id": 40005,
+    "quoteQty": "67.58"
+  },
+  {
+    "symbol": "FLOKIUSDT",
+    "qty": "1686.45724721",
+    "price": "0.01308622",
+    "commission": "0.02206935",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 2881599084652,
+    "orderId": 90006,
+    "id": 40006,
+    "quoteQty": "22.07"
+  },
+  {
+    "symbol": "FLOKIUSDT",
+    "qty": "1686.45724721",
+    "price": "0.01242308",
+    "commission": "0.02095099",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2881612542208.018,
+    "orderId": 90007,
+    "id": 40007,
+    "quoteQty": "20.95"
+  },
+  {
+    "symbol": "DOGEUSDT",
+    "qty": "111.18493377",
+    "price": "0.24467903",
+    "commission": "0.14633330",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 2882214564652,
+    "orderId": 80003,
+    "id": 30003,
+    "quoteQty": "27.20"
+  },
+  {
+    "symbol": "DOGEUSDT",
+    "qty": "278.72230554",
+    "price": "0.53022924",
+    "commission": "0.89301005",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2882745384652,
+    "orderId": 80004,
+    "id": 30004,
+    "quoteQty": "147.79"
+  },
+  {
+    "symbol": "PEPEUSDT",
+    "qty": "409.74600371",
+    "price": "0.57801301",
+    "commission": "1.54928790",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 2883432804652,
+    "orderId": 80005,
+    "id": 30005,
+    "quoteQty": "236.84"
+  },
+  {
+    "symbol": "SHIBUSDT",
+    "qty": "355.80705474",
+    "price": "0.50424901",
+    "commission": "1.08588482",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2884030824652,
+    "orderId": 80006,
+    "id": 30006,
+    "quoteQty": "179.42"
+  },
+  {
+    "symbol": "1000SATSUSDT",
+    "qty": "4877.68145151",
+    "price": "0.09111353",
+    "commission": "0.44442279",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 2884290024652,
+    "orderId": 90008,
+    "id": 40008,
+    "quoteQty": "444.42"
+  },
+  {
+    "symbol": "1000SATSUSDT",
+    "qty": "4877.68145151",
+    "price": "0.07886952",
+    "commission": "0.38470040",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2884306259398.4673,
+    "orderId": 90009,
+    "id": 40009,
+    "quoteQty": "384.70"
+  },
+  {
+    "symbol": "1000SATSUSDT",
+    "qty": "3184.61468203",
+    "price": "0.02774676",
+    "commission": "0.08836274",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 2884311624652,
+    "orderId": 90010,
+    "id": 40010,
+    "quoteQty": "88.36"
+  },
+  {
+    "symbol": "1000SATSUSDT",
+    "qty": "3184.61468203",
+    "price": "0.02488305",
+    "commission": "0.07924292",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2884323326646.777,
+    "orderId": 90011,
+    "id": 40011,
+    "quoteQty": "79.24"
+  },
+  {
+    "symbol": "1000SATSUSDT",
+    "qty": "1916.66703935",
+    "price": "0.03954418",
+    "commission": "0.07579302",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 2884333224652,
+    "orderId": 90012,
+    "id": 40012,
+    "quoteQty": "75.79"
+  },
+  {
+    "symbol": "1000SATSUSDT",
+    "qty": "1916.66703935",
+    "price": "0.03473082",
+    "commission": "0.06656743",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2884343707444.4775,
+    "orderId": 90013,
+    "id": 40013,
+    "quoteQty": "66.57"
+  },
+  {
+    "symbol": "1000SATSUSDT",
+    "qty": "3793.20562068",
+    "price": "0.10763516",
+    "commission": "0.40828228",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 2884354824652,
+    "orderId": 90014,
+    "id": 40014,
+    "quoteQty": "408.28"
+  },
+  {
+    "symbol": "1000SATSUSDT",
+    "qty": "3793.20562068",
+    "price": "0.09837254",
+    "commission": "0.37314727",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2884375062928.799,
+    "orderId": 90015,
+    "id": 40015,
+    "quoteQty": "373.15"
+  },
+  {
+    "symbol": "DOGEUSDT",
+    "qty": "410.44371078",
+    "price": "0.57017443",
+    "commission": "1.44006611",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2884644204652,
+    "orderId": 80007,
+    "id": 30007,
+    "quoteQty": "234.02"
+  },
+  {
+    "symbol": "DOGEUSDT",
+    "qty": "573.50140936",
+    "price": "0.33958163",
+    "commission": "1.89123799",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2885164884652,
+    "orderId": 80008,
+    "id": 30008,
+    "quoteQty": "194.75"
+  },
+  {
+    "symbol": "SHIBUSDT",
+    "qty": "566.21746319",
+    "price": "0.47482796",
+    "commission": "1.97379512",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 2885841624652,
+    "orderId": 80009,
+    "id": 30009,
+    "quoteQty": "268.86"
+  },
+  {
+    "symbol": "SHIBUSDT",
+    "qty": "448.95024345",
+    "price": "0.33715506",
+    "commission": "1.54603860",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 2886447144652,
+    "orderId": 80010,
+    "id": 30010,
+    "quoteQty": "151.37"
+  },
+  {
+    "symbol": "MEMEUSDT",
+    "qty": "3294.35626917",
+    "price": "0.04008950",
+    "commission": "0.13206910",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 2886792744652,
+    "orderId": 90016,
+    "id": 40016,
+    "quoteQty": "132.07"
+  },
+  {
+    "symbol": "MEMEUSDT",
+    "qty": "3294.35626917",
+    "price": "0.03739393",
+    "commission": "0.12318893",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2886804464821.88,
+    "orderId": 90017,
+    "id": 40017,
+    "quoteQty": "123.19"
+  },
+  {
+    "symbol": "MEMEUSDT",
+    "qty": "1579.07564666",
+    "price": "0.09031104",
+    "commission": "0.14260797",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 2886814344652,
+    "orderId": 90018,
+    "id": 40018,
+    "quoteQty": "142.61"
+  },
+  {
+    "symbol": "MEMEUSDT",
+    "qty": "1579.07564666",
+    "price": "0.07771451",
+    "commission": "0.12271709",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2886833323223.1694,
+    "orderId": 90019,
+    "id": 40019,
+    "quoteQty": "122.72"
+  },
+  {
+    "symbol": "MEMEUSDT",
+    "qty": "4010.53621463",
+    "price": "0.03250644",
+    "commission": "0.13036826",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 2886835944652,
+    "orderId": 90020,
+    "id": 40020,
+    "quoteQty": "130.37"
+  },
+  {
+    "symbol": "MEMEUSDT",
+    "qty": "4010.53621463",
+    "price": "0.03083606",
+    "commission": "0.12366913",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2886854564396.0195,
+    "orderId": 90021,
+    "id": 40021,
+    "quoteQty": "123.67"
+  },
+  {
+    "symbol": "MEMEUSDT",
+    "qty": "2762.28727353",
+    "price": "0.08640458",
+    "commission": "0.23867426",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 2886857544652,
+    "orderId": 90022,
+    "id": 40022,
+    "quoteQty": "238.67"
+  },
+  {
+    "symbol": "MEMEUSDT",
+    "qty": "2762.28727353",
+    "price": "0.08174280",
+    "commission": "0.22579708",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2886867457926.616,
+    "orderId": 90023,
+    "id": 40023,
+    "quoteQty": "225.80"
+  },
+  {
+    "symbol": "DOGEUSDT",
+    "qty": "996.01269502",
+    "price": "0.53788274",
+    "commission": "1.11226334",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 2887053024652,
+    "orderId": 80011,
+    "id": 30011,
+    "quoteQty": "535.74"
+  },
+  {
+    "symbol": "DOGEUSDT",
+    "qty": "897.04308603",
+    "price": "0.17248524",
+    "commission": "0.18991444",
+    "commissionAsset": "USDT",
+    "isBuyer": true,
+    "isMaker": false,
+    "time": 2887580304652,
+    "orderId": 80012,
+    "id": 30012,
+    "quoteQty": "154.73"
+  },
+  {
+    "symbol": "DOGEUSDT",
+    "qty": "288.02775417",
+    "price": "0.12939678",
+    "commission": "0.28757647",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2888178144652,
+    "orderId": 80013,
+    "id": 30013,
+    "quoteQty": "37.27"
+  },
+  {
+    "symbol": "SHIBUSDT",
+    "qty": "497.95003846",
+    "price": "0.13763562",
+    "commission": "0.25050408",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 2888873304652,
+    "orderId": 80014,
+    "id": 30014,
+    "quoteQty": "68.54"
   },
   {
     "symbol": "XRPUSDT",
@@ -3249,11 +4286,12 @@
     "isMaker": true,
     "time": 2899904604652,
     "orderId": 50498,
-    "id": 1498
+    "id": 1498,
+    "quoteQty": "312.93"
   },
   {
     "symbol": "XRPUSDT",
-    "qty": "549.0",
+    "qty": "479.41748938",
     "price": "0.62",
     "commission": "0.3379308",
     "commissionAsset": "USDT",
@@ -3261,7 +4299,8 @@
     "isMaker": false,
     "time": 2899908419831,
     "orderId": 50499,
-    "id": 1499
+    "id": 1499,
+    "quoteQty": "297.24"
   },
   {
     "symbol": "SHIBUSDT",
@@ -3273,7 +4312,8 @@
     "isMaker": true,
     "time": 2919780419831,
     "orderId": 50502,
-    "id": 1502
+    "id": 1502,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "SHIBUSDT",
@@ -3285,7 +4325,8 @@
     "isMaker": false,
     "time": 2919836742932,
     "orderId": 50503,
-    "id": 1503
+    "id": 1503,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "ALGOUSDT",
@@ -3297,7 +4338,8 @@
     "isMaker": false,
     "time": 2939881542932,
     "orderId": 50506,
-    "id": 1506
+    "id": 1506,
+    "quoteQty": "15.30"
   },
   {
     "symbol": "ALGOUSDT",
@@ -3309,11 +4351,12 @@
     "isMaker": false,
     "time": 2939924858360,
     "orderId": 50507,
-    "id": 1507
+    "id": 1507,
+    "quoteQty": "18.98"
   },
   {
     "symbol": "LINKUSDT",
-    "qty": "28.78",
+    "qty": "188.48156918",
     "price": "15.22",
     "commission": "0.02878",
     "commissionAsset": "LINK",
@@ -3321,11 +4364,12 @@
     "isMaker": false,
     "time": 2960142458360,
     "orderId": 50510,
-    "id": 1510
+    "id": 1510,
+    "quoteQty": "2868.69"
   },
   {
     "symbol": "LINKUSDT",
-    "qty": "28.78",
+    "qty": "304.24903547",
     "price": "14.33",
     "commission": "0.41246781",
     "commissionAsset": "USDT",
@@ -3333,7 +4377,8 @@
     "isMaker": true,
     "time": 2960188369826,
     "orderId": 50511,
-    "id": 1511
+    "id": 1511,
+    "quoteQty": "4359.89"
   },
   {
     "symbol": "AVAXUSDT",
@@ -3345,7 +4390,8 @@
     "isMaker": false,
     "time": 2980578769826,
     "orderId": 50514,
-    "id": 1514
+    "id": 1514,
+    "quoteQty": "231.12"
   },
   {
     "symbol": "AVAXUSDT",
@@ -3357,11 +4403,12 @@
     "isMaker": false,
     "time": 2980591030674,
     "orderId": 50515,
-    "id": 1515
+    "id": 1515,
+    "quoteQty": "243.94"
   },
   {
     "symbol": "BNBUSDT",
-    "qty": "0.0922",
+    "qty": "20.24869201",
     "price": "350.33",
     "commission": "0.03230012",
     "commissionAsset": "USDT",
@@ -3369,7 +4416,8 @@
     "isMaker": true,
     "time": 3001154230674,
     "orderId": 50518,
-    "id": 1518
+    "id": 1518,
+    "quoteQty": "7093.72"
   },
   {
     "symbol": "BNBUSDT",
@@ -3381,7 +4429,8 @@
     "isMaker": true,
     "time": 3001194049945,
     "orderId": 50519,
-    "id": 1519
+    "id": 1519,
+    "quoteQty": "30.58"
   },
   {
     "symbol": "BNBUSDT",
@@ -3393,7 +4442,8 @@
     "isMaker": false,
     "time": 3021930049945,
     "orderId": 50522,
-    "id": 1522
+    "id": 1522,
+    "quoteQty": "5.72"
   },
   {
     "symbol": "BNBUSDT",
@@ -3405,7 +4455,8 @@
     "isMaker": false,
     "time": 3021990566991,
     "orderId": 50523,
-    "id": 1523
+    "id": 1523,
+    "quoteQty": "7.07"
   },
   {
     "symbol": "SHIBUSDT",
@@ -3417,11 +4468,12 @@
     "isMaker": true,
     "time": 3042899366991,
     "orderId": 50526,
-    "id": 1526
+    "id": 1526,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "SHIBUSDT",
-    "qty": "16575774.0",
+    "qty": "Infinity",
     "price": "0.00",
     "commission": "0.15827569",
     "commissionAsset": "USDT",
@@ -3429,7 +4481,8 @@
     "isMaker": false,
     "time": 3042967632054,
     "orderId": 50527,
-    "id": 1527
+    "id": 1527,
+    "quoteQty": "NaN"
   },
   {
     "symbol": "AVAXUSDT",
@@ -3441,11 +4494,12 @@
     "isMaker": true,
     "time": 3064049232054,
     "orderId": 50530,
-    "id": 1530
+    "id": 1530,
+    "quoteQty": "1231.67"
   },
   {
     "symbol": "AVAXUSDT",
-    "qty": "39.86",
+    "qty": "94.80005863",
     "price": "36.31",
     "commission": "1.44719046",
     "commissionAsset": "USDT",
@@ -3453,7 +4507,8 @@
     "isMaker": true,
     "time": 3064113670165,
     "orderId": 50531,
-    "id": 1531
+    "id": 1531,
+    "quoteQty": "3442.19"
   },
   {
     "symbol": "LINKUSDT",
@@ -3465,11 +4520,12 @@
     "isMaker": false,
     "time": 3085368070165,
     "orderId": 50534,
-    "id": 1534
+    "id": 1534,
+    "quoteQty": "595.65"
   },
   {
     "symbol": "LINKUSDT",
-    "qty": "35.54",
+    "qty": "283.56260221",
     "price": "20.21",
     "commission": "0.03554",
     "commissionAsset": "LINK",
@@ -3477,7 +4533,8 @@
     "isMaker": true,
     "time": 3085401415284,
     "orderId": 50535,
-    "id": 1535
+    "id": 1535,
+    "quoteQty": "5730.80"
   },
   {
     "symbol": "XRPUSDT",
@@ -3489,7 +4546,8 @@
     "isMaker": false,
     "time": 3106828615284,
     "orderId": 50538,
-    "id": 1538
+    "id": 1538,
+    "quoteQty": "1417.57"
   },
   {
     "symbol": "XRPUSDT",
@@ -3501,11 +4559,12 @@
     "isMaker": true,
     "time": 3106902373309,
     "orderId": 50539,
-    "id": 1539
+    "id": 1539,
+    "quoteQty": "1591.15"
   },
   {
     "symbol": "OPUSDT",
-    "qty": "730.42",
+    "qty": "1363.83625934",
     "price": "2.89",
     "commission": "2.11262682",
     "commissionAsset": "USDT",
@@ -3513,11 +4572,12 @@
     "isMaker": false,
     "time": 3128502373309,
     "orderId": 50542,
-    "id": 1542
+    "id": 1542,
+    "quoteQty": "3941.49"
   },
   {
     "symbol": "OPUSDT",
-    "qty": "730.42",
+    "qty": "1568.12249143",
     "price": "2.88",
     "commission": "0.73042",
     "commissionAsset": "OP",
@@ -3525,11 +4585,12 @@
     "isMaker": false,
     "time": 3128537979888,
     "orderId": 50543,
-    "id": 1543
+    "id": 1543,
+    "quoteQty": "4516.19"
   },
   {
     "symbol": "ATOMUSDT",
-    "qty": "416.88",
+    "qty": "418.49482875",
     "price": "10.12",
     "commission": "4.21856627",
     "commissionAsset": "USDT",
@@ -3537,7 +4598,8 @@
     "isMaker": false,
     "time": 3150310779888,
     "orderId": 50546,
-    "id": 1546
+    "id": 1546,
+    "quoteQty": "4235.17"
   },
   {
     "symbol": "ATOMUSDT",
@@ -3549,11 +4611,12 @@
     "isMaker": true,
     "time": 3150373205795,
     "orderId": 50547,
-    "id": 1547
+    "id": 1547,
+    "quoteQty": "4506.47"
   },
   {
     "symbol": "WIFUSDT",
-    "qty": "876.16",
+    "qty": "2146.00518095",
     "price": "1.95",
     "commission": "0.87616",
     "commissionAsset": "WIF",
@@ -3561,7 +4624,8 @@
     "isMaker": true,
     "time": 3172318805795,
     "orderId": 50550,
-    "id": 1550
+    "id": 1550,
+    "quoteQty": "4184.71"
   },
   {
     "symbol": "WIFUSDT",
@@ -3573,7 +4637,8 @@
     "isMaker": false,
     "time": 3172346882730,
     "orderId": 50551,
-    "id": 1551
+    "id": 1551,
+    "quoteQty": "1997.64"
   },
   {
     "symbol": "NEARUSDT",
@@ -3585,7 +4650,8 @@
     "isMaker": false,
     "time": 3194465282730,
     "orderId": 50554,
-    "id": 1554
+    "id": 1554,
+    "quoteQty": "2297.95"
   },
   {
     "symbol": "NEARUSDT",
@@ -3597,11 +4663,12 @@
     "isMaker": false,
     "time": 3194472962555,
     "orderId": 50555,
-    "id": 1555
+    "id": 1555,
+    "quoteQty": "2794.92"
   },
   {
     "symbol": "DOGEUSDT",
-    "qty": "1719.0",
+    "qty": "23131.83269710",
     "price": "0.13",
     "commission": "0.22569746",
     "commissionAsset": "USDT",
@@ -3609,7 +4676,8 @@
     "isMaker": true,
     "time": 3216764162555,
     "orderId": 50558,
-    "id": 1558
+    "id": 1558,
+    "quoteQty": "3007.14"
   },
   {
     "symbol": "DOGEUSDT",
@@ -3621,7 +4689,8 @@
     "isMaker": false,
     "time": 3216787841673,
     "orderId": 50559,
-    "id": 1559
+    "id": 1559,
+    "quoteQty": "257.85"
   },
   {
     "symbol": "XRPUSDT",
@@ -3633,7 +4702,8 @@
     "isMaker": false,
     "time": 3239251841673,
     "orderId": 50562,
-    "id": 1562
+    "id": 1562,
+    "quoteQty": "2236.30"
   },
   {
     "symbol": "XRPUSDT",
@@ -3645,11 +4715,12 @@
     "isMaker": false,
     "time": 3239332527330,
     "orderId": 50563,
-    "id": 1563
+    "id": 1563,
+    "quoteQty": "2642.90"
   },
   {
     "symbol": "SOLUSDT",
-    "qty": "38.99",
+    "qty": "47.92553915",
     "price": "112.94",
     "commission": "0.03899",
     "commissionAsset": "SOL",
@@ -3657,7 +4728,8 @@
     "isMaker": true,
     "time": 3261969327330,
     "orderId": 50566,
-    "id": 1566
+    "id": 1566,
+    "quoteQty": "5412.71"
   },
   {
     "symbol": "SOLUSDT",
@@ -3669,7 +4741,8 @@
     "isMaker": false,
     "time": 3262048013010,
     "orderId": 50567,
-    "id": 1567
+    "id": 1567,
+    "quoteQty": "4585.61"
   },
   {
     "symbol": "MATICUSDT",
@@ -3681,11 +4754,12 @@
     "isMaker": true,
     "time": 3284857613010,
     "orderId": 50570,
-    "id": 1570
+    "id": 1570,
+    "quoteQty": "381.21"
   },
   {
     "symbol": "MATICUSDT",
-    "qty": "515.15",
+    "qty": "2026.05151271",
     "price": "0.68",
     "commission": "0.34966417",
     "commissionAsset": "USDT",
@@ -3693,11 +4767,12 @@
     "isMaker": true,
     "time": 3284871735957,
     "orderId": 50571,
-    "id": 1571
+    "id": 1571,
+    "quoteQty": "1377.72"
   },
   {
     "symbol": "XRPUSDT",
-    "qty": "2465.0",
+    "qty": "9622.24078361",
     "price": "0.47",
     "commission": "2.465",
     "commissionAsset": "XRP",
@@ -3705,11 +4780,12 @@
     "isMaker": false,
     "time": 3307854135957,
     "orderId": 50574,
-    "id": 1574
+    "id": 1574,
+    "quoteQty": "4522.45"
   },
   {
     "symbol": "XRPUSDT",
-    "qty": "2465.0",
+    "qty": "11793.47205760",
     "price": "0.58",
     "commission": "1.43318423",
     "commissionAsset": "USDT",
@@ -3717,11 +4793,12 @@
     "isMaker": false,
     "time": 3307938427745,
     "orderId": 50575,
-    "id": 1575
+    "id": 1575,
+    "quoteQty": "6840.21"
   },
   {
     "symbol": "FETUSDT",
-    "qty": "753.77",
+    "qty": "3813.40247210",
     "price": "1.77",
     "commission": "1.3352681",
     "commissionAsset": "USDT",
@@ -3729,7 +4806,8 @@
     "isMaker": false,
     "time": 3331093627745,
     "orderId": 50578,
-    "id": 1578
+    "id": 1578,
+    "quoteQty": "6749.72"
   },
   {
     "symbol": "FETUSDT",
@@ -3741,7 +4819,8 @@
     "isMaker": false,
     "time": 3331132280037,
     "orderId": 50579,
-    "id": 1579
+    "id": 1579,
+    "quoteQty": "1228.65"
   },
   {
     "symbol": "ETHUSDT",
@@ -3753,7 +4832,8 @@
     "isMaker": false,
     "time": 3354460280037,
     "orderId": 50582,
-    "id": 1582
+    "id": 1582,
+    "quoteQty": "90.95"
   },
   {
     "symbol": "ETHUSDT",
@@ -3765,11 +4845,64 @@
     "isMaker": false,
     "time": 3354477768674,
     "orderId": 50583,
-    "id": 1583
+    "id": 1583,
+    "quoteQty": "95.59"
+  },
+  {
+    "symbol": "ETHUSDT",
+    "qty": "0.01183985",
+    "price": "2747.47",
+    "commission": "0.03252960",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 3354477948674,
+    "orderId": 60004,
+    "id": 10004,
+    "quoteQty": "32.53"
+  },
+  {
+    "symbol": "ETHUSDT",
+    "qty": "0.01364982",
+    "price": "2789.24",
+    "commission": "0.03807255",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 3354478128674,
+    "orderId": 60005,
+    "id": 10005,
+    "quoteQty": "38.07"
+  },
+  {
+    "symbol": "ETHUSDT",
+    "qty": "0.01099055",
+    "price": "2773.90",
+    "commission": "0.03048668",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 3354478308674,
+    "orderId": 60006,
+    "id": 10006,
+    "quoteQty": "30.49"
+  },
+  {
+    "symbol": "ETHUSDT",
+    "qty": "0.66364448",
+    "price": "2744.80",
+    "commission": "0.06553476",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 3354478488674,
+    "orderId": 60007,
+    "id": 10007,
+    "quoteQty": "1821.57"
   },
   {
     "symbol": "BTCUSDT",
-    "qty": "0.041",
+    "qty": "0.00310738",
     "price": "47394.95",
     "commission": "1.94319285",
     "commissionAsset": "USDT",
@@ -3777,7 +4910,8 @@
     "isMaker": false,
     "time": 3377978568674,
     "orderId": 50586,
-    "id": 1586
+    "id": 1586,
+    "quoteQty": "147.27"
   },
   {
     "symbol": "BTCUSDT",
@@ -3789,11 +4923,12 @@
     "isMaker": false,
     "time": 3378056861557,
     "orderId": 50587,
-    "id": 1587
+    "id": 1587,
+    "quoteQty": "2288.06"
   },
   {
     "symbol": "DOTUSDT",
-    "qty": "651.03",
+    "qty": "363.51421146",
     "price": "7.92",
     "commission": "0.65103",
     "commissionAsset": "DOT",
@@ -3801,7 +4936,8 @@
     "isMaker": true,
     "time": 3401730461557,
     "orderId": 50590,
-    "id": 1590
+    "id": 1590,
+    "quoteQty": "2879.03"
   },
   {
     "symbol": "DOTUSDT",
@@ -3813,7 +4949,8 @@
     "isMaker": true,
     "time": 3401780226110,
     "orderId": 50591,
-    "id": 1591
+    "id": 1591,
+    "quoteQty": "5559.80"
   },
   {
     "symbol": "LINKUSDT",
@@ -3825,11 +4962,12 @@
     "isMaker": false,
     "time": 3425626626110,
     "orderId": 50594,
-    "id": 1594
+    "id": 1594,
+    "quoteQty": "627.30"
   },
   {
     "symbol": "LINKUSDT",
-    "qty": "40.16",
+    "qty": "102.39913757",
     "price": "15.10",
     "commission": "0.04016",
     "commissionAsset": "LINK",
@@ -3837,11 +4975,12 @@
     "isMaker": true,
     "time": 3425638312862,
     "orderId": 50595,
-    "id": 1595
+    "id": 1595,
+    "quoteQty": "1546.23"
   },
   {
     "symbol": "AVAXUSDT",
-    "qty": "29.29",
+    "qty": "188.08908375",
     "price": "36.02",
     "commission": "1.05499254",
     "commissionAsset": "USDT",
@@ -3849,11 +4988,12 @@
     "isMaker": false,
     "time": 3449657512862,
     "orderId": 50598,
-    "id": 1598
+    "id": 1598,
+    "quoteQty": "6774.97"
   },
   {
     "symbol": "AVAXUSDT",
-    "qty": "29.29",
+    "qty": "7.26292801",
     "price": "41.09",
     "commission": "1.20365657",
     "commissionAsset": "USDT",
@@ -3861,11 +5001,12 @@
     "isMaker": false,
     "time": 3449702007526,
     "orderId": 50599,
-    "id": 1599
+    "id": 1599,
+    "quoteQty": "298.43"
   },
   {
     "symbol": "LINKUSDT",
-    "qty": "40.9",
+    "qty": "176.69807087",
     "price": "14.60",
     "commission": "0.59694946",
     "commissionAsset": "USDT",
@@ -3873,11 +5014,12 @@
     "isMaker": true,
     "time": 3473894007526,
     "orderId": 50602,
-    "id": 1602
+    "id": 1602,
+    "quoteQty": "2579.79"
   },
   {
     "symbol": "LINKUSDT",
-    "qty": "40.9",
+    "qty": "480.84661816",
     "price": "14.72",
     "commission": "0.0409",
     "commissionAsset": "LINK",
@@ -3885,11 +5027,12 @@
     "isMaker": true,
     "time": 3473912908745,
     "orderId": 50603,
-    "id": 1603
+    "id": 1603,
+    "quoteQty": "7078.06"
   },
   {
     "symbol": "MATICUSDT",
-    "qty": "815.32",
+    "qty": "298.15067865",
     "price": "0.91",
     "commission": "0.81532",
     "commissionAsset": "MATIC",
@@ -3897,11 +5040,12 @@
     "isMaker": true,
     "time": 3498277708745,
     "orderId": 50606,
-    "id": 1606
+    "id": 1606,
+    "quoteQty": "271.32"
   },
   {
     "symbol": "MATICUSDT",
-    "qty": "815.32",
+    "qty": "4434.55318322",
     "price": "0.83",
     "commission": "0.68038622",
     "commissionAsset": "USDT",
@@ -3909,11 +5053,12 @@
     "isMaker": false,
     "time": 3498307193720,
     "orderId": 50607,
-    "id": 1607
+    "id": 1607,
+    "quoteQty": "3680.68"
   },
   {
     "symbol": "DOTUSDT",
-    "qty": "339.26",
+    "qty": "804.56094101",
     "price": "6.65",
     "commission": "2.2548875",
     "commissionAsset": "USDT",
@@ -3921,7 +5066,8 @@
     "isMaker": false,
     "time": 3522844793720,
     "orderId": 50610,
-    "id": 1610
+    "id": 1610,
+    "quoteQty": "5350.33"
   },
   {
     "symbol": "DOTUSDT",
@@ -3933,7 +5079,8 @@
     "isMaker": true,
     "time": 3522860226551,
     "orderId": 50611,
-    "id": 1611
+    "id": 1611,
+    "quoteQty": "2649.62"
   },
   {
     "symbol": "BNBUSDT",
@@ -3945,7 +5092,8 @@
     "isMaker": true,
     "time": 3547570626551,
     "orderId": 50614,
-    "id": 1614
+    "id": 1614,
+    "quoteQty": "4.18"
   },
   {
     "symbol": "BNBUSDT",
@@ -3957,11 +5105,12 @@
     "isMaker": false,
     "time": 3547600312556,
     "orderId": 50615,
-    "id": 1615
+    "id": 1615,
+    "quoteQty": "4.93"
   },
   {
     "symbol": "BNBUSDT",
-    "qty": "0.013",
+    "qty": "19.12894345",
     "price": "357.13",
     "commission": "0.00464266",
     "commissionAsset": "USDT",
@@ -3969,11 +5118,12 @@
     "isMaker": true,
     "time": 3572483512556,
     "orderId": 50618,
-    "id": 1618
+    "id": 1618,
+    "quoteQty": "6831.52"
   },
   {
     "symbol": "BNBUSDT",
-    "qty": "0.013",
+    "qty": "1.52820941",
     "price": "349.33",
     "commission": "0.000013",
     "commissionAsset": "BNB",
@@ -3981,7 +5131,8 @@
     "isMaker": true,
     "time": 3572524387337,
     "orderId": 50619,
-    "id": 1619
+    "id": 1619,
+    "quoteQty": "533.85"
   },
   {
     "symbol": "ADAUSDT",
@@ -3993,7 +5144,8 @@
     "isMaker": false,
     "time": 3597580387337,
     "orderId": 50622,
-    "id": 1622
+    "id": 1622,
+    "quoteQty": "2527.64"
   },
   {
     "symbol": "ADAUSDT",
@@ -4005,7 +5157,8 @@
     "isMaker": false,
     "time": 3597643166001,
     "orderId": 50623,
-    "id": 1623
+    "id": 1623,
+    "quoteQty": "2440.48"
   },
   {
     "symbol": "BONKUSDT",
@@ -4017,7 +5170,8 @@
     "isMaker": true,
     "time": 3622871966001,
     "orderId": 50626,
-    "id": 1626
+    "id": 1626,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "BONKUSDT",
@@ -4029,11 +5183,12 @@
     "isMaker": false,
     "time": 3622925841872,
     "orderId": 50627,
-    "id": 1627
+    "id": 1627,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "XRPUSDT",
-    "qty": "1557.0",
+    "qty": "8528.18150576",
     "price": "0.49",
     "commission": "1.557",
     "commissionAsset": "XRP",
@@ -4041,7 +5196,8 @@
     "isMaker": false,
     "time": 3648327441872,
     "orderId": 50630,
-    "id": 1630
+    "id": 1630,
+    "quoteQty": "4178.81"
   },
   {
     "symbol": "XRPUSDT",
@@ -4053,7 +5209,8 @@
     "isMaker": false,
     "time": 3648372253056,
     "orderId": 50631,
-    "id": 1631
+    "id": 1631,
+    "quoteQty": "685.08"
   },
   {
     "symbol": "WIFUSDT",
@@ -4065,11 +5222,12 @@
     "isMaker": false,
     "time": 3673946653056,
     "orderId": 50634,
-    "id": 1634
+    "id": 1634,
+    "quoteQty": "1169.14"
   },
   {
     "symbol": "WIFUSDT",
-    "qty": "618.59",
+    "qty": "3478.07166830",
     "price": "1.98",
     "commission": "1.22715632",
     "commissionAsset": "USDT",
@@ -4077,7 +5235,8 @@
     "isMaker": false,
     "time": 3673955601600,
     "orderId": 50635,
-    "id": 1635
+    "id": 1635,
+    "quoteQty": "6886.58"
   },
   {
     "symbol": "UNIUSDT",
@@ -4089,7 +5248,8 @@
     "isMaker": true,
     "time": 3699702801600,
     "orderId": 50638,
-    "id": 1638
+    "id": 1638,
+    "quoteQty": "8127.60"
   },
   {
     "symbol": "UNIUSDT",
@@ -4101,7 +5261,8 @@
     "isMaker": true,
     "time": 3699739304338,
     "orderId": 50639,
-    "id": 1639
+    "id": 1639,
+    "quoteQty": "9094.13"
   },
   {
     "symbol": "FTMUSDT",
@@ -4113,7 +5274,8 @@
     "isMaker": false,
     "time": 3725659304338,
     "orderId": 50642,
-    "id": 1642
+    "id": 1642,
+    "quoteQty": "824.84"
   },
   {
     "symbol": "FTMUSDT",
@@ -4125,7 +5287,8 @@
     "isMaker": false,
     "time": 3725718935736,
     "orderId": 50643,
-    "id": 1643
+    "id": 1643,
+    "quoteQty": "895.79"
   },
   {
     "symbol": "SOLUSDT",
@@ -4137,11 +5300,12 @@
     "isMaker": true,
     "time": 3751811735736,
     "orderId": 50646,
-    "id": 1646
+    "id": 1646,
+    "quoteQty": "2574.08"
   },
   {
     "symbol": "SOLUSDT",
-    "qty": "18.33",
+    "qty": "38.95287890",
     "price": "147.00",
     "commission": "0.01833",
     "commissionAsset": "SOL",
@@ -4149,11 +5313,64 @@
     "isMaker": false,
     "time": 3751824114785,
     "orderId": 50647,
-    "id": 1647
+    "id": 1647,
+    "quoteQty": "5726.07"
+  },
+  {
+    "symbol": "SOLUSDT",
+    "qty": "7.81963768",
+    "price": "146.52",
+    "commission": "1.14575345",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 3751824294785,
+    "orderId": 60008,
+    "id": 10008,
+    "quoteQty": "1145.73"
+  },
+  {
+    "symbol": "SOLUSDT",
+    "qty": "7.20298760",
+    "price": "145.55",
+    "commission": "1.04840630",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 3751824474785,
+    "orderId": 60009,
+    "id": 10009,
+    "quoteQty": "1048.39"
+  },
+  {
+    "symbol": "SOLUSDT",
+    "qty": "6.50447456",
+    "price": "145.32",
+    "commission": "0.94523753",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 3751824654785,
+    "orderId": 60010,
+    "id": 10010,
+    "quoteQty": "945.23"
+  },
+  {
+    "symbol": "SOLUSDT",
+    "qty": "6.83846270",
+    "price": "144.72",
+    "commission": "0.85614568",
+    "commissionAsset": "USDT",
+    "isBuyer": false,
+    "isMaker": false,
+    "time": 3751824834785,
+    "orderId": 60011,
+    "id": 10011,
+    "quoteQty": "989.66"
   },
   {
     "symbol": "ATOMUSDT",
-    "qty": "974.07",
+    "qty": "592.11915937",
     "price": "9.27",
     "commission": "9.02761015",
     "commissionAsset": "USDT",
@@ -4161,7 +5378,8 @@
     "isMaker": false,
     "time": 3778089714785,
     "orderId": 50650,
-    "id": 1650
+    "id": 1650,
+    "quoteQty": "5488.94"
   },
   {
     "symbol": "ATOMUSDT",
@@ -4173,7 +5391,8 @@
     "isMaker": true,
     "time": 3778099852009,
     "orderId": 50651,
-    "id": 1651
+    "id": 1651,
+    "quoteQty": "8873.78"
   },
   {
     "symbol": "FTMUSDT",
@@ -4185,7 +5404,8 @@
     "isMaker": false,
     "time": 3804538252009,
     "orderId": 50654,
-    "id": 1654
+    "id": 1654,
+    "quoteQty": "117.67"
   },
   {
     "symbol": "FTMUSDT",
@@ -4197,7 +5417,8 @@
     "isMaker": true,
     "time": 3804579220327,
     "orderId": 50655,
-    "id": 1655
+    "id": 1655,
+    "quoteQty": "144.63"
   },
   {
     "symbol": "FTMUSDT",
@@ -4209,7 +5430,8 @@
     "isMaker": false,
     "time": 3831190420327,
     "orderId": 50658,
-    "id": 1658
+    "id": 1658,
+    "quoteQty": "382.58"
   },
   {
     "symbol": "FTMUSDT",
@@ -4221,11 +5443,12 @@
     "isMaker": false,
     "time": 3831235428387,
     "orderId": 50659,
-    "id": 1659
+    "id": 1659,
+    "quoteQty": "398.52"
   },
   {
     "symbol": "DOGEUSDT",
-    "qty": "319.0",
+    "qty": "52013.08089338",
     "price": "0.13",
     "commission": "0.04161369",
     "commissionAsset": "USDT",
@@ -4233,11 +5456,12 @@
     "isMaker": true,
     "time": 3858019428387,
     "orderId": 50662,
-    "id": 1662
+    "id": 1662,
+    "quoteQty": "6761.70"
   },
   {
     "symbol": "DOGEUSDT",
-    "qty": "319.0",
+    "qty": "12087.55418156",
     "price": "0.13",
     "commission": "0.319",
     "commissionAsset": "DOGE",
@@ -4245,11 +5469,12 @@
     "isMaker": false,
     "time": 3858042689302,
     "orderId": 50663,
-    "id": 1663
+    "id": 1663,
+    "quoteQty": "1571.38"
   },
   {
     "symbol": "UNIUSDT",
-    "qty": "915.7",
+    "qty": "250.16761193",
     "price": "9.51",
     "commission": "8.7058788",
     "commissionAsset": "USDT",
@@ -4257,7 +5482,8 @@
     "isMaker": true,
     "time": 3884999489302,
     "orderId": 50666,
-    "id": 1666
+    "id": 1666,
+    "quoteQty": "2379.09"
   },
   {
     "symbol": "UNIUSDT",
@@ -4269,11 +5495,12 @@
     "isMaker": true,
     "time": 3885032615207,
     "orderId": 50667,
-    "id": 1667
+    "id": 1667,
+    "quoteQty": "10576.34"
   },
   {
     "symbol": "SUIUSDT",
-    "qty": "522.35",
+    "qty": "1693.66393675",
     "price": "1.89",
     "commission": "0.98821764",
     "commissionAsset": "USDT",
@@ -4281,11 +5508,12 @@
     "isMaker": false,
     "time": 3912162215207,
     "orderId": 50670,
-    "id": 1670
+    "id": 1670,
+    "quoteQty": "3201.02"
   },
   {
     "symbol": "SUIUSDT",
-    "qty": "522.35",
+    "qty": "266.27496237",
     "price": "1.78",
     "commission": "0.92782995",
     "commissionAsset": "USDT",
@@ -4293,11 +5521,12 @@
     "isMaker": true,
     "time": 3912240794525,
     "orderId": 50671,
-    "id": 1671
+    "id": 1671,
+    "quoteQty": "473.97"
   },
   {
     "symbol": "WIFUSDT",
-    "qty": "782.53",
+    "qty": "640.10792383",
     "price": "1.85",
     "commission": "1.44538986",
     "commissionAsset": "USDT",
@@ -4305,7 +5534,8 @@
     "isMaker": false,
     "time": 3939543194525,
     "orderId": 50674,
-    "id": 1674
+    "id": 1674,
+    "quoteQty": "1184.20"
   },
   {
     "symbol": "WIFUSDT",
@@ -4317,11 +5547,12 @@
     "isMaker": false,
     "time": 3939568003262,
     "orderId": 50675,
-    "id": 1675
+    "id": 1675,
+    "quoteQty": "1424.20"
   },
   {
     "symbol": "DOTUSDT",
-    "qty": "10.29",
+    "qty": "396.47079575",
     "price": "7.67",
     "commission": "0.01029",
     "commissionAsset": "DOT",
@@ -4329,7 +5560,8 @@
     "isMaker": true,
     "time": 3967043203262,
     "orderId": 50678,
-    "id": 1678
+    "id": 1678,
+    "quoteQty": "3040.93"
   },
   {
     "symbol": "DOTUSDT",
@@ -4341,11 +5573,12 @@
     "isMaker": true,
     "time": 3967085959674,
     "orderId": 50679,
-    "id": 1679
+    "id": 1679,
+    "quoteQty": "76.04"
   },
   {
     "symbol": "FETUSDT",
-    "qty": "893.05",
+    "qty": "2766.18573269",
     "price": "1.73",
     "commission": "0.89305",
     "commissionAsset": "FET",
@@ -4353,11 +5586,12 @@
     "isMaker": false,
     "time": 3994733959674,
     "orderId": 50682,
-    "id": 1682
+    "id": 1682,
+    "quoteQty": "4785.50"
   },
   {
     "symbol": "FETUSDT",
-    "qty": "893.05",
+    "qty": "431.26077504",
     "price": "2.11",
     "commission": "1.8819728",
     "commissionAsset": "USDT",
@@ -4365,7 +5599,8 @@
     "isMaker": false,
     "time": 3994786619810,
     "orderId": 50683,
-    "id": 1683
+    "id": 1683,
+    "quoteQty": "909.96"
   },
   {
     "symbol": "PEPEUSDT",
@@ -4377,11 +5612,12 @@
     "isMaker": false,
     "time": 4022607419810,
     "orderId": 50686,
-    "id": 1686
+    "id": 1686,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "PEPEUSDT",
-    "qty": "42949986.0",
+    "qty": "Infinity",
     "price": "0.00",
     "commission": "0.42556227",
     "commissionAsset": "USDT",
@@ -4389,7 +5625,8 @@
     "isMaker": false,
     "time": 4022638885006,
     "orderId": 50687,
-    "id": 1687
+    "id": 1687,
+    "quoteQty": "NaN"
   },
   {
     "symbol": "PEPEUSDT",
@@ -4401,7 +5638,8 @@
     "isMaker": false,
     "time": 4050632485006,
     "orderId": 50690,
-    "id": 1690
+    "id": 1690,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "PEPEUSDT",
@@ -4413,11 +5651,12 @@
     "isMaker": false,
     "time": 4050704847052,
     "orderId": 50691,
-    "id": 1691
+    "id": 1691,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "ATOMUSDT",
-    "qty": "439.52",
+    "qty": "228.67991094",
     "price": "10.22",
     "commission": "4.4922565",
     "commissionAsset": "USDT",
@@ -4425,11 +5664,12 @@
     "isMaker": false,
     "time": 4078871247052,
     "orderId": 50694,
-    "id": 1694
+    "id": 1694,
+    "quoteQty": "2337.11"
   },
   {
     "symbol": "ATOMUSDT",
-    "qty": "439.52",
+    "qty": "35.74206543",
     "price": "11.23",
     "commission": "4.93729988",
     "commissionAsset": "USDT",
@@ -4437,7 +5677,8 @@
     "isMaker": false,
     "time": 4078950292978,
     "orderId": 50695,
-    "id": 1695
+    "id": 1695,
+    "quoteQty": "401.38"
   },
   {
     "symbol": "ATOMUSDT",
@@ -4449,7 +5690,8 @@
     "isMaker": false,
     "time": 4107289492978,
     "orderId": 50698,
-    "id": 1698
+    "id": 1698,
+    "quoteQty": "5371.40"
   },
   {
     "symbol": "ATOMUSDT",
@@ -4461,11 +5703,12 @@
     "isMaker": true,
     "time": 4107333331360,
     "orderId": 50699,
-    "id": 1699
+    "id": 1699,
+    "quoteQty": "5219.54"
   },
   {
     "symbol": "NEARUSDT",
-    "qty": "897.42",
+    "qty": "708.44004126",
     "price": "6.79",
     "commission": "6.09345474",
     "commissionAsset": "USDT",
@@ -4473,11 +5716,12 @@
     "isMaker": false,
     "time": 4135845331360,
     "orderId": 50702,
-    "id": 1702
+    "id": 1702,
+    "quoteQty": "4810.31"
   },
   {
     "symbol": "NEARUSDT",
-    "qty": "897.42",
+    "qty": "135.78764114",
     "price": "8.35",
     "commission": "0.89742",
     "commissionAsset": "NEAR",
@@ -4485,7 +5729,8 @@
     "isMaker": false,
     "time": 4135922260610,
     "orderId": 50703,
-    "id": 1703
+    "id": 1703,
+    "quoteQty": "1133.83"
   },
   {
     "symbol": "BNBUSDT",
@@ -4497,11 +5742,12 @@
     "isMaker": false,
     "time": 4164607060610,
     "orderId": 50706,
-    "id": 1706
+    "id": 1706,
+    "quoteQty": "12.55"
   },
   {
     "symbol": "BNBUSDT",
-    "qty": "0.0446",
+    "qty": "0.62832405",
     "price": "303.55",
     "commission": "0.01353822",
     "commissionAsset": "USDT",
@@ -4509,7 +5755,8 @@
     "isMaker": false,
     "time": 4164691233941,
     "orderId": 50707,
-    "id": 1707
+    "id": 1707,
+    "quoteQty": "190.73"
   },
   {
     "symbol": "DOGEUSDT",
@@ -4521,11 +5768,12 @@
     "isMaker": false,
     "time": 4193548833941,
     "orderId": 50710,
-    "id": 1710
+    "id": 1710,
+    "quoteQty": "409.92"
   },
   {
     "symbol": "DOGEUSDT",
-    "qty": "2562.0",
+    "qty": "37082.88281547",
     "price": "0.15",
     "commission": "0.38224764",
     "commissionAsset": "USDT",
@@ -4533,7 +5781,8 @@
     "isMaker": false,
     "time": 4193573509944,
     "orderId": 50711,
-    "id": 1711
+    "id": 1711,
+    "quoteQty": "5562.43"
   },
   {
     "symbol": "SHIBUSDT",
@@ -4545,7 +5794,8 @@
     "isMaker": false,
     "time": 4222603909944,
     "orderId": 50714,
-    "id": 1714
+    "id": 1714,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "SHIBUSDT",
@@ -4557,7 +5807,8 @@
     "isMaker": false,
     "time": 4222646289390,
     "orderId": 50715,
-    "id": 1715
+    "id": 1715,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "NEARUSDT",
@@ -4569,7 +5820,8 @@
     "isMaker": true,
     "time": 4251849489390,
     "orderId": 50718,
-    "id": 1718
+    "id": 1718,
+    "quoteQty": "306.41"
   },
   {
     "symbol": "NEARUSDT",
@@ -4581,7 +5833,8 @@
     "isMaker": false,
     "time": 4251932575649,
     "orderId": 50719,
-    "id": 1719
+    "id": 1719,
+    "quoteQty": "376.88"
   },
   {
     "symbol": "NEARUSDT",
@@ -4593,7 +5846,8 @@
     "isMaker": true,
     "time": 4281308575649,
     "orderId": 50722,
-    "id": 1722
+    "id": 1722,
+    "quoteQty": "6623.84"
   },
   {
     "symbol": "NEARUSDT",
@@ -4605,7 +5859,8 @@
     "isMaker": true,
     "time": 4281387305746,
     "orderId": 50723,
-    "id": 1723
+    "id": 1723,
+    "quoteQty": "6515.26"
   },
   {
     "symbol": "BONKUSDT",
@@ -4617,7 +5872,8 @@
     "isMaker": false,
     "time": 4310936105746,
     "orderId": 50726,
-    "id": 1726
+    "id": 1726,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "BONKUSDT",
@@ -4629,7 +5885,8 @@
     "isMaker": false,
     "time": 4310942269818,
     "orderId": 50727,
-    "id": 1727
+    "id": 1727,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "BNBUSDT",
@@ -4641,7 +5898,8 @@
     "isMaker": false,
     "time": 4340663869818,
     "orderId": 50730,
-    "id": 1730
+    "id": 1730,
+    "quoteQty": "11.93"
   },
   {
     "symbol": "BNBUSDT",
@@ -4653,7 +5911,8 @@
     "isMaker": false,
     "time": 4340703539290,
     "orderId": 50731,
-    "id": 1731
+    "id": 1731,
+    "quoteQty": "11.78"
   },
   {
     "symbol": "LINKUSDT",
@@ -4665,11 +5924,12 @@
     "isMaker": true,
     "time": 4370597939290,
     "orderId": 50734,
-    "id": 1734
+    "id": 1734,
+    "quoteQty": "100.95"
   },
   {
     "symbol": "LINKUSDT",
-    "qty": "6.78",
+    "qty": "192.06277513",
     "price": "17.15",
     "commission": "0.11630604",
     "commissionAsset": "USDT",
@@ -4677,11 +5937,12 @@
     "isMaker": false,
     "time": 4370674217693,
     "orderId": 50735,
-    "id": 1735
+    "id": 1735,
+    "quoteQty": "3293.88"
   },
   {
     "symbol": "SUIUSDT",
-    "qty": "373.32",
+    "qty": "1696.38970494",
     "price": "1.73",
     "commission": "0.37332",
     "commissionAsset": "SUI",
@@ -4689,11 +5950,12 @@
     "isMaker": false,
     "time": 4400741417693,
     "orderId": 50738,
-    "id": 1738
+    "id": 1738,
+    "quoteQty": "2934.75"
   },
   {
     "symbol": "SUIUSDT",
-    "qty": "373.32",
+    "qty": "2758.80752548",
     "price": "1.60",
     "commission": "0.37332",
     "commissionAsset": "SUI",
@@ -4701,11 +5963,12 @@
     "isMaker": true,
     "time": 4400809842445,
     "orderId": 50739,
-    "id": 1739
+    "id": 1739,
+    "quoteQty": "4414.09"
   },
   {
     "symbol": "ARBUSDT",
-    "qty": "24.21",
+    "qty": "2541.04240791",
     "price": "1.48",
     "commission": "0.03571118",
     "commissionAsset": "USDT",
@@ -4713,7 +5976,8 @@
     "isMaker": true,
     "time": 4431049842445,
     "orderId": 50742,
-    "id": 1742
+    "id": 1742,
+    "quoteQty": "3760.74"
   },
   {
     "symbol": "ARBUSDT",
@@ -4725,7 +5989,8 @@
     "isMaker": true,
     "time": 4431074362741,
     "orderId": 50743,
-    "id": 1743
+    "id": 1743,
+    "quoteQty": "44.06"
   },
   {
     "symbol": "ALGOUSDT",
@@ -4737,7 +6002,8 @@
     "isMaker": true,
     "time": 4461487162741,
     "orderId": 50746,
-    "id": 1746
+    "id": 1746,
+    "quoteQty": "213.58"
   },
   {
     "symbol": "ALGOUSDT",
@@ -4749,11 +6015,12 @@
     "isMaker": true,
     "time": 4461505938545,
     "orderId": 50747,
-    "id": 1747
+    "id": 1747,
+    "quoteQty": "231.37"
   },
   {
     "symbol": "DOTUSDT",
-    "qty": "223.63",
+    "qty": "436.65672825",
     "price": "7.59",
     "commission": "1.69816993",
     "commissionAsset": "USDT",
@@ -4761,7 +6028,8 @@
     "isMaker": false,
     "time": 4492091538545,
     "orderId": 50750,
-    "id": 1750
+    "id": 1750,
+    "quoteQty": "3314.22"
   },
   {
     "symbol": "DOTUSDT",
@@ -4773,7 +6041,8 @@
     "isMaker": false,
     "time": 4492143351204,
     "orderId": 50751,
-    "id": 1751
+    "id": 1751,
+    "quoteQty": "1713.01"
   },
   {
     "symbol": "ETHUSDT",
@@ -4785,7 +6054,8 @@
     "isMaker": true,
     "time": 4522901751204,
     "orderId": 50754,
-    "id": 1754
+    "id": 1754,
+    "quoteQty": "214.29"
   },
   {
     "symbol": "ETHUSDT",
@@ -4797,11 +6067,12 @@
     "isMaker": false,
     "time": 4522960147642,
     "orderId": 50755,
-    "id": 1755
+    "id": 1755,
+    "quoteQty": "215.59"
   },
   {
     "symbol": "ADAUSDT",
-    "qty": "4455.0",
+    "qty": "10303.86867414",
     "price": "0.61",
     "commission": "2.70002365",
     "commissionAsset": "USDT",
@@ -4809,7 +6080,8 @@
     "isMaker": false,
     "time": 4553891347642,
     "orderId": 50758,
-    "id": 1758
+    "id": 1758,
+    "quoteQty": "6285.36"
   },
   {
     "symbol": "ADAUSDT",
@@ -4821,7 +6093,8 @@
     "isMaker": false,
     "time": 4553940719222,
     "orderId": 50759,
-    "id": 1759
+    "id": 1759,
+    "quoteQty": "3118.50"
   },
   {
     "symbol": "SHIBUSDT",
@@ -4833,7 +6106,8 @@
     "isMaker": false,
     "time": 4585044719222,
     "orderId": 50762,
-    "id": 1762
+    "id": 1762,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "SHIBUSDT",
@@ -4845,7 +6119,8 @@
     "isMaker": false,
     "time": 4585074643602,
     "orderId": 50763,
-    "id": 1763
+    "id": 1763,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "ETHUSDT",
@@ -4857,11 +6132,12 @@
     "isMaker": true,
     "time": 4616351443602,
     "orderId": 50766,
-    "id": 1766
+    "id": 1766,
+    "quoteQty": "168.37"
   },
   {
     "symbol": "ETHUSDT",
-    "qty": "0.0715",
+    "qty": "2.58193160",
     "price": "2474.97",
     "commission": "0.0000715",
     "commissionAsset": "ETH",
@@ -4869,7 +6145,8 @@
     "isMaker": false,
     "time": 4616393196525,
     "orderId": 50767,
-    "id": 1767
+    "id": 1767,
+    "quoteQty": "6390.20"
   },
   {
     "symbol": "PEPEUSDT",
@@ -4881,7 +6158,8 @@
     "isMaker": false,
     "time": 4647842796525,
     "orderId": 50770,
-    "id": 1770
+    "id": 1770,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "PEPEUSDT",
@@ -4893,7 +6171,8 @@
     "isMaker": false,
     "time": 4647861162948,
     "orderId": 50771,
-    "id": 1771
+    "id": 1771,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "OPUSDT",
@@ -4905,7 +6184,8 @@
     "isMaker": true,
     "time": 4679483562948,
     "orderId": 50774,
-    "id": 1774
+    "id": 1774,
+    "quoteQty": "2152.94"
   },
   {
     "symbol": "OPUSDT",
@@ -4917,11 +6197,12 @@
     "isMaker": true,
     "time": 4679488751425,
     "orderId": 50775,
-    "id": 1775
+    "id": 1775,
+    "quoteQty": "2298.51"
   },
   {
     "symbol": "MATICUSDT",
-    "qty": "675.6",
+    "qty": "5201.30297188",
     "price": "0.73",
     "commission": "0.49550914",
     "commissionAsset": "USDT",
@@ -4929,7 +6210,8 @@
     "isMaker": false,
     "time": 4711283951425,
     "orderId": 50778,
-    "id": 1778
+    "id": 1778,
+    "quoteQty": "3796.95"
   },
   {
     "symbol": "MATICUSDT",
@@ -4941,11 +6223,12 @@
     "isMaker": false,
     "time": 4711293464996,
     "orderId": 50779,
-    "id": 1779
+    "id": 1779,
+    "quoteQty": "513.46"
   },
   {
     "symbol": "DOTUSDT",
-    "qty": "167.53",
+    "qty": "493.88122735",
     "price": "8.62",
     "commission": "0.16753",
     "commissionAsset": "DOT",
@@ -4953,11 +6236,12 @@
     "isMaker": true,
     "time": 4743261464996,
     "orderId": 50782,
-    "id": 1782
+    "id": 1782,
+    "quoteQty": "4257.26"
   },
   {
     "symbol": "DOTUSDT",
-    "qty": "167.53",
+    "qty": "421.30961700",
     "price": "8.49",
     "commission": "1.42303587",
     "commissionAsset": "USDT",
@@ -4965,7 +6249,8 @@
     "isMaker": false,
     "time": 4743292170287,
     "orderId": 50783,
-    "id": 1783
+    "id": 1783,
+    "quoteQty": "3576.92"
   },
   {
     "symbol": "SUIUSDT",
@@ -4977,7 +6262,8 @@
     "isMaker": false,
     "time": 4775432970287,
     "orderId": 50786,
-    "id": 1786
+    "id": 1786,
+    "quoteQty": "1872.03"
   },
   {
     "symbol": "SUIUSDT",
@@ -4989,7 +6275,8 @@
     "isMaker": false,
     "time": 4775470962591,
     "orderId": 50787,
-    "id": 1787
+    "id": 1787,
+    "quoteQty": "2303.33"
   },
   {
     "symbol": "UNIUSDT",
@@ -5001,7 +6288,8 @@
     "isMaker": false,
     "time": 4807784562591,
     "orderId": 50790,
-    "id": 1790
+    "id": 1790,
+    "quoteQty": "1154.99"
   },
   {
     "symbol": "UNIUSDT",
@@ -5013,7 +6301,8 @@
     "isMaker": false,
     "time": 4807837635471,
     "orderId": 50791,
-    "id": 1791
+    "id": 1791,
+    "quoteQty": "1110.89"
   },
   {
     "symbol": "NEARUSDT",
@@ -5025,7 +6314,8 @@
     "isMaker": false,
     "time": 4840324035471,
     "orderId": 50794,
-    "id": 1794
+    "id": 1794,
+    "quoteQty": "4007.44"
   },
   {
     "symbol": "NEARUSDT",
@@ -5037,7 +6327,8 @@
     "isMaker": false,
     "time": 4840371052070,
     "orderId": 50795,
-    "id": 1795
+    "id": 1795,
+    "quoteQty": "4751.29"
   },
   {
     "symbol": "OPUSDT",
@@ -5049,7 +6340,8 @@
     "isMaker": false,
     "time": 4873030252070,
     "orderId": 50798,
-    "id": 1798
+    "id": 1798,
+    "quoteQty": "801.83"
   },
   {
     "symbol": "OPUSDT",
@@ -5061,7 +6353,8 @@
     "isMaker": true,
     "time": 4873097200221,
     "orderId": 50799,
-    "id": 1799
+    "id": 1799,
+    "quoteQty": "869.18"
   },
   {
     "symbol": "FTMUSDT",
@@ -5073,7 +6366,8 @@
     "isMaker": true,
     "time": 4905929200221,
     "orderId": 50802,
-    "id": 1802
+    "id": 1802,
+    "quoteQty": "489.15"
   },
   {
     "symbol": "FTMUSDT",
@@ -5085,7 +6379,8 @@
     "isMaker": false,
     "time": 4905975473226,
     "orderId": 50803,
-    "id": 1803
+    "id": 1803,
+    "quoteQty": "506.83"
   },
   {
     "symbol": "DOGEUSDT",
@@ -5097,7 +6392,8 @@
     "isMaker": false,
     "time": 4938980273226,
     "orderId": 50806,
-    "id": 1806
+    "id": 1806,
+    "quoteQty": "235.17"
   },
   {
     "symbol": "DOGEUSDT",
@@ -5109,7 +6405,8 @@
     "isMaker": false,
     "time": 4938993465594,
     "orderId": 50807,
-    "id": 1807
+    "id": 1807,
+    "quoteQty": "253.26"
   },
   {
     "symbol": "LINKUSDT",
@@ -5121,11 +6418,12 @@
     "isMaker": false,
     "time": 4972171065594,
     "orderId": 50810,
-    "id": 1810
+    "id": 1810,
+    "quoteQty": "222.00"
   },
   {
     "symbol": "LINKUSDT",
-    "qty": "12.43",
+    "qty": "155.78436432",
     "price": "20.33",
     "commission": "0.25273498",
     "commissionAsset": "USDT",
@@ -5133,7 +6431,8 @@
     "isMaker": true,
     "time": 4972177723331,
     "orderId": 50811,
-    "id": 1811
+    "id": 1811,
+    "quoteQty": "3167.10"
   },
   {
     "symbol": "AVAXUSDT",
@@ -5145,7 +6444,8 @@
     "isMaker": true,
     "time": 5005528123331,
     "orderId": 50814,
-    "id": 1814
+    "id": 1814,
+    "quoteQty": "864.32"
   },
   {
     "symbol": "AVAXUSDT",
@@ -5157,11 +6457,12 @@
     "isMaker": true,
     "time": 5005574610860,
     "orderId": 50815,
-    "id": 1815
+    "id": 1815,
+    "quoteQty": "1046.76"
   },
   {
     "symbol": "WIFUSDT",
-    "qty": "477.86",
+    "qty": "129.34794433",
     "price": "2.08",
     "commission": "0.47786",
     "commissionAsset": "WIF",
@@ -5169,7 +6470,8 @@
     "isMaker": false,
     "time": 5039097810860,
     "orderId": 50818,
-    "id": 1818
+    "id": 1818,
+    "quoteQty": "269.04"
   },
   {
     "symbol": "WIFUSDT",
@@ -5181,7 +6483,8 @@
     "isMaker": false,
     "time": 5039141254892,
     "orderId": 50819,
-    "id": 1819
+    "id": 1819,
+    "quoteQty": "1237.66"
   },
   {
     "symbol": "FTMUSDT",
@@ -5193,7 +6496,8 @@
     "isMaker": false,
     "time": 5072837254892,
     "orderId": 50822,
-    "id": 1822
+    "id": 1822,
+    "quoteQty": "600.89"
   },
   {
     "symbol": "FTMUSDT",
@@ -5205,7 +6509,8 @@
     "isMaker": false,
     "time": 5072847776541,
     "orderId": 50823,
-    "id": 1823
+    "id": 1823,
+    "quoteQty": "619.87"
   },
   {
     "symbol": "APTUSDT",
@@ -5217,11 +6522,12 @@
     "isMaker": false,
     "time": 5106716576541,
     "orderId": 50826,
-    "id": 1826
+    "id": 1826,
+    "quoteQty": "6226.62"
   },
   {
     "symbol": "APTUSDT",
-    "qty": "487.98",
+    "qty": "44.63518808",
     "price": "15.60",
     "commission": "7.61200358",
     "commissionAsset": "USDT",
@@ -5229,11 +6535,12 @@
     "isMaker": false,
     "time": 5106734205937,
     "orderId": 50827,
-    "id": 1827
+    "id": 1827,
+    "quoteQty": "696.31"
   },
   {
     "symbol": "WIFUSDT",
-    "qty": "409.85",
+    "qty": "3684.24442828",
     "price": "1.72",
     "commission": "0.70591661",
     "commissionAsset": "USDT",
@@ -5241,7 +6548,8 @@
     "isMaker": false,
     "time": 5140775805937,
     "orderId": 50830,
-    "id": 1830
+    "id": 1830,
+    "quoteQty": "6336.90"
   },
   {
     "symbol": "WIFUSDT",
@@ -5253,7 +6561,8 @@
     "isMaker": true,
     "time": 5140855821659,
     "orderId": 50831,
-    "id": 1831
+    "id": 1831,
+    "quoteQty": "729.53"
   },
   {
     "symbol": "BNBUSDT",
@@ -5265,7 +6574,8 @@
     "isMaker": true,
     "time": 5175070221659,
     "orderId": 50834,
-    "id": 1834
+    "id": 1834,
+    "quoteQty": "4.57"
   },
   {
     "symbol": "BNBUSDT",
@@ -5277,7 +6587,8 @@
     "isMaker": false,
     "time": 5175136604203,
     "orderId": 50835,
-    "id": 1835
+    "id": 1835,
+    "quoteQty": "5.59"
   },
   {
     "symbol": "ETHUSDT",
@@ -5289,11 +6600,12 @@
     "isMaker": true,
     "time": 5209523804203,
     "orderId": 50838,
-    "id": 1838
+    "id": 1838,
+    "quoteQty": "58.91"
   },
   {
     "symbol": "ETHUSDT",
-    "qty": "0.0235",
+    "qty": "0.61400599",
     "price": "2908.58",
     "commission": "0.0000235",
     "commissionAsset": "ETH",
@@ -5301,7 +6613,8 @@
     "isMaker": false,
     "time": 5209544798635,
     "orderId": 50839,
-    "id": 1839
+    "id": 1839,
+    "quoteQty": "1785.89"
   },
   {
     "symbol": "ETHUSDT",
@@ -5313,11 +6626,12 @@
     "isMaker": false,
     "time": 5244104798635,
     "orderId": 50842,
-    "id": 1842
+    "id": 1842,
+    "quoteQty": "85.14"
   },
   {
     "symbol": "ETHUSDT",
-    "qty": "0.0348",
+    "qty": "1.37008276",
     "price": "2315.19",
     "commission": "0.08056865",
     "commissionAsset": "USDT",
@@ -5325,7 +6639,8 @@
     "isMaker": false,
     "time": 5244172548811,
     "orderId": 50843,
-    "id": 1843
+    "id": 1843,
+    "quoteQty": "3172.00"
   },
   {
     "symbol": "SOLUSDT",
@@ -5337,11 +6652,12 @@
     "isMaker": false,
     "time": 5278905348811,
     "orderId": 50846,
-    "id": 1846
+    "id": 1846,
+    "quoteQty": "315.35"
   },
   {
     "symbol": "SOLUSDT",
-    "qty": "2.13",
+    "qty": "24.90898514",
     "price": "178.89",
     "commission": "0.38103877",
     "commissionAsset": "USDT",
@@ -5349,7 +6665,8 @@
     "isMaker": true,
     "time": 5278964476607,
     "orderId": 50847,
-    "id": 1847
+    "id": 1847,
+    "quoteQty": "4455.97"
   },
   {
     "symbol": "FTMUSDT",
@@ -5361,11 +6678,12 @@
     "isMaker": false,
     "time": 5313870076607,
     "orderId": 50850,
-    "id": 1850
+    "id": 1850,
+    "quoteQty": "898.17"
   },
   {
     "symbol": "FTMUSDT",
-    "qty": "945.44",
+    "qty": "3373.57960746",
     "price": "1.07",
     "commission": "0.94544",
     "commissionAsset": "FTM",
@@ -5373,7 +6691,8 @@
     "isMaker": true,
     "time": 5313929177800,
     "orderId": 50851,
-    "id": 1851
+    "id": 1851,
+    "quoteQty": "3609.73"
   },
   {
     "symbol": "AVAXUSDT",
@@ -5385,11 +6704,12 @@
     "isMaker": false,
     "time": 5349007577800,
     "orderId": 50854,
-    "id": 1854
+    "id": 1854,
+    "quoteQty": "151.47"
   },
   {
     "symbol": "AVAXUSDT",
-    "qty": "4.85",
+    "qty": "72.28459862",
     "price": "33.45",
     "commission": "0.00485",
     "commissionAsset": "AVAX",
@@ -5397,11 +6717,12 @@
     "isMaker": false,
     "time": 5349084524992,
     "orderId": 50855,
-    "id": 1855
+    "id": 1855,
+    "quoteQty": "2417.92"
   },
   {
     "symbol": "FETUSDT",
-    "qty": "417.32",
+    "qty": "738.74312971",
     "price": "1.46",
     "commission": "0.41732",
     "commissionAsset": "FET",
@@ -5409,7 +6730,8 @@
     "isMaker": false,
     "time": 5384335724992,
     "orderId": 50858,
-    "id": 1858
+    "id": 1858,
+    "quoteQty": "1078.56"
   },
   {
     "symbol": "FETUSDT",
@@ -5421,11 +6743,12 @@
     "isMaker": false,
     "time": 5384379255481,
     "orderId": 50859,
-    "id": 1859
+    "id": 1859,
+    "quoteQty": "617.63"
   },
   {
     "symbol": "DOTUSDT",
-    "qty": "744.22",
+    "qty": "143.77808173",
     "price": "8.16",
     "commission": "0.74422",
     "commissionAsset": "DOT",
@@ -5433,11 +6756,12 @@
     "isMaker": true,
     "time": 5419803255481,
     "orderId": 50862,
-    "id": 1862
+    "id": 1862,
+    "quoteQty": "1173.23"
   },
   {
     "symbol": "DOTUSDT",
-    "qty": "744.22",
+    "qty": "629.22655760",
     "price": "9.22",
     "commission": "6.86241427",
     "commissionAsset": "USDT",
@@ -5445,7 +6769,8 @@
     "isMaker": false,
     "time": 5419817089762,
     "orderId": 50863,
-    "id": 1863
+    "id": 1863,
+    "quoteQty": "5801.47"
   },
   {
     "symbol": "UNIUSDT",
@@ -5457,11 +6782,12 @@
     "isMaker": true,
     "time": 5455413889762,
     "orderId": 50866,
-    "id": 1866
+    "id": 1866,
+    "quoteQty": "806.71"
   },
   {
     "symbol": "UNIUSDT",
-    "qty": "74.01",
+    "qty": "316.55611086",
     "price": "10.35",
     "commission": "0.07401",
     "commissionAsset": "UNI",
@@ -5469,7 +6795,8 @@
     "isMaker": true,
     "time": 5455474075821,
     "orderId": 50867,
-    "id": 1867
+    "id": 1867,
+    "quoteQty": "3276.36"
   },
   {
     "symbol": "SHIBUSDT",
@@ -5481,7 +6808,8 @@
     "isMaker": false,
     "time": 5491243675821,
     "orderId": 50870,
-    "id": 1870
+    "id": 1870,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "SHIBUSDT",
@@ -5493,7 +6821,8 @@
     "isMaker": false,
     "time": 5491321006168,
     "orderId": 50871,
-    "id": 1871
+    "id": 1871,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "BTCUSDT",
@@ -5505,11 +6834,12 @@
     "isMaker": false,
     "time": 5527263406168,
     "orderId": 50874,
-    "id": 1874
+    "id": 1874,
+    "quoteQty": "1548.28"
   },
   {
     "symbol": "BTCUSDT",
-    "qty": "0.038",
+    "qty": "0.03095167",
     "price": "49025.96",
     "commission": "0.000038",
     "commissionAsset": "BTC",
@@ -5517,11 +6847,12 @@
     "isMaker": true,
     "time": 5527305354749,
     "orderId": 50875,
-    "id": 1875
+    "id": 1875,
+    "quoteQty": "1517.44"
   },
   {
     "symbol": "APTUSDT",
-    "qty": "378.25",
+    "qty": "369.55401378",
     "price": "13.14",
     "commission": "4.96854562",
     "commissionAsset": "USDT",
@@ -5529,11 +6860,12 @@
     "isMaker": true,
     "time": 5563420554749,
     "orderId": 50878,
-    "id": 1878
+    "id": 1878,
+    "quoteQty": "4855.94"
   },
   {
     "symbol": "APTUSDT",
-    "qty": "378.25",
+    "qty": "464.47832786",
     "price": "12.44",
     "commission": "4.70615281",
     "commissionAsset": "USDT",
@@ -5541,7 +6873,8 @@
     "isMaker": false,
     "time": 5563483071592,
     "orderId": 50879,
-    "id": 1879
+    "id": 1879,
+    "quoteQty": "5778.11"
   },
   {
     "symbol": "NEARUSDT",
@@ -5553,7 +6886,8 @@
     "isMaker": false,
     "time": 5599771071592,
     "orderId": 50882,
-    "id": 1882
+    "id": 1882,
+    "quoteQty": "4313.24"
   },
   {
     "symbol": "NEARUSDT",
@@ -5565,7 +6899,8 @@
     "isMaker": false,
     "time": 5599857065800,
     "orderId": 50883,
-    "id": 1883
+    "id": 1883,
+    "quoteQty": "4470.08"
   },
   {
     "symbol": "FETUSDT",
@@ -5577,11 +6912,12 @@
     "isMaker": true,
     "time": 5636317865800,
     "orderId": 50886,
-    "id": 1886
+    "id": 1886,
+    "quoteQty": "1046.65"
   },
   {
     "symbol": "FETUSDT",
-    "qty": "679.64",
+    "qty": "4286.14990337",
     "price": "1.59",
     "commission": "1.08270001",
     "commissionAsset": "USDT",
@@ -5589,11 +6925,12 @@
     "isMaker": true,
     "time": 5636382774254,
     "orderId": 50887,
-    "id": 1887
+    "id": 1887,
+    "quoteQty": "6814.98"
   },
   {
     "symbol": "SUIUSDT",
-    "qty": "738.87",
+    "qty": "2883.77966750",
     "price": "1.99",
     "commission": "1.47222234",
     "commissionAsset": "USDT",
@@ -5601,11 +6938,12 @@
     "isMaker": true,
     "time": 5673016374254,
     "orderId": 50890,
-    "id": 1890
+    "id": 1890,
+    "quoteQty": "5738.72"
   },
   {
     "symbol": "SUIUSDT",
-    "qty": "738.87",
+    "qty": "1322.15179856",
     "price": "2.10",
     "commission": "1.55426777",
     "commissionAsset": "USDT",
@@ -5613,11 +6951,12 @@
     "isMaker": false,
     "time": 5673028539896,
     "orderId": 50891,
-    "id": 1891
+    "id": 1891,
+    "quoteQty": "2776.52"
   },
   {
     "symbol": "SUIUSDT",
-    "qty": "93.28",
+    "qty": "1299.53487728",
     "price": "1.72",
     "commission": "0.16026666",
     "commissionAsset": "USDT",
@@ -5625,7 +6964,8 @@
     "isMaker": true,
     "time": 5709834939896,
     "orderId": 50894,
-    "id": 1894
+    "id": 1894,
+    "quoteQty": "2235.20"
   },
   {
     "symbol": "SUIUSDT",
@@ -5637,7 +6977,8 @@
     "isMaker": false,
     "time": 5709850186761,
     "orderId": 50895,
-    "id": 1895
+    "id": 1895,
+    "quoteQty": "173.50"
   },
   {
     "symbol": "FETUSDT",
@@ -5649,11 +6990,12 @@
     "isMaker": false,
     "time": 5746829386761,
     "orderId": 50898,
-    "id": 1898
+    "id": 1898,
+    "quoteQty": "205.28"
   },
   {
     "symbol": "FETUSDT",
-    "qty": "124.41",
+    "qty": "3896.45090475",
     "price": "1.58",
     "commission": "0.12441",
     "commissionAsset": "FET",
@@ -5661,11 +7003,12 @@
     "isMaker": false,
     "time": 5746844603943,
     "orderId": 50899,
-    "id": 1899
+    "id": 1899,
+    "quoteQty": "6156.39"
   },
   {
     "symbol": "ATOMUSDT",
-    "qty": "512.19",
+    "qty": "589.18150982",
     "price": "10.93",
     "commission": "0.51219",
     "commissionAsset": "ATOM",
@@ -5673,11 +7016,12 @@
     "isMaker": true,
     "time": 5783996603943,
     "orderId": 50902,
-    "id": 1902
+    "id": 1902,
+    "quoteQty": "6439.75"
   },
   {
     "symbol": "ATOMUSDT",
-    "qty": "512.19",
+    "qty": "91.06097195",
     "price": "10.36",
     "commission": "5.30597037",
     "commissionAsset": "USDT",
@@ -5685,7 +7029,8 @@
     "isMaker": false,
     "time": 5784012991804,
     "orderId": 50903,
-    "id": 1903
+    "id": 1903,
+    "quoteQty": "943.39"
   },
   {
     "symbol": "SUIUSDT",
@@ -5697,7 +7042,8 @@
     "isMaker": false,
     "time": 5821337791804,
     "orderId": 50906,
-    "id": 1906
+    "id": 1906,
+    "quoteQty": "929.64"
   },
   {
     "symbol": "SUIUSDT",
@@ -5709,7 +7055,8 @@
     "isMaker": false,
     "time": 5821355569855,
     "orderId": 50907,
-    "id": 1907
+    "id": 1907,
+    "quoteQty": "842.66"
   },
   {
     "symbol": "BONKUSDT",
@@ -5721,7 +7068,8 @@
     "isMaker": false,
     "time": 5858853169855,
     "orderId": 50910,
-    "id": 1910
+    "id": 1910,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "BONKUSDT",
@@ -5733,7 +7081,8 @@
     "isMaker": false,
     "time": 5858893598304,
     "orderId": 50911,
-    "id": 1911
+    "id": 1911,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "BONKUSDT",
@@ -5745,11 +7094,12 @@
     "isMaker": true,
     "time": 5896563998304,
     "orderId": 50914,
-    "id": 1914
+    "id": 1914,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "BONKUSDT",
-    "qty": "41296865.0",
+    "qty": "Infinity",
     "price": "0.00",
     "commission": "0.99762656",
     "commissionAsset": "USDT",
@@ -5757,11 +7107,12 @@
     "isMaker": true,
     "time": 5896607433267,
     "orderId": 50915,
-    "id": 1915
+    "id": 1915,
+    "quoteQty": "NaN"
   },
   {
     "symbol": "SOLUSDT",
-    "qty": "16.8",
+    "qty": "49.60495194",
     "price": "113.94",
     "commission": "1.91413209",
     "commissionAsset": "USDT",
@@ -5769,11 +7120,12 @@
     "isMaker": true,
     "time": 5934450633267,
     "orderId": 50918,
-    "id": 1918
+    "id": 1918,
+    "quoteQty": "5651.99"
   },
   {
     "symbol": "SOLUSDT",
-    "qty": "16.8",
+    "qty": "22.96919422",
     "price": "129.67",
     "commission": "2.17842194",
     "commissionAsset": "USDT",
@@ -5781,11 +7133,12 @@
     "isMaker": false,
     "time": 5934488935276,
     "orderId": 50919,
-    "id": 1919
+    "id": 1919,
+    "quoteQty": "2978.42"
   },
   {
     "symbol": "DOTUSDT",
-    "qty": "795.76",
+    "qty": "769.03675944",
     "price": "6.48",
     "commission": "0.79576",
     "commissionAsset": "DOT",
@@ -5793,7 +7146,8 @@
     "isMaker": false,
     "time": 5972504935276,
     "orderId": 50922,
-    "id": 1922
+    "id": 1922,
+    "quoteQty": "4983.36"
   },
   {
     "symbol": "DOTUSDT",
@@ -5805,11 +7159,12 @@
     "isMaker": false,
     "time": 5972540847964,
     "orderId": 50923,
-    "id": 1923
+    "id": 1923,
+    "quoteQty": "5832.92"
   },
   {
     "symbol": "PEPEUSDT",
-    "qty": "11982547.0",
+    "qty": "Infinity",
     "price": "0.00",
     "commission": "11982.547",
     "commissionAsset": "PEPE",
@@ -5817,11 +7172,12 @@
     "isMaker": false,
     "time": 6010729647964,
     "orderId": 50926,
-    "id": 1926
+    "id": 1926,
+    "quoteQty": "NaN"
   },
   {
     "symbol": "PEPEUSDT",
-    "qty": "11982547.0",
+    "qty": "Infinity",
     "price": "0.00",
     "commission": "0.12748827",
     "commissionAsset": "USDT",
@@ -5829,7 +7185,8 @@
     "isMaker": true,
     "time": 6010785850693,
     "orderId": 50927,
-    "id": 1927
+    "id": 1927,
+    "quoteQty": "NaN"
   },
   {
     "symbol": "AVAXUSDT",
@@ -5841,7 +7198,8 @@
     "isMaker": false,
     "time": 6049147450693,
     "orderId": 50930,
-    "id": 1930
+    "id": 1930,
+    "quoteQty": "1422.73"
   },
   {
     "symbol": "AVAXUSDT",
@@ -5853,7 +7211,8 @@
     "isMaker": true,
     "time": 6049199547314,
     "orderId": 50931,
-    "id": 1931
+    "id": 1931,
+    "quoteQty": "1758.56"
   },
   {
     "symbol": "DOTUSDT",
@@ -5865,7 +7224,8 @@
     "isMaker": false,
     "time": 6087733947314,
     "orderId": 50934,
-    "id": 1934
+    "id": 1934,
+    "quoteQty": "4604.41"
   },
   {
     "symbol": "DOTUSDT",
@@ -5877,11 +7237,12 @@
     "isMaker": false,
     "time": 6087793715653,
     "orderId": 50935,
-    "id": 1935
+    "id": 1935,
+    "quoteQty": "5460.88"
   },
   {
     "symbol": "PEPEUSDT",
-    "qty": "11748966.0",
+    "qty": "Infinity",
     "price": "0.00",
     "commission": "0.11711218",
     "commissionAsset": "USDT",
@@ -5889,7 +7250,8 @@
     "isMaker": true,
     "time": 6126500915653,
     "orderId": 50938,
-    "id": 1938
+    "id": 1938,
+    "quoteQty": "NaN"
   },
   {
     "symbol": "PEPEUSDT",
@@ -5901,7 +7263,8 @@
     "isMaker": false,
     "time": 6126527601958,
     "orderId": 50939,
-    "id": 1939
+    "id": 1939,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "SOLUSDT",
@@ -5913,11 +7276,12 @@
     "isMaker": false,
     "time": 6165407601958,
     "orderId": 50942,
-    "id": 1942
+    "id": 1942,
+    "quoteQty": "5488.83"
   },
   {
     "symbol": "SOLUSDT",
-    "qty": "49.44",
+    "qty": "39.14383126",
     "price": "120.83",
     "commission": "5.97394038",
     "commissionAsset": "USDT",
@@ -5925,7 +7289,8 @@
     "isMaker": true,
     "time": 6165437305927,
     "orderId": 50943,
-    "id": 1943
+    "id": 1943,
+    "quoteQty": "4729.75"
   },
   {
     "symbol": "ETHUSDT",
@@ -5937,11 +7302,12 @@
     "isMaker": false,
     "time": 6204490105927,
     "orderId": 50946,
-    "id": 1946
+    "id": 1946,
+    "quoteQty": "222.75"
   },
   {
     "symbol": "ETHUSDT",
-    "qty": "0.0852",
+    "qty": "1.14661576",
     "price": "2359.20",
     "commission": "0.0000852",
     "commissionAsset": "ETH",
@@ -5949,7 +7315,8 @@
     "isMaker": false,
     "time": 6204527771728,
     "orderId": 50947,
-    "id": 1947
+    "id": 1947,
+    "quoteQty": "2705.10"
   },
   {
     "symbol": "ETHUSDT",
@@ -5961,11 +7328,12 @@
     "isMaker": true,
     "time": 6243753371728,
     "orderId": 50950,
-    "id": 1950
+    "id": 1950,
+    "quoteQty": "153.01"
   },
   {
     "symbol": "ETHUSDT",
-    "qty": "0.0628",
+    "qty": "2.32715802",
     "price": "2603.69",
     "commission": "0.16351158",
     "commissionAsset": "USDT",
@@ -5973,11 +7341,12 @@
     "isMaker": false,
     "time": 6243823532817,
     "orderId": 50951,
-    "id": 1951
+    "id": 1951,
+    "quoteQty": "6059.20"
   },
   {
     "symbol": "ARBUSDT",
-    "qty": "108.36",
+    "qty": "3831.46580927",
     "price": "1.32",
     "commission": "0.10836",
     "commissionAsset": "ARB",
@@ -5985,11 +7354,12 @@
     "isMaker": true,
     "time": 6283221932817,
     "orderId": 50954,
-    "id": 1954
+    "id": 1954,
+    "quoteQty": "5057.53"
   },
   {
     "symbol": "ARBUSDT",
-    "qty": "108.36",
+    "qty": "2867.27786882",
     "price": "1.48",
     "commission": "0.16085133",
     "commissionAsset": "USDT",
@@ -5997,7 +7367,8 @@
     "isMaker": true,
     "time": 6283228725903,
     "orderId": 50955,
-    "id": 1955
+    "id": 1955,
+    "quoteQty": "4243.57"
   },
   {
     "symbol": "APTUSDT",
@@ -6009,7 +7380,8 @@
     "isMaker": true,
     "time": 6322799925903,
     "orderId": 50958,
-    "id": 1958
+    "id": 1958,
+    "quoteQty": "1829.58"
   },
   {
     "symbol": "APTUSDT",
@@ -6021,7 +7393,8 @@
     "isMaker": true,
     "time": 6322865482593,
     "orderId": 50959,
-    "id": 1959
+    "id": 1959,
+    "quoteQty": "1905.02"
   },
   {
     "symbol": "OPUSDT",
@@ -6033,7 +7406,8 @@
     "isMaker": false,
     "time": 6362609482593,
     "orderId": 50962,
-    "id": 1962
+    "id": 1962,
+    "quoteQty": "2717.34"
   },
   {
     "symbol": "OPUSDT",
@@ -6045,11 +7419,12 @@
     "isMaker": false,
     "time": 6362674466397,
     "orderId": 50963,
-    "id": 1963
+    "id": 1963,
+    "quoteQty": "3057.01"
   },
   {
     "symbol": "NEARUSDT",
-    "qty": "411.35",
+    "qty": "393.03484185",
     "price": "6.76",
     "commission": "0.41135",
     "commissionAsset": "NEAR",
@@ -6057,7 +7432,8 @@
     "isMaker": true,
     "time": 6402591266397,
     "orderId": 50966,
-    "id": 1966
+    "id": 1966,
+    "quoteQty": "2656.92"
   },
   {
     "symbol": "NEARUSDT",
@@ -6069,7 +7445,8 @@
     "isMaker": true,
     "time": 6402665556951,
     "orderId": 50967,
-    "id": 1967
+    "id": 1967,
+    "quoteQty": "3352.50"
   },
   {
     "symbol": "LINKUSDT",
@@ -6081,11 +7458,12 @@
     "isMaker": true,
     "time": 6442755156951,
     "orderId": 50970,
-    "id": 1970
+    "id": 1970,
+    "quoteQty": "407.21"
   },
   {
     "symbol": "LINKUSDT",
-    "qty": "28.88",
+    "qty": "271.40960724",
     "price": "14.03",
     "commission": "0.4050714",
     "commissionAsset": "USDT",
@@ -6093,7 +7471,8 @@
     "isMaker": false,
     "time": 6442806090784,
     "orderId": 50971,
-    "id": 1971
+    "id": 1971,
+    "quoteQty": "3807.88"
   },
   {
     "symbol": "WIFUSDT",
@@ -6105,7 +7484,8 @@
     "isMaker": false,
     "time": 6483068490784,
     "orderId": 50974,
-    "id": 1974
+    "id": 1974,
+    "quoteQty": "705.60"
   },
   {
     "symbol": "WIFUSDT",
@@ -6117,7 +7497,8 @@
     "isMaker": true,
     "time": 6483073833365,
     "orderId": 50975,
-    "id": 1975
+    "id": 1975,
+    "quoteQty": "673.38"
   },
   {
     "symbol": "SHIBUSDT",
@@ -6129,7 +7510,8 @@
     "isMaker": false,
     "time": 6523509033365,
     "orderId": 50978,
-    "id": 1978
+    "id": 1978,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "SHIBUSDT",
@@ -6141,7 +7523,8 @@
     "isMaker": true,
     "time": 6523530230517,
     "orderId": 50979,
-    "id": 1979
+    "id": 1979,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "WIFUSDT",
@@ -6153,7 +7536,8 @@
     "isMaker": true,
     "time": 6564138230517,
     "orderId": 50982,
-    "id": 1982
+    "id": 1982,
+    "quoteQty": "41.43"
   },
   {
     "symbol": "WIFUSDT",
@@ -6165,11 +7549,12 @@
     "isMaker": false,
     "time": 6564163723309,
     "orderId": 50983,
-    "id": 1983
+    "id": 1983,
+    "quoteQty": "48.14"
   },
   {
     "symbol": "ARBUSDT",
-    "qty": "407.65",
+    "qty": "404.71127969",
     "price": "1.42",
     "commission": "0.40765",
     "commissionAsset": "ARB",
@@ -6177,7 +7562,8 @@
     "isMaker": true,
     "time": 6604944523309,
     "orderId": 50986,
-    "id": 1986
+    "id": 1986,
+    "quoteQty": "574.69"
   },
   {
     "symbol": "ARBUSDT",
@@ -6189,11 +7575,12 @@
     "isMaker": false,
     "time": 6605017286096,
     "orderId": 50987,
-    "id": 1987
+    "id": 1987,
+    "quoteQty": "623.70"
   },
   {
     "symbol": "SOLUSDT",
-    "qty": "13.84",
+    "qty": "51.21762353",
     "price": "126.40",
     "commission": "0.01384",
     "commissionAsset": "SOL",
@@ -6201,7 +7588,8 @@
     "isMaker": true,
     "time": 6645970886096,
     "orderId": 50990,
-    "id": 1990
+    "id": 1990,
+    "quoteQty": "6473.91"
   },
   {
     "symbol": "SOLUSDT",
@@ -6213,7 +7601,8 @@
     "isMaker": false,
     "time": 6646035886119,
     "orderId": 50991,
-    "id": 1991
+    "id": 1991,
+    "quoteQty": "1728.89"
   },
   {
     "symbol": "AVAXUSDT",
@@ -6225,7 +7614,8 @@
     "isMaker": false,
     "time": 6687162286119,
     "orderId": 50994,
-    "id": 1994
+    "id": 1994,
+    "quoteQty": "602.95"
   },
   {
     "symbol": "AVAXUSDT",
@@ -6237,7 +7627,8 @@
     "isMaker": true,
     "time": 6687238919513,
     "orderId": 50995,
-    "id": 1995
+    "id": 1995,
+    "quoteQty": "678.61"
   },
   {
     "symbol": "FTMUSDT",
@@ -6249,7 +7640,8 @@
     "isMaker": false,
     "time": 6728538119513,
     "orderId": 50998,
-    "id": 1998
+    "id": 1998,
+    "quoteQty": "266.44"
   },
   {
     "symbol": "FTMUSDT",
@@ -6261,7 +7653,8 @@
     "isMaker": true,
     "time": 6728602171152,
     "orderId": 50999,
-    "id": 1999
+    "id": 1999,
+    "quoteQty": "313.46"
   },
   {
     "symbol": "BONKUSDT",
@@ -6273,11 +7666,12 @@
     "isMaker": false,
     "time": 6770074171152,
     "orderId": 51002,
-    "id": 2002
+    "id": 2002,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "BONKUSDT",
-    "qty": "44169765.0",
+    "qty": "Infinity",
     "price": "0.00",
     "commission": "44169.765",
     "commissionAsset": "BONK",
@@ -6285,7 +7679,8 @@
     "isMaker": false,
     "time": 6770119931749,
     "orderId": 51003,
-    "id": 2003
+    "id": 2003,
+    "quoteQty": "NaN"
   },
   {
     "symbol": "SUIUSDT",
@@ -6297,11 +7692,12 @@
     "isMaker": false,
     "time": 6811764731749,
     "orderId": 51006,
-    "id": 2006
+    "id": 2006,
+    "quoteQty": "717.42"
   },
   {
     "symbol": "SUIUSDT",
-    "qty": "340.01",
+    "qty": "1561.64602857",
     "price": "2.53",
     "commission": "0.85893844",
     "commissionAsset": "USDT",
@@ -6309,7 +7705,8 @@
     "isMaker": false,
     "time": 6811792980429,
     "orderId": 51007,
-    "id": 2007
+    "id": 2007,
+    "quoteQty": "3950.96"
   },
   {
     "symbol": "PEPEUSDT",
@@ -6321,7 +7718,8 @@
     "isMaker": true,
     "time": 6853610580429,
     "orderId": 51010,
-    "id": 2010
+    "id": 2010,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "PEPEUSDT",
@@ -6333,11 +7731,12 @@
     "isMaker": false,
     "time": 6853634338178,
     "orderId": 51011,
-    "id": 2011
+    "id": 2011,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "MATICUSDT",
-    "qty": "284.65",
+    "qty": "3060.79819824",
     "price": "0.96",
     "commission": "0.27299839",
     "commissionAsset": "USDT",
@@ -6345,7 +7744,8 @@
     "isMaker": false,
     "time": 6895624738178,
     "orderId": 51014,
-    "id": 2014
+    "id": 2014,
+    "quoteQty": "2938.37"
   },
   {
     "symbol": "MATICUSDT",
@@ -6357,7 +7757,8 @@
     "isMaker": false,
     "time": 6895663255163,
     "orderId": 51015,
-    "id": 2015
+    "id": 2015,
+    "quoteQty": "298.88"
   },
   {
     "symbol": "PEPEUSDT",
@@ -6369,11 +7770,12 @@
     "isMaker": false,
     "time": 6937826455163,
     "orderId": 51018,
-    "id": 2018
+    "id": 2018,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "PEPEUSDT",
-    "qty": "18887443.0",
+    "qty": "Infinity",
     "price": "0.00",
     "commission": "18887.443",
     "commissionAsset": "PEPE",
@@ -6381,7 +7783,8 @@
     "isMaker": true,
     "time": 6937857673969,
     "orderId": 51019,
-    "id": 2019
+    "id": 2019,
+    "quoteQty": "NaN"
   },
   {
     "symbol": "OPUSDT",
@@ -6393,7 +7796,8 @@
     "isMaker": false,
     "time": 6980193673969,
     "orderId": 51022,
-    "id": 2022
+    "id": 2022,
+    "quoteQty": "2639.45"
   },
   {
     "symbol": "OPUSDT",
@@ -6405,7 +7809,8 @@
     "isMaker": false,
     "time": 6980245189729,
     "orderId": 51023,
-    "id": 2023
+    "id": 2023,
+    "quoteQty": "2422.51"
   },
   {
     "symbol": "APTUSDT",
@@ -6417,11 +7822,12 @@
     "isMaker": true,
     "time": 7022753989729,
     "orderId": 51026,
-    "id": 2026
+    "id": 2026,
+    "quoteQty": "9681.53"
   },
   {
     "symbol": "APTUSDT",
-    "qty": "876.95",
+    "qty": "344.04837899",
     "price": "10.97",
     "commission": "0.87695",
     "commissionAsset": "APT",
@@ -6429,11 +7835,12 @@
     "isMaker": false,
     "time": 7022832345201,
     "orderId": 51027,
-    "id": 2027
+    "id": 2027,
+    "quoteQty": "3774.21"
   },
   {
     "symbol": "PEPEUSDT",
-    "qty": "46021795.0",
+    "qty": "Infinity",
     "price": "0.00",
     "commission": "0.45870017",
     "commissionAsset": "USDT",
@@ -6441,7 +7848,8 @@
     "isMaker": false,
     "time": 7065513945201,
     "orderId": 51030,
-    "id": 2030
+    "id": 2030,
+    "quoteQty": "NaN"
   },
   {
     "symbol": "PEPEUSDT",
@@ -6453,7 +7861,8 @@
     "isMaker": false,
     "time": 7065529674408,
     "orderId": 51031,
-    "id": 2031
+    "id": 2031,
+    "quoteQty": "0.00"
   },
   {
     "symbol": "SUIUSDT",
@@ -6465,11 +7874,12 @@
     "isMaker": false,
     "time": 7108384074408,
     "orderId": 51034,
-    "id": 2034
+    "id": 2034,
+    "quoteQty": "1272.95"
   },
   {
     "symbol": "SUIUSDT",
-    "qty": "627.07",
+    "qty": "311.49274492",
     "price": "2.09",
     "commission": "1.31301369",
     "commissionAsset": "USDT",
@@ -6477,11 +7887,12 @@
     "isMaker": true,
     "time": 7108389610777,
     "orderId": 51035,
-    "id": 2035
+    "id": 2035,
+    "quoteQty": "651.02"
   },
   {
     "symbol": "MATICUSDT",
-    "qty": "769.66",
+    "qty": "665.91612726",
     "price": "0.75",
     "commission": "0.76966",
     "commissionAsset": "MATIC",
@@ -6489,11 +7900,12 @@
     "isMaker": false,
     "time": 7151416810777,
     "orderId": 51038,
-    "id": 2038
+    "id": 2038,
+    "quoteQty": "499.44"
   },
   {
     "symbol": "MATICUSDT",
-    "qty": "769.66",
+    "qty": "4504.84715212",
     "price": "0.92",
     "commission": "0.70471723",
     "commissionAsset": "USDT",
@@ -6501,6 +7913,7 @@
     "isMaker": false,
     "time": 7151474648539,
     "orderId": 51039,
-    "id": 2039
+    "id": 2039,
+    "quoteQty": "4144.46"
   }
 ]

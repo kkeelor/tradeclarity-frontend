@@ -580,6 +580,15 @@ export default function TradeClarityContent() {
           .filter(s => s.type === 'csv')
           .map(s => s.id)
 
+        // 🔍 CLIENT DEBUG - Log what's being sent
+        console.log('🔍 CLIENT DEBUG - Selected sources:', {
+          selectedSources,
+          exchangeIds,
+          csvIds,
+          exchangeCount: exchangeIds.length,
+          csvCount: csvIds.length
+        })
+
         if (exchangeIds.length > 0) {
           console.log('?? Adding connectionIds to params:', exchangeIds)
           params.append('connectionIds', exchangeIds.join(','))
@@ -605,6 +614,15 @@ export default function TradeClarityContent() {
       }
 
       console.log(`?? Fetching trades from DB: ${url}`)
+      
+      // 🔍 CLIENT DEBUG - Log the full request URL
+      console.log('🔍 CLIENT DEBUG - Request URL:', url)
+      console.log('🔍 CLIENT DEBUG - Request params:', {
+        connectionIds: params.get('connectionIds') || 'NONE',
+        connectionId: params.get('connectionId') || 'NONE',
+        exchange: params.get('exchange') || 'NONE',
+        csvIds: params.get('csvIds') || 'NONE'
+      })
 
       // Fetch saved trades from database
       const response = await fetch(url)
@@ -619,15 +637,86 @@ export default function TradeClarityContent() {
         throw new Error('No trading data available')
       }
 
-      console.log('?? [DEBUG] API Response structure:', {
+      // 🔍 CLIENT DEBUG - Comprehensive response analysis
+      console.log('🔍 CLIENT DEBUG - API Response structure:', {
         success: data.success,
         hasSpotTrades: !!data.spotTrades,
         hasFuturesIncome: !!data.futuresIncome,
         hasMetadata: !!data.metadata,
         metadataKeys: data.metadata ? Object.keys(data.metadata) : [],
         hasSpotHoldings: !!data.metadata?.spotHoldings,
-        spotHoldingsCount: data.metadata?.spotHoldings?.length || 0
+        spotHoldingsCount: data.metadata?.spotHoldings?.length || 0,
+        totalPortfolioValue: data.metadata?.totalPortfolioValue,
+        snapshotTime: data.metadata?.snapshotTime
       })
+
+      // 🔍 CLIENT DEBUG - Analyze holdings by exchange
+      if (data.metadata?.spotHoldings && Array.isArray(data.metadata.spotHoldings)) {
+        const holdingsByExchange = {}
+        const holdingsByConnectionId = {}
+        
+        data.metadata.spotHoldings.forEach((holding, idx) => {
+          const exchange = holding.exchange || 'UNKNOWN'
+          const connectionId = holding.connection_id || 'NONE'
+          
+          if (!holdingsByExchange[exchange]) {
+            holdingsByExchange[exchange] = { count: 0, totalValue: 0, holdings: [] }
+          }
+          holdingsByExchange[exchange].count++
+          holdingsByExchange[exchange].totalValue += parseFloat(holding.usdValue || 0)
+          holdingsByExchange[exchange].holdings.push({
+            asset: holding.asset,
+            value: holding.usdValue,
+            index: idx
+          })
+          
+          if (!holdingsByConnectionId[connectionId]) {
+            holdingsByConnectionId[connectionId] = { count: 0, totalValue: 0 }
+          }
+          holdingsByConnectionId[connectionId].count++
+          holdingsByConnectionId[connectionId].totalValue += parseFloat(holding.usdValue || 0)
+        })
+        
+        console.log('🔍 CLIENT DEBUG - Holdings Analysis:', {
+          totalHoldings: data.metadata.spotHoldings.length,
+          holdingsByExchange,
+          holdingsByConnectionId,
+          requestedConnectionIds: params.get('connectionIds')?.split(',') || [],
+          orphanedHoldings: data.metadata.spotHoldings.filter(h => {
+            const requested = params.get('connectionIds')?.split(',') || []
+            const holdingConnId = h.connection_id
+            return holdingConnId && !requested.includes(holdingConnId)
+          }).map(h => ({
+            exchange: h.exchange,
+            asset: h.asset,
+            value: h.usdValue,
+            connection_id: h.connection_id
+          }))
+        })
+        
+        // 🚨 CLIENT DEBUG - Check for orphaned holdings
+        const requestedIds = params.get('connectionIds')?.split(',').filter(id => id.trim()) || []
+        if (requestedIds.length > 0) {
+          const orphaned = data.metadata.spotHoldings.filter(h => {
+            const holdingConnId = h.connection_id
+            return holdingConnId && !requestedIds.includes(holdingConnId)
+          })
+          
+          if (orphaned.length > 0) {
+            console.error('🚨 CLIENT DEBUG - ORPHANED HOLDINGS DETECTED:', {
+              count: orphaned.length,
+              requestedConnectionIds: requestedIds,
+              orphanedHoldings: orphaned.map(h => ({
+                exchange: h.exchange,
+                asset: h.asset,
+                value: h.usdValue,
+                connection_id: h.connection_id
+              })),
+              totalOrphanedValue: orphaned.reduce((sum, h) => sum + parseFloat(h.usdValue || 0), 0)
+            })
+          }
+        }
+      }
 
       console.log('? Saved trades loaded:', {
         spotTrades: data.spotTrades?.length || 0,

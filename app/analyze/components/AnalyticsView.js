@@ -422,9 +422,12 @@ function LiveHoldings({ analytics, metadata, currSymbol }) {
 // ============================================
 
 function RadialPsychologyScore({ score, analytics }) {
+  // Ensure score is a valid number
+  const safeScore = typeof score === 'number' && !isNaN(score) ? Math.max(0, Math.min(100, score)) : 50
+  
   const radius = 60
   const circumference = 2 * Math.PI * radius
-  const strokeDashoffset = circumference - (score / 100) * circumference
+  const strokeDashoffset = circumference - (safeScore / 100) * circumference
 
   const getScoreColor = (score) => {
     if (score >= 80) return { primary: '#10b981', secondary: '#34d399', glow: '#10b981' }
@@ -434,7 +437,7 @@ function RadialPsychologyScore({ score, analytics }) {
     return { primary: '#ef4444', secondary: '#f87171', glow: '#ef4444' }
   }
 
-  const colors = getScoreColor(score)
+  const colors = getScoreColor(safeScore)
 
   return (
     <div className="flex flex-col items-center">
@@ -465,7 +468,7 @@ function RadialPsychologyScore({ score, analytics }) {
             cy="75"
             r={radius}
             fill="none"
-            stroke={`url(#gradient-${score})`}
+            stroke={`url(#gradient-${safeScore})`}
             strokeWidth="12"
             strokeLinecap="round"
             strokeDasharray={circumference}
@@ -475,7 +478,7 @@ function RadialPsychologyScore({ score, analytics }) {
           />
           {/* Gradient definition */}
           <defs>
-            <linearGradient id={`gradient-${score}`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <linearGradient id={`gradient-${safeScore}`} x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor={colors.primary} />
               <stop offset="100%" stopColor={colors.secondary} />
             </linearGradient>
@@ -484,7 +487,7 @@ function RadialPsychologyScore({ score, analytics }) {
 
         {/* Center content */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <div className="text-4xl font-bold text-white mb-1">{score}</div>
+          <div className="text-4xl font-bold text-white mb-1">{safeScore}</div>
           <div className="text-[10px] text-slate-400 uppercase tracking-wider">Discipline</div>
         </div>
       </div>
@@ -2936,7 +2939,7 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
         </div>
 
         {/* Psychology Score - Right Column */}
-        {analytics.behavioral?.healthScore !== undefined && analytics.behavioral?.healthScore !== null ? (
+        {analytics.behavioral?.healthScore !== undefined && analytics.behavioral?.healthScore !== null && !isNaN(analytics.behavioral.healthScore) ? (
           <div className="relative overflow-hidden rounded-xl border border-purple-500/30 bg-purple-500/10 shadow-lg shadow-purple-500/5 backdrop-blur transition-all duration-300 hover:scale-[1.01] h-full flex flex-col">
             <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-purple-500/5" />
             <div className="relative p-2 md:p-3 flex flex-col flex-1">
@@ -2947,7 +2950,7 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
                 </span>
               </div>
               <div className="flex justify-center mb-3">
-                <RadialPsychologyScore score={analytics.behavioral.healthScore} analytics={analytics} />
+                <RadialPsychologyScore score={typeof analytics.behavioral.healthScore === 'number' ? analytics.behavioral.healthScore : 50} analytics={analytics} />
               </div>
               
               {/* Score Breakdown */}
@@ -3506,8 +3509,8 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
           })()}
 
           {/* Behavioral Tab - Value Teaser */}
-          {analytics.behavioral && analytics.behavioral.healthScore && (() => {
-            const healthScore = analytics.behavioral.healthScore
+          {analytics.behavioral && analytics.behavioral.healthScore !== undefined && analytics.behavioral.healthScore !== null && !isNaN(analytics.behavioral.healthScore) && (() => {
+            const healthScore = typeof analytics.behavioral.healthScore === 'number' ? analytics.behavioral.healthScore : 50
             const criticalPatterns = analytics.behavioral.patterns?.filter(p => p.severity === 'high').length || 0
             const weaknesses = psychology.weaknesses?.length || 0
             

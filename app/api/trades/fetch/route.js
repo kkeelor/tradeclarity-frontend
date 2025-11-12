@@ -91,6 +91,16 @@ export async function GET(request) {
     const csvIds = searchParams.get('csvIds')              // Multiple CSV files (new)
     const metadataOnly = searchParams.get('metadataOnly') === 'true' // Only return metadata, not trade data
 
+    // 🔍 DEBUG LOGGING - Verify what's being received
+    console.log('🔍 DEBUG - Query params received:', {
+      connectionId: connectionId || 'null',
+      connectionIds: connectionIds || 'null',
+      exchange: exchange || 'null',
+      csvIds: csvIds || 'null',
+      metadataOnly,
+      fullUrl: request.url
+    })
+
     // If metadataOnly is true, return lightweight stats without fetching all trades
     if (metadataOnly) {
       // Use count queries instead of fetching all trades
@@ -176,6 +186,13 @@ export async function GET(request) {
       const csvFileIds = csvIds ? csvIds.split(',').filter(id => id.trim()) : []
 
       console.log('📎 Filtering by selected sources:', { connectionIds: connIds, csvIds: csvFileIds })
+      
+      // 🔍 DEBUG - Verify what connection IDs are being used for trades
+      console.log('🔍 DEBUG - Trades query filter:', {
+        connectionIds: connIds,
+        csvIds: csvFileIds,
+        willFilterBy: connIds.length > 0 ? 'exchange_connection_id' : csvFileIds.length > 0 ? 'csv_upload_id' : 'NONE'
+      })
 
       if (connIds.length > 0 && csvFileIds.length > 0) {
         // Both exchanges AND CSV files selected - use OR query
@@ -209,6 +226,18 @@ export async function GET(request) {
         { status: 500 }
       )
     }
+
+    // 🔍 DEBUG - Verify what trades were fetched
+    const tradesByConnection = {}
+    trades?.forEach(t => {
+      const connId = t.exchange_connection_id || 'null'
+      tradesByConnection[connId] = (tradesByConnection[connId] || 0) + 1
+    })
+    console.log('🔍 DEBUG - Trades fetched from DB:', {
+      totalTrades: trades?.length || 0,
+      tradesByConnectionId: tradesByConnection,
+      requestedConnectionIds: connectionIds ? connectionIds.split(',').filter(id => id.trim()) : 'NONE (fetching all)'
+    })
 
     // Group trades by account type
     const spotTrades = []
@@ -415,21 +444,79 @@ export async function GET(request) {
         // OR viewing SELECTED exchanges - fetch snapshots for selected connections only
         console.log('📊 Fetching portfolio snapshots for combined analytics...')
         
+        // First, get all ACTIVE exchange connections for this user
+        // This ensures we only fetch snapshots for connections that still exist (prevents orphaned snapshots)
+        const { data: activeConnections, error: connectionsError } = await supabase
+          .from('exchange_connections')
+          .select('id')
+          .eq('user_id', user.id)
+        
+        if (connectionsError) {
+          console.error('Error fetching active connections:', connectionsError)
+        }
+        
+        const activeConnectionIds = activeConnections?.map(c => c.id) || []
+        console.log(`🔍 DEBUG - Active exchange connections: ${activeConnectionIds.length} connections (IDs: ${activeConnectionIds.join(', ')})`)
+        
         let snapshotQuery = supabase
           .from('portfolio_snapshots')
           .select('*')
           .eq('user_id', user.id)
 
-        // If specific connections are selected, filter by them
+        // If specific connections are selected, filter by them AND validate they're active
         if (connectionIds) {
           const connIds = connectionIds.split(',').filter(id => id.trim())
           if (connIds.length > 0) {
-            console.log(`📊 Filtering snapshots by selected connections: ${connIds.join(', ')}`)
-            snapshotQuery = snapshotQuery.in('connection_id', connIds)
+            // Validate requested IDs are actually active
+            const validIds = connIds.filter(id => activeConnectionIds.includes(id))
+            if (validIds.length !== connIds.length) {
+              const invalidIds = connIds.filter(id => !activeConnectionIds.includes(id))
+              console.warn(`⚠️ DEBUG - Some requested connection IDs are not active: ${invalidIds.join(', ')}`)
+            }
+            
+            if (validIds.length > 0) {
+              console.log(`📊 Filtering snapshots by selected connections: ${validIds.join(', ')}`)
+              snapshotQuery = snapshotQuery.in('connection_id', validIds)
+            } else {
+              console.warn('⚠️ DEBUG - No valid active connections found, will not fetch snapshots')
+              snapshotQuery = snapshotQuery.eq('connection_id', 'INVALID_ID_THAT_WILL_RETURN_NOTHING')
+            }
+          } else {
+            console.log('⚠️ DEBUG - connectionIds provided but empty after filtering')
+          }
+        } else {
+          // No connectionIds provided - filter to ONLY active connections to avoid orphaned snapshots
+          console.log('⚠️ DEBUG - No connectionIds parameter provided, filtering to active connections only')
+          if (activeConnectionIds.length > 0) {
+            snapshotQuery = snapshotQuery.in('connection_id', activeConnectionIds)
+            console.log(`📊 Filtering snapshots to ${activeConnectionIds.length} active connections only (prevents orphaned snapshots)`)
+          } else {
+            console.warn('⚠️ DEBUG - No active connections found, will not fetch snapshots')
+            snapshotQuery = snapshotQuery.eq('connection_id', 'INVALID_ID_THAT_WILL_RETURN_NOTHING')
           }
         }
 
+        // 🔍 DEBUG - Log the query before execution
+        console.log('🔍 DEBUG - Snapshot query will fetch:', {
+          hasConnectionFilter: !!connectionIds,
+          connectionIds: connectionIds || 'NONE (filtered to active only)',
+          activeConnectionIds: activeConnectionIds,
+          userId: user.id
+        })
+
         const { data: allSnapshots, error: snapshotError } = await snapshotQuery.order('snapshot_time', { ascending: false })
+        
+        // 🔍 DEBUG - Log what was actually fetched
+        console.log('🔍 DEBUG - Snapshots fetched from DB:', {
+          count: allSnapshots?.length || 0,
+          snapshots: allSnapshots?.map(s => ({
+            id: s.id,
+            connection_id: s.connection_id,
+            exchange: s.exchange,
+            total_value: s.total_portfolio_value,
+            snapshot_time: s.snapshot_time
+          })) || []
+        })
 
         if (snapshotError) {
           console.error('Error fetching portfolio snapshots:', snapshotError)
@@ -448,10 +535,36 @@ export async function GET(request) {
           const recentSnapshots = Object.values(latestPerConnection)
           console.log(`📊 Using ${recentSnapshots.length} most recent snapshots (one per connection)`)
           
+          // 🔍 DEBUG - Verify which connections are being used
+          console.log('🔍 DEBUG - Active exchange connections:', {
+            requestedConnectionIds: connectionIds ? connectionIds.split(',').filter(id => id.trim()) : 'NONE',
+            snapshotConnectionIds: recentSnapshots.map(s => s.connection_id),
+            mismatch: connectionIds ? recentSnapshots.some(s => {
+              const requested = connectionIds.split(',').filter(id => id.trim())
+              return !requested.includes(s.connection_id)
+            }) : 'N/A (fetching all)'
+          })
+          
           // Log which exchanges are included
           recentSnapshots.forEach(snap => {
             console.log(`  - ${snap.exchange} (connection: ${snap.connection_id}): $${snap.total_portfolio_value || 0} ${snap.primary_currency || 'USD'}`)
           })
+          
+          // 🔍 DEBUG - Check if any snapshots reference deleted connections
+          if (connectionIds) {
+            const requestedIds = connectionIds.split(',').filter(id => id.trim())
+            const orphanedSnapshots = recentSnapshots.filter(snap => !requestedIds.includes(snap.connection_id))
+            if (orphanedSnapshots.length > 0) {
+              console.error('🚨 DEBUG - ORPHANED SNAPSHOTS DETECTED:', {
+                count: orphanedSnapshots.length,
+                orphaned: orphanedSnapshots.map(s => ({
+                  exchange: s.exchange,
+                  connection_id: s.connection_id,
+                  total_value: s.total_portfolio_value
+                }))
+              })
+            }
+          }
 
           // Fetch live currency rates from backend
           const currencyRates = await getCurrencyRates()
@@ -586,6 +699,18 @@ export async function GET(request) {
           }
 
           console.log(`✅ Aggregated portfolio: $${recalculatedPortfolioValue.toFixed(2)} USD (${allHoldings.length} unique holdings from ${recentSnapshots.length} exchanges: ${recentSnapshots.map(s => s.exchange).join(', ')})`)
+          
+          // 🔍 DEBUG - Final verification of what's being returned
+          console.log('🔍 DEBUG - Final portfolio snapshot being returned:', {
+            totalPortfolioValue: recalculatedPortfolioValue,
+            holdingsCount: allHoldings.length,
+            exchanges: recentSnapshots.map(s => s.exchange),
+            connectionIds: recentSnapshots.map(s => s.connection_id),
+            holdingsByExchange: allHoldings.reduce((acc, h) => {
+              acc[h.exchange] = (acc[h.exchange] || 0) + 1
+              return acc
+            }, {})
+          })
         } else {
           console.log('📊 No portfolio snapshots found')
         }
