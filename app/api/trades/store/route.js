@@ -106,7 +106,9 @@ export async function POST(request) {
       .eq('user_id', userId)
       .single()
 
-    const userTier = subscription?.tier || 'free'
+    // Use effective tier (considers cancel_at_period_end)
+    const { getEffectiveTier } = await import('@/lib/featureGates')
+    const userTier = getEffectiveTier(subscription) || 'free'
     const limit = TIER_LIMITS[userTier]?.maxTradesPerMonth || 500
 
     // Check if we need to reset monthly counter (new month)

@@ -49,13 +49,15 @@ export async function POST(request) {
     // Cancel subscription in Razorpay
     await razorpay.subscriptions.cancel(subscription.razorpay_subscription_id)
 
-    // Update database
+    // Update database - set cancel_at_period_end but keep status active until period ends
+    // FIXED: Don't change tier - user still has access until period ends
     await supabase
       .from('subscriptions')
       .update({
-        status: 'canceled',
-        canceled_at: new Date().toISOString(),
         cancel_at_period_end: true,
+        canceled_at: new Date().toISOString(),
+        // Keep status as 'active' until period ends - user still has access
+        // Status will be changed to 'canceled' by webhook when period actually ends
       })
       .eq('user_id', userId)
 

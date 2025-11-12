@@ -30,6 +30,57 @@ function verifyPaymentSignature(orderId, paymentId, signature) {
   return generatedSignature === signature
 }
 
+async function createInvoiceForSubscription(userId, paymentData) {
+  try {
+    // Generate invoice number
+    const invoiceNumber = `INV-${new Date().getFullYear()}-${String(Date.now()).slice(-8)}`
+    
+    // Format billing period: "12 November 2025 - 12 December 2025"
+    const periodStart = new Date(paymentData.periodStart)
+    const periodEnd = new Date(paymentData.periodEnd)
+    
+    const formatDate = (date) => {
+      return date.toLocaleDateString('en-US', { 
+        day: 'numeric',
+        month: 'long', 
+        year: 'numeric'
+      })
+    }
+    
+    const billingPeriod = `${formatDate(periodStart)} - ${formatDate(periodEnd)}`
+    
+    // Get tier display name
+    const tierName = paymentData.tier === 'trader' ? 'Trader Plan' : paymentData.tier === 'pro' ? 'Pro Plan' : 'Premium Plan'
+    
+    // Create invoice
+    const { error: invoiceError } = await supabase
+      .from('invoices')
+      .insert({
+        user_id: userId,
+        invoice_number: invoiceNumber,
+        description: `Subscription payment for ${tierName}`,
+        plan_name: tierName,
+        billing_period: billingPeriod,
+        amount: paymentData.amount, // Amount in paise/cents
+        currency: paymentData.currency,
+        status: 'paid',
+        payment_method: 'razorpay',
+        razorpay_payment_id: paymentData.paymentId,
+        razorpay_order_id: paymentData.orderId,
+        razorpay_subscription_id: paymentData.subscriptionId,
+        paid_at: new Date().toISOString(),
+      })
+
+    if (invoiceError) {
+      console.error('Error creating invoice:', invoiceError)
+    } else {
+      console.log(`Invoice created: ${invoiceNumber} for user ${userId}`)
+    }
+  } catch (error) {
+    console.error('Error in createInvoiceForSubscription:', error)
+  }
+}
+
 export async function POST(request) {
   try {
     const body = await request.json()
@@ -153,6 +204,19 @@ export async function POST(request) {
           subscription_id: razorpaySubscription.id,
         },
         processed: true,
+      })
+
+      // Create invoice for initial subscription payment
+      await createInvoiceForSubscription(orderUserId, {
+        paymentId: razorpay_payment_id,
+        orderId: razorpay_order_id,
+        subscriptionId: razorpaySubscription.id,
+        amount: order.amount,
+        currency: order.currency || 'INR',
+        tier: orderTier,
+        billingCycle: orderBillingCycle,
+        periodStart: new Date().toISOString(),
+        periodEnd: new Date(Date.now() + (orderBillingCycle === 'annual' ? 365 : 30) * 24 * 60 * 60 * 1000).toISOString(),
       })
 
       return NextResponse.json({

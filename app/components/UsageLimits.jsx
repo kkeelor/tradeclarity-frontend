@@ -2,16 +2,20 @@
 'use client'
 
 import { Database, BarChart3, FileText } from 'lucide-react'
-import { getRemainingQuota } from '@/lib/featureGates'
+import { getRemainingQuota, getEffectiveTier, TIER_LIMITS } from '@/lib/featureGates'
 
 export default function UsageLimits({ subscription, compact = false, actualUsage = null }) {
   if (!subscription) return null
 
+  // Use effective tier (considers cancel_at_period_end)
+  const effectiveTier = getEffectiveTier(subscription)
   const quota = getRemainingQuota(subscription)
+  const tierLimits = TIER_LIMITS[effectiveTier] || TIER_LIMITS.free
+  
   const limits = {
-    connections: subscription.tier === 'free' ? 1 : subscription.tier === 'trader' ? 3 : Infinity,
-    trades: subscription.tier === 'free' ? 100 : subscription.tier === 'trader' ? 500 : Infinity,
-    reports: subscription.tier === 'free' ? 0 : subscription.tier === 'trader' ? 10 : Infinity,
+    connections: tierLimits.maxConnections,
+    trades: tierLimits.maxTradesPerMonth,
+    reports: tierLimits.maxReportsPerMonth,
   }
 
   // Use actual usage data if provided, otherwise fall back to subscription fields

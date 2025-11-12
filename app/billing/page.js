@@ -9,25 +9,42 @@ import { getTierDisplayName } from '@/lib/featureGates'
 import { toast } from 'sonner'
 import Footer from '../components/Footer'
 import UsageLimits from '../components/UsageLimits'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 export default function BillingPage() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [subscription, setSubscription] = useState(null)
   const [loading, setLoading] = useState(true)
   const [canceling, setCanceling] = useState(false)
   const [reactivating, setReactivating] = useState(false)
   const [paymentHistory, setPaymentHistory] = useState([])
   const [loadingHistory, setLoadingHistory] = useState(true)
+  const [showCancelDialog, setShowCancelDialog] = useState(false)
 
   useEffect(() => {
+    // Wait for auth to finish loading before checking user
+    if (authLoading) {
+      return // Still loading, don't do anything yet
+    }
+
     if (user) {
       fetchSubscription()
       fetchPaymentHistory()
     } else {
+      // Only redirect if auth is done loading and user is still null
       router.push('/auth/login?redirect=/billing')
     }
-  }, [user])
+  }, [user, authLoading, router])
 
   const fetchSubscription = async () => {
     try {
@@ -51,6 +68,15 @@ export default function BillingPage() {
       if (response.ok) {
         const data = await response.json()
         setPaymentHistory(data.invoices || [])
+        
+        // Show migration warning if needed
+        if (data.migrationNeeded) {
+          toast.error('Invoices table not found. Please run database migration.', { duration: 8000 })
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Error fetching payment history:', errorData)
+        toast.error(errorData.error || 'Failed to load payment history')
       }
     } catch (error) {
       console.error('Error fetching payment history:', error)
@@ -60,20 +86,25 @@ export default function BillingPage() {
     }
   }
 
-  const handleDownloadInvoice = async (invoiceId) => {
+  const handleDownloadInvoice = async (invoiceId, format = 'pdf') => {
     try {
-      const response = await fetch(`/api/subscriptions/invoice-pdf?userId=${user?.id}&invoiceId=${invoiceId}`)
+      // First, open invoice in new tab for viewing
+      const viewUrl = `/api/subscriptions/invoice-pdf?userId=${user?.id}&invoiceId=${invoiceId}&format=html`
+      window.open(viewUrl, '_blank')
+      
+      // Then download as PDF (user can print to PDF from browser)
+      const response = await fetch(`/api/subscriptions/invoice-pdf?userId=${user?.id}&invoiceId=${invoiceId}&format=${format}`)
       if (response.ok) {
         const blob = await response.blob()
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `invoice-${invoiceId}.html`
+        a.download = `invoice-${invoiceId}.${format === 'pdf' ? 'html' : format}`
         document.body.appendChild(a)
         a.click()
         window.URL.revokeObjectURL(url)
         document.body.removeChild(a)
-        toast.success('Invoice downloaded')
+        toast.success(format === 'pdf' ? 'Invoice opened. Use browser Print > Save as PDF to download PDF.' : 'Invoice downloaded')
       } else {
         toast.error('Failed to download invoice')
       }
@@ -84,9 +115,15 @@ export default function BillingPage() {
   }
 
   const handleCancelSubscription = async () => {
-    if (!confirm('Are you sure you want to cancel your subscription? You\'ll continue to have access until the end of your billing period.')) {
-      return
-    }
+    const periodEndDate = subscription?.current_period_end
+      ? new Date(subscription.current_period_end).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })
+      : 'the end of your billing period'
+    
+    const tierName = subscription?.tier === 'trader' ? 'Trader' : subscription?.tier === 'pro' ? 'Pro' : 'Premium'
 
     setCanceling(true)
     try {
@@ -99,14 +136,24 @@ export default function BillingPage() {
       const data = await response.json()
       
       if (response.ok) {
-      toast.success('Subscription canceled successfully. You\'ll continue to have access until the end of your billing period.')
-      await fetchSubscription()
+        // Use the message from the API response if available, otherwise use default
+        toast.success(data.message || `Subscription canceled successfully. You'll continue to have access to ${tierName} features until ${periodEndDate}.`)
+        await fetchSubscription()
+        setShowCancelDialog(false) // Close dialog on success
       } else {
-        toast.error(data.error || 'Failed to cancel subscription')
+        const errorMessage = data.error || 'Failed to cancel subscription'
+        toast.error(errorMessage)
+        
+        // If subscription requires support, show additional info
+        if (data.requiresSupport) {
+          setTimeout(() => {
+            toast.info('Please contact support at tradeclarity.help@gmail.com for assistance', { duration: 5000 })
+          }, 2000)
+        }
       }
     } catch (error) {
       console.error('Error canceling subscription:', error)
-      toast.error('Failed to cancel subscription')
+      toast.error('Failed to cancel subscription. Please try again or contact support.')
     } finally {
       setCanceling(false)
     }
@@ -144,12 +191,18 @@ export default function BillingPage() {
     // For now, we'll just show a message
   }
 
-  if (loading) {
+  // Show loading while auth is checking or data is loading
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
       </div>
     )
+  }
+
+  // If auth finished loading and no user, show nothing (redirect is happening)
+  if (!user) {
+    return null
   }
 
   const isActive = subscription?.status === 'active'
@@ -303,11 +356,21 @@ export default function BillingPage() {
             <div className="space-y-3">
               {!subscription?.cancel_at_period_end ? (
                 <button
-                  onClick={handleCancelSubscription}
+                  onClick={() => {
+                    // Check if subscription has Razorpay ID before showing dialog
+                    if (!subscription?.razorpay_subscription_id) {
+                      toast.error('This subscription cannot be canceled online. Please contact support.')
+                      setTimeout(() => {
+                        toast.info('Contact: tradeclarity.help@gmail.com', { duration: 5000 })
+                      }, 2000)
+                      return
+                    }
+                    setShowCancelDialog(true)
+                  }}
                   disabled={canceling}
                   className="w-full px-4 py-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 hover:border-red-500/50 rounded-xl text-sm font-semibold text-red-400 transition-all disabled:opacity-50"
                 >
-                  {canceling ? 'Canceling...' : 'Cancel Subscription'}
+                  Cancel Subscription
                 </button>
               ) : null}
               <button
@@ -319,6 +382,65 @@ export default function BillingPage() {
             </div>
           </div>
         )}
+
+        {/* Cancel Subscription Confirmation Dialog */}
+        <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+          <AlertDialogContent className="bg-slate-900 border-slate-700">
+            <AlertDialogHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
+                  <AlertCircle className="w-5 h-5 text-red-400" />
+                </div>
+                <AlertDialogTitle className="text-xl font-semibold text-white">
+                  Cancel {subscription?.tier === 'trader' ? 'Trader' : subscription?.tier === 'pro' ? 'Pro' : 'Premium'} Subscription?
+                </AlertDialogTitle>
+              </div>
+              <AlertDialogDescription className="text-slate-300 space-y-3 pt-2">
+                <p>
+                  You'll continue to have full access to all {subscription?.tier === 'trader' ? 'Trader' : subscription?.tier === 'pro' ? 'Pro' : 'Premium'} features until{' '}
+                  <span className="font-semibold text-white">
+                    {subscription?.current_period_end
+                      ? new Date(subscription.current_period_end).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })
+                      : 'the end of your billing period'}
+                  </span>.
+                </p>
+                <p>
+                  After that, your account will be downgraded to <span className="font-semibold text-white">Free tier</span>.
+                </p>
+                <p className="text-emerald-400">
+                  You can reactivate your subscription anytime before your access ends.
+                </p>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-3 sm:gap-3">
+              <AlertDialogCancel 
+                onClick={() => setShowCancelDialog(false)}
+                disabled={canceling}
+                className="bg-slate-800 hover:bg-slate-700 border-slate-600 text-slate-300"
+              >
+                Keep Subscription
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleCancelSubscription}
+                disabled={canceling}
+                className="bg-red-500 hover:bg-red-600 text-white focus:ring-red-500"
+              >
+                {canceling ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Canceling...
+                  </>
+                ) : (
+                  'Yes, Cancel Subscription'
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {subscription?.tier === 'free' && (
           <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-6 text-center mb-6">
@@ -381,12 +503,15 @@ export default function BillingPage() {
                           </span>
                         </div>
                         <p className="text-sm text-slate-400">
-                          {new Date(invoice.created_at).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          })}
-                          {invoice.billing_period && ` ? ${invoice.billing_period}`}
+                          {invoice.billing_period ? (
+                            invoice.billing_period
+                          ) : (
+                            new Date(invoice.created_at).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })
+                          )}
                         </p>
                       </div>
                     </div>
@@ -396,13 +521,22 @@ export default function BillingPage() {
                           {invoice.currency || 'INR'} {((invoice.amount || 0) / 100).toFixed(2)}
                         </p>
                       </div>
-                      <button
-                        onClick={() => handleDownloadInvoice(invoice.id)}
-                        className="p-2 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
-                        title="Download Invoice"
-                      >
-                        <Download className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleDownloadInvoice(invoice.id, 'html')}
+                          className="p-2 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                          title="View Invoice"
+                        >
+                          <FileText className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDownloadInvoice(invoice.id, 'pdf')}
+                          className="p-2 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                          title="Download Invoice (PDF)"
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}

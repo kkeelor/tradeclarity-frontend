@@ -30,8 +30,20 @@ export async function GET(request) {
       .limit(50)
 
     if (error) {
+      // Check if table doesn't exist
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        console.error('Invoices table does not exist. Please run the migration: create_invoices_table.sql')
+        return NextResponse.json({ 
+          invoices: [],
+          error: 'Invoices table not found. Please run database migration.',
+          migrationNeeded: true
+        })
+      }
+      console.error('Error fetching invoices:', error)
       throw error
     }
+
+    console.log(`Found ${invoices?.length || 0} invoices for user ${userId}`)
 
     return NextResponse.json({ 
       invoices: invoices || []
@@ -39,7 +51,7 @@ export async function GET(request) {
   } catch (error) {
     console.error('Error fetching payment history:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch payment history' },
+      { error: 'Failed to fetch payment history', details: error.message },
       { status: 500 }
     )
   }

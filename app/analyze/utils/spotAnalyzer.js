@@ -167,34 +167,51 @@ export const analyzeSpotTrades = (spotTrades) => {
           // Remaining cost = position * avgCost (clearer than the confusing formula)
           totalCost = position > 0 ? position * avgCost : 0
           
-          // If we tried to sell more than we had, treat the excess as external deposit sale
+          // FIXED: Improved excess handling - only mark as external if excess is significant
+          // Small excesses (< 0.1% of position or < 0.0001) are likely rounding/precision errors
           if (qty > qtyToSell) {
             const excessQty = qty - qtyToSell
-            const excessValue = excessQty * price
-            const excessCommission = commission * (excessQty / qty) // Proportional commission
-            const excessSaleValue = excessValue - excessCommission
+            const excessPercent = position > 0 ? (excessQty / position) * 100 : 100
+            const isSignificantExcess = excessQty > 0.0001 && excessPercent > 0.1
             
-            console.log(`  [${index}] SELL (EXTERNAL EXCESS): ${excessQty} @ ${price} | Sale Value: ${excessSaleValue.toFixed(2)} | ⚠️ No cost basis (external deposit)`)
-            
-            // Track as external sale (informational only, not in P&L)
-            if (!symbolAnalytics[symbol]) symbolAnalytics[symbol] = {}
-            if (!symbolAnalytics[symbol].externalSales) {
-              symbolAnalytics[symbol].externalSales = {
-                count: 0,
-                totalValue: 0,
-                quantity: 0
+            if (isSignificantExcess) {
+              // Significant excess - likely external deposit or data issue
+              const excessValue = excessQty * price
+              const excessCommission = commission * (excessQty / qty) // Proportional commission
+              const excessSaleValue = Math.max(0, excessValue - excessCommission) // Ensure non-negative
+              
+              console.log(`  [${index}] SELL (EXTERNAL EXCESS): ${excessQty.toFixed(8)} @ ${price} | Sale Value: $${excessSaleValue.toFixed(4)} | ⚠️ Excess ${excessPercent.toFixed(2)}% (likely external deposit or missing historical data)`)
+              
+              // Track as external sale (informational only, not in P&L)
+              if (!symbolAnalytics[symbol]) symbolAnalytics[symbol] = {}
+              if (!symbolAnalytics[symbol].externalSales) {
+                symbolAnalytics[symbol].externalSales = {
+                  count: 0,
+                  totalValue: 0,
+                  quantity: 0
+                }
               }
+              symbolAnalytics[symbol].externalSales.count++
+              symbolAnalytics[symbol].externalSales.totalValue += excessSaleValue
+              symbolAnalytics[symbol].externalSales.quantity += excessQty
+            } else {
+              // Tiny excess - likely rounding error, absorb into position
+              console.log(`  [${index}] SELL (MINOR EXCESS ABSORBED): ${excessQty.toFixed(8)} excess (${excessPercent.toFixed(4)}%) - treating as rounding error`)
+              // Adjust position to account for the tiny excess (set to slightly negative to balance)
+              position -= excessQty
             }
-            symbolAnalytics[symbol].externalSales.count++
-            symbolAnalytics[symbol].externalSales.totalValue += excessSaleValue
-            symbolAnalytics[symbol].externalSales.quantity += excessQty
           }
         } else {
-          // SELL with no position = External deposit was sold
+          // SELL with no position = External deposit was sold OR missing historical buy data
           // Don't count this in P&L, but track it separately
-          const saleValue = value - commission
+          const saleValue = Math.max(0, value - commission) // Ensure non-negative
 
-          console.log(`  [${index}] SELL (EXTERNAL): ${qty} @ ${price} | Sale Value: ${saleValue.toFixed(2)} | ⚠️ No cost basis (external deposit)`)
+          // FIXED: Better logging to distinguish potential data issues
+          const saleValueFormatted = saleValue < 0.01 
+            ? saleValue.toFixed(8) // More precision for tiny amounts
+            : saleValue.toFixed(2)
+          
+          console.log(`  [${index}] SELL (EXTERNAL): ${qty} @ ${price} | Sale Value: $${saleValueFormatted} | ⚠️ No cost basis (external deposit or missing historical buy data)`)
 
           // Track as external sale (informational only, not in P&L)
           if (!symbolAnalytics[symbol]) symbolAnalytics[symbol] = {}

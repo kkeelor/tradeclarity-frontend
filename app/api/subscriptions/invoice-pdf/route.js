@@ -14,6 +14,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get('userId')
     const invoiceId = searchParams.get('invoiceId')
+    const format = searchParams.get('format') || 'pdf' // 'pdf' or 'html'
 
     if (!userId || !invoiceId) {
       return NextResponse.json(
@@ -40,13 +41,31 @@ export async function GET(request) {
     // Fetch user data
     const { data: userData } = await supabase.auth.admin.getUserById(userId)
 
-    // Generate PDF invoice HTML
+    // Generate invoice HTML
     const invoiceHtml = generateInvoiceHTML(invoice, userData?.user)
 
-    return new NextResponse(invoiceHtml, {
+    // If format is HTML, return HTML directly (for viewing in browser)
+    if (format === 'html') {
+      return new NextResponse(invoiceHtml, {
+        headers: {
+          'Content-Type': 'text/html',
+          'Content-Disposition': `inline; filename="invoice-${invoice.invoice_number}.html"`,
+        },
+      })
+    }
+
+    // For PDF format, try to generate PDF using browser print API
+    // Since we're in a server environment, we'll return HTML with print styles
+    // The browser can print this to PDF, or we can use a service like Puppeteer
+    // For now, return HTML optimized for printing/PDF conversion
+    const pdfOptimizedHtml = generatePDFOptimizedHTML(invoiceHtml)
+
+    return new NextResponse(pdfOptimizedHtml, {
       headers: {
         'Content-Type': 'text/html',
-        'Content-Disposition': `attachment; filename="invoice-${invoice.invoice_number}.html"`,
+        'Content-Disposition': `attachment; filename="invoice-${invoice.invoice_number}.pdf"`,
+        // Note: This will download as HTML. For true PDF, you'd need Puppeteer or similar
+        // The user can print this to PDF from their browser
       },
     })
   } catch (error) {
@@ -56,6 +75,29 @@ export async function GET(request) {
       { status: 500 }
     )
   }
+}
+
+function generatePDFOptimizedHTML(html) {
+  // Add print-specific styles and script to trigger print dialog
+  return html.replace(
+    '</head>',
+    `
+    <style>
+      @media print {
+        body { margin: 0; padding: 0; }
+        .no-print { display: none; }
+      }
+      @page {
+        margin: 1cm;
+        size: A4;
+      }
+    </style>
+    <script>
+      // Auto-trigger print dialog when loaded (optional - can be removed)
+      // window.onload = function() { window.print(); }
+    </script>
+    </head>`
+  )
 }
 
 function generateInvoiceHTML(invoice, user) {

@@ -73,7 +73,9 @@ export async function POST(request) {
       console.log('🔢 [API] Current active connections:', currentConnections)
 
       // Check if user can add another connection
-      const userTier = subscription?.tier || 'free'
+      // Use effective tier (considers cancel_at_period_end)
+      const { getEffectiveTier } = await import('@/lib/featureGates')
+      const userTier = getEffectiveTier(subscription) || 'free'
       const limit = TIER_LIMITS[userTier]?.maxConnections || 1
       
       console.log('⚖️ [API] Limit check:', { userTier, limit, currentConnections, canAdd: limit === Infinity || (currentConnections || 0) < limit })

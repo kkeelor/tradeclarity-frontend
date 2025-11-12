@@ -3683,7 +3683,7 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
 function SpotTab({ analytics, currSymbol, currency, metadata }) {
   const [showAllHoldings, setShowAllHoldings] = useState(false)
   const [showAllTrades, setShowAllTrades] = useState(false)
-  const [showLowBalances, setShowLowBalances] = useState(false) // Toggle for showing assets < 1 USD equivalent
+  const [showLowBalances, setShowLowBalances] = useState(false) // Toggle for showing dust holdings (< $0.01 USD equivalent)
   const [holdingsSortBy, setHoldingsSortBy] = useState('value') // 'exchange', 'asset', 'quantity', 'price', 'value'
   const [holdingsSortOrder, setHoldingsSortOrder] = useState('desc') // 'asc', 'desc'
   const [sortBy, setSortBy] = useState('date') // 'date', 'symbol', 'pnl', 'value'
@@ -3741,11 +3741,12 @@ function SpotTab({ analytics, currSymbol, currency, metadata }) {
 
       {/* Current Holdings - Compact */}
       {metadata?.spotHoldings && metadata.spotHoldings.length > 0 && (() => {
-        // Convert 1 USD to selected currency for threshold
+        // FIXED: Filter dust holdings (< $0.01 USD) to reduce clutter
+        // Convert 0.01 USD to selected currency for threshold
         // This will update when displayCurrency changes
-        let minValueThreshold = 1
+        let minValueThreshold = 0.01 // $0.01 USD minimum to filter dust
         if (displayCurrency !== 'USD') {
-          const thresholdConverted = convertCurrencySync(1, 'USD', displayCurrency)
+          const thresholdConverted = convertCurrencySync(0.01, 'USD', displayCurrency)
           if (typeof thresholdConverted === 'number' && !isNaN(thresholdConverted) && isFinite(thresholdConverted)) {
             minValueThreshold = thresholdConverted
           }

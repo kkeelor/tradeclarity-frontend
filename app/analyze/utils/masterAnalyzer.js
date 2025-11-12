@@ -311,102 +311,203 @@ export const analyzeData = async (allData) => {
   console.log(`spotAnalysis.openPositions count: ${spotAnalysis.openPositions?.length || 0}`)
   
   if (metadata?.spotHoldings && Array.isArray(metadata.spotHoldings) && spotAnalysis.openPositions && spotAnalysis.openPositions.length > 0) {
-    // Create a map of open positions by normalized symbol for faster lookup
-    const openPositionsMap = new Map()
-    spotAnalysis.openPositions.forEach(pos => {
-      const normalizedSymbol = pos.symbol?.toUpperCase().replace(/[\/\-]/g, '').replace('USDT', '')
-      if (!openPositionsMap.has(normalizedSymbol)) {
-        openPositionsMap.set(normalizedSymbol, [])
+    // Get BTC price from holdings for BTC pair conversions
+    const btcHolding = metadata.spotHoldings.find(h => h.asset?.toUpperCase() === 'BTC')
+    let btcPriceUSD = btcHolding && btcHolding.quantity > 0 && btcHolding.usdValue > 0
+      ? parseFloat(btcHolding.usdValue) / parseFloat(btcHolding.quantity)
+      : null
+    
+    if (!btcPriceUSD) {
+      // Try to get BTC price from currentPrices in metadata if available
+      const btcPriceFromMetadata = metadata.currentPrices?.['BTCUSDT'] || metadata.currentPrices?.['BTC/USDT']
+      if (btcPriceFromMetadata) {
+        btcPriceUSD = parseFloat(btcPriceFromMetadata)
       }
-      openPositionsMap.get(normalizedSymbol).push(pos)
+    }
+    
+    // Helper function to extract base asset from BTC-denominated pairs (e.g., ETHBTC → ETH)
+    const extractBaseAssetFromBTCPair = (symbol) => {
+      const upperSymbol = symbol?.toUpperCase()
+      if (upperSymbol?.endsWith('BTC')) {
+        return upperSymbol.slice(0, -3) // Remove 'BTC' suffix
+      }
+      return null
+    }
+    
+    // Helper function to convert BTC-denominated position to USD
+    const convertBTCPositionToUSD = (position) => {
+      if (!btcPriceUSD || btcPriceUSD <= 0) {
+        console.warn(`⚠️ Cannot convert BTC pair ${position.symbol}: BTC price not available`)
+        return null
+      }
+      
+      const baseAsset = extractBaseAssetFromBTCPair(position.symbol)
+      if (!baseAsset) return null
+      
+      // Position quantity is in BTC (satoshis), avgEntryPrice is BTC price per base asset
+      // Convert position value to USD: quantity (in BTC) * BTC price (USD)
+      const positionValueBTC = parseFloat(position.quantity || 0)
+      const positionValueUSD = positionValueBTC * btcPriceUSD
+      
+      // Convert cost basis: avgEntryPrice is BTC per base asset, so costBasis is in BTC
+      // Need to convert to USD
+      const costBasisBTC = parseFloat(position.costBasis || (position.avgEntryPrice * position.quantity))
+      const costBasisUSD = costBasisBTC * btcPriceUSD
+      
+      return {
+        baseAsset,
+        quantityUSD: positionValueUSD,
+        costBasisUSD,
+        originalPosition: position
+      }
+    }
+    
+    // Create a map of open positions by normalized symbol for faster lookup
+    // Also handle BTC pairs by extracting base asset
+    const openPositionsMap = new Map()
+    const btcPairPositions = []
+    
+    spotAnalysis.openPositions.forEach(pos => {
+      const posSymbol = pos.symbol?.toUpperCase()
+      
+      // Check if this is a BTC-denominated pair
+      const baseAsset = extractBaseAssetFromBTCPair(posSymbol)
+      if (baseAsset) {
+        // This is a BTC pair - convert to USD and track separately
+        const converted = convertBTCPositionToUSD(pos)
+        if (converted) {
+          btcPairPositions.push(converted)
+          // Also add to map using base asset name for matching
+          if (!openPositionsMap.has(baseAsset)) {
+            openPositionsMap.set(baseAsset, [])
+          }
+          openPositionsMap.get(baseAsset).push({
+            ...pos,
+            _isBTCPair: true,
+            _converted: converted
+          })
+        }
+      } else {
+        // Regular USDT/USD pair
+        const normalizedSymbol = posSymbol?.replace(/[\/\-]/g, '').replace('USDT', '').replace('USD', '')
+        if (!openPositionsMap.has(normalizedSymbol)) {
+          openPositionsMap.set(normalizedSymbol, [])
+        }
+        openPositionsMap.get(normalizedSymbol).push(pos)
+      }
     })
     
     spotUnrealizedPnL = metadata.spotHoldings.reduce((total, holding) => {
       const holdingAsset = holding.asset?.toUpperCase().trim()
-      const normalizedHoldingAsset = holdingAsset?.replace(/[\/\-]/g, '').replace('USDT', '')
+      const normalizedHoldingAsset = holdingAsset?.replace(/[\/\-]/g, '').replace('USDT', '').replace('USD', '')
       
       // Try to find matching open position
       let openPosition = null
+      let isBTCPair = false
       const candidatePositions = openPositionsMap.get(normalizedHoldingAsset) || []
       
       // Try exact match first
       openPosition = candidatePositions.find(pos => {
         const posSymbol = pos.symbol?.toUpperCase()
-        return holdingAsset === posSymbol || 
-               holdingAsset === posSymbol.replace('USDT', '') ||
-               holdingAsset === posSymbol.replace('/USDT', '') ||
-               posSymbol === holdingAsset + 'USDT' ||
-               posSymbol.replace(/[\/\-]/g, '').replace('USDT', '') === normalizedHoldingAsset
+        const baseAsset = extractBaseAssetFromBTCPair(posSymbol)
+        
+        if (baseAsset) {
+          // This is a BTC pair - match by base asset
+          isBTCPair = true
+          return baseAsset === normalizedHoldingAsset || baseAsset === holdingAsset
+        } else {
+          // Regular pair matching
+          return holdingAsset === posSymbol || 
+                 holdingAsset === posSymbol.replace('USDT', '').replace('USD', '') ||
+                 holdingAsset === posSymbol.replace('/USDT', '').replace('/USD', '') ||
+                 posSymbol === holdingAsset + 'USDT' ||
+                 posSymbol === holdingAsset + 'USD' ||
+                 posSymbol.replace(/[\/\-]/g, '').replace('USDT', '').replace('USD', '') === normalizedHoldingAsset
+        }
       })
       
       if (openPosition && holding.quantity) {
         const holdingQuantity = parseFloat(holding.quantity)
-        const positionQuantity = parseFloat(openPosition.quantity || 0)
         const holdingUsdValue = parseFloat(holding.usdValue || 0)
-        const avgEntryPrice = parseFloat(openPosition.avgEntryPrice)
-        const costBasis = parseFloat(openPosition.costBasis || (avgEntryPrice * positionQuantity))
         
-        // Use the minimum of holding quantity and position quantity to avoid overstating P&L
-        // This handles cases where holdings include external deposits
-        const quantityToUse = Math.min(holdingQuantity, positionQuantity > 0 ? positionQuantity : holdingQuantity)
+        let positionQuantity = 0
+        let entryCost = 0
+        let currentMarketValue = 0
         
-        // CRITICAL FIX: Use USD value-based calculation instead of price-based to avoid currency mismatches
-        // Calculate current market value for the quantity we're tracking
-        const currentMarketValue = holdingUsdValue > 0 && holdingQuantity > 0
-          ? (holdingUsdValue / holdingQuantity) * quantityToUse
-          : 0
-        
-        // Calculate entry cost for the quantity we're tracking
-        const entryCost = costBasis > 0 && positionQuantity > 0
-          ? (costBasis / positionQuantity) * quantityToUse
-          : avgEntryPrice * quantityToUse
+        if (isBTCPair && openPosition._converted) {
+          // BTC pair - use converted USD values
+          positionQuantity = openPosition._converted.quantityUSD
+          entryCost = openPosition._converted.costBasisUSD
+          // Current market value is the holding's USD value
+          currentMarketValue = holdingUsdValue > 0 && holdingQuantity > 0
+            ? holdingUsdValue
+            : 0
+        } else {
+          // Regular pair
+          positionQuantity = parseFloat(openPosition.quantity || 0)
+          const avgEntryPrice = parseFloat(openPosition.avgEntryPrice)
+          const costBasis = parseFloat(openPosition.costBasis || (avgEntryPrice * positionQuantity))
+          
+          // Use the minimum of holding quantity and position quantity to avoid overstating P&L
+          const quantityToUse = Math.min(holdingQuantity, positionQuantity > 0 ? positionQuantity : holdingQuantity)
+          
+          // Calculate current market value for the quantity we're tracking
+          currentMarketValue = holdingUsdValue > 0 && holdingQuantity > 0
+            ? (holdingUsdValue / holdingQuantity) * quantityToUse
+            : 0
+          
+          // Calculate entry cost for the quantity we're tracking
+          entryCost = costBasis > 0 && positionQuantity > 0
+            ? (costBasis / positionQuantity) * quantityToUse
+            : avgEntryPrice * quantityToUse
+        }
         
         // Validate values are reasonable
         const isValid = !isNaN(currentMarketValue) && !isNaN(entryCost) && 
-                       quantityToUse > 0 && entryCost > 0
+                       currentMarketValue >= 0 && entryCost > 0
         
         if (isValid) {
           // Calculate unrealized P&L: currentMarketValue - entryCost
           const unrealizedPnL = currentMarketValue - entryCost
           
-          // CRITICAL: Validate unrealized P&L is reasonable
-          // Unrealized P&L shouldn't exceed the holding's USD value by more than 2x (allows for leverage/volatility)
-          const maxReasonablePnL = Math.abs(currentMarketValue) * 2
-          const isPnLReasonable = Math.abs(unrealizedPnL) <= maxReasonablePnL || currentMarketValue === 0
+          // FIXED: Removed aggressive 2x validation that rejected valid losses
+          // A position can lose more than its current value if price crashed significantly
+          // Only validate that values are finite and reasonable (not NaN, Infinity, etc.)
+          const isPnLReasonable = isFinite(unrealizedPnL) && isFinite(currentMarketValue) && isFinite(entryCost)
           
           if (isPnLReasonable) {
             matchedPairs.push({
               asset: holdingAsset,
               holdingQuantity,
-              positionQuantity,
-              quantityUsed: quantityToUse,
+              positionQuantity: isBTCPair ? positionQuantity : parseFloat(openPosition.quantity || 0),
+              quantityUsed: isBTCPair ? holdingUsdValue : Math.min(holdingQuantity, parseFloat(openPosition.quantity || 0)),
               currentMarketValue,
               entryCost,
               unrealizedPnL,
               holdingUsdValue,
-              match: 'full'
+              match: 'full',
+              isBTCPair: isBTCPair || false
             })
             
             return total + unrealizedPnL
           } else {
-            // P&L is unreasonable - likely data issue, skip this holding
-            console.warn(`⚠️ Skipping ${holdingAsset}: Unrealized P&L ${unrealizedPnL.toFixed(2)} exceeds reasonable bounds (market value: ${currentMarketValue.toFixed(2)})`)
+            // P&L has invalid values (NaN, Infinity) - skip
+            console.warn(`⚠️ Skipping ${holdingAsset}: Invalid P&L values (NaN/Infinity)`)
             matchedPairs.push({
               asset: holdingAsset,
               holdingQuantity,
               positionQuantity,
-              quantityUsed: quantityToUse,
               currentMarketValue,
               entryCost,
               unrealizedPnL,
               holdingUsdValue,
               match: 'skipped',
-              reason: `Unrealized P&L ${unrealizedPnL.toFixed(2)} exceeds reasonable bounds (market value: ${currentMarketValue.toFixed(2)})`
+              reason: 'Invalid P&L values (NaN/Infinity)'
             })
           }
         } else {
           // Invalid values
-          const reason = `Invalid values: currentMarketValue=${currentMarketValue}, entryCost=${entryCost}, quantityToUse=${quantityToUse}`
+          const reason = `Invalid values: currentMarketValue=${currentMarketValue}, entryCost=${entryCost}`
           console.warn(`⚠️ Skipping ${holdingAsset}: ${reason}`)
           matchedPairs.push({
             asset: holdingAsset,
@@ -432,24 +533,40 @@ export const analyzeData = async (allData) => {
     }, 0)
     
     // Track open positions that don't have matching holdings
+    // Also check BTC pairs by base asset
     spotAnalysis.openPositions.forEach(pos => {
       const posSymbol = pos.symbol?.toUpperCase()
-      const normalizedPosSymbol = posSymbol?.replace(/[\/\-]/g, '').replace('USDT', '')
-      const hasMatchingHolding = metadata.spotHoldings.some(h => {
-        const holdingAsset = h.asset?.toUpperCase().trim()
-        const normalizedHoldingAsset = holdingAsset?.replace(/[\/\-]/g, '').replace('USDT', '')
-        return normalizedHoldingAsset === normalizedPosSymbol ||
-               holdingAsset === posSymbol ||
-               holdingAsset === posSymbol.replace('USDT', '') ||
-               holdingAsset === posSymbol.replace('/USDT', '') ||
-               posSymbol === holdingAsset + 'USDT'
-      })
+      const baseAsset = extractBaseAssetFromBTCPair(posSymbol)
+      
+      let hasMatchingHolding = false
+      
+      if (baseAsset) {
+        // BTC pair - match by base asset
+        hasMatchingHolding = metadata.spotHoldings.some(h => {
+          const holdingAsset = h.asset?.toUpperCase().trim()
+          return holdingAsset === baseAsset
+        })
+      } else {
+        // Regular pair matching
+        const normalizedPosSymbol = posSymbol?.replace(/[\/\-]/g, '').replace('USDT', '').replace('USD', '')
+        hasMatchingHolding = metadata.spotHoldings.some(h => {
+          const holdingAsset = h.asset?.toUpperCase().trim()
+          const normalizedHoldingAsset = holdingAsset?.replace(/[\/\-]/g, '').replace('USDT', '').replace('USD', '')
+          return normalizedHoldingAsset === normalizedPosSymbol ||
+                 holdingAsset === posSymbol ||
+                 holdingAsset === posSymbol.replace('USDT', '').replace('USD', '') ||
+                 holdingAsset === posSymbol.replace('/USDT', '').replace('/USD', '') ||
+                 posSymbol === holdingAsset + 'USDT' ||
+                 posSymbol === holdingAsset + 'USD'
+        })
+      }
       
       if (!hasMatchingHolding) {
         unmatchedPositions.push({
           symbol: posSymbol,
           quantity: pos.quantity,
-          avgEntryPrice: pos.avgEntryPrice
+          avgEntryPrice: pos.avgEntryPrice,
+          isBTCPair: !!baseAsset
         })
       }
     })
