@@ -3,7 +3,7 @@
 
 export default function sitemap() {
   const baseUrl = 'https://tradeclarity.xyz'
-  const currentDate = new Date().toISOString()
+  const currentDate = new Date()
 
   // Public pages that should be indexed
   const routes = [
@@ -56,28 +56,6 @@ export default function sitemap() {
       priority: 0.8,
     },
   ]
-
-  // Add feature pages when they're created
-  // {
-  //   url: `${baseUrl}/features/trading-psychology-analysis`,
-  //   lastModified: currentDate,
-  //   changeFrequency: 'monthly',
-  //   priority: 0.8,
-  // },
-  // {
-  //   url: `${baseUrl}/features/pattern-detection`,
-  //   lastModified: currentDate,
-  //   changeFrequency: 'monthly',
-  //   priority: 0.8,
-  // },
-
-  // Add FAQ page when created
-  // {
-  //   url: `${baseUrl}/faq`,
-  //   lastModified: currentDate,
-  //   changeFrequency: 'monthly',
-  //   priority: 0.8,
-  // },
 
   return routes
 }
