@@ -126,7 +126,7 @@ export default function LandingPage() {
               <span className="text-white font-semibold"> There's a pattern. You just can't see it, yet.</span>
             </p>
             <p className="text-sm md:text-base text-slate-500 max-w-xl mx-auto px-4 pt-2">
-              See our <Link href="/faq" className="text-emerald-400 hover:text-emerald-300 underline transition-colors">FAQ</Link> for common questions, or check out our <Link href="/pricing" className="text-emerald-400 hover:text-emerald-300 underline transition-colors">transparent pricing</Link>.
+              See our <Link href="/faq" className="text-emerald-400 hover:text-emerald-300 underline transition-colors">FAQ</Link> for common questions, or check out our <Link href="/pricing" className="text-emerald-400 hover:text-emerald-300 underline transition-colors">pricing page</Link>.
             </p>
           </div>
 

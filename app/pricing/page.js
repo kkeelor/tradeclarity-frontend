@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Check, X, Zap, TrendingUp, Crown, ArrowRight, Sparkles, Shield, Clock, CreditCard, ChevronDown, ArrowLeft, Star, Users, TrendingDown } from 'lucide-react'
+import Link from 'next/link'
 import { useAuth } from '@/lib/AuthContext'
 import { getTierDisplayName } from '@/lib/featureGates'
 import { toast } from 'sonner'
@@ -13,6 +14,7 @@ import { convertCurrencySync, getCurrencyRates } from '../analyze/utils/currency
 import { Badge } from '@/components/ui/badge'
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Button } from '@/components/ui'
 import Script from 'next/script'
 
 const PRICING_PLANS = {
@@ -933,6 +935,16 @@ export default function PricingPage() {
               </AccordionItem>
             ))}
           </Accordion>
+          
+          {/* View All FAQs Link */}
+          <div className="text-center mt-8">
+            <Link href="/faq">
+              <Button variant="outline" size="lg" className="hover:scale-105">
+                View All FAQs
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Trust Signals */}
