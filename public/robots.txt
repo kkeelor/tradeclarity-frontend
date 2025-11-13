@@ -1,0 +1,33 @@
+# TradeClarity Robots.txt
+# Allows search engines and AI crawlers to index public content
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /analyze
+Disallow: /auth/
+Disallow: /billing
+Disallow: /confirm
+
+# Allow AI crawlers (critical for modern SEO and AI discoverability)
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+# Sitemap location
+Sitemap: https://tradeclarity.xyz/sitemap.xml
