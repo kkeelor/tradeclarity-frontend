@@ -65,7 +65,6 @@ export default function MarketIndicators() {
 
   return (
     <div className="space-y-2">
-      <p className="text-[10px] font-semibold text-slate-400/80 uppercase tracking-wider">Market Context</p>
       <div className="grid grid-cols-2 gap-2">
         {availableIndicators.map((ind) => {
           const data = indicators[ind.id]

@@ -12,6 +12,7 @@ import { generateValueFirstInsights } from '../utils/insights/valueFirstInsights
 import { prioritizeInsights, enhanceInsightForDisplay } from '../utils/insights/insightsPrioritizationEngine'
 import { generateWhatsNextActions } from '../utils/insights/whatsNextActions'
 import MarketIndicators from './MarketIndicators'
+import TopHeadlines from './TopHeadlines'
 import { analyzeDrawdowns } from '../utils/drawdownAnalysis'
 import { analyzeTimeBasedPerformance } from '../utils/timeBasedAnalysis'
 import { analyzeSymbols } from '../utils/symbolAnalysis'
@@ -1506,7 +1507,9 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                   <div className="relative">
                     <div className="flex items-center gap-2 mb-3">
                       <Sparkles className="w-4 h-4 text-emerald-400" />
-                      <h3 className="text-xs font-semibold text-emerald-300 uppercase tracking-wider">What's Next</h3>
+                      <h3 className="text-xs font-semibold text-emerald-300 uppercase tracking-wider">
+                        {connectedExchanges.length === 0 ? 'How does this work?' : 'Market Insights'}
+                      </h3>
                     </div>
                     
                     {tradesStats && tradesStats.totalTrades > 0 && whatsNextActions ? (
@@ -1648,110 +1651,19 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                           </div>
                         )}
 
-                        {/* Market Context */}
+                        {/* Market Indicators */}
                         <MarketIndicators />
 
-                        {/* Explore Deeper */}
-                        {whatsNextActions.explore && whatsNextActions.explore.length > 0 && (
-                          <div className="space-y-2">
-                            <p className="text-[10px] font-semibold text-slate-400/80 uppercase tracking-wider">Explore Deeper</p>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              {whatsNextActions.explore.map((action) => {
-                                const IconComponent = getIconComponent(action.icon)
-                                const isAmber = action.color === 'amber'
-                                const isRed = action.color === 'red'
-                                const isEmerald = action.color === 'emerald'
-                                const isCyan = action.color === 'cyan'
-                                const isPurple = action.color === 'purple'
-                                
-                                const borderClass = isAmber ? 'border-amber-500/20 hover:border-amber-500/40' :
-                                                   isRed ? 'border-red-500/20 hover:border-red-500/40' :
-                                                   isEmerald ? 'border-emerald-500/20 hover:border-emerald-500/40' :
-                                                   isCyan ? 'border-cyan-500/20 hover:border-cyan-500/40' :
-                                                   isPurple ? 'border-purple-500/20 hover:border-purple-500/40' :
-                                                   'border-slate-500/20 hover:border-slate-500/40'
-                                
-                                const bgClass = isAmber ? 'bg-amber-500/5 hover:bg-amber-500/10' :
-                                                isRed ? 'bg-red-500/5 hover:bg-red-500/10' :
-                                                isEmerald ? 'bg-emerald-500/5 hover:bg-emerald-500/10' :
-                                                isCyan ? 'bg-cyan-500/5 hover:bg-cyan-500/10' :
-                                                isPurple ? 'bg-purple-500/5 hover:bg-purple-500/10' :
-                                                'bg-slate-500/5 hover:bg-slate-500/10'
-                                
-                                const iconClass = isAmber ? 'text-amber-400' :
-                                                 isRed ? 'text-red-400' :
-                                                 isEmerald ? 'text-emerald-400' :
-                                                 isCyan ? 'text-cyan-400' :
-                                                 isPurple ? 'text-purple-400' :
-                                                 'text-slate-400'
-                                
-                                return (
-                                  <button
-                                    key={action.id}
-                                    onClick={() => {
-                                      if (action.actionType === 'navigation' && action.action?.route) {
-                                        router.push(action.action.route)
-                                      } else {
-                                        onViewAnalytics()
-                                      }
-                                    }}
-                                    className={`text-left p-2.5 rounded-lg border transition-all duration-200 hover:scale-[1.02] ${borderClass} ${bgClass}`}
-                                  >
-                                    <div className="flex items-start gap-2">
-                                      <IconComponent className={`w-3.5 h-3.5 ${iconClass} flex-shrink-0 mt-0.5`} />
-                                      <div className="flex-1 min-w-0">
-                                        <div className="text-[11px] font-semibold text-slate-200 mb-0.5">{action.title}</div>
-                                        <div className="text-[10px] text-slate-400 leading-relaxed">{action.description}</div>
-                                      </div>
-                                    </div>
-                                  </button>
-                                )
-                              })}
-                            </div>
-                          </div>
-                        )}
+                        {/* Top Headlines */}
+                        <TopHeadlines />
                       </div>
                     ) : tradesStats && tradesStats.totalTrades > 0 ? (
                       <div className="space-y-4">
-                        <p className="text-xs text-slate-300 leading-relaxed">
-                          Explore deeper insights into your trading patterns:
-                        </p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <button
-                            onClick={() => router.push('/analyze?tab=overview')}
-                            className="text-left text-xs text-slate-300 hover:text-emerald-300 font-medium transition-colors duration-200 flex items-start gap-2 p-2 rounded-lg hover:bg-white/5"
-                          >
-                            <BarChart3 className="w-4 h-4 text-emerald-400/70 flex-shrink-0 mt-0.5" />
-                            <span>View complete trading overview</span>
-                          </button>
-                          {tradesStats.spotTrades > 0 && (
-                            <button
-                              onClick={() => router.push('/analyze?tab=spot')}
-                              className="text-left text-xs text-slate-300 hover:text-emerald-300 font-medium transition-colors duration-200 flex items-start gap-2 p-2 rounded-lg hover:bg-white/5"
-                            >
-                              <PieChart className="w-4 h-4 text-emerald-400/70 flex-shrink-0 mt-0.5" />
-                              <span>Analyze {tradesStats.spotTrades} spot trades</span>
-                            </button>
-                          )}
-                          {(tradesStats.futuresIncome > 0 || tradesStats.futuresPositions > 0) && (
-                            <button
-                              onClick={() => router.push('/analyze?tab=futures')}
-                              className="text-left text-xs text-slate-300 hover:text-emerald-300 font-medium transition-colors duration-200 flex items-start gap-2 p-2 rounded-lg hover:bg-white/5"
-                            >
-                              <Zap className="w-4 h-4 text-emerald-400/70 flex-shrink-0 mt-0.5" />
-                              <span>Review futures performance</span>
-                            </button>
-                          )}
-                          {tradesStats.totalTrades > 0 && (
-                            <button
-                              onClick={() => router.push('/analyze?tab=behavioral')}
-                              className="text-left text-xs text-slate-300 hover:text-emerald-300 font-medium transition-colors duration-200 flex items-start gap-2 p-2 rounded-lg hover:bg-white/5"
-                            >
-                              <Brain className="w-4 h-4 text-emerald-400/70 flex-shrink-0 mt-0.5" />
-                              <span>Discover trading psychology score</span>
-                            </button>
-                          )}
-                        </div>
+                        {/* Market Indicators */}
+                        <MarketIndicators />
+
+                        {/* Top Headlines */}
+                        <TopHeadlines />
                       </div>
                     ) : connectedExchanges.length === 0 ? (
                       <div className="space-y-3">

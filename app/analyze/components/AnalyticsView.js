@@ -4672,11 +4672,11 @@ function FuturesTab({ analytics, currSymbol, currency, metadata }) {
           </div>
           <div className="flex justify-between">
             <span className="text-slate-400">Largest Win:</span>
-            <span className="text-emerald-400 font-medium">{currSymbol}{futuresAnalysis.largestWin?.toFixed(2) || '0.00'}</span>
+            <span className="text-emerald-400 font-medium">{currSymbol}{typeof futuresAnalysis.largestWin === 'number' ? futuresAnalysis.largestWin.toFixed(2) : (Number(futuresAnalysis.largestWin) || 0).toFixed(2)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-slate-400">Largest Loss:</span>
-            <span className="text-red-400 font-medium">{currSymbol}{futuresAnalysis.largestLoss?.toFixed(2) || '0.00'}</span>
+            <span className="text-red-400 font-medium">{currSymbol}{typeof futuresAnalysis.largestLoss === 'number' ? futuresAnalysis.largestLoss.toFixed(2) : (Number(futuresAnalysis.largestLoss) || 0).toFixed(2)}</span>
           </div>
         </div>
       </div>
