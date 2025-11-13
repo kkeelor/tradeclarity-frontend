@@ -2,7 +2,8 @@
 'use client'
 
 import { useState } from 'react'
-import { TrendingUp, Shield, Zap, ArrowRight, Sparkles, Lock, Eye, Brain, TrendingDown, Target, AlertCircle, LogOut, LayoutDashboard } from 'lucide-react'
+import { TrendingUp, Shield, Zap, ArrowRight, Sparkles, Lock, Eye, Brain, TrendingDown, Target, AlertCircle, LogOut, LayoutDashboard, HelpCircle, ChevronRight } from 'lucide-react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui'
 import ThemeToggle from './components/ThemeToggle'
@@ -123,6 +124,9 @@ export default function LandingPage() {
               Ever sell a winner at +5%, only to watch it 10x? Ever hold a loser to -70% because "it'll come back"? You're not alone.
               <br />
               <span className="text-white font-semibold"> There's a pattern. You just can't see it, yet.</span>
+            </p>
+            <p className="text-sm md:text-base text-slate-500 max-w-xl mx-auto px-4 pt-2">
+              See our <Link href="/faq" className="text-emerald-400 hover:text-emerald-300 underline transition-colors">FAQ</Link> for common questions, or check out our <Link href="/pricing" className="text-emerald-400 hover:text-emerald-300 underline transition-colors">transparent pricing</Link>.
             </p>
           </div>
 
@@ -501,6 +505,74 @@ export default function LandingPage() {
           <p className="text-sm text-slate-500 pt-4">
             No credit card. No signup. Just brutal honesty about your trading.
           </p>
+        </div>
+      </section>
+
+      {/* FAQ Preview Section */}
+      <section className="py-12 md:py-20 px-4 md:px-6 border-t border-slate-800/50">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-8 md:mb-12">
+            <div className="inline-flex items-center justify-center w-12 h-12 bg-emerald-500/20 rounded-xl mb-4">
+              <HelpCircle className="w-6 h-6 text-emerald-400" />
+            </div>
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-3 md:mb-4">
+              Frequently Asked Questions
+            </h2>
+            <p className="text-slate-400 text-base md:text-lg">
+              Quick answers to common questions about TradeClarity
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4 mb-8">
+            <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-6 hover:border-emerald-500/30 transition-all">
+              <h3 className="text-lg font-semibold text-white mb-2">How does TradeClarity analyze my trades?</h3>
+              <p className="text-sm text-slate-400 mb-4">
+                TradeClarity connects to your exchange via read-only API keys or analyzes CSV files you upload. We process your trade history to identify patterns and detect behavioral issues.
+              </p>
+              <Link href="/faq" className="text-emerald-400 hover:text-emerald-300 text-sm font-medium inline-flex items-center gap-1 transition-colors">
+                Learn more <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-6 hover:border-emerald-500/30 transition-all">
+              <h3 className="text-lg font-semibold text-white mb-2">Is my trading data safe?</h3>
+              <p className="text-sm text-slate-400 mb-4">
+                Yes, absolutely. We use read-only API keys, meaning we can only view your trades - we cannot execute trades or access your funds. All data is encrypted.
+              </p>
+              <Link href="/faq" className="text-emerald-400 hover:text-emerald-300 text-sm font-medium inline-flex items-center gap-1 transition-colors">
+                Learn more <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-6 hover:border-emerald-500/30 transition-all">
+              <h3 className="text-lg font-semibold text-white mb-2">Can I use TradeClarity for free?</h3>
+              <p className="text-sm text-slate-400 mb-4">
+                Yes! Our free plan includes 500 trades analyzed per month, 1 exchange connection, and full access to all analytics features. Perfect for getting started.
+              </p>
+              <Link href="/pricing" className="text-emerald-400 hover:text-emerald-300 text-sm font-medium inline-flex items-center gap-1 transition-colors">
+                View pricing <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-6 hover:border-emerald-500/30 transition-all">
+              <h3 className="text-lg font-semibold text-white mb-2">What exchanges are supported?</h3>
+              <p className="text-sm text-slate-400 mb-4">
+                TradeClarity currently supports Binance and CoinDCX, with more exchanges coming soon. You can also upload CSV files from any exchange.
+              </p>
+              <Link href="/faq" className="text-emerald-400 hover:text-emerald-300 text-sm font-medium inline-flex items-center gap-1 transition-colors">
+                Learn more <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+
+          <div className="text-center">
+            <Link href="/faq">
+              <Button variant="outline" size="lg" className="hover:scale-105">
+                View All FAQs
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
+            </Link>
+          </div>
         </div>
       </section>
 

@@ -30,6 +30,12 @@ export default function Footer() {
         </a>
       </div>
       <div className="flex flex-wrap items-center justify-center gap-4 text-xs">
+        <Link href="/pricing" className="hover:text-emerald-400 transition-colors font-medium">Pricing</Link>
+        <Separator className="text-slate-700" />
+        <Link href="/faq" className="hover:text-emerald-400 transition-colors font-medium">FAQ</Link>
+        <Separator className="text-slate-700" />
+        <Link href="/contact" className="hover:text-emerald-400 transition-colors font-medium">Contact Us</Link>
+        <Separator className="text-slate-700" />
         <Link href="/legal/terms" className="hover:text-emerald-400 transition-colors">Terms & Conditions</Link>
         <Separator className="text-slate-700" />
         <Link href="/legal/privacy" className="hover:text-emerald-400 transition-colors">Privacy Policy</Link>
@@ -37,8 +43,6 @@ export default function Footer() {
         <Link href="/legal/cancellation-refunds" className="hover:text-emerald-400 transition-colors">Cancellation & Refunds</Link>
         <Separator className="text-slate-700" />
         <Link href="/legal/shipping" className="hover:text-emerald-400 transition-colors">Shipping Policy</Link>
-        <Separator className="text-slate-700" />
-        <Link href="/contact" className="hover:text-emerald-400 transition-colors">Contact Us</Link>
       </div>
       <p className="font-medium">Built for traders who are tired of guessing</p>
       <p>? 2025 TradeClarity. Your data stays yours. Always.</p>
