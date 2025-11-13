@@ -11,7 +11,7 @@ import {
   AlertCircle, Sparkles, ChevronRight, ChevronLeft, ChevronDown, ChevronUp,
   Scissors, Shuffle,   Coffee, Tv, Pizza, Fuel, Utensils,
   Database, FileText, Briefcase, Filter, X, Wallet, TrendingUp as TrendingUpIcon, Percent,
-  Moon, Info, BookOpen, GraduationCap, HelpCircle
+  Moon, Info, BookOpen, GraduationCap, HelpCircle, Globe, Newspaper
 } from 'lucide-react'
 import { generatePerformanceAnalogies } from '../utils/performanceAnalogies'
 import { analyzeDrawdowns } from '../utils/drawdownAnalysis'
@@ -22,6 +22,7 @@ import { getCurrencyRates, convertCurrencySync } from '../utils/currencyConverte
 import { generateValueFirstInsights } from '../utils/insights/valueFirstInsights'
 import { prioritizeInsights, enhanceInsightForDisplay } from '../utils/insights/insightsPrioritizationEngine'
 import AhaMomentsSection from './AhaMomentsSection'
+import MarketContextTab from './MarketContextTab'
 import { ExchangeIcon, SeparatorText, Separator, Card as ShadcnCard, CardHeader, CardTitle, CardDescription, CardContent, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableFooter } from '@/components/ui'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
@@ -6052,7 +6053,8 @@ export default function AnalyticsView({
     { id: 'overview', label: 'Overview', icon: BarChart3, show: true },
     { id: 'behavioral', label: 'Behavioral', icon: Brain, show: hasBehavioral },
     { id: 'spot', label: 'Spot', icon: Briefcase, show: hasSpot },
-    { id: 'futures', label: 'Futures', icon: Zap, show: hasFutures }
+    { id: 'futures', label: 'Futures', icon: Zap, show: hasFutures },
+    { id: 'context', label: 'Market Context', icon: Globe, show: true }
   ].filter(tab => tab.show)
 
   const handleSignOut = async () => {
@@ -6257,6 +6259,9 @@ export default function AnalyticsView({
                 </TabsContent>
                 <TabsContent value="futures" className="mt-0 animate-in fade-in duration-300">
                   <FuturesTab analytics={displayAnalytics} currSymbol={currSymbol} currency={currency} metadata={currencyMetadata} />
+                </TabsContent>
+                <TabsContent value="context" className="mt-0 animate-in fade-in duration-300">
+                  <MarketContextTab analytics={displayAnalytics} />
                 </TabsContent>
               </div>
             </div>

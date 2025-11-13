@@ -304,7 +304,7 @@ export default function AnalyticsContent() {
   // Watch for URL tab parameter changes
   useEffect(() => {
     const tabParam = searchParams.get('tab')
-    const validTabs = ['overview', 'behavioral', 'spot', 'futures']
+    const validTabs = ['overview', 'behavioral', 'spot', 'futures', 'context']
     if (tabParam && validTabs.includes(tabParam)) {
       setActiveTabFromUrl(tabParam)
     } else {

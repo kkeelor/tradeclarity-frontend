@@ -11,6 +11,7 @@ import { getMostCriticalInsight, getAllInsights, generatePerformanceAnalogies } 
 import { generateValueFirstInsights } from '../utils/insights/valueFirstInsights'
 import { prioritizeInsights, enhanceInsightForDisplay } from '../utils/insights/insightsPrioritizationEngine'
 import { generateWhatsNextActions } from '../utils/insights/whatsNextActions'
+import MarketIndicators from './MarketIndicators'
 import { analyzeDrawdowns } from '../utils/drawdownAnalysis'
 import { analyzeTimeBasedPerformance } from '../utils/timeBasedAnalysis'
 import { analyzeSymbols } from '../utils/symbolAnalysis'
@@ -1646,6 +1647,9 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                             </div>
                           </div>
                         )}
+
+                        {/* Market Context */}
+                        <MarketIndicators />
 
                         {/* Explore Deeper */}
                         {whatsNextActions.explore && whatsNextActions.explore.length > 0 && (

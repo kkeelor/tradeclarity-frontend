@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/update-currency-rates",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/fetch-market-news",
+      "schedule": "0 */2 * * *"
     }
   ],
   "headers": [
