@@ -40,9 +40,15 @@ export async function GET(request) {
   // If CRON_SECRET is not set, allow request (Vercel cron is already protected)
 
   console.log('🕐 Cron job started: Fetching market context news')
+  console.log(`📍 Backend URL: ${BACKEND_URL}`)
   const startTime = Date.now()
 
   try {
+    // Verify backend URL is set
+    if (!BACKEND_URL || BACKEND_URL === 'http://localhost:3001') {
+      throw new Error('NEXT_PUBLIC_BACKEND_URL environment variable is not set or is using localhost')
+    }
+
     // Call backend cron endpoint
     // Note: Backend will also check CRON_SECRET if set, but it's optional
     const backendHeaders = {
@@ -54,7 +60,10 @@ export async function GET(request) {
       backendHeaders['X-Cron-Secret'] = CRON_SECRET
     }
     
-    const backendResponse = await fetch(`${BACKEND_URL}/api/cron/fetch-market-news`, {
+    const backendUrl = `${BACKEND_URL}/api/cron/fetch-market-news`
+    console.log(`🔗 Calling backend: ${backendUrl}`)
+    
+    const backendResponse = await fetch(backendUrl, {
       method: 'POST',
       headers: backendHeaders,
       // Increase timeout for backend call (Alpha Vantage can be slow)
@@ -62,8 +71,16 @@ export async function GET(request) {
     })
 
     if (!backendResponse.ok) {
-      const errorData = await backendResponse.json().catch(() => ({ error: 'Unknown error' }))
-      throw new Error(`Backend error: ${errorData.error || backendResponse.statusText}`)
+      const errorText = await backendResponse.text()
+      let errorData
+      try {
+        errorData = JSON.parse(errorText)
+      } catch {
+        errorData = { error: errorText || backendResponse.statusText }
+      }
+      
+      console.error(`❌ Backend responded with ${backendResponse.status}:`, errorData)
+      throw new Error(`Backend error (${backendResponse.status}): ${errorData.error || backendResponse.statusText}`)
     }
 
     const result = await backendResponse.json()
