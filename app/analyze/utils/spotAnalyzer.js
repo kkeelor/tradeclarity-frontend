@@ -4,8 +4,6 @@
 // A "completed trade" means a buy+sell pair that results in a win or loss
 
 export const analyzeSpotTrades = (spotTrades) => {
-  console.log('\n=== SPOT ANALYZER ===')
-  console.log('Total spot transactions:', spotTrades.length)
 
   if (spotTrades.length === 0) {
     return {
@@ -85,7 +83,6 @@ export const analyzeSpotTrades = (spotTrades) => {
     let symbolWins = 0
     let symbolLosses = 0
 
-    console.log(`\nAnalyzing SPOT ${symbol}: ${trades.length} transactions`)
 
     trades.forEach((trade, index) => {
       const qty = parseFloat(trade.qty)
@@ -106,8 +103,6 @@ export const analyzeSpotTrades = (spotTrades) => {
 
         // Track max capital at risk (peak capital deployed in open positions)
         maxCapitalAtRisk = Math.max(maxCapitalAtRisk, totalCost)
-
-        console.log(`  [${index}] BUY: ${qty} @ ${price} (Position: ${position.toFixed(4)}, Cost: ${totalCost.toFixed(2)})`)
       } else {
         // SELL: Realize profit/loss
         if (position > 0) {
@@ -121,10 +116,7 @@ export const analyzeSpotTrades = (spotTrades) => {
           realized += pnl
           monthlyPnL[monthKey] += pnl
 
-          if (qty > position) {
-            console.warn(`  [${index}] SELL WARNING: Selling ${qty} but only ${position} available. Calculating P&L for ${qtyToSell} only.`)
-          }
-          console.log(`  [${index}] SELL: ${qtyToSell} @ ${price} | AvgCost: ${avgCost.toFixed(2)} | PnL: ${pnl.toFixed(2)}`)
+          // Handle excess sell quantity gracefully (no logging needed)
 
           // Track win/loss - this creates a "completed trade"
           if (pnl > 0) {
@@ -180,8 +172,6 @@ export const analyzeSpotTrades = (spotTrades) => {
               const excessCommission = commission * (excessQty / qty) // Proportional commission
               const excessSaleValue = Math.max(0, excessValue - excessCommission) // Ensure non-negative
               
-              console.log(`  [${index}] SELL (EXTERNAL EXCESS): ${excessQty.toFixed(8)} @ ${price} | Sale Value: $${excessSaleValue.toFixed(4)} | ⚠️ Excess ${excessPercent.toFixed(2)}% (likely external deposit or missing historical data)`)
-              
               // Track as external sale (informational only, not in P&L)
               if (!symbolAnalytics[symbol]) symbolAnalytics[symbol] = {}
               if (!symbolAnalytics[symbol].externalSales) {
@@ -196,7 +186,6 @@ export const analyzeSpotTrades = (spotTrades) => {
               symbolAnalytics[symbol].externalSales.quantity += excessQty
             } else {
               // Tiny excess - likely rounding error, absorb into position
-              console.log(`  [${index}] SELL (MINOR EXCESS ABSORBED): ${excessQty.toFixed(8)} excess (${excessPercent.toFixed(4)}%) - treating as rounding error`)
               // Adjust position to account for the tiny excess (set to slightly negative to balance)
               position -= excessQty
             }
@@ -205,13 +194,6 @@ export const analyzeSpotTrades = (spotTrades) => {
           // SELL with no position = External deposit was sold OR missing historical buy data
           // Don't count this in P&L, but track it separately
           const saleValue = Math.max(0, value - commission) // Ensure non-negative
-
-          // FIXED: Better logging to distinguish potential data issues
-          const saleValueFormatted = saleValue < 0.01 
-            ? saleValue.toFixed(8) // More precision for tiny amounts
-            : saleValue.toFixed(2)
-          
-          console.log(`  [${index}] SELL (EXTERNAL): ${qty} @ ${price} | Sale Value: $${saleValueFormatted} | ⚠️ No cost basis (external deposit or missing historical buy data)`)
 
           // Track as external sale (informational only, not in P&L)
           if (!symbolAnalytics[symbol]) symbolAnalytics[symbol] = {}
@@ -247,7 +229,6 @@ export const analyzeSpotTrades = (spotTrades) => {
     }
 
     totalPnL += realized
-    console.log(`${symbol} Summary: Realized: ${realized.toFixed(2)}, Wins: ${symbolWins}, Losses: ${symbolLosses}`)
   })
 
   // Use max capital at risk for totalInvested (not cumulative buys)
@@ -266,13 +247,6 @@ export const analyzeSpotTrades = (spotTrades) => {
   // Completed trades = positions that were closed (resulted in win or loss)
   const completedTrades = winningTrades + losingTrades
 
-  console.log('\n=== SPOT ANALYSIS COMPLETE ===')
-  console.log('Total P&L:', totalPnL.toFixed(2))
-  console.log('Max Capital At Risk:', totalInvested.toFixed(2))
-  console.log('Total Transactions:', spotTrades.length, '(buys + sells)')
-  console.log('Completed Round-Trips:', completedTrades, '(closed positions)')
-  console.log('Win Rate:', completedTrades > 0 ? (winningTrades / completedTrades * 100).toFixed(2) + '%' : '0%')
-  console.log('ROI:', totalInvested > 0 ? (totalPnL / totalInvested * 100).toFixed(2) + '%' : 'N/A')
 
   // Extract open positions (symbols with position > 0) for unrealized P&L calculation
   const openPositions = Object.entries(symbolAnalytics)

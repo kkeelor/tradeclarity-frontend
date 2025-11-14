@@ -17,6 +17,11 @@ let cacheTimestamp = null
 // Provides reasonable freshness while preventing excessive API calls
 const CACHE_DURATION = 15 * 60 * 1000 // 15 minutes
 
+// Cache for conversion results (memoization)
+// Key format: `${amount}_${from}_${to}` -> converted amount
+let conversionCache = new Map()
+let currentCurrency = null // Track currency changes to clear cache
+
 /**
  * Static fallback rates (last resort)
  */
@@ -39,11 +44,9 @@ const STATIC_FALLBACK_RATES = {
  */
 export function getCachedRatesSync() {
   if (ratesCache) {
-    console.log('💱 Using cached rates for conversion:', Object.keys(ratesCache).length, 'currencies')
     return ratesCache
   }
   // Return fallback rates if cache not ready
-  console.log('💱 Using fallback rates for conversion (cache not ready)')
   return STATIC_FALLBACK_RATES
 }
 
@@ -67,14 +70,8 @@ function validateConversionResult(amount, from, to) {
     return { valid: false, error: `Conversion resulted in Infinity (${from} → ${to})` }
   }
   
-  if (amount < 0) {
-    return { valid: false, error: `Conversion resulted in negative amount: ${amount}` }
-  }
-  
-  if (amount === 0 && from !== to) {
-    // Zero is valid, but log if it's unexpected
-    console.warn(`⚠️ Conversion resulted in zero: ${from} → ${to}`)
-  }
+  // Negative amounts are valid (losses, fees, negative P&L)
+  // Zero is valid
   
   return { valid: true }
 }
@@ -82,6 +79,7 @@ function validateConversionResult(amount, from, to) {
 /**
  * Convert amount from one currency to another (synchronous version using cache)
  * Validates result and handles errors gracefully
+ * Uses memoization cache to avoid redundant conversions
  * @param {number} amount - Amount to convert
  * @param {string} from - Source currency code (e.g., 'USD')
  * @param {string} to - Target currency code (e.g., 'INR')
@@ -96,15 +94,15 @@ export function convertCurrencySync(amount, from, to) {
       return { success: false, error }
     }
     
-    if (amount < 0) {
-      const error = `Negative amount not allowed: ${amount}`
-      console.error(`❌ Currency conversion error: ${error}`)
-      return { success: false, error }
-    }
-    
     // No conversion needed if currencies are the same
     if (from === to) {
       return amount
+    }
+
+    // Check conversion cache first (memoization)
+    const cacheKey = `${amount}_${from}_${to}`
+    if (conversionCache.has(cacheKey)) {
+      return conversionCache.get(cacheKey)
     }
 
     // Get cached rates (or fallback)
@@ -127,7 +125,10 @@ export function convertCurrencySync(amount, from, to) {
     if (fromRate === undefined || fromRate === null) {
       const staticFromRate = STATIC_FALLBACK_RATES[from]
       if (staticFromRate !== undefined) {
-        console.log(`⚠️ Using static fallback rate for ${from}: ${staticFromRate}`)
+        // Cache fallback usage to avoid repeated lookups
+        if (!conversionCache.has(`fallback_${from}`)) {
+          conversionCache.set(`fallback_${from}`, true)
+        }
         effectiveFromRate = staticFromRate
       } else {
         const error = `Currency rate not found for ${from}`
@@ -139,7 +140,10 @@ export function convertCurrencySync(amount, from, to) {
     if (toRate === undefined || toRate === null) {
       const staticToRate = STATIC_FALLBACK_RATES[to]
       if (staticToRate !== undefined) {
-        console.log(`⚠️ Using static fallback rate for ${to}: ${staticToRate}`)
+        // Cache fallback usage to avoid repeated lookups
+        if (!conversionCache.has(`fallback_${to}`)) {
+          conversionCache.set(`fallback_${to}`, true)
+        }
         effectiveToRate = staticToRate
       } else {
         const error = `Currency rate not found for ${to}`
@@ -172,7 +176,14 @@ export function convertCurrencySync(amount, from, to) {
       return { success: false, error: validation.error }
     }
 
-    console.log(`💱 Converting ${amount} ${from} → ${convertedAmount.toFixed(2)} ${to} (rate: ${effectiveFromRate} → ${effectiveToRate})`)
+    // Cache the result (memoization)
+    conversionCache.set(cacheKey, convertedAmount)
+    
+    // Limit cache size to prevent memory issues (keep last 1000 conversions)
+    if (conversionCache.size > 1000) {
+      const firstKey = conversionCache.keys().next().value
+      conversionCache.delete(firstKey)
+    }
 
     return convertedAmount
   } catch (error) {
@@ -192,12 +203,10 @@ export async function getCurrencyRates() {
 
   // Return cached rates if available and not expired
   if (ratesCache && cacheTimestamp && (now - cacheTimestamp < CACHE_DURATION)) {
-    console.log('💱 Using cached exchange rates')
     return ratesCache
   }
 
   try {
-    console.log('💱 Fetching fresh exchange rates from API...')
     const response = await fetch(API_ROUTE)
 
     if (!response.ok) {
@@ -213,7 +222,6 @@ export async function getCurrencyRates() {
       if (data.rates) {
         ratesCache = data.rates
         cacheTimestamp = now
-        console.log('⚠️ Using rates from error response:', Object.keys(data.rates).length, 'currencies')
         return data.rates
       }
       throw new Error(data.error || 'Failed to fetch rates')
@@ -222,9 +230,6 @@ export async function getCurrencyRates() {
     if (data.rates) {
       ratesCache = data.rates
       cacheTimestamp = now
-      const source = data.source || 'unknown'
-      const ageDays = data.ageDays !== undefined ? data.ageDays : 0
-      console.log(`✅ Exchange rates fetched (source: ${source}, age: ${ageDays} days):`, Object.keys(data.rates).length, 'currencies')
       return data.rates
     }
 
@@ -233,7 +238,6 @@ export async function getCurrencyRates() {
     console.error('⚠️ Failed to fetch exchange rates:', error.message)
 
     // Return static fallback rates if fetch fails
-    console.log('⚠️ Using static fallback exchange rates')
     ratesCache = STATIC_FALLBACK_RATES
     cacheTimestamp = now
     return STATIC_FALLBACK_RATES
@@ -279,18 +283,15 @@ export function detectCurrency(metadata) {
 
   // Check for primaryCurrency field (used by CoinDCX, etc.)
   if (metadata.primaryCurrency) {
-    console.log('💱 Detected currency from metadata.primaryCurrency:', metadata.primaryCurrency)
     return metadata.primaryCurrency
   }
 
   // Check exchange-specific hints
   if (metadata.exchanges && metadata.exchanges.includes('coindcx')) {
-    console.log('💱 Detected CoinDCX exchange → INR')
     return 'INR'
   }
 
   // Default to USD for Binance and other exchanges
-  console.log('💱 No currency metadata found, defaulting to USD')
   return 'USD'
 }
 
@@ -307,27 +308,22 @@ export async function convertSpotTradesToUSD(spotTrades, sourceCurrency) {
 
   // No conversion needed if already in USD
   if (sourceCurrency === 'USD') {
-    console.log('✅ Spot trades already in USD, no conversion needed')
     return spotTrades
   }
 
-  console.log(`💱 Converting ${spotTrades.length} spot trades from ${sourceCurrency} to USD...`)
-
   // Get conversion rate once (more efficient than per-trade)
   const rate = await convertCurrency(1, sourceCurrency, 'USD')
-  console.log(`💱 Using conversion rate: 1 ${sourceCurrency} = ${rate.toFixed(6)} USD`)
 
-  // Convert all price-related fields
-  const convertedTrades = spotTrades.map(trade => ({
-    ...trade,
-    price: String(parseFloat(trade.price || 0) * rate),
-    quoteQty: String(parseFloat(trade.quoteQty || 0) * rate),
-    commission: String(parseFloat(trade.commission || 0) * rate)
-    // qty stays the same (it's the base asset quantity)
-  }))
+    // Convert all price-related fields
+    const convertedTrades = spotTrades.map(trade => ({
+      ...trade,
+      price: String(parseFloat(trade.price || 0) * rate),
+      quoteQty: String(parseFloat(trade.quoteQty || 0) * rate),
+      commission: String(parseFloat(trade.commission || 0) * rate)
+      // qty stays the same (it's the base asset quantity)
+    }))
 
-  console.log(`✅ Converted ${convertedTrades.length} spot trades to USD`)
-  return convertedTrades
+    return convertedTrades
 }
 
 /**
@@ -343,15 +339,11 @@ export async function convertFuturesIncomeToUSD(futuresIncome, sourceCurrency) {
 
   // No conversion needed if already in USD
   if (sourceCurrency === 'USD') {
-    console.log('✅ Futures income already in USD, no conversion needed')
     return futuresIncome
   }
 
-  console.log(`💱 Converting ${futuresIncome.length} futures income records from ${sourceCurrency} to USD...`)
-
   // Get conversion rate once
   const rate = await convertCurrency(1, sourceCurrency, 'USD')
-  console.log(`💱 Using conversion rate: 1 ${sourceCurrency} = ${rate.toFixed(6)} USD`)
 
   // Convert income amounts
   const convertedIncome = futuresIncome.map(record => ({
@@ -359,7 +351,6 @@ export async function convertFuturesIncomeToUSD(futuresIncome, sourceCurrency) {
     income: String(parseFloat(record.income || 0) * rate)
   }))
 
-  console.log(`✅ Converted ${convertedIncome.length} futures income records to USD`)
   return convertedIncome
 }
 
@@ -376,15 +367,11 @@ export async function convertFuturesPositionsToUSD(futuresPositions, sourceCurre
 
   // No conversion needed if already in USD
   if (sourceCurrency === 'USD') {
-    console.log('✅ Futures positions already in USD, no conversion needed')
     return futuresPositions
   }
 
-  console.log(`💱 Converting ${futuresPositions.length} futures positions from ${sourceCurrency} to USD...`)
-
   // Get conversion rate once
   const rate = await convertCurrency(1, sourceCurrency, 'USD')
-  console.log(`💱 Using conversion rate: 1 ${sourceCurrency} = ${rate.toFixed(6)} USD`)
 
   // Convert position values
   const convertedPositions = futuresPositions.map(pos => ({
@@ -396,7 +383,6 @@ export async function convertFuturesPositionsToUSD(futuresPositions, sourceCurre
     margin: pos.margin ? parseFloat(pos.margin) * rate : 0
   }))
 
-  console.log(`✅ Converted ${convertedPositions.length} futures positions to USD`)
   return convertedPositions
 }
 
@@ -408,9 +394,6 @@ export async function convertFuturesPositionsToUSD(futuresPositions, sourceCurre
  * @returns {Promise<object>} Converted trade data (all values in USD)
  */
 export async function autoConvertToUSD(tradeData) {
-  console.log('\n💱 === AUTO CURRENCY CONVERSION ===')
-  console.log('💱 Input data type:', Array.isArray(tradeData) ? 'Array' : typeof tradeData)
-  console.log('💱 Input data keys:', Object.keys(tradeData || {}))
 
   // Handle both array format (legacy) and object format (new)
   let data = tradeData
@@ -426,16 +409,15 @@ export async function autoConvertToUSD(tradeData) {
   } else if (tradeData && typeof tradeData === 'object') {
     // Handle API response format: { success: true, spotTrades, futuresIncome, metadata }
     // Extract just the data fields, ignore 'success' field
-    if ('success' in tradeData) {
-      data = {
-        spotTrades: tradeData.spotTrades || [],
-        futuresIncome: tradeData.futuresIncome || [],
-        futuresPositions: tradeData.futuresPositions || [],
-        futuresTrades: tradeData.futuresTrades || [],
-        metadata: tradeData.metadata || {}
-      }
-      console.log('💱 Extracted data from API response format')
-    } else {
+      if ('success' in tradeData) {
+        data = {
+          spotTrades: tradeData.spotTrades || [],
+          futuresIncome: tradeData.futuresIncome || [],
+          futuresPositions: tradeData.futuresPositions || [],
+          futuresTrades: tradeData.futuresTrades || [],
+          metadata: tradeData.metadata || {}
+        }
+      } else {
       // Already in correct format
       data = {
         spotTrades: tradeData.spotTrades || [],
@@ -447,42 +429,11 @@ export async function autoConvertToUSD(tradeData) {
     }
   }
 
-  console.log('💱 Processed data structure:', {
-    hasSpotTrades: !!data.spotTrades,
-    hasFuturesIncome: !!data.futuresIncome,
-    hasMetadata: !!data.metadata,
-    metadataKeys: data.metadata ? Object.keys(data.metadata) : [],
-    hasSpotHoldings: !!data.metadata?.spotHoldings,
-    spotHoldingsCount: data.metadata?.spotHoldings?.length || 0
-  })
-
   // Detect currency from metadata
   const sourceCurrency = detectCurrency(data.metadata)
 
-  console.log(`💱 Source currency detected: ${sourceCurrency}`)
-  console.log(`💱 Data to convert:`)
-  console.log(`   - Spot trades: ${data.spotTrades?.length || 0}`)
-  console.log(`   - Futures income: ${data.futuresIncome?.length || 0}`)
-  console.log(`   - Futures positions: ${data.futuresPositions?.length || 0}`)
-  console.log(`   - Holdings: ${data.metadata?.spotHoldings?.length || 0}`)
-
   // If already in USD, return as-is
   if (sourceCurrency === 'USD') {
-    console.log('✅ Data already in USD, no conversion needed')
-    // Log holdings info for debugging
-    if (data.metadata?.spotHoldings) {
-      console.log(`💱 Holdings preserved (USD): ${data.metadata.spotHoldings.length} holdings`)
-      console.log(`💱 Holdings sample:`, data.metadata.spotHoldings.slice(0, 3).map(h => ({
-        asset: h.asset,
-        quantity: h.quantity,
-        price: h.price,
-        usdValue: h.usdValue,
-        exchange: h.exchange
-      })))
-    } else {
-      console.log('⚠️  No spotHoldings found in metadata (USD path)')
-    }
-    console.log('💱 === CONVERSION COMPLETE ===\n')
     return data
   }
 
@@ -509,23 +460,6 @@ export async function autoConvertToUSD(tradeData) {
     convertedToUSD: true,
     conversionTimestamp: new Date().toISOString()
   }
-
-  // Log holdings info for debugging
-  if (convertedMetadata.spotHoldings) {
-    console.log(`💱 Holdings preserved: ${convertedMetadata.spotHoldings.length} holdings`)
-    console.log(`💱 Holdings sample:`, convertedMetadata.spotHoldings.slice(0, 3).map(h => ({
-      asset: h.asset,
-      quantity: h.quantity,
-      price: h.price,
-      usdValue: h.usdValue,
-      exchange: h.exchange
-    })))
-  } else {
-    console.log('⚠️  No spotHoldings found in metadata')
-  }
-
-  console.log(`✅ All data converted from ${sourceCurrency} to USD`)
-  console.log('💱 === CONVERSION COMPLETE ===\n')
 
   return {
     spotTrades: convertedSpotTrades,
@@ -569,5 +503,23 @@ export function getRatesCacheStatus() {
 export function clearRatesCache() {
   ratesCache = null
   cacheTimestamp = null
-  console.log('💱 Currency rates cache cleared')
+}
+
+/**
+ * Clear the conversion result cache
+ * Should be called when currency changes to ensure fresh conversions
+ */
+export function clearConversionCache() {
+  conversionCache.clear()
+}
+
+/**
+ * Set current currency and clear conversion cache if currency changed
+ * @param {string} currency - Current currency code
+ */
+export function setCurrency(currency) {
+  if (currentCurrency !== currency) {
+    clearConversionCache()
+    currentCurrency = currency
+  }
 }

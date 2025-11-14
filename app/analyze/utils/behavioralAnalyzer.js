@@ -8,10 +8,6 @@ import { parseSymbolQuoteCurrency } from './currencyFormatter'
  * that most traders never see
  */
 export const analyzeBehavior = (spotTrades, futuresIncome, metadata = {}) => {
-  console.log('\n=== BEHAVIORAL ANALYZER ===')
-  console.log('Analyzing', spotTrades.length, 'spot trades')
-  console.log('Analyzing', futuresIncome.length, 'futures income records')
-  console.log('Currency:', metadata.primaryCurrency || 'USD')
 
   const allTrades = [...spotTrades].sort((a, b) => a.time - b.time)
 
@@ -58,9 +54,6 @@ export const analyzeBehavior = (spotTrades, futuresIncome, metadata = {}) => {
     healthScore
   })
 
-  console.log('Behavioral Health Score:', healthScore)
-  console.log('Critical warnings:', warnings.length)
-  console.log('Actionable insights:', insights.length)
 
   return {
     healthScore,

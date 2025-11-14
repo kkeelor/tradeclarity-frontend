@@ -280,7 +280,6 @@ export default function PricingPage() {
     // Helper function to cleanup
     const cleanup = () => {
       if (isCleanedUp) {
-        console.log('Cleanup already called, skipping')
         return
       }
       isCleanedUp = true
@@ -297,7 +296,6 @@ export default function PricingPage() {
       eventListenersToRemove.length = 0
       setLoading(false)
       razorpayInstanceRef.current = null
-      console.log('✅ Cleanup completed - loading state reset')
     }
     
     try {
@@ -367,7 +365,6 @@ export default function PricingPage() {
       }
 
       // Create order
-      console.log('Creating Razorpay order:', { paymentAmount, paymentCurrency, planId, tier, billingCycle })
       const orderResponse = await fetch('/api/razorpay/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -391,7 +388,6 @@ export default function PricingPage() {
       }
 
       const orderData = await orderResponse.json()
-      console.log('Order created successfully:', orderData)
       
       if (orderData.error) {
         console.error('Order error:', orderData.error)
@@ -413,11 +409,6 @@ export default function PricingPage() {
           handler: async function (response) {
             // Payment successful
             try {
-              console.log('Verifying payment:', {
-                payment_id: response.razorpay_payment_id,
-                order_id: response.razorpay_order_id
-              })
-              
               const verifyResponse = await fetch('/api/razorpay/verify-payment', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -441,7 +432,6 @@ export default function PricingPage() {
               }
 
               const verifyData = await verifyResponse.json()
-              console.log('Payment verification result:', verifyData)
 
               if (verifyData.success) {
                 cleanup()
@@ -467,9 +457,6 @@ export default function PricingPage() {
                   : returnUrl || '/dashboard'
                 
                 // Clean up sessionStorage
-                if (pendingConnection) {
-                  console.log('Pending exchange connection found, will auto-connect after redirect')
-                }
                 sessionStorage.removeItem('upgradeReturnUrl')
                 
                 setTimeout(() => {
@@ -506,7 +493,6 @@ export default function PricingPage() {
           },
           // Handle modal close via onClose callback (primary method - fires when user closes modal)
           onClose: function() {
-            console.log('Razorpay modal closed via onClose callback')
             cleanup()
           }
         }
@@ -523,7 +509,6 @@ export default function PricingPage() {
 
         // Handle modal close via event listener (backup - in case onClose doesn't fire)
         rzp.on('modal.close', function () {
-          console.log('Razorpay modal closed via event listener')
           cleanup()
         })
 
@@ -565,7 +550,6 @@ export default function PricingPage() {
           
           // If modal was open before but now it's gone, cleanup
           if (modalWasOpen && !modalFound) {
-            console.log('Razorpay modal closed (DOM check) - cleaning up')
             if (pollInterval) {
               clearInterval(pollInterval)
               pollInterval = null
@@ -600,7 +584,6 @@ export default function PricingPage() {
         // 8 seconds gives user time to interact but resets if stuck
         const shortTimeout = setTimeout(() => {
           if (!isCleanedUp) {
-            console.log('Short timeout reached (8s) - forcing cleanup')
             cleanup()
           }
         }, 8000) // 8 seconds
@@ -626,7 +609,6 @@ export default function PricingPage() {
         src="https://checkout.razorpay.com/v1/checkout.js"
         strategy="afterInteractive"
         onLoad={() => {
-          console.log('Razorpay checkout script loaded')
           setRazorpayLoaded(true)
         }}
       />

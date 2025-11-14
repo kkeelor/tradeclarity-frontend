@@ -8,25 +8,9 @@ import { analyzeBehavior } from './behavioralAnalyzer'
 import { autoConvertToUSD } from './currencyConverter'
 
 export const analyzeData = async (allData) => {
-  // VERY VISIBLE LOG - should appear in browser console
-  console.warn('%c?????? === MASTER ANALYZER STARTED === ??????', 'color: #00ff00; font-size: 20px; font-weight: bold; background: #000; padding: 5px;')
-  console.warn('Raw data keys:', Object.keys(allData || {}))
-  console.warn('Has metadata:', !!allData?.metadata)
-  console.warn('Has spotHoldings:', !!allData?.metadata?.spotHoldings)
-  console.warn('spotHoldings count:', allData?.metadata?.spotHoldings?.length || 0)
-  if (allData?.metadata?.spotHoldings) {
-    console.warn('Sample holdings:', allData.metadata.spotHoldings.slice(0, 3))
-  } else {
-    console.error('??? NO HOLDINGS IN INPUT DATA ???')
-  }
-
   // STEP 1: Auto-detect currency and convert to USD if needed
   // This ensures all subsequent analysis uses consistent USD values
   const convertedData = await autoConvertToUSD(allData)
-
-  console.log('After conversion - Has metadata:', !!convertedData?.metadata)
-  console.log('After conversion - Has spotHoldings:', !!convertedData?.metadata?.spotHoldings)
-  console.log('After conversion - spotHoldings count:', convertedData?.metadata?.spotHoldings?.length || 0)
 
   // allData can be either:
   // 1. Array of trades (legacy format) - has { symbol, time, qty, price, isBuyer, accountType }
@@ -41,10 +25,6 @@ export const analyzeData = async (allData) => {
     spotTrades = convertedData.filter(t => t.accountType === 'SPOT')
     const futuresTrades = convertedData.filter(t => t.accountType === 'FUTURES')
     futuresData = { trades: futuresTrades, income: [], positions: [] }
-
-    console.log('Using legacy format')
-    console.log('Spot trades:', spotTrades.length)
-    console.log('Futures trades:', futuresTrades.length)
   } else if (convertedData && typeof convertedData === 'object') {
     // New format: structured object
     spotTrades = convertedData.spotTrades || []
@@ -54,14 +34,6 @@ export const analyzeData = async (allData) => {
       positions: convertedData.futuresPositions || []
     }
     metadata = convertedData.metadata || {}
-
-    console.log('Using structured format')
-    console.log('Spot trades:', spotTrades.length)
-    console.log('Futures income records:', futuresData.income.length)
-    console.log('Futures positions:', futuresData.positions.length)
-    console.log('Currency:', metadata.convertedToUSD ? `USD (converted from ${metadata.originalCurrency})` : (metadata.primaryCurrency || 'USD'))
-    console.log('Metadata keys:', Object.keys(metadata))
-    console.log('Final metadata.spotHoldings count:', metadata.spotHoldings?.length || 0)
   }
 
   // Analyze spot trades
@@ -285,30 +257,12 @@ export const analyzeData = async (allData) => {
   const allTrades = [...normalizedSpotTrades, ...normalizedFuturesTrades]
     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
 
-  console.log('?? Standardized trades created:', allTrades.length, `(${normalizedSpotTrades.length} spot, ${normalizedFuturesTrades.length} futures)`)
-
-  console.log('\n=== MASTER ANALYSIS COMPLETE ===')
-  console.log('Total P&L:', totalPnL.toFixed(2), `(Spot: ${spotAnalysis.totalPnL.toFixed(2)}, Futures: ${futuresAnalysis.netPnL.toFixed(2)})`)
-  console.log('Total Transactions:', totalTrades, `(Spot: ${spotAnalysis.totalTrades}, Futures: ${futuresAnalysis.totalTrades})`)
-  console.log('Completed Trades:', completedTrades, `(${winningTrades}W / ${losingTrades}L)`)
-  console.log('Win Rate:', completedTrades > 0 ? (winningTrades / completedTrades * 100).toFixed(2) + '%' : '0%')
-  console.log('Psychology Score:', psychology.disciplineScore)
-  console.log('Behavioral Health Score:', behavioral.healthScore)
-
   // Calculate spot unrealized P&L if holdings data is available
   // Match spotHoldings (current market prices) with openPositions (from trade history)
   let spotUnrealizedPnL = 0
   const unmatchedHoldings = []
   const unmatchedPositions = []
   const matchedPairs = []
-  
-  console.log('\n=== CHECKING HOLDINGS DATA ===')
-  console.log(`metadata exists: ${!!metadata}`)
-  console.log(`spotHoldings exists: ${!!metadata?.spotHoldings}`)
-  console.log(`spotHoldings is array: ${Array.isArray(metadata?.spotHoldings)}`)
-  console.log(`spotHoldings count: ${metadata?.spotHoldings?.length || 0}`)
-  console.log(`spotAnalysis.openPositions exists: ${!!spotAnalysis.openPositions}`)
-  console.log(`spotAnalysis.openPositions count: ${spotAnalysis.openPositions?.length || 0}`)
   
   if (metadata?.spotHoldings && Array.isArray(metadata.spotHoldings) && spotAnalysis.openPositions && spotAnalysis.openPositions.length > 0) {
     // Get BTC price from holdings for BTC pair conversions
@@ -571,24 +525,6 @@ export const analyzeData = async (allData) => {
       }
     })
     
-    console.log('\n=== SPOT UNREALIZED P&L CALCULATION ===')
-    console.log(`Total Unrealized P&L: ${spotUnrealizedPnL.toFixed(2)}`)
-    console.log(`Matched pairs: ${matchedPairs.length}`)
-    matchedPairs.forEach(pair => {
-      console.log(`  ${pair.asset}: ${pair.holdingQuantity} holdings, ${pair.positionQuantity} position, used ${pair.quantityUsed}, P&L: ${pair.unrealizedPnL?.toFixed(2) || 'N/A'} (${pair.match})`)
-    })
-    if (unmatchedHoldings.length > 0) {
-      console.warn(`??  ${unmatchedHoldings.length} holdings without matching open positions:`)
-      unmatchedHoldings.forEach(h => {
-        console.warn(`    - ${h.asset}: ${h.quantity} @ $${h.price} (value: $${h.usdValue})`)
-      })
-    }
-    if (unmatchedPositions.length > 0) {
-      console.warn(`??  ${unmatchedPositions.length} open positions without matching holdings:`)
-      unmatchedPositions.forEach(p => {
-        console.warn(`    - ${p.symbol}: ${p.quantity} @ avg $${p.avgEntryPrice}`)
-      })
-    }
   }
 
   return {

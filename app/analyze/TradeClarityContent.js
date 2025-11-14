@@ -353,12 +353,6 @@ export default function TradeClarityContent() {
     if (pendingTradeStorage && status === 'connected' && !isDemoMode) {
       const { spotTrades, futuresIncome, userId, exchange: exchangeName, connectionId, metadata } = pendingTradeStorage
 
-      console.log('?? [Background] Storing trades to database...', {
-        spotTrades: spotTrades?.length || 0,
-        futuresIncome: futuresIncome?.length || 0,
-        hasPortfolioData: !!metadata?.spotHoldings
-      })
-
       // Call storage endpoint in background (fire and forget)
       fetch('/api/trades/store', {
         method: 'POST',
@@ -374,10 +368,7 @@ export default function TradeClarityContent() {
       })
         .then(res => res.json())
         .then(data => {
-          console.log('? [Background] Trades stored:', data)
-          if (data.portfolioSnapshotStored) {
-            console.log('?? Portfolio snapshot saved successfully')
-          }
+          // Background storage complete (no logging needed)
         })
         .catch(err => {
           console.error('? [Background] Failed to store trades:', err)
@@ -407,12 +398,7 @@ export default function TradeClarityContent() {
 
     try {
       setTimeout(async () => {
-        console.log('?? Loading demo data...')
-
         const spotData = require('./demo-data/demo-spot-data.json')
-
-        console.log('Demo spot trades:', spotData.length)
-        console.log('Demo futures income:', demoFuturesData.income.length)
 
         const normalizedSpotTrades = spotData.map(trade => ({
           symbol: trade.symbol,
@@ -466,9 +452,6 @@ export default function TradeClarityContent() {
         setProgress('Analyzing demo data...')
         const analysis = await analyzeData(demoData)
 
-        console.log('? Demo analysis complete:', analysis)
-        console.log('Spot trades:', analysis.spotTrades)
-        console.log('Futures trades:', analysis.futuresTrades)
 
         setAnalytics(analysis)
         setCurrencyMetadata(demoData.metadata)
@@ -503,15 +486,10 @@ export default function TradeClarityContent() {
       if (Array.isArray(connectionIdOrSources)) {
         // New pattern: array of selected sources
         selectedSources = connectionIdOrSources
-        console.log('?? [handleViewAnalytics] Called with selectedSources:', selectedSources)
       } else {
         // Legacy pattern: single connection ID or exchange name
         safeConnectionId = connectionIdOrSources && typeof connectionIdOrSources === 'string' ? connectionIdOrSources : null
         safeExchangeName = exchangeName && typeof exchangeName === 'string' ? exchangeName.toLowerCase() : null
-        console.log('?? [handleViewAnalytics] Called with:', {
-          raw: { connectionId: connectionIdOrSources, exchangeName },
-          safe: { safeConnectionId, safeExchangeName }
-        })
       }
 
       // Check cache: only re-fetch if switching to different data set
@@ -523,12 +501,6 @@ export default function TradeClarityContent() {
       }
 
       if (cachedData && currentConnectionId === cacheKey) {
-        console.log('? Using cached data for:', cacheKey)
-        console.warn('?? [CACHED DATA] Checking holdings:', {
-          hasMetadata: !!cachedData.metadata,
-          hasSpotHoldings: !!cachedData.metadata?.spotHoldings,
-          spotHoldingsCount: cachedData.metadata?.spotHoldings?.length || 0
-        })
         setProgress('Analyzing your trading data...')
 
         const analysis = await analyzeData(cachedData)
@@ -580,31 +552,18 @@ export default function TradeClarityContent() {
           .filter(s => s.type === 'csv')
           .map(s => s.id)
 
-        // 🔍 CLIENT DEBUG - Log what's being sent
-        console.log('🔍 CLIENT DEBUG - Selected sources:', {
-          selectedSources,
-          exchangeIds,
-          csvIds,
-          exchangeCount: exchangeIds.length,
-          csvCount: csvIds.length
-        })
-
         if (exchangeIds.length > 0) {
-          console.log('?? Adding connectionIds to params:', exchangeIds)
           params.append('connectionIds', exchangeIds.join(','))
         }
 
         if (csvIds.length > 0) {
-          console.log('?? Adding csvIds to params:', csvIds)
           params.append('csvIds', csvIds.join(','))
         }
       } else if (safeConnectionId) {
         // Legacy: single connection
-        console.log('?? Adding connectionId to params:', safeConnectionId)
         params.append('connectionId', safeConnectionId)
       } else if (safeExchangeName) {
         // Legacy: single exchange
-        console.log('?? Adding exchange to params:', safeExchangeName)
         params.append('exchange', safeExchangeName)
       }
       // If no filters, fetch ALL trades (combined analytics)
@@ -612,17 +571,6 @@ export default function TradeClarityContent() {
       if (params.toString()) {
         url += '?' + params.toString()
       }
-
-      console.log(`?? Fetching trades from DB: ${url}`)
-      
-      // 🔍 CLIENT DEBUG - Log the full request URL
-      console.log('🔍 CLIENT DEBUG - Request URL:', url)
-      console.log('🔍 CLIENT DEBUG - Request params:', {
-        connectionIds: params.get('connectionIds') || 'NONE',
-        connectionId: params.get('connectionId') || 'NONE',
-        exchange: params.get('exchange') || 'NONE',
-        csvIds: params.get('csvIds') || 'NONE'
-      })
 
       // Fetch saved trades from database
       const response = await fetch(url)
@@ -637,20 +585,7 @@ export default function TradeClarityContent() {
         throw new Error('No trading data available')
       }
 
-      // 🔍 CLIENT DEBUG - Comprehensive response analysis
-      console.log('🔍 CLIENT DEBUG - API Response structure:', {
-        success: data.success,
-        hasSpotTrades: !!data.spotTrades,
-        hasFuturesIncome: !!data.futuresIncome,
-        hasMetadata: !!data.metadata,
-        metadataKeys: data.metadata ? Object.keys(data.metadata) : [],
-        hasSpotHoldings: !!data.metadata?.spotHoldings,
-        spotHoldingsCount: data.metadata?.spotHoldings?.length || 0,
-        totalPortfolioValue: data.metadata?.totalPortfolioValue,
-        snapshotTime: data.metadata?.snapshotTime
-      })
-
-      // 🔍 CLIENT DEBUG - Analyze holdings by exchange
+      // Analyze holdings by exchange (for orphaned holdings detection)
       if (data.metadata?.spotHoldings && Array.isArray(data.metadata.spotHoldings)) {
         const holdingsByExchange = {}
         const holdingsByConnectionId = {}
@@ -677,24 +612,7 @@ export default function TradeClarityContent() {
           holdingsByConnectionId[connectionId].totalValue += parseFloat(holding.usdValue || 0)
         })
         
-        console.log('🔍 CLIENT DEBUG - Holdings Analysis:', {
-          totalHoldings: data.metadata.spotHoldings.length,
-          holdingsByExchange,
-          holdingsByConnectionId,
-          requestedConnectionIds: params.get('connectionIds')?.split(',') || [],
-          orphanedHoldings: data.metadata.spotHoldings.filter(h => {
-            const requested = params.get('connectionIds')?.split(',') || []
-            const holdingConnId = h.connection_id
-            return holdingConnId && !requested.includes(holdingConnId)
-          }).map(h => ({
-            exchange: h.exchange,
-            asset: h.asset,
-            value: h.usdValue,
-            connection_id: h.connection_id
-          }))
-        })
-        
-        // 🚨 CLIENT DEBUG - Check for orphaned holdings
+        // Check for orphaned holdings (only log errors)
         const requestedIds = params.get('connectionIds')?.split(',').filter(id => id.trim()) || []
         if (requestedIds.length > 0) {
           const orphaned = data.metadata.spotHoldings.filter(h => {
@@ -718,32 +636,13 @@ export default function TradeClarityContent() {
         }
       }
 
-      console.log('? Saved trades loaded:', {
-        spotTrades: data.spotTrades?.length || 0,
-        futuresIncome: data.futuresIncome?.length || 0,
-        exchange: exchangeName || 'all',
-        cached: false
-      })
-
       // Cache the data
       setCachedData(data)
       setCurrentConnectionId(cacheKey)
 
       setProgress('Analyzing your trading data...')
 
-      console.log('?? [DEBUG] About to call analyzeData with:', {
-        hasData: !!data,
-        dataKeys: Object.keys(data || {}),
-        hasMetadata: !!data?.metadata,
-        hasSpotHoldings: !!data?.metadata?.spotHoldings,
-        spotHoldingsCount: data?.metadata?.spotHoldings?.length || 0,
-        spotTradesCount: data?.spotTrades?.length || 0,
-        futuresIncomeCount: data?.futuresIncome?.length || 0
-      })
-
       const analysis = await analyzeData(data)
-
-      console.log('?? Analysis complete:', analysis)
 
       setAnalytics(analysis)
       setCurrencyMetadata(data.metadata)
@@ -770,18 +669,11 @@ export default function TradeClarityContent() {
 
       // If data was already fetched (from new flow), use it
       if (preFetchedData) {
-        console.log('? Using pre-fetched data:', {
-          spotTrades: preFetchedData.spotTrades?.length || 0,
-          futuresIncome: preFetchedData.futuresIncome?.length || 0,
-          metadata: preFetchedData.metadata
-        })
         data = preFetchedData
       } else {
         // Legacy flow: fetch from backend directly
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
         const endpoint = `${backendUrl}/api/${exchange}/fetch-all`
-
-        console.log(`?? Connecting to: ${endpoint}`)
 
         const response = await fetch(endpoint, {
           method: 'POST',
@@ -799,33 +691,11 @@ export default function TradeClarityContent() {
         const responseData = await response.json()
         data = responseData.data || responseData // Handle both {data: ...} and direct response
 
-        console.log('? Data received from backend:', data)
-        console.log('?? Data structure:', {
-          success: responseData.success,
-          hasDataKey: !!responseData.data,
-          spotTrades: data.spotTrades?.length || 0,
-          futuresIncome: data.futuresIncome?.length || 0,
-          futuresUserTrades: data.futuresUserTrades?.length || 0,
-          futuresPositions: data.futuresPositions?.length || 0,
-          metadata: data.metadata
-        })
       }
 
       setProgress('Analyzing your trading data...')
 
-      console.log('?? [DEBUG] About to call analyzeData with:', {
-        hasData: !!data,
-        dataKeys: Object.keys(data || {}),
-        hasMetadata: !!data?.metadata,
-        hasSpotHoldings: !!data?.metadata?.spotHoldings,
-        spotHoldingsCount: data?.metadata?.spotHoldings?.length || 0,
-        spotTradesCount: data?.spotTrades?.length || 0,
-        futuresIncomeCount: data?.futuresIncome?.length || 0
-      })
-
       const analysis = await analyzeData(data)
-
-      console.log('?? Analysis complete:', analysis)
 
       setAnalytics(analysis)
       setCurrencyMetadata(data.metadata)
@@ -881,7 +751,6 @@ export default function TradeClarityContent() {
   // NEW: Show auth screen if not authenticated AND not demo mode
   if (!user && !isDemoRequested) {
     return <AuthScreen onAuthSuccess={() => {
-      console.log('User authenticated successfully')
     }} />
   }
 
@@ -982,14 +851,10 @@ export default function TradeClarityContent() {
         }}
         onFilterExchanges={async (exchanges) => {
           // Re-fetch data with filtered exchanges
-          console.log('?? [onFilterExchanges] Filtering by exchanges:', exchanges)
-
           try {
             // Fetch the connection list to map exchange names to connection IDs
-            console.log('?? [onFilterExchanges] Fetching connection list...')
             const response = await fetch('/api/exchange/list')
             const data = await response.json()
-            console.log('? [onFilterExchanges] Connection list fetched:', data)
 
             if (data.success && data.connections) {
               // Build selected sources array from exchange names
@@ -998,20 +863,16 @@ export default function TradeClarityContent() {
                 const connection = data.connections.find(conn =>
                   conn.exchange.toLowerCase() === exchangeName.toLowerCase()
                 )
-                console.log(`?? [onFilterExchanges] Mapping ${exchangeName} -> connection:`, connection)
                 return connection ? { type: 'exchange', id: connection.id, name: exchangeName } : null
               }).filter(Boolean)
 
-              console.log('?? [onFilterExchanges] Final selectedSources:', selectedSources)
-
               if (selectedSources.length === 0) {
-                console.warn('?? [onFilterExchanges] No valid sources found! Exchanges:', exchanges, 'Connections:', data.connections)
                 return
               }
 
               await handleViewAnalytics(selectedSources)
             } else {
-              console.error('? [onFilterExchanges] Failed to fetch connections:', data)
+              console.error('Failed to fetch connections:', data)
             }
           } catch (error) {
             console.error('? [onFilterExchanges] Error:', error)

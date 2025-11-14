@@ -539,20 +539,15 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
           const MAX_AGE = 24 * 60 * 60 * 1000 // 24 hours
           
           if (age > MAX_AGE) {
-            console.log('Pending connection data expired, clearing')
             sessionStorage.removeItem('pendingExchangeConnection')
             // Remove autoConnect param
             router.replace('/dashboard', { scroll: false })
             return
           }
           
-          console.log('🔄 Auto-connecting exchange after upgrade:', exchange)
-          
           // Auto-connect the exchange
           const connectExchange = async () => {
             try {
-              console.log('🔄 [Dashboard] Attempting auto-connect for:', exchange)
-              
               const response = await fetch('/api/exchange/connect', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -564,7 +559,6 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
               })
               
               const data = await response.json()
-              console.log('🔄 [Dashboard] Auto-connect response:', { status: response.status, ok: response.ok, success: data.success })
               
               // Refresh exchanges list to check actual connection state
               await fetchConnectedExchanges()
@@ -575,7 +569,6 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
               
               if (response.ok && data.success) {
                 // API says success - connection created
-                console.log('✅ [Dashboard] Auto-connect succeeded (API success)')
                 sessionStorage.removeItem('pendingExchangeConnection')
                 router.replace('/dashboard', { scroll: false })
                 
@@ -588,7 +581,6 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                 )
               } else if (isActuallyConnected) {
                 // Exchange is connected despite API error - treat as success
-                console.log('✅ [Dashboard] Exchange is connected despite API error - showing success')
                 sessionStorage.removeItem('pendingExchangeConnection')
                 router.replace('/dashboard', { scroll: false })
                 
@@ -630,7 +622,6 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
               
               if (isActuallyConnected) {
                 // Exchange is connected, show success
-                console.log('✅ [Dashboard] Exchange connected despite exception')
                 sessionStorage.removeItem('pendingExchangeConnection')
                 router.replace('/dashboard', { scroll: false })
                 
@@ -709,7 +700,6 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
         psychologyData = parsed.psychology || null
         allTradesData = parsed.allTrades || null
       } catch (e) {
-        console.warn('Failed to parse cached analytics:', e)
       }
     }
 
@@ -721,11 +711,8 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
   const fetchConnectedExchanges = async () => {
     const startTime = Date.now()
     try {
-      console.log('?? [Dashboard] Fetching connected exchanges...')
       const response = await fetch('/api/exchange/list')
       const data = await response.json()
-
-      console.log('?? [Dashboard] API response:', data)
 
       if (data.success) {
         const formatted = data.connections.map(conn => ({
@@ -735,10 +722,8 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
           connectedAt: conn.created_at,
           lastSynced: conn.last_synced || conn.updated_at || conn.created_at
         }))
-        console.log('? [Dashboard] Formatted exchanges:', formatted)
         setConnectedExchanges(formatted)
       } else {
-        console.log('? [Dashboard] API returned error:', data.error)
       }
     } catch (error) {
       console.error('? [Dashboard] Error fetching exchanges:', error)
@@ -813,7 +798,6 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
           const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
           
           if (age < CACHE_TTL) {
-            console.log('?? Using cached subscription data')
             setSubscription(subscriptionData)
             setLoadingSubscription(false)
             return
@@ -886,7 +870,6 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
   const handleViewSelected = () => {
     if (selectedSources.length === 0) return
 
-    console.log('?? Viewing analytics for selected sources:', selectedSources)
 
     // Pass selected sources to analytics view for filtering
     onViewAnalytics(selectedSources)
@@ -1041,32 +1024,24 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
   }
 
   const handleSignOut = async () => {
-    console.log('?? Sign out button clicked')
     const timeoutId = setTimeout(() => {
-      console.log('?? SignOut timeout - forcing reload anyway')
       window.location.href = '/'
     }, 3000)
 
     try {
-      console.log('?? Calling server-side sign out API...')
       const response = await fetch('/api/auth/signout', {
         method: 'POST',
       })
-      console.log('?? API response status:', response.status)
       const data = await response.json()
-      console.log('?? API response data:', data)
       clearTimeout(timeoutId)
 
       if (!response.ok) {
-        console.error('?? Sign out error:', data.error)
-      } else {
-        console.log('?? Sign out successful!')
+        console.error('Sign out error:', data.error)
       }
 
-      console.log('?? Redirecting to landing page...')
       window.location.href = '/'
     } catch (error) {
-      console.error('?? Sign out catch error:', error)
+      console.error('Sign out error:', error)
       clearTimeout(timeoutId)
       window.location.href = '/'
     }

@@ -216,7 +216,6 @@ export function updateExchangeRates(usdToInr) {
   if (usdToInr && usdToInr > 0) {
     LIVE_USD_TO_INR = usdToInr
     LIVE_INR_TO_USD = 1 / usdToInr
-    console.log(`💱 Frontend exchange rates updated: 1 USD = ₹${LIVE_USD_TO_INR.toFixed(2)}`)
   }
 }
 
@@ -315,12 +314,15 @@ export function convertAnalyticsForDisplay(analytics, targetCurrency) {
     return { ...analytics }
   }
 
-  console.log(`💱 Converting analytics from USD to ${targetCurrency}`)
-
   // Helper to convert a value
+  // Uses cached conversion results from convertCurrencySync
   const convert = (value) => {
     if (value === null || value === undefined || isNaN(value)) return value
     const converted = convertCurrencySync(value, 'USD', targetCurrency)
+    // Handle error objects from conversion
+    if (typeof converted === 'object' && converted !== null && converted.success === false) {
+      return value // Return original value if conversion failed
+    }
     return converted
   }
 
@@ -419,14 +421,6 @@ export function convertAnalyticsForDisplay(analytics, targetCurrency) {
 
   // Convert the entire analytics object - always return a new object even if no changes
   const result = convertObject(analytics)
-  
-  // Debug: Log some sample conversions
-  if (result.totalPnL !== undefined && analytics.totalPnL !== undefined) {
-    console.log(`✅ Conversion complete. Sample: totalPnL ${analytics.totalPnL} USD → ${result.totalPnL} ${targetCurrency}`)
-    if (result.totalPnL === analytics.totalPnL && targetCurrency !== 'USD') {
-      console.warn(`⚠️ Warning: totalPnL not converted! (${result.totalPnL} === ${analytics.totalPnL})`)
-    }
-  }
   
   return result
 }

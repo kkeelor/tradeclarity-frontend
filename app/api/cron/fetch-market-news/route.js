@@ -39,8 +39,6 @@ export async function GET(request) {
   
   // If CRON_SECRET is not set, allow request (Vercel cron is already protected)
 
-  console.log('🕐 Cron job started: Fetching market context news')
-  console.log(`📍 Backend URL: ${BACKEND_URL}`)
   const startTime = Date.now()
 
   try {
@@ -61,7 +59,6 @@ export async function GET(request) {
     }
     
     const backendUrl = `${BACKEND_URL}/api/cron/fetch-market-news`
-    console.log(`🔗 Calling backend: ${backendUrl}`)
     
     const backendResponse = await fetch(backendUrl, {
       method: 'POST',
@@ -85,10 +82,6 @@ export async function GET(request) {
 
     const result = await backendResponse.json()
     const duration = Date.now() - startTime
-
-    console.log(`✅ Cron job completed successfully in ${duration}ms`)
-    console.log(`   Results: ${result.results?.success?.length || 0} successful, ${result.results?.failed?.length || 0} failed`)
-    console.log(`   Total articles: ${result.results?.totalArticles || 0}`)
 
     return NextResponse.json({
       success: true,

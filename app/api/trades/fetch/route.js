@@ -24,14 +24,12 @@ async function getCurrencyRates() {
     const data = await response.json()
 
     if (data.success && data.rates) {
-      console.log('💱 Fetched live currency rates from backend:', Object.keys(data.rates).length, 'currencies')
       return data.rates
     }
 
     throw new Error('Invalid response format')
   } catch (error) {
     console.error('⚠️ Failed to fetch currency rates from backend:', error.message)
-    console.log('⚠️ Using fallback rates')
 
     // Return fallback rates
     return {
@@ -90,16 +88,6 @@ export async function GET(request) {
     const connectionIds = searchParams.get('connectionIds') // Multiple connections (new)
     const csvIds = searchParams.get('csvIds')              // Multiple CSV files (new)
     const metadataOnly = searchParams.get('metadataOnly') === 'true' // Only return metadata, not trade data
-
-    // 🔍 DEBUG LOGGING - Verify what's being received
-    console.log('🔍 DEBUG - Query params received:', {
-      connectionId: connectionId || 'null',
-      connectionIds: connectionIds || 'null',
-      exchange: exchange || 'null',
-      csvIds: csvIds || 'null',
-      metadataOnly,
-      fullUrl: request.url
-    })
 
     // If metadataOnly is true, return lightweight stats without fetching all trades
     if (metadataOnly) {
@@ -185,14 +173,6 @@ export async function GET(request) {
       const connIds = connectionIds ? connectionIds.split(',').filter(id => id.trim()) : []
       const csvFileIds = csvIds ? csvIds.split(',').filter(id => id.trim()) : []
 
-      console.log('📎 Filtering by selected sources:', { connectionIds: connIds, csvIds: csvFileIds })
-      
-      // 🔍 DEBUG - Verify what connection IDs are being used for trades
-      console.log('🔍 DEBUG - Trades query filter:', {
-        connectionIds: connIds,
-        csvIds: csvFileIds,
-        willFilterBy: connIds.length > 0 ? 'exchange_connection_id' : csvFileIds.length > 0 ? 'csv_upload_id' : 'NONE'
-      })
 
       if (connIds.length > 0 && csvFileIds.length > 0) {
         // Both exchanges AND CSV files selected - use OR query
@@ -206,15 +186,10 @@ export async function GET(request) {
       }
     } else if (connectionId) {
       // Legacy: Single connection ID
-      console.log('📎 Filtering by single connectionId:', connectionId)
       query = query.eq('exchange_connection_id', connectionId)
     } else if (exchange) {
       // Legacy: Single exchange
-      console.log('🏦 Filtering by single exchange:', exchange)
       query = query.eq('exchange', exchange.toLowerCase())
-    } else {
-      // No filters provided - fetch ALL trades (for combined analytics)
-      console.log('📊 No filters - fetching ALL trades for combined analytics')
     }
 
     const { data: trades, error: fetchError } = await query.order('trade_time', { ascending: true })
@@ -227,17 +202,6 @@ export async function GET(request) {
       )
     }
 
-    // 🔍 DEBUG - Verify what trades were fetched
-    const tradesByConnection = {}
-    trades?.forEach(t => {
-      const connId = t.exchange_connection_id || 'null'
-      tradesByConnection[connId] = (tradesByConnection[connId] || 0) + 1
-    })
-    console.log('🔍 DEBUG - Trades fetched from DB:', {
-      totalTrades: trades?.length || 0,
-      tradesByConnectionId: tradesByConnection,
-      requestedConnectionIds: connectionIds ? connectionIds.split(',').filter(id => id.trim()) : 'NONE (fetching all)'
-    })
 
     // Group trades by account type
     const spotTrades = []
@@ -296,9 +260,6 @@ export async function GET(request) {
     const availableCurrencies = ['USD', 'INR', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CNY', 'SGD', 'CHF']
     const supportsCurrencySwitch = true // Always enable currency switching
 
-    console.log(`📊 Fetched ${totalTrades} trades (${spotTrades.length} spot, ${futuresIncome.length} futures) ${connectionId ? `for connection ${connectionId}` : exchange ? `for ${exchange}` : 'from all exchanges'}`)
-    console.log(`💱 Detected primary currency: ${primaryCurrency} based on exchanges: ${uniqueExchanges.join(', ')}`)
-    console.log(`💱 Currency switcher enabled: ${supportsCurrencySwitch}, Available currencies: ${availableCurrencies.join(', ')}`)
 
     // Try to fetch portfolio snapshot(s) - ONLY for display purposes, not for calculations
     // Portfolio snapshots are preserved for historical value but analytics uses trades only
@@ -329,7 +290,6 @@ export async function GET(request) {
 
           if (!snapshotError && snapshots && snapshots.length > 0) {
             portfolioSnapshot = snapshots[0]
-            console.log(`📊 Found portfolio snapshot from ${portfolioSnapshot.snapshot_time}: $${portfolioSnapshot.total_portfolio_value}`)
             
             // Normalize holdings structure for single exchange
             if (portfolioSnapshot.holdings && Array.isArray(portfolioSnapshot.holdings)) {
@@ -345,7 +305,6 @@ export async function GET(request) {
                 const calculatedValue = quantity * price
                 // Use calculated value if stored value is 0 or significantly different
                 if (originalUsdValue === 0 || Math.abs(calculatedValue - originalUsdValue) / Math.max(calculatedValue, originalUsdValue) > 0.01) {
-                  console.log(`🔧 Recalculating holding ${asset}: ${originalUsdValue.toFixed(2)} → ${calculatedValue.toFixed(2)}`)
                   usdValue = calculatedValue
                 }
               }
@@ -373,19 +332,12 @@ export async function GET(request) {
               } else {
                 // Duplicate found - keep the one with higher value
                 if (holding.usdValue > existing.usdValue) {
-                  console.log(`🔍 Deduplicating ${holding.asset} on ${holding.exchange}: keeping higher value (${holding.usdValue.toFixed(2)} vs ${existing.usdValue.toFixed(2)})`)
                   holdingsMap.set(key, holding)
-                } else {
-                  console.log(`🔍 Deduplicating ${holding.asset} on ${holding.exchange}: keeping existing (${existing.usdValue.toFixed(2)} vs ${holding.usdValue.toFixed(2)})`)
                 }
               }
             })
             
             portfolioSnapshot.holdings = Array.from(holdingsMap.values())
-            
-            if (normalizedHoldings.length !== portfolioSnapshot.holdings.length) {
-              console.log(`🔍 Deduplicated holdings: ${normalizedHoldings.length} → ${portfolioSnapshot.holdings.length} unique`)
-            }
 
             // Recalculate total portfolio value from deduplicated holdings to avoid double-counting
             const recalculatedValue = portfolioSnapshot.holdings.reduce((sum, holding) => {
@@ -394,55 +346,13 @@ export async function GET(request) {
 
             const originalValue = parseFloat(portfolioSnapshot.total_portfolio_value || 0)
             if (Math.abs(recalculatedValue - originalValue) > 0.01) {
-              console.log(`🔧 Single exchange portfolio value recalculation: $${originalValue.toFixed(2)} → $${recalculatedValue.toFixed(2)} (difference: $${Math.abs(recalculatedValue - originalValue).toFixed(2)})`)
               portfolioSnapshot.total_portfolio_value = recalculatedValue
             }
           }
-          
-          // Validate Binance holdings structure
-          if (portfolioSnapshot && portfolioSnapshot.exchange === 'binance' && portfolioSnapshot.holdings) {
-            console.log(`🔍 Validating Binance holdings structure...`)
-            const holdings = portfolioSnapshot.holdings || []
-            console.log(`📊 Total holdings: ${holdings.length}`)
-            
-            // Check for discrepancies
-            holdings.forEach((h, idx) => {
-              const quantity = parseFloat(h.quantity || 0)
-              const price = parseFloat(h.price || 0)
-              const usdValue = parseFloat(h.usdValue || 0)
-              const calculatedValue = quantity * price
-              
-              // Check if calculated value matches stored usdValue (allow 1% tolerance for rounding)
-              if (calculatedValue > 0 && usdValue > 0) {
-                const diff = Math.abs(calculatedValue - usdValue)
-                const diffPercent = (diff / calculatedValue) * 100
-                
-                if (diffPercent > 1) {
-                  console.warn(`⚠️  Holding ${idx} (${h.asset || h.currency || 'UNKNOWN'}): Value mismatch!`)
-                  console.warn(`   Quantity: ${quantity}, Price: ${price}`)
-                  console.warn(`   Calculated: $${calculatedValue.toFixed(2)}, Stored: $${usdValue.toFixed(2)}, Diff: ${diffPercent.toFixed(2)}%`)
-                }
-              }
-              
-              // Check for missing required fields
-              if (!h.asset && !h.currency) {
-                console.warn(`⚠️  Holding ${idx}: Missing asset/currency field`)
-              }
-              if (!h.quantity && !h.qty) {
-                console.warn(`⚠️  Holding ${idx}: Missing quantity field`)
-              }
-              if (!h.price) {
-                console.warn(`⚠️  Holding ${idx}: Missing price field`)
-              }
-            })
-          }
-        } else {
-          console.log('📊 No portfolio snapshot found for this exchange')
         }
       } else {
         // Viewing COMBINED analytics - fetch ALL snapshots and aggregate them
         // OR viewing SELECTED exchanges - fetch snapshots for selected connections only
-        console.log('📊 Fetching portfolio snapshots for combined analytics...')
         
         // First, get all ACTIVE exchange connections for this user
         // This ensures we only fetch snapshots for connections that still exist (prevents orphaned snapshots)
@@ -456,7 +366,6 @@ export async function GET(request) {
         }
         
         const activeConnectionIds = activeConnections?.map(c => c.id) || []
-        console.log(`🔍 DEBUG - Active exchange connections: ${activeConnectionIds.length} connections (IDs: ${activeConnectionIds.join(', ')})`)
         
         let snapshotQuery = supabase
           .from('portfolio_snapshots')
@@ -469,59 +378,27 @@ export async function GET(request) {
           if (connIds.length > 0) {
             // Validate requested IDs are actually active
             const validIds = connIds.filter(id => activeConnectionIds.includes(id))
-            if (validIds.length !== connIds.length) {
-              const invalidIds = connIds.filter(id => !activeConnectionIds.includes(id))
-              console.warn(`⚠️ DEBUG - Some requested connection IDs are not active: ${invalidIds.join(', ')}`)
-            }
             
             if (validIds.length > 0) {
-              console.log(`📊 Filtering snapshots by selected connections: ${validIds.join(', ')}`)
               snapshotQuery = snapshotQuery.in('connection_id', validIds)
             } else {
-              console.warn('⚠️ DEBUG - No valid active connections found, will not fetch snapshots')
               snapshotQuery = snapshotQuery.eq('connection_id', 'INVALID_ID_THAT_WILL_RETURN_NOTHING')
             }
-          } else {
-            console.log('⚠️ DEBUG - connectionIds provided but empty after filtering')
           }
         } else {
           // No connectionIds provided - filter to ONLY active connections to avoid orphaned snapshots
-          console.log('⚠️ DEBUG - No connectionIds parameter provided, filtering to active connections only')
           if (activeConnectionIds.length > 0) {
             snapshotQuery = snapshotQuery.in('connection_id', activeConnectionIds)
-            console.log(`📊 Filtering snapshots to ${activeConnectionIds.length} active connections only (prevents orphaned snapshots)`)
           } else {
-            console.warn('⚠️ DEBUG - No active connections found, will not fetch snapshots')
             snapshotQuery = snapshotQuery.eq('connection_id', 'INVALID_ID_THAT_WILL_RETURN_NOTHING')
           }
         }
 
-        // 🔍 DEBUG - Log the query before execution
-        console.log('🔍 DEBUG - Snapshot query will fetch:', {
-          hasConnectionFilter: !!connectionIds,
-          connectionIds: connectionIds || 'NONE (filtered to active only)',
-          activeConnectionIds: activeConnectionIds,
-          userId: user.id
-        })
-
         const { data: allSnapshots, error: snapshotError } = await snapshotQuery.order('snapshot_time', { ascending: false })
-        
-        // 🔍 DEBUG - Log what was actually fetched
-        console.log('🔍 DEBUG - Snapshots fetched from DB:', {
-          count: allSnapshots?.length || 0,
-          snapshots: allSnapshots?.map(s => ({
-            id: s.id,
-            connection_id: s.connection_id,
-            exchange: s.exchange,
-            total_value: s.total_portfolio_value,
-            snapshot_time: s.snapshot_time
-          })) || []
-        })
 
         if (snapshotError) {
           console.error('Error fetching portfolio snapshots:', snapshotError)
         } else if (allSnapshots && allSnapshots.length > 0) {
-          console.log(`📊 Found ${allSnapshots.length} total snapshots${connectionIds ? ' for selected connections' : ' across all exchanges'}`)
 
           // Group by connection_id, keep most recent for each
           const latestPerConnection = {}
@@ -533,29 +410,13 @@ export async function GET(request) {
           })
 
           const recentSnapshots = Object.values(latestPerConnection)
-          console.log(`📊 Using ${recentSnapshots.length} most recent snapshots (one per connection)`)
           
-          // 🔍 DEBUG - Verify which connections are being used
-          console.log('🔍 DEBUG - Active exchange connections:', {
-            requestedConnectionIds: connectionIds ? connectionIds.split(',').filter(id => id.trim()) : 'NONE',
-            snapshotConnectionIds: recentSnapshots.map(s => s.connection_id),
-            mismatch: connectionIds ? recentSnapshots.some(s => {
-              const requested = connectionIds.split(',').filter(id => id.trim())
-              return !requested.includes(s.connection_id)
-            }) : 'N/A (fetching all)'
-          })
-          
-          // Log which exchanges are included
-          recentSnapshots.forEach(snap => {
-            console.log(`  - ${snap.exchange} (connection: ${snap.connection_id}): $${snap.total_portfolio_value || 0} ${snap.primary_currency || 'USD'}`)
-          })
-          
-          // 🔍 DEBUG - Check if any snapshots reference deleted connections
+          // Check if any snapshots reference deleted connections (only log errors)
           if (connectionIds) {
             const requestedIds = connectionIds.split(',').filter(id => id.trim())
             const orphanedSnapshots = recentSnapshots.filter(snap => !requestedIds.includes(snap.connection_id))
             if (orphanedSnapshots.length > 0) {
-              console.error('🚨 DEBUG - ORPHANED SNAPSHOTS DETECTED:', {
+              console.error('🚨 ORPHANED SNAPSHOTS DETECTED:', {
                 count: orphanedSnapshots.length,
                 orphaned: orphanedSnapshots.map(s => ({
                   exchange: s.exchange,
@@ -604,8 +465,6 @@ export async function GET(request) {
             totalSpotValue += spotValueUSD
             totalFuturesValue += futuresValueUSD
 
-            console.log(`  - ${snap.exchange}: $${portfolioValueUSD.toFixed(2)} USD (from ${snapCurrency}) - ${snap.holdings?.length || 0} holdings`)
-
             // Merge holdings with exchange attribution
             if (snap.holdings && Array.isArray(snap.holdings) && snap.holdings.length > 0) {
               const exchangeHoldings = snap.holdings.map(h => {
@@ -621,7 +480,6 @@ export async function GET(request) {
                   const calculatedValue = quantity * price
                   // Use calculated value if it's significantly different (likely more accurate)
                   if (originalUsdValue === 0 || Math.abs(calculatedValue - originalUsdValue) / Math.max(calculatedValue, originalUsdValue) > 0.01) {
-                    console.log(`🔧 Recalculating holding ${asset}: ${originalUsdValue.toFixed(2)} → ${calculatedValue.toFixed(2)}`)
                     usdValue = calculatedValue
                   }
                 }
@@ -658,17 +516,10 @@ export async function GET(request) {
                 } else {
                   // Duplicate found - keep the one with higher value (more recent/larger position)
                   if (holding.usdValue > existing.usdValue) {
-                    console.log(`🔍 Deduplicating ${holding.asset} on ${holding.exchange}: keeping higher value (${holding.usdValue.toFixed(2)} vs ${existing.usdValue.toFixed(2)})`)
                     holdingsMap.set(key, holding)
-                  } else {
-                    console.log(`🔍 Deduplicating ${holding.asset} on ${holding.exchange}: keeping existing (${existing.usdValue.toFixed(2)} vs ${holding.usdValue.toFixed(2)})`)
                   }
                 }
               })
-              
-              console.log(`    Processed ${exchangeHoldings.length} holdings from ${snap.exchange} (${holdingsMap.size} unique after deduplication)`)
-            } else {
-              console.warn(`    ⚠️  No holdings found for ${snap.exchange} (connection: ${snap.connection_id})`)
             }
           }
 
@@ -681,10 +532,6 @@ export async function GET(request) {
             return sum + (holding.usdValue || 0)
           }, 0)
 
-          // Log comparison for debugging
-          if (Math.abs(recalculatedPortfolioValue - totalPortfolioValue) > 0.01) {
-            console.log(`🔧 Portfolio value recalculation: $${totalPortfolioValue.toFixed(2)} → $${recalculatedPortfolioValue.toFixed(2)} (difference: $${Math.abs(recalculatedPortfolioValue - totalPortfolioValue).toFixed(2)})`)
-          }
 
           // Create aggregated portfolio snapshot
           portfolioSnapshot = {
@@ -698,21 +545,6 @@ export async function GET(request) {
             _exchanges: recentSnapshots.map(s => s.exchange)
           }
 
-          console.log(`✅ Aggregated portfolio: $${recalculatedPortfolioValue.toFixed(2)} USD (${allHoldings.length} unique holdings from ${recentSnapshots.length} exchanges: ${recentSnapshots.map(s => s.exchange).join(', ')})`)
-          
-          // 🔍 DEBUG - Final verification of what's being returned
-          console.log('🔍 DEBUG - Final portfolio snapshot being returned:', {
-            totalPortfolioValue: recalculatedPortfolioValue,
-            holdingsCount: allHoldings.length,
-            exchanges: recentSnapshots.map(s => s.exchange),
-            connectionIds: recentSnapshots.map(s => s.connection_id),
-            holdingsByExchange: allHoldings.reduce((acc, h) => {
-              acc[h.exchange] = (acc[h.exchange] || 0) + 1
-              return acc
-            }, {})
-          })
-        } else {
-          console.log('📊 No portfolio snapshots found')
         }
       }
       }

@@ -44,8 +44,6 @@ export async function POST(request) {
       insertData.exchange = normalizedExchange
     }
 
-    console.log('💾 Attempting to insert CSV metadata:', JSON.stringify(insertData, null, 2))
-
     const { data, error: insertError } = await supabase
       .from('csv_uploads')
       .insert(insertData)

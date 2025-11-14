@@ -317,7 +317,6 @@ export default function AnalyticsContent() {
     const loadData = async () => {
       // If already loaded, don't reload (prevents double-loading in React Strict Mode)
       if (hasLoadedRef.current) {
-        console.log('? [AnalyticsContent] Already loaded, skipping reload')
         return
       }
       hasLoadedRef.current = true
@@ -401,7 +400,6 @@ export default function AnalyticsContent() {
           const preAnalyzedDataStr = sessionStorage.getItem('preAnalyzedData')
           
           if (preAnalyzedDataStr) {
-            console.log('? [AnalyticsContent] Using pre-analyzed data from DashboardContent')
             const preAnalyzedData = JSON.parse(preAnalyzedDataStr)
             
             // Clear sessionStorage after reading (delayed to allow React Strict Mode double-mount)
@@ -452,15 +450,6 @@ export default function AnalyticsContent() {
             const exchangeIds = selectedSources.filter(s => s.type === 'exchange').map(s => s.id)
             const csvIds = selectedSources.filter(s => s.type === 'csv').map(s => s.id)
             
-            // 🔍 CLIENT DEBUG - Log what's being sent
-            console.log('🔍 CLIENT DEBUG [AnalyticsContent] - Selected sources:', {
-              selectedSources,
-              exchangeIds,
-              csvIds,
-              exchangeCount: exchangeIds.length,
-              csvCount: csvIds.length
-            })
-            
             if (exchangeIds.length > 0) {
               params.append('connectionIds', exchangeIds.join(','))
             }
@@ -476,15 +465,6 @@ export default function AnalyticsContent() {
           if (params.toString()) {
             url += '?' + params.toString()
           }
-          
-          // 🔍 CLIENT DEBUG - Log the request
-          console.log('🔍 CLIENT DEBUG [AnalyticsContent] - Request URL:', url)
-          console.log('🔍 CLIENT DEBUG [AnalyticsContent] - Request params:', {
-            connectionIds: params.get('connectionIds') || 'NONE',
-            connectionId: params.get('connectionId') || 'NONE',
-            exchange: params.get('exchange') || 'NONE',
-            csvIds: params.get('csvIds') || 'NONE'
-          })
           
           const response = await fetch(url)
           
@@ -506,59 +486,6 @@ export default function AnalyticsContent() {
             throw new Error(data.message || 'No trading data available')
           }
           
-          // 🔍 CLIENT DEBUG - Comprehensive response analysis
-          console.log('🔍 CLIENT DEBUG [AnalyticsContent] - API Response:', {
-            success: data.success,
-            hasSpotTrades: !!data.spotTrades,
-            hasFuturesIncome: !!data.futuresIncome,
-            hasMetadata: !!data.metadata,
-            metadataKeys: data.metadata ? Object.keys(data.metadata) : [],
-            hasSpotHoldings: !!data.metadata?.spotHoldings,
-            spotHoldingsCount: data.metadata?.spotHoldings?.length || 0,
-            totalPortfolioValue: data.metadata?.totalPortfolioValue,
-            snapshotTime: data.metadata?.snapshotTime
-          })
-          
-          // 🔍 CLIENT DEBUG - Analyze holdings by exchange
-          if (data.metadata?.spotHoldings && Array.isArray(data.metadata.spotHoldings)) {
-            const holdingsByExchange = {}
-            const requestedIds = params.get('connectionIds')?.split(',').filter(id => id.trim()) || []
-            
-            data.metadata.spotHoldings.forEach((holding, idx) => {
-              const exchange = holding.exchange || 'UNKNOWN'
-              
-              if (!holdingsByExchange[exchange]) {
-                holdingsByExchange[exchange] = { count: 0, totalValue: 0, holdings: [] }
-              }
-              holdingsByExchange[exchange].count++
-              holdingsByExchange[exchange].totalValue += parseFloat(holding.usdValue || 0)
-              holdingsByExchange[exchange].holdings.push({
-                asset: holding.asset,
-                value: holding.usdValue,
-                index: idx
-              })
-            })
-            
-            console.log('🔍 CLIENT DEBUG [AnalyticsContent] - Holdings Analysis:', {
-              totalHoldings: data.metadata.spotHoldings.length,
-              holdingsByExchange,
-              requestedConnectionIds: requestedIds,
-              exchangesInHoldings: Object.keys(holdingsByExchange)
-            })
-            
-            // 🚨 CLIENT DEBUG - Check for multiple exchanges when only one was requested
-            if (requestedIds.length === 1) {
-              const exchangesFound = Object.keys(holdingsByExchange)
-              if (exchangesFound.length > 1) {
-                console.error('🚨 CLIENT DEBUG [AnalyticsContent] - MULTIPLE EXCHANGES IN HOLDINGS:', {
-                  requestedConnectionId: requestedIds[0],
-                  exchangesFound: exchangesFound,
-                  holdingsByExchange: holdingsByExchange,
-                  issue: 'Holdings from multiple exchanges detected when only one connection was requested'
-                })
-              }
-            }
-          }
 
           setCachedData(data)
           setProgress('Analyzing patterns and calculating insights...')
@@ -567,9 +494,8 @@ export default function AnalyticsContent() {
           // Ensure currency rates are cached before conversion
           try {
             await getCurrencyRates()
-            console.log('? Currency rates cached for conversion')
           } catch (rateError) {
-            console.warn('?? Could not fetch currency rates:', rateError.message)
+            console.warn('⚠️ Could not fetch currency rates:', rateError.message)
           }
           
           const analysis = await analyzeData(data)

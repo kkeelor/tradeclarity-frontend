@@ -5,7 +5,6 @@ import { encrypt } from '@/lib/encryption'
 import { TIER_LIMITS, canAddConnection } from '@/lib/featureGates'
 
 export async function POST(request) {
-  console.log('📡 [API] /api/exchange/connect called')
   try {
     const supabase = createClient()
 
@@ -16,14 +15,10 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    console.log('✅ [API] User authenticated:', user.id)
-
     const { exchange, apiKey, apiSecret } = await request.json()
-    console.log('📥 [API] Request data:', { exchange, hasApiKey: !!apiKey, hasApiSecret: !!apiSecret })
 
     // Validate inputs
     if (!exchange || !apiKey || !apiSecret) {
-      console.error('❌ [API] Missing required fields')
       return NextResponse.json(
         { error: 'Exchange, API key, and API secret are required' },
         { status: 400 }
@@ -49,19 +44,14 @@ export async function POST(request) {
       .eq('exchange', exchange.toLowerCase())
       .single()
 
-    console.log('🔍 [API] Existing connection check:', { existing: !!existing, exchange: exchange.toLowerCase() })
-
     // Only check connection limit for NEW connections (not updates)
     if (!existing) {
-      console.log('🆕 [API] New connection - checking limits...')
       // Get user's subscription
       const { data: subscription } = await supabase
         .from('subscriptions')
         .select('tier, exchanges_connected')
         .eq('user_id', user.id)
         .single()
-
-      console.log('📊 [API] Subscription data:', { tier: subscription?.tier, exchanges_connected: subscription?.exchanges_connected })
 
       // Count current active connections
       const { count: currentConnections } = await supabase
@@ -70,19 +60,14 @@ export async function POST(request) {
         .eq('user_id', user.id)
         .eq('is_active', true)
 
-      console.log('🔢 [API] Current active connections:', currentConnections)
-
       // Check if user can add another connection
       // Use effective tier (considers cancel_at_period_end)
       const { getEffectiveTier } = await import('@/lib/featureGates')
       const userTier = getEffectiveTier(subscription) || 'free'
       const limit = TIER_LIMITS[userTier]?.maxConnections || 1
       
-      console.log('⚖️ [API] Limit check:', { userTier, limit, currentConnections, canAdd: limit === Infinity || (currentConnections || 0) < limit })
-      
       if (limit !== Infinity && (currentConnections || 0) >= limit) {
         const nextTier = userTier === 'free' ? 'Trader' : userTier === 'trader' ? 'Pro' : null
-        console.log('🚫 [API] Connection limit reached! Returning 403')
         return NextResponse.json({
           error: 'CONNECTION_LIMIT_REACHED',
           message: `You've reached your connection limit (${limit}). ${nextTier ? `Upgrade to ${nextTier} to add more exchanges.` : ''}`,
@@ -92,9 +77,6 @@ export async function POST(request) {
           upgradeTier: nextTier?.toLowerCase() || null
         }, { status: 403 })
       }
-      console.log('✅ [API] Limit check passed, proceeding with connection')
-    } else {
-      console.log('🔄 [API] Existing connection - updating (limit check skipped)')
     }
 
     let connectionData
@@ -124,7 +106,6 @@ export async function POST(request) {
       connectionData = data
     } else {
       // Create new connection
-      console.log('📝 [API] Creating new connection...')
       const { data, error: insertError } = await supabase
         .from('exchange_connections')
         .insert({
@@ -146,20 +127,17 @@ export async function POST(request) {
       }
 
       connectionData = data
-      console.log('✅ [API] Connection created:', connectionData.id)
     }
 
     // Trigger data fetch and wait for completion
     // Pass credentials directly instead of querying database again
     let fetchResult = null
-    console.log('📡 [API] Starting data fetch...')
     try {
       // Auto-detect the correct URL based on the request
       const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
       const host = request.headers.get('host') || 'localhost:3000'
       const baseUrl = `${protocol}://${host}`
 
-      console.log('🌐 [API] Fetching from:', `${baseUrl}/api/exchange/fetch-data`)
 
       const fetchResponse = await fetch(`${baseUrl}/api/exchange/fetch-data`, {
         method: 'POST',
@@ -175,7 +153,6 @@ export async function POST(request) {
 
       if (fetchResponse.ok) {
         fetchResult = await fetchResponse.json()
-        console.log('✅ Data fetch completed:', fetchResult)
         
         // Store trades to database in background (don't wait for it)
         if (fetchResult.success && fetchResult.spotTrades) {
@@ -200,7 +177,6 @@ export async function POST(request) {
               console.error('⚠️ Background storage failed (non-critical):', err)
             })
             
-            console.log('💾 [API] Triggered background storage of trades to database')
           } catch (storageError) {
             console.error('⚠️ Error triggering background storage:', storageError)
             // Don't fail the connection if storage fails
@@ -215,7 +191,6 @@ export async function POST(request) {
       // Don't fail the connection save if background fetch fails
     }
 
-    console.log('✅ [API] Returning success response')
     return NextResponse.json({
       success: true,
       connection: {

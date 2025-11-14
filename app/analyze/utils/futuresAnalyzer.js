@@ -4,14 +4,8 @@
 // This is different from spot where we count each transaction (buy AND sell separately)
 
 export const analyzeFuturesTrades = (futuresData) => {
-  console.log('\n=== FUTURES ANALYZER ===')
-  
   // futuresData should contain: { trades, income, orders, positions }
   const { income = [], trades = [], positions = [] } = futuresData
-
-  console.log('Income records:', income.length)
-  console.log('Trade records:', trades.length)
-  console.log('Current positions:', positions.length)
 
   if (income.length === 0 && trades.length === 0) {
     return getEmptyFuturesAnalysis()
@@ -218,16 +212,6 @@ export const analyzeFuturesTrades = (futuresData) => {
     ? uniqueTradeIds.size 
     : income.filter(i => i.incomeType === 'REALIZED_PNL').length
 
-  console.log('\n=== FUTURES ANALYSIS COMPLETE ===')
-  console.log('Realized P&L:', realizedPnL.toFixed(2))
-  console.log('Total Commission:', totalCommission.toFixed(2))
-  console.log('Total Funding Fees:', totalFundingFees.toFixed(2))
-  console.log('Net P&L:', netPnL.toFixed(2))
-  console.log('Unrealized P&L:', unrealizedPnL.toFixed(2))
-  console.log('Total Trades (completed futures trades):', totalTradesCount)
-  console.log('Completed Trades (with W/L outcome):', completedTrades)
-  console.log('Win Rate:', completedTrades > 0 ? (winningTrades / completedTrades * 100).toFixed(2) + '%' : '0%')
-  console.log('Open Positions:', openPositions.length)
 
   return {
     totalPnL: netPnL,

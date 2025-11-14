@@ -208,16 +208,12 @@ export default function DashboardContent() {
   const currentExchange = EXCHANGES[exchange]
 
   const handleConnect = async (apiKey, apiSecret, preFetchedData = null) => {
-    console.log('?? [DashboardContent] handleConnect called', { hasData: !!preFetchedData })
-    
     // If we're already connecting and receiving data, update progress and analyze
     if (status === 'connecting' && preFetchedData) {
-      console.log('? [DashboardContent] Received fetched data, analyzing...')
       setProgress('Analyzing your trading data...')
       
       try {
         const analysis = await analyzeData(preFetchedData)
-        console.log('?? [DashboardContent] Analysis complete:', analysis)
 
         // Store analytics and data in sessionStorage for AnalyticsContent
         sessionStorage.setItem('preAnalyzedData', JSON.stringify({
@@ -245,16 +241,9 @@ export default function DashboardContent() {
 
     // If data is already provided, analyze immediately
     if (preFetchedData) {
-      console.log('? [DashboardContent] Using pre-fetched data:', {
-        spotTrades: preFetchedData.spotTrades?.length || 0,
-        futuresIncome: preFetchedData.futuresIncome?.length || 0,
-        metadata: preFetchedData.metadata
-      })
-
       try {
         setProgress('Analyzing your trading data...')
         const analysis = await analyzeData(preFetchedData)
-        console.log('?? [DashboardContent] Analysis complete:', analysis)
 
         // Store analytics and data in sessionStorage for AnalyticsContent
         sessionStorage.setItem('preAnalyzedData', JSON.stringify({
@@ -279,7 +268,6 @@ export default function DashboardContent() {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
       const endpoint = `${backendUrl}/api/${exchange}/fetch-all`
 
-      console.log(`?? [DashboardContent] Connecting to: ${endpoint}`)
       setProgress('Fetching trade data from exchange...')
 
       const response = await fetch(endpoint, {
@@ -298,12 +286,8 @@ export default function DashboardContent() {
       const responseData = await response.json()
       const data = responseData.data || responseData
 
-      console.log('? [DashboardContent] Data received from backend:', data)
-
       setProgress('Analyzing your trading data...')
       const analysis = await analyzeData(data)
-
-      console.log('?? [DashboardContent] Analysis complete:', analysis)
 
       // Store analytics and data in sessionStorage for AnalyticsContent
       sessionStorage.setItem('preAnalyzedData', JSON.stringify({
@@ -325,7 +309,6 @@ export default function DashboardContent() {
   // Navigate to analytics page when loading completes (after exchange connection)
   useEffect(() => {
     if (loadingComplete && status === 'connecting') {
-      console.log('?? [DashboardContent] Loading complete, navigating to analytics page...')
       router.push('/analyze')
     }
   }, [loadingComplete, status, router])

@@ -208,7 +208,6 @@ export default function LoginForm({
   }
 
   const handleSubmit = async () => {
-    console.log('🔵 [LoginForm] Connect button clicked')
     setIsSubmitting(true)
     setSubmitError('')
     setLocalProgress('Connecting to exchange...')
@@ -216,7 +215,6 @@ export default function LoginForm({
     try {
       // Call the new API endpoint to save credentials and fetch data
       // Check limit FIRST before showing loader/navigating
-      console.log('🟡 [LoginForm] Calling /api/exchange/connect...', { exchange, apiKeyLength: apiKey.length })
       setLocalProgress('Checking connection limit...')
       
       const response = await fetch('/api/exchange/connect', {
@@ -229,17 +227,13 @@ export default function LoginForm({
         })
       })
 
-      console.log('🟡 [LoginForm] Response received:', { ok: response.ok, status: response.status })
-
       const data = await response.json()
 
       if (!response.ok) {
-        console.error('❌ [LoginForm] API error:', data)
-        console.log('❌ [LoginForm] Response status:', response.status, 'Error code:', data.error)
+        console.error('API error:', data)
         
         // Handle connection limit error - show upgrade modal instead of error
         if (response.status === 403 && data.error === 'CONNECTION_LIMIT_REACHED') {
-          console.log('🔒 [LoginForm] Connection limit reached, showing upgrade modal')
           setIsSubmitting(false)
           setLocalProgress('')
           
@@ -253,14 +247,6 @@ export default function LoginForm({
           
           // Show upgrade modal
           const exchangeDisplayName = exchangeDataMap[exchange]?.displayName || exchange
-          console.log('📝 [LoginForm] Setting upgrade modal data:', {
-            type: 'connection',
-            current: data.current,
-            limit: data.limit,
-            tier: data.tier || 'free',
-            upgradeTier: data.upgradeTier,
-            exchangeName: exchangeDisplayName
-          })
           setUpgradeModalData({
             type: 'connection',
             current: data.current,
@@ -270,7 +256,6 @@ export default function LoginForm({
             exchangeName: exchangeDisplayName
           })
           setShowUpgradeModal(true)
-          console.log('✅ [LoginForm] Upgrade modal should be visible now')
           return // Don't throw error, just return - don't call onConnect
         }
         
@@ -278,23 +263,14 @@ export default function LoginForm({
       }
 
       // Only call onConnect AFTER successful API response
-      console.log('🟢 [LoginForm] Connection successful, showing loader...')
       setLocalProgress('Preparing analytics...')
       onConnect(apiKey, apiSecret, null) // Pass null to indicate data will come later
-
-      console.log('✅ Exchange connected successfully:', data)
-
-      // Log normalized trades data for debugging
-      if (data.data?.normalizedSamples) {
-        console.log('📊 NORMALIZED TRADES (samples before DB insert):', data.data.normalizedSamples)
-      }
 
       setLocalProgress('Preparing analytics...')
 
       // Update the parent with the fetched data
       // onConnect was already called above, now update with actual data
       if (data.data) {
-        console.log('🟢 [LoginForm] Data fetched, updating parent...')
         // Call onConnect again with the actual data - this will trigger analysis
         onConnect(apiKey, apiSecret, data.data)
       }

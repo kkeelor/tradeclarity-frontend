@@ -18,10 +18,6 @@ export async function POST(request) {
     // Normalize exchange name to lowercase
     const normalizedExchange = exchange.toLowerCase().trim()
 
-    console.log(`💾 [Background] Storing trades for user ${userId}, exchange ${normalizedExchange}...`)
-    if (metadata?.spotHoldings) {
-      console.log(`📊 Portfolio data received: $${metadata.totalPortfolioValue?.toFixed(2) || 0}, ${metadata.spotHoldings?.length || 0} holdings`)
-    }
 
     const tradesToInsert = []
 
@@ -84,8 +80,6 @@ export async function POST(request) {
       })
     }
 
-    console.log(`💾 Total trades to insert: ${tradesToInsert.length}`)
-    console.log('📋 Normalized trades data (first 3 samples):', JSON.stringify(tradesToInsert.slice(0, 3), null, 2))
 
     if (tradesToInsert.length === 0) {
       return NextResponse.json({
@@ -122,7 +116,6 @@ export async function POST(request) {
 
     // Reset counter if we're in a new month
     if (!lastResetDate || lastResetDate < startOfMonth) {
-      console.log(`📅 Resetting monthly trade counter for user ${userId} (new month)`)
       currentMonthTrades = 0
       
       // Update subscription with reset date
@@ -167,7 +160,6 @@ export async function POST(request) {
     // Filter out duplicates (existingTradeIds already defined above for limit check)
     const newTrades = tradesToInsert.filter(trade => !existingTradeIds.has(trade.trade_id))
 
-    console.log(`📊 Found ${existingTradeIds.size} existing trades, inserting ${newTrades.length} new trades`)
 
     if (newTrades.length === 0) {
       return NextResponse.json({
@@ -196,7 +188,6 @@ export async function POST(request) {
       }
     }
 
-    console.log(`✅ Successfully stored ${insertedCount}/${newTrades.length} new trades`)
 
     // Update monthly trade counter in subscription
     if (insertedCount > 0) {
@@ -209,14 +200,12 @@ export async function POST(request) {
         })
         .eq('user_id', userId)
       
-      console.log(`📊 Updated monthly trade count: ${currentMonthTrades} → ${newCount} (limit: ${limit === Infinity ? 'unlimited' : limit})`)
     }
 
     // Store portfolio snapshot if metadata is provided
     let snapshotStored = false
     if (metadata && metadata.spotHoldings && metadata.totalPortfolioValue !== undefined) {
       try {
-        console.log(`📊 Storing portfolio snapshot...`)
 
         const { error: snapshotError } = await adminClient
           .from('portfolio_snapshots')
@@ -238,7 +227,6 @@ export async function POST(request) {
           // Don't fail the entire request, just log the error
         } else {
           snapshotStored = true
-          console.log(`✅ Portfolio snapshot stored: $${metadata.totalPortfolioValue?.toFixed(2)}, ${metadata.spotHoldings.length} holdings`)
         }
       } catch (snapshotErr) {
         console.error('⚠️  Error storing portfolio snapshot:', snapshotErr)

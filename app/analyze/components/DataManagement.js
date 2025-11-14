@@ -366,7 +366,6 @@ export default function DataManagement() {
             // Note: detectedExchange is ignored - user selects exchange manually
             confidence: detection.confidence || 0.8
           })
-          console.log('✅ Column mapping detected for parsing:', detection.mapping)
         } else {
           // If detection fails, still mark as ready - user can still upload
           // Parser will try traditional methods if no mapping
@@ -529,14 +528,6 @@ export default function DataManagement() {
         return
       }
 
-      console.log('📤 Uploading file:', {
-        filename: config.file.name,
-        size: config.file.size,
-        exchange,
-        accountType: config.accountType,
-        hasColumnMapping: !!config.columnMapping
-      })
-
       const formData = new FormData()
       formData.append('file', config.file)
       formData.append('exchange', exchange)
@@ -582,8 +573,6 @@ export default function DataManagement() {
         size: config.file.size,
         tradesCount: 0
       }
-
-      console.log('💾 Saving metadata:', metadataPayload)
 
       const metadataResponse = await fetch('/api/csv/save-metadata', {
         method: 'POST',

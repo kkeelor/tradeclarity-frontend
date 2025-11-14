@@ -18,7 +18,7 @@ import { analyzeDrawdowns } from '../utils/drawdownAnalysis'
 import { analyzeTimeBasedPerformance } from '../utils/timeBasedAnalysis'
 import { analyzeSymbols } from '../utils/symbolAnalysis'
 import { convertAnalyticsForDisplay } from '../utils/currencyFormatter'
-import { getCurrencyRates, convertCurrencySync } from '../utils/currencyConverter'
+import { getCurrencyRates, convertCurrencySync, setCurrency } from '../utils/currencyConverter'
 import { generateValueFirstInsights } from '../utils/insights/valueFirstInsights'
 import { prioritizeInsights, enhanceInsightForDisplay } from '../utils/insights/insightsPrioritizationEngine'
 import AhaMomentsSection from './AhaMomentsSection'
@@ -2606,18 +2606,6 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
             }
           })
           
-          // Debug logging
-          console.log('🔍 Realized P&L Breakdown Debug:', {
-            totalSpotPnL,
-            totalFuturesRealizedPnL,
-            totalRealizedPnL,
-            spotTradesByExchange,
-            futuresTradesByExchange,
-            tradesByExchangeSymbol,
-            totalSpotTrades,
-            totalFuturesTrades
-          })
-          
           // Distribute spot P&L proportionally by trade count
           Object.keys(breakdown).forEach(exchange => {
             const spotTrades = spotTradesByExchange[exchange] || 0
@@ -3698,6 +3686,50 @@ function SpotTab({ analytics, currSymbol, currency, metadata }) {
   const hasSpotData = analytics.spotTrades > 0
   const displayCurrency = currency || 'USD'
 
+  // Memoize converted holdings to avoid redundant conversions
+  // This pre-converts all holdings once instead of converting on-demand
+  const convertedHoldings = useMemo(() => {
+    if (!metadata?.spotHoldings || !Array.isArray(metadata.spotHoldings)) {
+      return []
+    }
+
+    if (displayCurrency === 'USD') {
+      // No conversion needed, just add display values
+      return metadata.spotHoldings.map(holding => ({
+        ...holding,
+        displayPrice: holding.price || 0,
+        displayValue: holding.usdValue || 0
+      }))
+    }
+
+    // Convert all holdings once
+    return metadata.spotHoldings.map(holding => {
+      const usdPrice = holding.price || 0
+      const usdValue = holding.usdValue || 0
+      
+      const convertedPrice = convertCurrencySync(usdPrice, 'USD', displayCurrency)
+      const convertedValue = convertCurrencySync(usdValue, 'USD', displayCurrency)
+      
+      return {
+        ...holding,
+        displayPrice: (typeof convertedPrice === 'number' && !isNaN(convertedPrice)) ? convertedPrice : usdPrice,
+        displayValue: (typeof convertedValue === 'number' && !isNaN(convertedValue)) ? convertedValue : usdValue
+      }
+    })
+  }, [metadata?.spotHoldings, displayCurrency])
+
+  // Memoize threshold conversion
+  const minValueThreshold = useMemo(() => {
+    if (displayCurrency === 'USD') {
+      return 0.01
+    }
+    const thresholdConverted = convertCurrencySync(0.01, 'USD', displayCurrency)
+    if (typeof thresholdConverted === 'number' && !isNaN(thresholdConverted) && isFinite(thresholdConverted)) {
+      return thresholdConverted
+    }
+    return 0.01
+  }, [displayCurrency])
+
   if (!hasSpotData) {
     return (
       <EmptyState
@@ -3742,41 +3774,20 @@ function SpotTab({ analytics, currSymbol, currency, metadata }) {
       </div>
 
       {/* Current Holdings - Compact */}
-      {metadata?.spotHoldings && metadata.spotHoldings.length > 0 && (() => {
-        // FIXED: Filter dust holdings (< $0.01 USD) to reduce clutter
-        // Convert 0.01 USD to selected currency for threshold
-        // This will update when displayCurrency changes
-        let minValueThreshold = 0.01 // $0.01 USD minimum to filter dust
-        if (displayCurrency !== 'USD') {
-          const thresholdConverted = convertCurrencySync(0.01, 'USD', displayCurrency)
-          if (typeof thresholdConverted === 'number' && !isNaN(thresholdConverted) && isFinite(thresholdConverted)) {
-            minValueThreshold = thresholdConverted
-          }
-        }
-        
-        // Helper function to get display value (matches Value column calculation)
-        // This ensures consistency with what's displayed
-        const getDisplayValue = (holding) => {
-          const usdValue = holding.usdValue || 0
-          const converted = convertCurrencySync(usdValue, 'USD', displayCurrency)
-          // Fallback to USD value if conversion fails
-          return converted !== null && converted !== undefined && !isNaN(converted) ? converted : usdValue
-        }
-        
+      {convertedHoldings.length > 0 && (() => {
         // Filter holdings based on toggle state
-        // Uses the same Value column calculation for consistency
-        const filteredHoldings = metadata.spotHoldings.filter(holding => {
-          const displayValue = getDisplayValue(holding)
-          
+        // Uses pre-converted display values (no conversion calls here)
+        const filteredHoldings = convertedHoldings.filter(holding => {
           // If toggle is OFF (default), hide low balances
           if (!showLowBalances) {
-            return displayValue >= minValueThreshold
+            return holding.displayValue >= minValueThreshold
           }
           // If toggle is ON, show all holdings
           return true
         })
         
         // Sort holdings based on selected sort option
+        // Uses pre-converted display values (no conversion calls here)
         const sortedHoldings = [...filteredHoldings].sort((a, b) => {
           let comparison = 0
           
@@ -3796,15 +3807,13 @@ function SpotTab({ analytics, currSymbol, currency, metadata }) {
               break
               
             case 'price':
-              comparison = (a.price || 0) - (b.price || 0)
+              comparison = (a.displayPrice || 0) - (b.displayPrice || 0)
               break
               
             case 'value':
             default:
-              // Sort by display value (converted to display currency)
-              const valueA = getDisplayValue(a)
-              const valueB = getDisplayValue(b)
-              comparison = valueA - valueB
+              // Sort by pre-converted display value
+              comparison = (a.displayValue || 0) - (b.displayValue || 0)
               break
           }
           
@@ -3815,14 +3824,13 @@ function SpotTab({ analytics, currSymbol, currency, metadata }) {
         const displayedHoldings = showAllHoldings ? sortedHoldings : sortedHoldings.slice(0, 5)
         const hasMore = sortedHoldings.length > 5
         
-        // Calculate total value of filtered holdings
-        const totalFilteredValue = filteredHoldings.reduce((sum, holding) => sum + (holding.usdValue || 0), 0)
+        // Calculate total value of filtered holdings (in display currency)
+        const totalFilteredValue = filteredHoldings.reduce((sum, holding) => sum + (holding.displayValue || 0), 0)
         
         // Count low balance holdings based on Value column (display currency)
-        // This recalculates when displayCurrency changes
-        const lowBalanceCount = metadata.spotHoldings.filter(holding => {
-          const displayValue = getDisplayValue(holding)
-          return displayValue < minValueThreshold
+        // Uses pre-converted values (no conversion calls here)
+        const lowBalanceCount = convertedHoldings.filter(holding => {
+          return holding.displayValue < minValueThreshold
         }).length
 
         return (
@@ -3974,10 +3982,10 @@ function SpotTab({ analytics, currSymbol, currency, metadata }) {
                           {formatNumber(holding.quantity || 0, 4)} <span className="text-slate-500 font-semibold">{holding.asset}</span>
                         </td>
                         <td className="px-2 py-2 text-right font-mono text-slate-400 whitespace-nowrap">
-                          {currSymbol}{formatNumber(convertCurrencySync(holding.price || 0, 'USD', displayCurrency) || holding.price || 0, 2, displayCurrency)} <span className="text-[9px] text-slate-500">{displayCurrency}</span>
+                          {currSymbol}{formatNumber(holding.displayPrice || 0, 2, displayCurrency)} <span className="text-[9px] text-slate-500">{displayCurrency}</span>
                         </td>
                         <td className="px-2 py-2 text-right font-bold text-emerald-400 whitespace-nowrap">
-                          {currSymbol}{formatNumber(convertCurrencySync(holding.usdValue || 0, 'USD', displayCurrency) || holding.usdValue || 0, 2, displayCurrency)} <span className="text-[9px] text-slate-400 font-normal">{displayCurrency}</span>
+                          {currSymbol}{formatNumber(holding.displayValue || 0, 2, displayCurrency)} <span className="text-[9px] text-slate-400 font-normal">{displayCurrency}</span>
                         </td>
                       </tr>
                     )
@@ -3987,7 +3995,7 @@ function SpotTab({ analytics, currSymbol, currency, metadata }) {
                   <tr className="font-bold">
                     <td className="px-2 py-2" colSpan="3">Total</td>
                     <td className="px-2 py-2 text-right text-emerald-400 whitespace-nowrap">
-                      {currSymbol}{formatNumber(convertCurrencySync(totalFilteredValue, 'USD', displayCurrency) || totalFilteredValue, 2)} <span className="text-[9px] text-slate-400 font-normal">{displayCurrency}</span>
+                      {currSymbol}{formatNumber(totalFilteredValue, 2, displayCurrency)} <span className="text-[9px] text-slate-400 font-normal">{displayCurrency}</span>
                     </td>
                   </tr>
                 </tfoot>
@@ -4348,40 +4356,14 @@ function FuturesTab({ analytics, currSymbol, currency, metadata }) {
     
     // First, try metadata.futuresIncome (raw data from fetch)
     if (Array.isArray(metadata?.futuresIncome) && metadata.futuresIncome.length > 0) {
-      console.log('?? Using metadata.futuresIncome:', metadata.futuresIncome.length, 'records')
       incomeRecords = metadata.futuresIncome
     } else if (Array.isArray(analytics?.futuresIncome) && analytics.futuresIncome.length > 0) {
-      console.log('?? Using analytics.futuresIncome:', analytics.futuresIncome.length, 'records')
       incomeRecords = analytics.futuresIncome
     } else if (Array.isArray(analytics.allTrades)) {
       // Extract futures trades from normalized allTrades array
       // Futures trades in allTrades have: type: 'futures', incomeType: 'REALIZED_PNL', realizedPnl, symbol, timestamp
       const futuresTrades = analytics.allTrades.filter(trade => trade.type === 'futures' && trade.incomeType === 'REALIZED_PNL')
       
-      console.log('?? Futures trades found in allTrades:', futuresTrades.length, 'out of', analytics.allTrades.length, 'total trades')
-      if (futuresTrades.length > 0) {
-        const pnlValues = futuresTrades.map(t => t.realizedPnl || t.pnl || 0)
-        const nonZeroCount = pnlValues.filter(p => Math.abs(p) > 0.0001).length
-        const zeroCount = pnlValues.filter(p => Math.abs(p) <= 0.0001).length
-        console.log(`?? PnL in allTrades: ${nonZeroCount} non-zero, ${zeroCount} zero`)
-        console.log('?? Sample futures trade:', {
-          symbol: futuresTrades[0].symbol,
-          realizedPnl: futuresTrades[0].realizedPnl,
-          pnl: futuresTrades[0].pnl,
-          incomeType: futuresTrades[0].incomeType,
-          timestamp: futuresTrades[0].timestamp
-        })
-        if (nonZeroCount > 0) {
-          const nonZeroTrades = futuresTrades.filter(t => Math.abs(t.realizedPnl || t.pnl || 0) > 0.0001)
-          console.log('?? Sample NON-ZERO trade:', {
-            symbol: nonZeroTrades[0].symbol,
-            realizedPnl: nonZeroTrades[0].realizedPnl,
-            pnl: nonZeroTrades[0].pnl
-          })
-        } else {
-          console.warn('?? ALL trades have zero realizedPnl! Checking first 3:', futuresTrades.slice(0, 3).map(t => ({ symbol: t.symbol, realizedPnl: t.realizedPnl, pnl: t.pnl, allKeys: Object.keys(t) })))
-        }
-      }
       
       incomeRecords = futuresTrades.map(trade => ({
         symbol: trade.symbol,
@@ -4394,8 +4376,6 @@ function FuturesTab({ analytics, currSymbol, currency, metadata }) {
         id: trade.id
       }))
     }
-    
-    console.log('?? Total income records to process:', incomeRecords.length)
     
     // Filter for REALIZED_PNL entries only
     const realizedTrades = incomeRecords
@@ -4419,29 +4399,6 @@ function FuturesTab({ analytics, currSymbol, currency, metadata }) {
         }
       })
       .sort((a, b) => a.pnl - b.pnl) // Sort by worst PnL first
-    
-    console.log('? Final realized trades:', realizedTrades.length)
-    if (realizedTrades.length > 0) {
-      const pnlValues = realizedTrades.map(t => t.pnl)
-      const nonZeroCount = pnlValues.filter(p => Math.abs(p) > 0.0001).length
-      const zeroCount = pnlValues.filter(p => Math.abs(p) <= 0.0001).length
-      console.log(`?? Final PnL distribution: ${nonZeroCount} non-zero, ${zeroCount} zero`)
-      console.log('?? Sample realized trade:', {
-        symbol: realizedTrades[0].symbol,
-        pnl: realizedTrades[0].pnl,
-        time: realizedTrades[0].time
-      })
-      if (nonZeroCount > 0) {
-        const nonZeroTrades = realizedTrades.filter(t => Math.abs(t.pnl) > 0.0001)
-        console.log('?? Sample NON-ZERO final trade:', {
-          symbol: nonZeroTrades[0].symbol,
-          pnl: nonZeroTrades[0].pnl
-        })
-      } else {
-        console.warn('?? WARNING: ALL final trades have zero PnL!')
-        console.log('?? First 5 trades:', realizedTrades.slice(0, 5).map(t => ({ symbol: t.symbol, pnl: t.pnl })))
-      }
-    }
     
     return realizedTrades
   })()
@@ -6015,11 +5972,15 @@ export default function AnalyticsView({
   const [appliedExchanges, setAppliedExchanges] = useState([]) // Track what's currently applied
 
   // Ensure currency rates are cached when currency changes
+  // Also update currency tracker to clear conversion cache when currency changes
   useEffect(() => {
-    if (currency && currency !== 'USD') {
-      getCurrencyRates().catch(err => {
-        console.warn('?? Could not fetch currency rates:', err.message)
-      })
+    if (currency) {
+      setCurrency(currency) // Clear conversion cache when currency changes
+      if (currency !== 'USD') {
+        getCurrencyRates().catch(err => {
+          console.warn('?? Could not fetch currency rates:', err.message)
+        })
+      }
     }
   }, [currency])
 
@@ -6027,17 +5988,8 @@ export default function AnalyticsView({
   const convertedAnalytics = useMemo(() => {
     if (!analytics) return null
     
-    console.log('?? Converting analytics for currency:', currency)
+    // Convert analytics (uses cached conversions internally)
     const converted = convertAnalyticsForDisplay(analytics, currency)
-    
-    // Debug: Log a sample conversion to verify it's working
-    if (converted && analytics.totalPnL !== undefined) {
-      console.log('?? Sample conversion:', {
-        original: analytics.totalPnL,
-        converted: converted.totalPnL,
-        currency
-      })
-    }
     
     return converted
   }, [analytics, currency])
@@ -6212,7 +6164,6 @@ export default function AnalyticsView({
                   <button
                     onClick={() => {
                       setAppliedExchanges(selectedExchanges)
-                      console.log('?? Applying exchange filter:', selectedExchanges)
                       if (onFilterExchanges && selectedExchanges.length > 0) {
                         onFilterExchanges(selectedExchanges)
                       }

@@ -50,18 +50,8 @@ export async function POST(request) {
     if (columnMappingStr) {
       try {
         const columnMapping = JSON.parse(columnMappingStr)
-        console.log('🤖 AI Mapping received:', JSON.stringify(columnMapping, null, 2))
-        console.log('📊 CSV has', lines.length, 'lines total')
-        console.log('📋 CSV headers:', lines[0])
 
         const result = parseWithAIMapping(lines, columnMapping, accountType)
-
-        console.log('✅ AI Parse result:', {
-          success: result.success,
-          spotTrades: result.spotTrades?.length || 0,
-          futuresIncome: result.futuresIncome?.length || 0,
-          totalRows: result.totalRows
-        })
 
         if (!result.success) {
           console.error('❌ AI parse failed:', result.error)
@@ -242,10 +232,6 @@ function parseBinanceFutures(lines) {
 
     const futuresIncome = []
 
-    console.log('📋 Parsing Binance Futures CSV:')
-    console.log('   Headers:', header)
-    console.log('   Total rows:', lines.length - 1)
-
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i].trim()
       if (!line) continue
@@ -279,28 +265,6 @@ function parseBinanceFutures(lines) {
         tranId: `csv_${timestamp}_${Math.random()}`,
         id: `csv_${timestamp}_${Math.random()}`
       })
-    }
-
-    console.log(`✅ Parsed ${futuresIncome.length} futures income records`)
-    if (futuresIncome.length > 0) {
-      const sampleIncome = futuresIncome.slice(0, 5)
-      console.log('📊 Sample parsed income (first 5):', sampleIncome.map(inc => ({
-        symbol: inc.symbol,
-        income: inc.income,
-        incomeType: inc.incomeType,
-        asset: inc.asset
-      })))
-      const incomeValues = futuresIncome.map(inc => parseFloat(inc.income))
-      const nonZeroCount = incomeValues.filter(v => Math.abs(v) > 0.0001).length
-      console.log(`📊 Income values: ${nonZeroCount} non-zero out of ${futuresIncome.length} total`)
-      if (nonZeroCount > 0) {
-        const nonZeroIncomes = incomeValues.filter(v => Math.abs(v) > 0.0001)
-        console.log('📊 Income range:', {
-          min: Math.min(...nonZeroIncomes),
-          max: Math.max(...nonZeroIncomes),
-          avg: nonZeroIncomes.reduce((a, b) => a + b, 0) / nonZeroIncomes.length
-        })
-      }
     }
 
     return {
@@ -418,14 +382,8 @@ function parseWithAIMapping(lines, mapping, accountType) {
   try {
     const header = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
 
-    console.log('🤖 parseWithAIMapping called')
-    console.log('📋 Headers:', header)
-    console.log('🗺️ Mapping:', JSON.stringify(mapping, null, 2))
-    console.log('📦 Account Type:', accountType)
-
     // Determine if this is spot or futures based on mapping
     const isFutures = accountType === 'FUTURES' || mapping.positionSide || mapping.realizedPnl
-    console.log('💱 Detected as:', isFutures ? 'FUTURES' : 'SPOT')
 
     const spotTrades = []
     const futuresIncome = []
@@ -439,10 +397,6 @@ function parseWithAIMapping(lines, mapping, accountType) {
       }
 
       const values = parseCSVLine(line)
-
-      if (i === 1) {
-        console.log('📝 First data row values:', values)
-      }
 
       // Helper to get value by mapped column
       const getValue = (field) => {
@@ -460,10 +414,6 @@ function parseWithAIMapping(lines, mapping, accountType) {
       const price = parseFloat(getValue('price') || 0)
       const quantity = parseFloat(getValue('quantity') || 0)
       const fee = parseFloat(getValue('fee') || 0)
-
-      if (i === 1) {
-        console.log('🔍 Extracted values:', { symbol, side, timestamp, price, quantity, fee })
-      }
 
       if (!symbol || !timestamp) {
         if (i === 1) {
@@ -522,18 +472,6 @@ function parseWithAIMapping(lines, mapping, accountType) {
           continue
         }
 
-        if (i <= 3) {
-          console.log(`📊 AI Futures Row ${i}:`, {
-            symbol,
-            realizedPnl,
-            incomeRaw,
-            income,
-            price,
-            quantity,
-            mapping: mapping.mapping || mapping
-          })
-        }
-
         futuresIncome.push({
           symbol: symbol,
           income: String(income),
@@ -560,26 +498,6 @@ function parseWithAIMapping(lines, mapping, accountType) {
           isMaker: false, // Can't determine from basic CSV
           orderId: `csv_ai_${timestampMs}_${Math.random()}`,
           id: `csv_ai_${timestampMs}_${Math.random()}`
-        })
-      }
-    }
-
-    console.log('📊 Parse complete:')
-    console.log('   - Total lines processed:', lines.length - 1)
-    console.log('   - Skipped rows:', skippedRows)
-    console.log('   - Spot trades:', spotTrades.length)
-    console.log('   - Futures income:', futuresIncome.length)
-    
-    if (futuresIncome.length > 0) {
-      const incomeValues = futuresIncome.map(inc => parseFloat(inc.income))
-      const nonZeroCount = incomeValues.filter(v => Math.abs(v) > 0.0001).length
-      console.log(`   - Futures income: ${nonZeroCount} non-zero out of ${futuresIncome.length} total`)
-      if (nonZeroCount > 0) {
-        const nonZeroIncomes = incomeValues.filter(v => Math.abs(v) > 0.0001)
-        console.log('   - Income range:', {
-          min: Math.min(...nonZeroIncomes),
-          max: Math.max(...nonZeroIncomes),
-          avg: nonZeroIncomes.reduce((a, b) => a + b, 0) / nonZeroIncomes.length
         })
       }
     }
