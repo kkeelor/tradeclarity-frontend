@@ -36,9 +36,15 @@ export async function POST(request) {
     }
 
     // Add exchange field if provided (for "Other" exchanges)
-    if (normalizedExchange) {
+    // Only set exchange if exchangeConnectionId is not set (to avoid conflicts)
+    if (normalizedExchange && !exchangeConnectionId) {
+      insertData.exchange = normalizedExchange
+    } else if (normalizedExchange && exchangeConnectionId) {
+      // If both are set, prefer exchangeConnectionId but also set exchange for reference
       insertData.exchange = normalizedExchange
     }
+
+    console.log('💾 Attempting to insert CSV metadata:', JSON.stringify(insertData, null, 2))
 
     const { data, error: insertError } = await supabase
       .from('csv_uploads')
@@ -47,9 +53,27 @@ export async function POST(request) {
       .single()
 
     if (insertError) {
-      console.error('Error saving CSV metadata:', insertError)
+      console.error('❌ Error saving CSV metadata:', JSON.stringify(insertError, null, 2))
+      console.error('❌ Error details:', {
+        message: insertError.message,
+        details: insertError.details,
+        hint: insertError.hint,
+        code: insertError.code,
+        fullError: insertError
+      })
+      
+      // Return more detailed error information
+      const errorDetails = insertError.details || insertError.message || insertError.hint || 'Unknown database error'
+      const errorCode = insertError.code || 'UNKNOWN'
+      
       return NextResponse.json(
-        { error: 'Failed to save CSV metadata' },
+        { 
+          success: false,
+          error: 'Failed to save CSV metadata',
+          details: errorDetails,
+          code: errorCode,
+          hint: insertError.hint || null
+        },
         { status: 500 }
       )
     }
@@ -59,9 +83,13 @@ export async function POST(request) {
       file: data
     })
   } catch (error) {
-    console.error('Save CSV metadata error:', error)
+    console.error('❌ Save CSV metadata error:', error)
+    console.error('❌ Error stack:', error.stack)
     return NextResponse.json(
-      { error: 'Failed to save CSV metadata' },
+      { 
+        error: 'Failed to save CSV metadata',
+        details: error.message || 'Unknown error'
+      },
       { status: 500 }
     )
   }

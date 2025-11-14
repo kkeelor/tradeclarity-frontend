@@ -55,6 +55,8 @@ export default function DataManagement() {
   const [updatingExchange, setUpdatingExchange] = useState(null)
   const [isUpdatingKeys, setIsUpdatingKeys] = useState(false)
   const [showConnectModal, setShowConnectModal] = useState(false)
+  const [preSelectedExchangeId, setPreSelectedExchangeId] = useState(null)
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     fetchConnectedExchanges()
@@ -255,6 +257,21 @@ export default function DataManagement() {
     setShowUpdateKeysModal(true)
   }
 
+  const handleUploadTradeData = (exchange) => {
+    // Set the pre-selected exchange ID
+    setPreSelectedExchangeId(exchange.id)
+    // Trigger file input click
+    if (fileInputRef.current) {
+      fileInputRef.current.click()
+    } else {
+      // Fallback: find the file input by ID
+      const fileInput = document.getElementById('file-upload')
+      if (fileInput) {
+        fileInput.click()
+      }
+    }
+  }
+
   const handleUpdateKeysConfirm = async (apiKey, apiSecret) => {
     if (!updatingExchange) return
 
@@ -309,12 +326,12 @@ export default function DataManagement() {
         id: Date.now() + Math.random(),
         file: file,
         label: '',
-        exchangeConnectionId: null, // No auto-selection - user must choose
+        exchangeConnectionId: preSelectedExchangeId || null, // Pre-select if provided
         useOtherExchange: false, // Explicitly set to false
         accountType: 'BOTH',
-        status: 'detecting',
+        status: 'ready', // Set to ready immediately - no detection
         message: '',
-        progress: 'Analyzing CSV format...',
+        progress: '',
         warning: warning,
         tradesCount: null,
         duplicatesCount: null,
@@ -326,6 +343,7 @@ export default function DataManagement() {
 
       setFileConfigs(prev => [...prev, newConfig])
 
+      // Get column mapping from AI (for parsing) - user will manually select exchange
       try {
         const preview = await readCSVPreview(file)
         const response = await fetch('/api/csv/detect-columns', {
@@ -339,36 +357,40 @@ export default function DataManagement() {
 
         const detection = await response.json()
 
-        if (response.ok && detection.confidence >= 0.7) {
+        if (response.ok && detection.mapping) {
+          // Use AI mapping for parsing (ignore detectedExchange - user selects manually)
           updateConfig(newConfig.id, {
             status: 'ready',
             progress: '',
-            columnMapping: detection.mapping,
-            detectedExchange: detection.detectedExchange,
-            detectedType: detection.detectedType,
-            confidence: detection.confidence,
-            message: `? ${detection.detectedExchange || 'Format'} detected (${Math.round(detection.confidence * 100)}% confidence)`
+            columnMapping: detection.mapping, // This is what we need for AI parsing
+            // Note: detectedExchange is ignored - user selects exchange manually
+            confidence: detection.confidence || 0.8
           })
-          toast.success(
-            `Format detected: ${detection.detectedExchange || 'Unknown'} (${Math.round(detection.confidence * 100)}% confidence)`,
-            { duration: 3000 }
-          )
+          console.log('✅ Column mapping detected for parsing:', detection.mapping)
         } else {
+          // If detection fails, still mark as ready - user can still upload
+          // Parser will try traditional methods if no mapping
           updateConfig(newConfig.id, {
             status: 'ready',
             progress: '',
-            warning: 'Auto-detection uncertain. Fallback to manual selection.',
+            warning: 'Column mapping detection failed. Will attempt standard parsing.',
             confidence: detection.confidence || 0
           })
         }
       } catch (error) {
-        console.error('AI detection error:', error)
+        console.error('AI column mapping error:', error)
+        // Still mark as ready - user can upload, parser will try traditional methods
         updateConfig(newConfig.id, {
           status: 'ready',
           progress: '',
-          warning: 'Auto-detection failed. Using traditional parser.'
+          warning: 'Column mapping detection unavailable. Will attempt standard parsing.'
         })
       }
+    }
+    
+    // Reset pre-selected exchange after all files are processed
+    if (preSelectedExchangeId) {
+      setPreSelectedExchangeId(null)
     }
   }
 
@@ -412,6 +434,21 @@ export default function DataManagement() {
   }
 
   const handleUploadAll = async () => {
+    // Validate all files have exchange selected before uploading
+    const invalidFiles = fileConfigs.filter(config => {
+      if (config.status !== 'ready') return false
+      const hasExchange = config.exchangeConnectionId || (config.useOtherExchange && config.customExchangeName?.trim())
+      return !hasExchange
+    })
+
+    if (invalidFiles.length > 0) {
+      toast.error('Exchange Required', {
+        description: `Please select an exchange for ${invalidFiles.length} file(s) before uploading.`,
+        duration: 5000
+      })
+      return
+    }
+
     for (const config of fileConfigs) {
       if (config.status !== 'ready') continue
       await processFile(config)
@@ -426,9 +463,79 @@ export default function DataManagement() {
         progress: config.columnMapping ? 'Parsing with AI mapping...' : 'Parsing CSV...'
       })
 
-      let exchange = config.exchangeConnectionId
-        ? connectedExchanges.find(e => e.id === config.exchangeConnectionId)?.exchange
-        : (config.detectedExchange?.toLowerCase() || 'binance')
+      // Determine exchange - prioritize connection, then other exchange name
+      let exchange = null
+      if (config.exchangeConnectionId) {
+        const foundExchange = connectedExchanges.find(e => e.id === config.exchangeConnectionId)
+        if (foundExchange) {
+          exchange = foundExchange.exchange
+        } else {
+          console.warn('⚠️ Exchange connection not found:', config.exchangeConnectionId)
+        }
+      }
+      
+      if (!exchange && config.useOtherExchange && config.customExchangeName) {
+        exchange = config.customExchangeName.toLowerCase().trim()
+      }
+      
+      // Validate exchange is selected
+      if (!exchange || exchange.trim() === '') {
+        const errorMsg = 'Please select an exchange before uploading'
+        updateConfig(configId, {
+          status: 'error',
+          message: errorMsg
+        })
+        toast.error('Exchange Required', { description: errorMsg })
+        return
+      }
+
+      // Validate accountType
+      const validAccountTypes = ['BOTH', 'SPOT', 'FUTURES']
+      if (!validAccountTypes.includes(config.accountType)) {
+        const errorMsg = `Invalid account type: ${config.accountType}. Must be one of: ${validAccountTypes.join(', ')}`
+        updateConfig(configId, {
+          status: 'error',
+          message: errorMsg
+        })
+        toast.error('Invalid Account Type', { description: errorMsg })
+        return
+      }
+
+      // Validate file exists
+      if (!config.file) {
+        const errorMsg = 'File is missing'
+        updateConfig(configId, {
+          status: 'error',
+          message: errorMsg
+        })
+        toast.error('File Error', { description: errorMsg })
+        return
+      }
+
+      // Check if exchange is supported by parser
+      const supportedExchanges = ['binance', 'coindcx']
+      const isSupportedExchange = supportedExchanges.includes(exchange.toLowerCase())
+      
+      if (!isSupportedExchange) {
+        const errorMsg = `Exchange "${exchange}" is not directly supported. Please use Binance or CoinDCX format, or contact support.`
+        updateConfig(configId, {
+          status: 'error',
+          message: errorMsg
+        })
+        toast.error('Unsupported Exchange', { 
+          description: errorMsg,
+          duration: 6000
+        })
+        return
+      }
+
+      console.log('📤 Uploading file:', {
+        filename: config.file.name,
+        size: config.file.size,
+        exchange,
+        accountType: config.accountType,
+        hasColumnMapping: !!config.columnMapping
+      })
 
       const formData = new FormData()
       formData.append('file', config.file)
@@ -446,7 +553,12 @@ export default function DataManagement() {
       const parseData = await parseResponse.json()
 
       if (!parseResponse.ok || !parseData.success) {
-        const errorMsg = parseData.error || 'Failed to parse CSV'
+        const errorMsg = parseData.error || `Failed to parse CSV (${parseResponse.status})`
+        console.error('❌ Parse error:', {
+          status: parseResponse.status,
+          error: parseData.error,
+          data: parseData
+        })
         updateConfig(configId, {
           status: 'error',
           message: errorMsg
@@ -461,29 +573,45 @@ export default function DataManagement() {
         progress: 'Creating CSV record...'
       })
 
+      const metadataPayload = {
+        filename: config.file.name,
+        label: config.label || null,
+        accountType: config.accountType,
+        exchangeConnectionId: config.exchangeConnectionId || null,
+        exchange: exchange, // Include exchange name (normalized)
+        size: config.file.size,
+        tradesCount: 0
+      }
+
+      console.log('💾 Saving metadata:', metadataPayload)
+
       const metadataResponse = await fetch('/api/csv/save-metadata', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          filename: config.file.name,
-          label: config.label || null,
-          accountType: config.accountType,
-          exchangeConnectionId: config.exchangeConnectionId || null,
-          exchange: exchange, // Include exchange name (normalized)
-          size: config.file.size,
-          tradesCount: 0
-        })
+        body: JSON.stringify(metadataPayload)
       })
 
       const metadataData = await metadataResponse.json()
 
       if (!metadataResponse.ok || !metadataData.success) {
-        const errorMsg = 'Failed to save CSV metadata'
+        const errorMsg = metadataData.details || metadataData.error || `Failed to save CSV metadata (${metadataResponse.status})`
+        console.error('❌ Metadata save error - FULL RESPONSE:', JSON.stringify(metadataData, null, 2))
+        console.error('❌ Metadata save error:', {
+          status: metadataResponse.status,
+          error: metadataData.error,
+          details: metadataData.details,
+          code: metadataData.code,
+          hint: metadataData.hint,
+          fullData: metadataData
+        })
         updateConfig(configId, {
           status: 'error',
           message: errorMsg
         })
-        toast.error('Upload Error', { description: errorMsg })
+        toast.error('Upload Error', { 
+          description: errorMsg,
+          duration: 8000
+        })
         return
       }
 
@@ -593,8 +721,15 @@ export default function DataManagement() {
       }
 
     } catch (error) {
-      console.error('Error processing file:', error)
-      const errorMsg = 'Failed to process file. Please try again.'
+      console.error('❌ Error processing file:', error)
+      console.error('Error stack:', error.stack)
+      console.error('Config:', {
+        id: configId,
+        filename: config.file?.name,
+        exchange: config.exchangeConnectionId || (config.useOtherExchange ? config.customExchangeName : null),
+        accountType: config.accountType
+      })
+      const errorMsg = error.message || 'Failed to process file. Please try again.'
       updateConfig(configId, {
         status: 'error',
         message: errorMsg
@@ -739,14 +874,23 @@ export default function DataManagement() {
                         </div>
                       )}
                       
-                      {/* Update Keys Button */}
-                      <button
-                        onClick={() => handleUpdateKeys(exchange)}
-                        className="w-full px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 rounded-lg text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-all inline-flex items-center justify-center gap-2"
-                      >
-                        <KeyRound className="w-3.5 h-3.5" />
-                        Update API Keys
-                      </button>
+                      {/* Action Buttons */}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleUpdateKeys(exchange)}
+                          className="flex-1 px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 rounded-lg text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-all inline-flex items-center justify-center gap-2"
+                        >
+                          <KeyRound className="w-3.5 h-3.5" />
+                          Update Keys
+                        </button>
+                        <button
+                          onClick={() => handleUploadTradeData(exchange)}
+                          className="flex-1 px-3 py-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 hover:border-blue-500/50 rounded-lg text-xs font-semibold text-blue-400 hover:text-blue-300 transition-all inline-flex items-center justify-center gap-2"
+                        >
+                          <Upload className="w-3.5 h-3.5" />
+                          Upload Data
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -829,10 +973,15 @@ export default function DataManagement() {
                   Max 10MB per file ? CSV format only
                 </p>
                 <input
+                  ref={fileInputRef}
                   type="file"
                   multiple
                   accept=".csv"
-                  onChange={(e) => handleFileSelect(e.target.files)}
+                  onChange={(e) => {
+                    handleFileSelect(e.target.files)
+                    // Reset input so same file can be selected again
+                    e.target.value = ''
+                  }}
                   className="hidden"
                   id="file-upload"
                 />
@@ -879,6 +1028,39 @@ export default function DataManagement() {
                     getStatusColor={getStatusColor}
                   />
                 ))}
+
+                {/* Add Another File Button */}
+                <div className="flex items-center justify-center pt-2">
+                  <button
+                    onClick={() => {
+                      if (fileInputRef.current) {
+                        fileInputRef.current.click()
+                      } else {
+                        const fileInput = document.getElementById('file-upload')
+                        if (fileInput) {
+                          fileInput.click()
+                        }
+                      }
+                    }}
+                    className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-slate-200 border border-slate-700/50 hover:border-slate-600/70 rounded-lg transition-all inline-flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Another File
+                  </button>
+                </div>
+
+                {/* Upload All Button at Bottom */}
+                {hasReadyFiles && (
+                  <div className="flex justify-center pt-4 border-t border-slate-700/50">
+                    <button
+                      onClick={handleUploadAll}
+                      className="group px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 rounded-xl text-sm font-semibold transition-all shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-105 inline-flex items-center gap-2"
+                    >
+                      <Upload className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                      Upload All Files ({fileConfigs.filter(c => c.status === 'ready').length})
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
