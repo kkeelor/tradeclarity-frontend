@@ -300,6 +300,83 @@ export default function AnalyticsContent() {
   const [progress, setProgress] = useState('Fetching your trading data...')
   const hasLoadedRef = useRef(false) // Track if we've already loaded data to prevent double-loading
   const [activeTabFromUrl, setActiveTabFromUrl] = useState('overview')
+  const previousUserIdRef = useRef(null) // Track user ID changes
+
+  // Handle OAuth errors that redirect directly to /analyze (bypassing callback route)
+  useEffect(() => {
+    const error = searchParams.get('error')
+    const errorCode = searchParams.get('error_code')
+    const errorDescription = searchParams.get('error_description')
+    
+    if (error === 'server_error' && errorDescription?.toLowerCase().includes('database')) {
+      console.log('⚠️ OAuth database error detected in URL, checking if user is authenticated...')
+      
+      // Check if user is authenticated despite the error
+      // The auth user might exist even if users table record creation failed
+      const checkAuth = async () => {
+        try {
+          const { supabase } = await import('@/lib/supabase')
+          const { data: { session } } = await supabase.auth.getSession()
+          
+          if (session?.user) {
+            console.log('✅ User is authenticated despite database error. User ID:', session.user.id)
+            
+            // Try to create user record
+            try {
+              const { error: insertError } = await supabase
+                .from('users')
+                .insert({
+                  id: session.user.id,
+                  email: session.user.email,
+                  name: session.user.user_metadata?.full_name || 
+                        session.user.user_metadata?.name || 
+                        session.user.email?.split('@')[0],
+                  google_id: session.user.user_metadata?.sub,
+                  auth_provider: 'google',
+                  email_verified: true,
+                  last_login: new Date().toISOString()
+                })
+                .select()
+                .single()
+              
+              if (insertError) {
+                // Check if it's a duplicate (already exists)
+                if (insertError.code === '23505' || insertError.message?.includes('duplicate')) {
+                  console.log('ℹ️ User record already exists, updating last_login...')
+                  await supabase
+                    .from('users')
+                    .update({ last_login: new Date().toISOString() })
+                    .eq('id', session.user.id)
+                } else {
+                  console.error('⚠️ Error creating user record:', insertError)
+                }
+              } else {
+                console.log('✅ User record created successfully')
+              }
+            } catch (userRecordError) {
+              console.error('⚠️ Error managing user record:', userRecordError)
+            }
+            
+            // Clear error params and redirect to dashboard
+            const newUrl = new URL(window.location.href)
+            newUrl.searchParams.delete('error')
+            newUrl.searchParams.delete('error_code')
+            newUrl.searchParams.delete('error_description')
+            newUrl.pathname = '/dashboard'
+            window.history.replaceState({}, '', newUrl.toString())
+            router.push('/dashboard')
+          } else {
+            console.log('❌ User is not authenticated. Database error prevented auth.')
+            // Keep error params to show error message
+          }
+        } catch (checkError) {
+          console.error('❌ Error checking authentication:', checkError)
+        }
+      }
+      
+      checkAuth()
+    }
+  }, [searchParams, router])
 
   // Watch for URL tab parameter changes
   useEffect(() => {
@@ -312,6 +389,14 @@ export default function AnalyticsContent() {
     }
   }, [searchParams])
 
+  // Reset load flag when user changes (sign out/in)
+  useEffect(() => {
+    if (previousUserIdRef.current !== null && previousUserIdRef.current !== user?.id) {
+      hasLoadedRef.current = false
+    }
+    previousUserIdRef.current = user?.id || null
+  }, [user?.id])
+
   // Load data on mount
   useEffect(() => {
     const loadData = async () => {
@@ -319,9 +404,23 @@ export default function AnalyticsContent() {
       if (hasLoadedRef.current) {
         return
       }
-      hasLoadedRef.current = true
 
       const demo = searchParams.get('demo')
+      
+      // Wait for authentication to complete before fetching data (skip for demo mode)
+      if (demo !== 'true') {
+        // Wait for auth loading to complete
+        if (authLoading) {
+          return
+        }
+        
+        // If not authenticated, don't try to fetch
+        if (!user) {
+          return
+        }
+      }
+      
+      hasLoadedRef.current = true
       
       if (demo === 'true') {
         // Demo mode
@@ -527,7 +626,7 @@ export default function AnalyticsContent() {
     }
 
     loadData()
-  }, [searchParams]) // Only depend on searchParams, not analytics (to prevent infinite loops)
+  }, [searchParams, authLoading, user]) // Re-run when auth state changes so we can fetch after sign-in
 
   // Handle filter changes (re-fetch with filters)
   const handleFilterExchanges = async (exchanges) => {
