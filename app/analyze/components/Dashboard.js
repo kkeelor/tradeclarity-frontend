@@ -1,7 +1,7 @@
 // app/analyze/components/Dashboard.js
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, LogOut, BarChart3, Sparkles, Database, CheckSquare, Square, Loader2, ChevronRight, Zap, Brain, Clock, DollarSign, PieChart, TrendingDown, Target, Lightbulb, LayoutDashboard, Tag, CreditCard, Crown, Infinity } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
@@ -13,6 +13,8 @@ import { prioritizeInsights, enhanceInsightForDisplay } from '../utils/insights/
 import { generateWhatsNextActions } from '../utils/insights/whatsNextActions'
 import MarketIndicators from './MarketIndicators'
 import TopHeadlines from './TopHeadlines'
+import NewsTicker from './NewsTicker'
+import EnhancedMarketInsights from './EnhancedMarketInsights'
 import { analyzeDrawdowns } from '../utils/drawdownAnalysis'
 import { analyzeTimeBasedPerformance } from '../utils/timeBasedAnalysis'
 import { analyzeSymbols } from '../utils/symbolAnalysis'
@@ -680,6 +682,25 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
     }
   }, [currentInsightIndex, allInsights.length])
 
+  // Helper function to get cached analytics data
+  const getCachedAnalytics = () => {
+    try {
+      const cached = sessionStorage.getItem('lastAnalytics')
+      if (!cached) return { analytics: null, psychology: null, allTrades: null }
+      const parsed = JSON.parse(cached)
+      return {
+        analytics: parsed.analytics || null,
+        psychology: parsed.psychology || null,
+        allTrades: parsed.allTrades || null
+      }
+    } catch (e) {
+      return { analytics: null, psychology: null, allTrades: null }
+    }
+  }
+
+  // Memoize cached analytics data
+  const cachedAnalyticsData = useMemo(() => getCachedAnalytics(), [])
+
   // Generate "What's Next" actions when tradesStats is available
   useEffect(() => {
     if (!tradesStats || tradesStats.totalTrades === 0) {
@@ -688,25 +709,12 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
     }
 
     // Try to get cached analytics data if available
-    const cachedAnalytics = sessionStorage.getItem('lastAnalytics')
-    let analyticsData = null
-    let psychologyData = null
-    let allTradesData = null
-
-    if (cachedAnalytics) {
-      try {
-        const parsed = JSON.parse(cachedAnalytics)
-        analyticsData = parsed.analytics || null
-        psychologyData = parsed.psychology || null
-        allTradesData = parsed.allTrades || null
-      } catch (e) {
-      }
-    }
+    const { analytics: analyticsData, psychology: psychologyData, allTrades: allTradesData } = cachedAnalyticsData
 
     // Generate actions (works with minimal data too)
     const actions = generateWhatsNextActions(analyticsData, psychologyData, allTradesData, tradesStats)
     setWhatsNextActions(actions)
-  }, [tradesStats])
+  }, [tradesStats, cachedAnalyticsData])
 
   const fetchConnectedExchanges = async () => {
     const startTime = Date.now()
@@ -1228,9 +1236,9 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
 
         {/* Main Content */}
         <main className="relative mx-auto w-full max-w-[1400px] px-4 sm:px-6 pb-16 pt-10 space-y-10">
-        {/* Greeting Section */}
-        <div className="flex items-center justify-between">
-          <div>
+        {/* Greeting Section with News Ticker */}
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-2xl md:text-3xl font-bold text-slate-100 tracking-tight">
                 {getGreeting()}{user?.user_metadata?.name ? `, ${user.user_metadata.name.split(' ')[0]}` : ''}
@@ -1261,22 +1269,27 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
               )}
             </p>
           </div>
+          
+          {/* News Ticker - Inline with greeting */}
+          <div className="flex-shrink-0 w-full md:w-[calc(50%-0.75rem)] lg:w-[calc(50%-1.5rem)]">
+            <NewsTicker />
+          </div>
         </div>
 
-
-            {/* Stats Overview & Smart Recommendations */}
-            {loadingStats ? (
-              <DashboardStatsSkeleton />
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 px-1">
+          {/* Stats Overview & Smart Recommendations */}
+          {loadingStats ? (
+            <DashboardStatsSkeleton />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 px-1">
                 {/* Trading Overview / Progress Bar Card / Connect Exchange Card */}
                 {subscription && subscription.tier !== 'pro' ? (
                   connectedExchanges.length > 0 ? (
-                    <div className="relative overflow-hidden rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-emerald-500/5 backdrop-blur p-5 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:border-white/10">
+                    <div className="relative overflow-hidden rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-emerald-500/5 backdrop-blur p-5 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:border-white/10 flex flex-col" style={{ maxHeight: '500px' }}>
                       <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10" />
                       <div className="absolute -top-24 -right-20 w-72 h-72 bg-emerald-500/20 blur-3xl rounded-full opacity-50" />
-                      <div className="relative">
-                        <h3 className="text-xs font-semibold text-slate-300 mb-4 uppercase tracking-wider">Your Trading Overview</h3>
+                      <div className="relative flex-1 flex flex-col overflow-hidden">
+                        <h3 className="text-xs font-semibold text-slate-300 mb-4 uppercase tracking-wider flex-shrink-0">Your Trading Overview</h3>
+                        <div className="flex-1 overflow-y-auto min-h-0">
                         {tradesStats && tradesStats.totalTrades > 0 ? (
                           <div className="space-y-3 mb-4">
                             <div className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.05] backdrop-blur-sm">
@@ -1366,6 +1379,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                             </div>
                           </div>
                         )}
+                        </div>
                       </div>
                     </div>
                   ) : (
@@ -1475,19 +1489,16 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                   </div>
                 ) : null}
 
-                {/* Smart Recommendations */}
-                <div className="relative overflow-hidden rounded-3xl border border-emerald-500/20 bg-emerald-500/5 shadow-lg shadow-emerald-500/10 backdrop-blur p-5 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:border-emerald-500/40 hover:bg-emerald-500/10 group">
-                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10" />
-                  <div className="absolute -top-12 -right-12 w-32 h-32 bg-emerald-500/20 blur-2xl rounded-full opacity-50 group-hover:opacity-75 transition-opacity duration-300" />
-                  <div className="relative">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Sparkles className="w-4 h-4 text-emerald-400" />
-                      <h3 className="text-xs font-semibold text-emerald-300 uppercase tracking-wider">
-                        {connectedExchanges.length === 0 ? 'How does this work?' : 'Market Insights'}
-                      </h3>
-                    </div>
-                    
-                    {tradesStats && tradesStats.totalTrades > 0 && whatsNextActions ? (
+              {/* Market Insights - No card styling, matches page background */}
+              <div className="relative">
+                <div className="flex items-center gap-2 mb-4">
+                  <Sparkles className="w-4 h-4 text-emerald-400" />
+                  <h3 className="text-xs font-semibold text-emerald-300 uppercase tracking-wider">
+                    {connectedExchanges.length === 0 ? 'How does this work?' : 'Market Insights'}
+                  </h3>
+                </div>
+                
+                {tradesStats && tradesStats.totalTrades > 0 && whatsNextActions ? (
                       <div className="space-y-4">
                         {/* High Impact Actions */}
                         {whatsNextActions.highImpact && whatsNextActions.highImpact.length > 0 && (
@@ -1626,19 +1637,22 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                           </div>
                         )}
 
-                        {/* Market Indicators */}
-                        <MarketIndicators />
+                        {/* Enhanced Market Insights */}
+                        <EnhancedMarketInsights 
+                          analytics={cachedAnalyticsData.analytics}
+                          allTrades={cachedAnalyticsData.allTrades}
+                          tradesStats={tradesStats}
+                        />
 
-                        {/* Top Headlines */}
-                        <TopHeadlines />
                       </div>
                     ) : tradesStats && tradesStats.totalTrades > 0 ? (
                       <div className="space-y-4">
-                        {/* Market Indicators */}
-                        <MarketIndicators />
-
-                        {/* Top Headlines */}
-                        <TopHeadlines />
+                        {/* Enhanced Market Insights */}
+                        <EnhancedMarketInsights 
+                          analytics={cachedAnalyticsData.analytics}
+                          allTrades={cachedAnalyticsData.allTrades}
+                          tradesStats={tradesStats}
+                        />
                       </div>
                     ) : connectedExchanges.length === 0 ? (
                       <div className="space-y-3">
@@ -1680,15 +1694,14 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                           <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover/btn:translate-x-1" />
                         </button>
                       </div>
-                    )}
-                  </div>
-                </div>
+                )}
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Trading Insights Section - Lazy loaded (only shown when analysis is performed) */}
-            {/* Analysis is now lazy loaded - insights will be empty on dashboard load for better performance */}
-            {false && !loadingStats && allInsights.length > 0 && tradesStats && tradesStats.totalTrades > 0 && (
+          {/* Trading Insights Section - Lazy loaded (only shown when analysis is performed) */}
+          {/* Analysis is now lazy loaded - insights will be empty on dashboard load for better performance */}
+          {false && !loadingStats && allInsights.length > 0 && tradesStats && tradesStats.totalTrades > 0 && (
               <section className="space-y-3">
                 <div className="flex items-center gap-2 mb-3 px-1">
                   <Sparkles className="w-4 h-4 text-emerald-400" />
@@ -2128,6 +2141,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
               )}
             </section>
         </main>
+
 
         {/* Footer */}
         <Footer />
