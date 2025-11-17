@@ -43,13 +43,9 @@ export default function TopHeadlines() {
       const response = await fetch(
         `${BACKEND_URL}/api/context/news/crypto?tickers=BTC,ETH&limit=5${cacheBuster}`,
         {
-          // Add cache control headers to prevent stale data
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
+          // Use no-store cache option to prevent stale data
+          // Note: Custom cache headers removed to avoid CORS issues
+          cache: 'no-store'
         }
       )
 
