@@ -695,7 +695,10 @@ export default function AnalyticsContent() {
   }
 
   if (!user && searchParams.get('demo') !== 'true') {
-    return <AuthScreen onAuthSuccess={() => {}} />
+    return <AuthScreen onAuthSuccess={(user) => {
+      // Refresh page to reload with authenticated user
+      window.location.href = '/dashboard';
+    }} />
   }
 
   if (status === 'loading') {

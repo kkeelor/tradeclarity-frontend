@@ -75,10 +75,31 @@ export default function AuthScreen({ onAuthSuccess }) {
         if (error) throw error;
 
         setError('');
-        toast.success('Account Created', {
-          description: 'Check your email to verify your account!',
-          duration: 10000
-        });
+        
+        // Check if user is already confirmed (email confirmation disabled)
+        if (data.user && data.session) {
+          // User is immediately authenticated - redirect to dashboard
+          toast.success('Account Created', {
+            description: 'Welcome to TradeClarity!',
+            duration: 3000
+          });
+          
+          // Small delay to show toast, then redirect
+          setTimeout(() => {
+            if (onAuthSuccess) {
+              onAuthSuccess(data.user);
+            } else {
+              // Fallback: redirect to dashboard
+              window.location.href = '/dashboard';
+            }
+          }, 500);
+        } else {
+          // Email confirmation required (shouldn't happen if disabled, but handle gracefully)
+          toast.success('Account Created', {
+            description: 'Please check your email to verify your account',
+            duration: 5000
+          });
+        }
       } else {
         const { data, error } = await signInWithEmail(email, password);
         if (error) throw error;

@@ -750,7 +750,9 @@ export default function TradeClarityContent() {
 
   // NEW: Show auth screen if not authenticated AND not demo mode
   if (!user && !isDemoRequested) {
-    return <AuthScreen onAuthSuccess={() => {
+    return <AuthScreen onAuthSuccess={(user) => {
+      // Refresh page to reload with authenticated user
+      window.location.href = '/dashboard';
     }} />
   }
 
