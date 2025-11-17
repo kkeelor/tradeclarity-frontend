@@ -1,7 +1,7 @@
 // app/analyze/components/Dashboard.js
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, LogOut, BarChart3, Sparkles, Database, CheckSquare, Square, Loader2, ChevronRight, Zap, Brain, Clock, DollarSign, PieChart, TrendingDown, Target, Lightbulb, LayoutDashboard, Tag, CreditCard, Crown, Infinity } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
@@ -11,8 +11,8 @@ import { getMostCriticalInsight, getAllInsights, generatePerformanceAnalogies } 
 import { generateValueFirstInsights } from '../utils/insights/valueFirstInsights'
 import { prioritizeInsights, enhanceInsightForDisplay } from '../utils/insights/insightsPrioritizationEngine'
 import { generateWhatsNextActions } from '../utils/insights/whatsNextActions'
-import MarketIndicators from './MarketIndicators'
-import TopHeadlines from './TopHeadlines'
+import NewsTicker from './NewsTicker'
+import AIChat from './AIChat'
 import { analyzeDrawdowns } from '../utils/drawdownAnalysis'
 import { analyzeTimeBasedPerformance } from '../utils/timeBasedAnalysis'
 import { analyzeSymbols } from '../utils/symbolAnalysis'
@@ -494,6 +494,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
   const [subscription, setSubscription] = useState(null)
   const [loadingSubscription, setLoadingSubscription] = useState(true)
   const [showUsageModal, setShowUsageModal] = useState(false)
+  const [tokenUsage, setTokenUsage] = useState({ used: 0, limit: 10000 })
 
   // Get time-based greeting
   const getGreeting = () => {
@@ -680,6 +681,25 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
     }
   }, [currentInsightIndex, allInsights.length])
 
+  // Helper function to get cached analytics data
+  const getCachedAnalytics = () => {
+    try {
+      const cached = sessionStorage.getItem('lastAnalytics')
+      if (!cached) return { analytics: null, psychology: null, allTrades: null }
+      const parsed = JSON.parse(cached)
+      return {
+        analytics: parsed.analytics || null,
+        psychology: parsed.psychology || null,
+        allTrades: parsed.allTrades || null
+      }
+    } catch (e) {
+      return { analytics: null, psychology: null, allTrades: null }
+    }
+  }
+
+  // Memoize cached analytics data
+  const cachedAnalyticsData = useMemo(() => getCachedAnalytics(), [])
+
   // Generate "What's Next" actions when tradesStats is available
   useEffect(() => {
     if (!tradesStats || tradesStats.totalTrades === 0) {
@@ -688,25 +708,12 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
     }
 
     // Try to get cached analytics data if available
-    const cachedAnalytics = sessionStorage.getItem('lastAnalytics')
-    let analyticsData = null
-    let psychologyData = null
-    let allTradesData = null
-
-    if (cachedAnalytics) {
-      try {
-        const parsed = JSON.parse(cachedAnalytics)
-        analyticsData = parsed.analytics || null
-        psychologyData = parsed.psychology || null
-        allTradesData = parsed.allTrades || null
-      } catch (e) {
-      }
-    }
+    const { analytics: analyticsData, psychology: psychologyData, allTrades: allTradesData } = cachedAnalyticsData
 
     // Generate actions (works with minimal data too)
     const actions = generateWhatsNextActions(analyticsData, psychologyData, allTradesData, tradesStats)
     setWhatsNextActions(actions)
-  }, [tradesStats])
+  }, [tradesStats, cachedAnalyticsData])
 
   const fetchConnectedExchanges = async () => {
     const startTime = Date.now()
@@ -785,6 +792,44 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
       setTimeout(() => setLoadingStats(false), remaining)
     }
   }
+
+  const fetchTokenUsage = async () => {
+    if (!user || !subscription) return
+    
+    try {
+      const response = await fetch('/api/ai/chat/tokens')
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          const tier = subscription.tier || 'free'
+          const limit = TIER_LIMITS[tier]?.maxTokensPerMonth || TIER_LIMITS.free.maxTokensPerMonth
+          setTokenUsage({
+            used: data.totalTokens || 0,
+            limit: limit
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching token usage:', error)
+      // Set default based on tier
+      const tier = subscription?.tier || 'free'
+      const limit = TIER_LIMITS[tier]?.maxTokensPerMonth || TIER_LIMITS.free.maxTokensPerMonth
+      setTokenUsage({ used: 0, limit })
+    }
+  }
+
+  // Fetch token usage when subscription is loaded and update limit
+  useEffect(() => {
+    if (subscription) {
+      const tier = subscription.tier || 'free'
+      const limit = TIER_LIMITS[tier]?.maxTokensPerMonth || TIER_LIMITS.free.maxTokensPerMonth
+      setTokenUsage(prev => ({ ...prev, limit }))
+      fetchTokenUsage()
+    } else {
+      // Set default for free tier
+      setTokenUsage({ used: 0, limit: TIER_LIMITS.free.maxTokensPerMonth })
+    }
+  }, [subscription])
 
   const fetchSubscription = async () => {
     try {
@@ -1228,9 +1273,9 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
 
         {/* Main Content */}
         <main className="relative mx-auto w-full max-w-[1400px] px-4 sm:px-6 pb-16 pt-10 space-y-10">
-        {/* Greeting Section */}
-        <div className="flex items-center justify-between">
-          <div>
+        {/* Greeting Section with News Ticker */}
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-2xl md:text-3xl font-bold text-slate-100 tracking-tight">
                 {getGreeting()}{user?.user_metadata?.name ? `, ${user.user_metadata.name.split(' ')[0]}` : ''}
@@ -1261,24 +1306,29 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
               )}
             </p>
           </div>
+          
+          {/* News Ticker - Inline with greeting */}
+          <div className="flex-shrink-0 w-full md:w-[calc(50%-0.75rem)] lg:w-[calc(50%-1.5rem)]">
+            <NewsTicker />
+          </div>
         </div>
 
-
-            {/* Stats Overview & Smart Recommendations */}
-            {loadingStats ? (
-              <DashboardStatsSkeleton />
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 px-1">
+          {/* Stats Overview & Smart Recommendations */}
+          {loadingStats ? (
+            <DashboardStatsSkeleton />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 px-1 items-start">
                 {/* Trading Overview / Progress Bar Card / Connect Exchange Card */}
                 {subscription && subscription.tier !== 'pro' ? (
                   connectedExchanges.length > 0 ? (
-                    <div className="relative overflow-hidden rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-emerald-500/5 backdrop-blur p-5 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:border-white/10">
+                    <div className="relative overflow-hidden rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-emerald-500/5 backdrop-blur p-5 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:border-white/10 flex flex-col h-[350px]">
                       <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10" />
                       <div className="absolute -top-24 -right-20 w-72 h-72 bg-emerald-500/20 blur-3xl rounded-full opacity-50" />
-                      <div className="relative">
-                        <h3 className="text-xs font-semibold text-slate-300 mb-4 uppercase tracking-wider">Your Trading Overview</h3>
+                      <div className="relative flex flex-col overflow-hidden">
+                        <h3 className="text-xs font-semibold text-slate-300 mb-4 uppercase tracking-wider flex-shrink-0">Your Trading Overview</h3>
+                        <div className="flex flex-col gap-3 overflow-y-auto">
                         {tradesStats && tradesStats.totalTrades > 0 ? (
-                          <div className="space-y-3 mb-4">
+                          <div className="space-y-3">
                             <div className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.05] backdrop-blur-sm">
                               <span className="text-xs text-slate-400">Total Trades</span>
                               <span className="text-sm font-bold text-slate-100">{tradesStats.totalTrades.toLocaleString()}</span>
@@ -1311,7 +1361,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                             )}
                           </div>
                         ) : (
-                          <div className="space-y-3 mb-4">
+                          <div className="space-y-3">
                             <div className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.05] backdrop-blur-sm">
                               <span className="text-xs text-slate-400">Exchanges Connected</span>
                               <span className="text-sm font-bold text-emerald-400 flex items-center gap-1">
@@ -1334,7 +1384,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                         )}
                         
                         {/* Progress Bar */}
-                        <div className="pt-4 border-t border-white/5">
+                        <div className="pt-3 border-t border-white/5 flex-shrink-0">
                           <PlanProgressBar 
                             currentTier={subscription.tier}
                             actualUsage={{
@@ -1344,32 +1394,11 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                             onClick={() => setShowUsageModal(true)}
                           />
                         </div>
-                        
-                        {/* Connected Exchanges Summary */}
-                        {connectedExchanges.length > 0 && (
-                          <div className="mt-4 pt-4 border-t border-white/5">
-                            <div className="flex items-center justify-between p-2 rounded-lg bg-white/5">
-                              <span className="text-xs text-slate-400">Exchanges Connected</span>
-                              <span className="text-sm font-bold text-emerald-400 flex items-center gap-1">
-                                {connectedExchanges.length}
-                                <span className="text-slate-500 font-normal ml-1 flex items-center">
-                                  (
-                                  {connectedExchanges.map((exchange, index) => (
-                                    <span key={exchange.id} className="inline-flex items-center">
-                                      <ExchangeIcon exchange={exchange.exchange} size={12} className="w-3 h-3" />
-                                      {index < connectedExchanges.length - 1 && <span className="mx-0.5">,</span>}
-                                    </span>
-                                  ))}
-                                  )
-                                </span>
-                              </span>
-                            </div>
-                          </div>
-                        )}
+                        </div>
                       </div>
                     </div>
                   ) : (
-                    <div className="relative overflow-hidden rounded-3xl border border-emerald-500/20 bg-emerald-500/5 shadow-lg shadow-emerald-500/10 backdrop-blur p-5 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:border-emerald-500/40 hover:bg-emerald-500/10 group">
+                    <div className="relative overflow-hidden rounded-3xl border border-emerald-500/20 bg-emerald-500/5 shadow-lg shadow-emerald-500/10 backdrop-blur p-5 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:border-emerald-500/40 hover:bg-emerald-500/10 group h-[350px] flex flex-col">
                       <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10" />
                       <div className="absolute -top-12 -right-12 w-32 h-32 bg-emerald-500/20 blur-2xl rounded-full opacity-50 group-hover:opacity-75 transition-opacity duration-300" />
                       <div className="relative">
@@ -1402,7 +1431,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                     </div>
                   )
                 ) : subscription && subscription.tier === 'pro' ? (
-                  <div className="relative overflow-hidden rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-cyan-500/10 shadow-lg shadow-emerald-500/20 backdrop-blur p-5 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:border-emerald-500/50 group">
+                  <div className="relative overflow-hidden rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-cyan-500/10 shadow-lg shadow-emerald-500/20 backdrop-blur p-5 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:border-emerald-500/50 group h-[350px] flex flex-col">
                     <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 via-transparent to-cyan-500/20 opacity-50" />
                     <div className="absolute -top-24 -right-20 w-72 h-72 bg-emerald-500/30 blur-3xl rounded-full opacity-60 group-hover:opacity-80 transition-opacity" />
                     <div className="absolute -bottom-24 -left-20 w-64 h-64 bg-cyan-500/20 blur-3xl rounded-full opacity-40" />
@@ -1437,8 +1466,10 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                         </div>
                         <div className="flex items-center gap-2 text-xs text-slate-300">
                           <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                          <span>Unlimited reports generated</span>
-                          <Infinity className="w-3.5 h-3.5 text-emerald-400 ml-auto" />
+                          <span className="flex-1">AI Tokens</span>
+                          <span className="text-emerald-400 font-semibold">
+                            {tokenUsage.used.toLocaleString()} / {tokenUsage.limit.toLocaleString()}
+                          </span>
                         </div>
                       </div>
 
@@ -1475,220 +1506,21 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                   </div>
                 ) : null}
 
-                {/* Smart Recommendations */}
-                <div className="relative overflow-hidden rounded-3xl border border-emerald-500/20 bg-emerald-500/5 shadow-lg shadow-emerald-500/10 backdrop-blur p-5 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:border-emerald-500/40 hover:bg-emerald-500/10 group">
-                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10" />
-                  <div className="absolute -top-12 -right-12 w-32 h-32 bg-emerald-500/20 blur-2xl rounded-full opacity-50 group-hover:opacity-75 transition-opacity duration-300" />
-                  <div className="relative">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Sparkles className="w-4 h-4 text-emerald-400" />
-                      <h3 className="text-xs font-semibold text-emerald-300 uppercase tracking-wider">
-                        {connectedExchanges.length === 0 ? 'How does this work?' : 'Market Insights'}
-                      </h3>
-                    </div>
-                    
-                    {tradesStats && tradesStats.totalTrades > 0 && whatsNextActions ? (
-                      <div className="space-y-4">
-                        {/* High Impact Actions */}
-                        {whatsNextActions.highImpact && whatsNextActions.highImpact.length > 0 && (
-                          <div className="space-y-2">
-                            <p className="text-[10px] font-semibold text-emerald-400/80 uppercase tracking-wider">High Impact</p>
-                            <div className="space-y-2">
-                              {whatsNextActions.highImpact.map((action) => {
-                                const IconComponent = getIconComponent(action.icon)
-                                const isAmber = action.color === 'amber'
-                                const isRed = action.color === 'red'
-                                const isEmerald = action.color === 'emerald'
-                                const isCyan = action.color === 'cyan'
-                                const isPurple = action.color === 'purple'
-                                const isCritical = action.urgency === 'critical'
-                                
-                                const borderClass = isAmber ? 'border-amber-500/20 hover:border-amber-500/40' :
-                                                   isRed ? 'border-red-500/20 hover:border-red-500/40' :
-                                                   isEmerald ? 'border-emerald-500/20 hover:border-emerald-500/40' :
-                                                   isCyan ? 'border-cyan-500/20 hover:border-cyan-500/40' :
-                                                   isPurple ? 'border-purple-500/20 hover:border-purple-500/40' :
-                                                   'border-slate-500/20 hover:border-slate-500/40'
-                                
-                                const bgClass = isAmber ? 'bg-amber-500/5 hover:bg-amber-500/10' :
-                                                isRed ? 'bg-red-500/5 hover:bg-red-500/10' :
-                                                isEmerald ? 'bg-emerald-500/5 hover:bg-emerald-500/10' :
-                                                isCyan ? 'bg-cyan-500/5 hover:bg-cyan-500/10' :
-                                                isPurple ? 'bg-purple-500/5 hover:bg-purple-500/10' :
-                                                'bg-slate-500/5 hover:bg-slate-500/10'
-                                
-                                const iconClass = isAmber ? 'text-amber-400' :
-                                                 isRed ? 'text-red-400' :
-                                                 isEmerald ? 'text-emerald-400' :
-                                                 isCyan ? 'text-cyan-400' :
-                                                 isPurple ? 'text-purple-400' :
-                                                 'text-slate-400'
-                                
-                                const savingsClass = isCritical && isAmber ? 'text-amber-300' :
-                                                    isAmber ? 'text-amber-400' :
-                                                    isRed ? 'text-red-300' :
-                                                    isEmerald ? 'text-emerald-300' :
-                                                    isCyan ? 'text-cyan-300' :
-                                                    isPurple ? 'text-purple-300' :
-                                                    'text-slate-300'
-                                
-                                return (
-                                  <button
-                                    key={action.id}
-                                    onClick={() => {
-                                      if (action.actionType === 'navigation' && action.action?.route) {
-                                        router.push(action.action.route)
-                                      } else {
-                                        onViewAnalytics()
-                                      }
-                                    }}
-                                    className={`w-full text-left p-3 rounded-xl border transition-all duration-200 hover:scale-[1.02] ${borderClass} ${bgClass}`}
-                                  >
-                                    <div className="flex items-start justify-between gap-3">
-                                      <div className="flex items-start gap-2 flex-1 min-w-0">
-                                        <IconComponent className={`w-4 h-4 ${iconClass} flex-shrink-0 mt-0.5`} />
-                                        <div className="flex-1 min-w-0">
-                                          <div className="text-xs font-semibold text-slate-200 mb-0.5">{action.title}</div>
-                                          <div className="text-[10px] text-slate-400 leading-relaxed">{action.description}</div>
-                                          {action.potentialSavings > 0 && (
-                                            <div className={`text-[10px] font-medium mt-1 ${savingsClass}`}>
-                                              Potential savings: ${action.potentialSavings.toFixed(0)}
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-                                      <ChevronRight className={`w-3.5 h-3.5 ${iconClass} opacity-50 flex-shrink-0 mt-1`} />
-                                    </div>
-                                  </button>
-                                )
-                              })}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Quick Actions */}
-                        {whatsNextActions.quickActions && whatsNextActions.quickActions.length > 0 && (
-                          <div className="space-y-2">
-                            <p className="text-[10px] font-semibold text-slate-400/80 uppercase tracking-wider">Quick Wins</p>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              {whatsNextActions.quickActions.map((action) => {
-                                const IconComponent = getIconComponent(action.icon)
-                                const isAmber = action.color === 'amber'
-                                const isRed = action.color === 'red'
-                                const isEmerald = action.color === 'emerald'
-                                const isCyan = action.color === 'cyan'
-                                const isPurple = action.color === 'purple'
-                                
-                                const borderClass = isAmber ? 'border-amber-500/20 hover:border-amber-500/40' :
-                                                   isRed ? 'border-red-500/20 hover:border-red-500/40' :
-                                                   isEmerald ? 'border-emerald-500/20 hover:border-emerald-500/40' :
-                                                   isCyan ? 'border-cyan-500/20 hover:border-cyan-500/40' :
-                                                   isPurple ? 'border-purple-500/20 hover:border-purple-500/40' :
-                                                   'border-slate-500/20 hover:border-slate-500/40'
-                                
-                                const bgClass = isAmber ? 'bg-amber-500/5 hover:bg-amber-500/10' :
-                                                isRed ? 'bg-red-500/5 hover:bg-red-500/10' :
-                                                isEmerald ? 'bg-emerald-500/5 hover:bg-emerald-500/10' :
-                                                isCyan ? 'bg-cyan-500/5 hover:bg-cyan-500/10' :
-                                                isPurple ? 'bg-purple-500/5 hover:bg-purple-500/10' :
-                                                'bg-slate-500/5 hover:bg-slate-500/10'
-                                
-                                const iconClass = isAmber ? 'text-amber-400' :
-                                                 isRed ? 'text-red-400' :
-                                                 isEmerald ? 'text-emerald-400' :
-                                                 isCyan ? 'text-cyan-400' :
-                                                 isPurple ? 'text-purple-400' :
-                                                 'text-slate-400'
-                                
-                                return (
-                                  <button
-                                    key={action.id}
-                                    onClick={() => {
-                                      if (action.actionType === 'navigation' && action.action?.route) {
-                                        router.push(action.action.route)
-                                      } else {
-                                        onViewAnalytics()
-                                      }
-                                    }}
-                                    className={`text-left p-2.5 rounded-lg border transition-all duration-200 hover:scale-[1.02] ${borderClass} ${bgClass}`}
-                                  >
-                                    <div className="flex items-start gap-2">
-                                      <IconComponent className={`w-3.5 h-3.5 ${iconClass} flex-shrink-0 mt-0.5`} />
-                                      <div className="flex-1 min-w-0">
-                                        <div className="text-[11px] font-semibold text-slate-200 mb-0.5">{action.title}</div>
-                                        <div className="text-[10px] text-slate-400 leading-relaxed line-clamp-2">{action.description}</div>
-                                      </div>
-                                    </div>
-                                  </button>
-                                )
-                              })}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Market Indicators */}
-                        <MarketIndicators />
-
-                        {/* Top Headlines */}
-                        <TopHeadlines />
-                      </div>
-                    ) : tradesStats && tradesStats.totalTrades > 0 ? (
-                      <div className="space-y-4">
-                        {/* Market Indicators */}
-                        <MarketIndicators />
-
-                        {/* Top Headlines */}
-                        <TopHeadlines />
-                      </div>
-                    ) : connectedExchanges.length === 0 ? (
-                      <div className="space-y-3">
-                        <p className="text-xs text-slate-300 leading-relaxed mb-2">
-                          TradeClarity helps you analyze your trading performance, identify patterns, and make data-driven decisions. Get insights into your win rate, profit factors, best trading times, and more.
-                        </p>
-                        <button
-                          onClick={onTryDemo}
-                          className="group/btn w-full text-left text-xs text-emerald-400 hover:text-emerald-300 font-semibold transition-all duration-300 inline-flex items-center gap-2 p-2.5 rounded-lg hover:bg-white/5 border border-emerald-500/20 hover:border-emerald-500/40"
-                        >
-                          <Play className="w-3.5 h-3.5" />
-                          <span>Try Demo</span>
-                          <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover/btn:translate-x-1 ml-auto" />
-                        </button>
-                      </div>
-                    ) : connectedExchanges.length === 1 ? (
-                      <div className="space-y-3">
-                        <p className="text-xs text-slate-300 leading-relaxed mb-2">
-                          Add another exchange to compare performance across platforms and get deeper insights
-                        </p>
-                        <button
-                          onClick={() => setShowConnectModal(true)}
-                          className="group/btn text-xs text-emerald-400 hover:text-emerald-300 font-semibold transition-all duration-300 inline-flex items-center gap-1.5 hover:gap-2"
-                        >
-                          Add Exchange
-                          <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover/btn:translate-x-1" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <p className="text-xs text-slate-300 leading-relaxed mb-2">
-                          View your combined analytics to see patterns across all {connectedExchanges.length} exchanges and discover hidden opportunities
-                        </p>
-                        <button
-                          onClick={() => onViewAnalytics()}
-                          className="group/btn text-xs text-emerald-400 hover:text-emerald-300 font-semibold transition-all duration-300 inline-flex items-center gap-1.5 hover:gap-2"
-                        >
-                          View Analytics
-                          <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover/btn:translate-x-1" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
+              {/* AI Chat - Replaces Market Insights */}
+              <div className="h-[350px]">
+                <AIChat 
+                  analytics={cachedAnalyticsData.analytics}
+                  allTrades={cachedAnalyticsData.allTrades}
+                  tradesStats={tradesStats}
+                />
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Trading Insights Section - Lazy loaded (only shown when analysis is performed) */}
-            {/* Analysis is now lazy loaded - insights will be empty on dashboard load for better performance */}
-            {false && !loadingStats && allInsights.length > 0 && tradesStats && tradesStats.totalTrades > 0 && (
+
+          {/* Trading Insights Section - Lazy loaded (only shown when analysis is performed) */}
+          {/* Analysis is now lazy loaded - insights will be empty on dashboard load for better performance */}
+          {false && !loadingStats && allInsights.length > 0 && tradesStats && tradesStats.totalTrades > 0 && (
               <section className="space-y-3">
                 <div className="flex items-center gap-2 mb-3 px-1">
                   <Sparkles className="w-4 h-4 text-emerald-400" />
@@ -2128,6 +1960,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
               )}
             </section>
         </main>
+
 
         {/* Footer */}
         <Footer />
