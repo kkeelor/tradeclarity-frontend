@@ -494,6 +494,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
   const [subscription, setSubscription] = useState(null)
   const [loadingSubscription, setLoadingSubscription] = useState(true)
   const [showUsageModal, setShowUsageModal] = useState(false)
+  const [tokenUsage, setTokenUsage] = useState({ used: 0, limit: 10000 })
 
   // Get time-based greeting
   const getGreeting = () => {
@@ -791,6 +792,44 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
       setTimeout(() => setLoadingStats(false), remaining)
     }
   }
+
+  const fetchTokenUsage = async () => {
+    if (!user || !subscription) return
+    
+    try {
+      const response = await fetch('/api/ai/chat/tokens')
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          const tier = subscription.tier || 'free'
+          const limit = TIER_LIMITS[tier]?.maxTokensPerMonth || TIER_LIMITS.free.maxTokensPerMonth
+          setTokenUsage({
+            used: data.totalTokens || 0,
+            limit: limit
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching token usage:', error)
+      // Set default based on tier
+      const tier = subscription?.tier || 'free'
+      const limit = TIER_LIMITS[tier]?.maxTokensPerMonth || TIER_LIMITS.free.maxTokensPerMonth
+      setTokenUsage({ used: 0, limit })
+    }
+  }
+
+  // Fetch token usage when subscription is loaded and update limit
+  useEffect(() => {
+    if (subscription) {
+      const tier = subscription.tier || 'free'
+      const limit = TIER_LIMITS[tier]?.maxTokensPerMonth || TIER_LIMITS.free.maxTokensPerMonth
+      setTokenUsage(prev => ({ ...prev, limit }))
+      fetchTokenUsage()
+    } else {
+      // Set default for free tier
+      setTokenUsage({ used: 0, limit: TIER_LIMITS.free.maxTokensPerMonth })
+    }
+  }, [subscription])
 
   const fetchSubscription = async () => {
     try {
@@ -1427,8 +1466,10 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                         </div>
                         <div className="flex items-center gap-2 text-xs text-slate-300">
                           <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                          <span>Unlimited reports generated</span>
-                          <Infinity className="w-3.5 h-3.5 text-emerald-400 ml-auto" />
+                          <span className="flex-1">AI Tokens</span>
+                          <span className="text-emerald-400 font-semibold">
+                            {tokenUsage.used.toLocaleString()} / {tokenUsage.limit.toLocaleString()}
+                          </span>
                         </div>
                       </div>
 

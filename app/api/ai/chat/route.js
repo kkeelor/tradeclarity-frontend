@@ -121,39 +121,58 @@ export async function POST(request) {
     
     // Add system context as first user message (only if no conversation history)
     if (sessionMessages.length === 0 && !currentSummary) {
-      claudeMessages.push({
-        role: 'user',
-        content: systemPrompt
-      })
+      if (systemPrompt && typeof systemPrompt === 'string' && systemPrompt.trim().length > 0) {
+        claudeMessages.push({
+          role: 'user',
+          content: systemPrompt.trim()
+        })
+      }
     } else {
       // If there's history, add system context more subtly
+      const contextPreview = systemPrompt ? systemPrompt.split('\n')[0] : 'User context'
+      const hasTradingData = systemPrompt && systemPrompt.includes('Total Trades:')
       claudeMessages.push({
         role: 'user',
-        content: `[Context: ${systemPrompt.split('\n')[0]} - ${systemPrompt.includes('Total Trades:') ? 'User has trading data available' : 'New user'}]`
+        content: `[Context: ${contextPreview} - ${hasTradingData ? 'User has trading data available' : 'New user'}]`
       })
     }
 
     // Add current conversation summary if exists (for continuing conversations)
-    if (currentSummary && sessionMessages.length === 0) {
+    if (currentSummary && typeof currentSummary === 'string' && currentSummary.trim().length > 0 && sessionMessages.length === 0) {
       claudeMessages.push({
         role: 'user',
-        content: `Continuing previous conversation. Summary: ${currentSummary}`
+        content: `Continuing previous conversation. Summary: ${currentSummary.trim()}`
       })
     }
 
     // Add current session messages (in-memory only)
-    sessionMessages.forEach(msg => {
-      claudeMessages.push({
-        role: msg.role === 'assistant' ? 'assistant' : 'user',
-        content: msg.content
+    if (Array.isArray(sessionMessages)) {
+      sessionMessages.forEach(msg => {
+        if (msg && msg.role && msg.content && typeof msg.content === 'string' && msg.content.trim().length > 0) {
+          claudeMessages.push({
+            role: msg.role === 'assistant' ? 'assistant' : 'user',
+            content: msg.content.trim()
+          })
+        }
       })
-    })
+    }
 
     // Add current user message
-    claudeMessages.push({
-      role: 'user',
-      content: message
-    })
+    if (message && typeof message === 'string' && message.trim().length > 0) {
+      claudeMessages.push({
+        role: 'user',
+        content: message.trim()
+      })
+    }
+    
+    // Validate we have at least one message
+    if (claudeMessages.length === 0) {
+      console.error('No valid messages constructed for Claude')
+      return NextResponse.json(
+        { error: 'Failed to construct messages. Please try again.' },
+        { status: 500 }
+      )
+    }
 
     // Create streaming response
     const stream = new ReadableStream({
@@ -164,47 +183,129 @@ export async function POST(request) {
 
         try {
           const client = getAnthropicClient()
-          const messagesForClaude = claudeMessages.map(msg => ({
-            role: msg.role === 'assistant' ? 'assistant' : 'user',
-            content: msg.content
-          }))
+          
+          // Validate and sanitize messages for Claude
+          const messagesForClaude = claudeMessages
+            .filter(msg => msg && msg.content && typeof msg.content === 'string' && msg.content.trim().length > 0)
+            .map(msg => {
+              const role = msg.role === 'assistant' ? 'assistant' : 'user'
+              const content = String(msg.content).trim()
+              
+              if (!content) {
+                throw new Error(`Invalid message content: ${JSON.stringify(msg)}`)
+              }
+              
+              return {
+                role,
+                content
+              }
+            })
+
+          // Validate messages array
+          if (!messagesForClaude || messagesForClaude.length === 0) {
+            throw new Error('No valid messages to send to AI')
+          }
 
           // Calculate input tokens
-          inputTokens = estimateTokens(messagesForClaude.map(m => m.content).join('\n'))
-
-          const streamResponse = await client.messages.create({
+          const contentText = messagesForClaude.map(m => m.content).join('\n')
+          inputTokens = estimateTokens(contentText)
+          
+          // Validate token limits (Claude has context window limits)
+          const maxContextTokens = model === AI_MODELS.SONNET.id ? 200000 : 200000 // Both models support 200k context
+          if (inputTokens > maxContextTokens * 0.9) { // Use 90% as safety margin
+            throw new Error('Message too long. Please shorten your message or start a new conversation.')
+          }
+          
+          // Log request details for debugging (without sensitive data)
+          console.log('[Chat API] Request:', {
             model,
-            max_tokens: tier === 'pro' ? 2000 : 1000,
-            temperature: 0.7,
-            stream: true,
-            messages: messagesForClaude
+            messageCount: messagesForClaude.length,
+            conversationId: conversation.id,
+            tier,
+            inputTokens,
+            firstMessagePreview: messagesForClaude[0]?.content?.substring(0, 100)
           })
+          
+          // Log message structure (first and last only)
+          if (messagesForClaude.length > 0) {
+            console.log('[Chat API] First message:', {
+              role: messagesForClaude[0].role,
+              contentLength: messagesForClaude[0].content.length
+            })
+            if (messagesForClaude.length > 1) {
+              console.log('[Chat API] Last message:', {
+                role: messagesForClaude[messagesForClaude.length - 1].role,
+                contentLength: messagesForClaude[messagesForClaude.length - 1].content.length
+              })
+            }
+          }
+          
+          let streamResponse
+          try {
+            streamResponse = await client.messages.create({
+              model,
+              max_tokens: tier === 'pro' ? 2000 : 1000,
+              temperature: 0.7,
+              stream: true,
+              messages: messagesForClaude
+            })
+          } catch (apiError) {
+            console.error('[Chat API] Anthropic API call failed:', {
+              error: apiError.message,
+              status: apiError.status,
+              statusCode: apiError.statusCode,
+              name: apiError.name,
+              stack: apiError.stack?.split('\n').slice(0, 5).join('\n')
+            })
+            throw apiError
+          }
 
           for await (const event of streamResponse) {
-            if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+            // Log event type for debugging (first few events only)
+            if (outputTokens === 0 && event.type) {
+              console.log('[Chat API] First stream event:', event.type)
+            }
+            
+            if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
               const chunk = event.delta.text
-              fullResponse += chunk
-              outputTokens += estimateTokens(chunk)
-              
-              // Send chunk to client
-              controller.enqueue(
-                new TextEncoder().encode(`data: ${JSON.stringify({ chunk, type: 'token' })}\n\n`)
-              )
+              if (chunk) {
+                fullResponse += chunk
+                outputTokens += estimateTokens(chunk)
+                
+                // Send chunk to client
+                controller.enqueue(
+                  new TextEncoder().encode(`data: ${JSON.stringify({ chunk, type: 'token' })}\n\n`)
+                )
+              }
             } else if (event.type === 'message_stop') {
-              // Message complete
+              // Message complete - get accurate token counts
               if (event.message?.usage) {
                 inputTokens = event.message.usage.input_tokens
                 outputTokens = event.message.usage.output_tokens
               }
+              console.log('[Chat API] Stream complete:', { inputTokens, outputTokens, responseLength: fullResponse.length })
+              break // Exit loop when message is complete
+            } else if (event.type === 'error') {
+              console.error('[Chat API] Stream error event:', event.error)
+              throw new Error(event.error?.message || 'Stream error occurred')
+            } else if (event.type === 'message_start' || event.type === 'content_block_start' || event.type === 'content_block_stop') {
+              // These are normal events, just continue
+              continue
+            } else {
+              // Log unexpected event types for debugging
+              console.warn('[Chat API] Unexpected event type:', event.type)
             }
           }
 
           // Update conversation token counts (we don't save individual messages)
+          const currentInputTokens = (conversation.total_input_tokens || 0) + inputTokens
+          const currentOutputTokens = (conversation.total_output_tokens || 0) + outputTokens
+          
           const { error: updateError } = await supabase
             .from('ai_conversations')
             .update({
-              total_input_tokens: conversation.total_input_tokens + inputTokens,
-              total_output_tokens: conversation.total_output_tokens + outputTokens,
+              total_input_tokens: currentInputTokens,
+              total_output_tokens: currentOutputTokens,
               message_count: previousMessageCount + 2, // User message + assistant response
               updated_at: new Date().toISOString()
             })
@@ -230,13 +331,64 @@ export async function POST(request) {
 
           controller.close()
         } catch (error) {
-          console.error('Streaming error:', error)
-          controller.enqueue(
-            new TextEncoder().encode(
-              `data: ${JSON.stringify({ type: 'error', error: error.message })}\n\n`
+          console.error('[Chat API] Streaming error:', error)
+          console.error('[Chat API] Error details:', {
+            message: error.message,
+            status: error.status,
+            statusCode: error.statusCode,
+            name: error.name,
+            type: error.type,
+            stack: error.stack?.split('\n').slice(0, 10).join('\n')
+          })
+          
+          // Handle specific Anthropic API errors
+          let errorMessage = 'Sorry, I encountered an error. Please try again.'
+          let errorType = 'unknown'
+          
+          if (error.status === 401 || error.status === 403 || error.statusCode === 401 || error.statusCode === 403) {
+            errorMessage = 'Authentication error. Please contact support.'
+            errorType = 'auth'
+            console.error('[Chat API] Anthropic API authentication failed')
+          } else if (error.status === 429 || error.statusCode === 429) {
+            errorMessage = 'Rate limit exceeded. Please wait a moment and try again.'
+            errorType = 'rate_limit'
+          } else if (error.status === 400 || error.statusCode === 400) {
+            errorMessage = error.message || 'Invalid request. Please check your message and try again.'
+            errorType = 'bad_request'
+          } else if (error.status === 500 || error.status === 502 || error.status === 503 || 
+                     error.statusCode === 500 || error.statusCode === 502 || error.statusCode === 503) {
+            errorMessage = 'Service temporarily unavailable. Please try again in a moment.'
+            errorType = 'server_error'
+          } else if (error.message) {
+            // Use error message if it's user-friendly, otherwise use generic
+            if (error.message.includes('too long') || error.message.includes('token') || 
+                error.message.includes('API key') || error.message.includes('authentication') ||
+                error.message.includes('No valid messages')) {
+              errorMessage = error.message
+            }
+          }
+          
+          // Log the actual error message for debugging
+          if (error.message && !errorMessage.includes(error.message)) {
+            console.error('[Chat API] Original error message:', error.message)
+          }
+          
+          // Ensure error is sent to client
+          try {
+            controller.enqueue(
+              new TextEncoder().encode(
+                `data: ${JSON.stringify({ type: 'error', error: errorMessage, errorType, originalMessage: error.message })}\n\n`
+              )
             )
-          )
-          controller.close()
+          } catch (enqueueError) {
+            console.error('[Chat API] Failed to enqueue error:', enqueueError)
+          }
+          
+          try {
+            controller.close()
+          } catch (closeError) {
+            console.error('[Chat API] Failed to close controller:', closeError)
+          }
         }
       }
     })
@@ -250,9 +402,23 @@ export async function POST(request) {
     })
 
   } catch (error) {
-    console.error('Chat API error:', error)
+    console.error('[Chat API] Chat API error:', error)
+    console.error('[Chat API] Error details:', {
+      message: error.message,
+      name: error.name,
+      stack: error.stack?.split('\n').slice(0, 10).join('\n')
+    })
+    
+    // Handle specific error types
+    if (error.message?.includes('JSON')) {
+      return NextResponse.json(
+        { error: 'Invalid request format' },
+        { status: 400 }
+      )
+    }
+    
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: error.message || 'Internal server error. Please try again.' },
       { status: 500 }
     )
   }

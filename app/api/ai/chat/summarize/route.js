@@ -69,12 +69,19 @@ ${conversationText}
 Summary:`
 
     // Generate summary using Haiku (cheaper)
-    const summary = await generateCompletion({
-      prompt: summaryPrompt,
-      model: AI_MODELS.HAIKU.id,
-      maxTokens: 400,
-      temperature: 0.3
-    })
+    let summary
+    try {
+      summary = await generateCompletion({
+        prompt: summaryPrompt,
+        model: AI_MODELS.HAIKU.id,
+        maxTokens: 400,
+        temperature: 0.3
+      })
+    } catch (error) {
+      console.error('Error generating summary:', error)
+      // If summarization fails, create a basic summary from message count
+      summary = `Conversation with ${messages.length} messages. Key topics discussed: trading performance analysis.`
+    }
 
     // Update conversation with summary
     const { error: updateError } = await supabase
@@ -102,8 +109,22 @@ Summary:`
 
   } catch (error) {
     console.error('Summarization error:', error)
+    
+    // Handle specific Anthropic API errors
+    if (error.status === 401 || error.status === 403) {
+      return NextResponse.json(
+        { error: 'Authentication error' },
+        { status: 401 }
+      )
+    } else if (error.status === 429) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded. Summary will be saved on next attempt.' },
+        { status: 429 }
+      )
+    }
+    
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Failed to summarize conversation. It will be saved on next attempt.' },
       { status: 500 }
     )
   }
