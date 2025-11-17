@@ -1,0 +1,110 @@
+// app/api/ai/chat/summarize/route.js
+// Endpoint to summarize and save a conversation when it ends
+
+import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase-server'
+import { generateCompletion, AI_MODELS, isAIConfigured } from '@/lib/ai/client'
+
+export async function POST(request) {
+  try {
+    if (!isAIConfigured()) {
+      return NextResponse.json(
+        { error: 'AI service not configured' },
+        { status: 503 }
+      )
+    }
+
+    const supabase = createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    const body = await request.json()
+    const { conversationId, messages, contextData } = body
+
+    if (!conversationId || !messages || !Array.isArray(messages)) {
+      return NextResponse.json(
+        { error: 'Conversation ID and messages are required' },
+        { status: 400 }
+      )
+    }
+
+    // Verify conversation belongs to user
+    const { data: conversation, error: convError } = await supabase
+      .from('ai_conversations')
+      .select('*')
+      .eq('id', conversationId)
+      .eq('user_id', user.id)
+      .single()
+
+    if (convError || !conversation) {
+      return NextResponse.json(
+        { error: 'Conversation not found' },
+        { status: 404 }
+      )
+    }
+
+    // Build conversation text for summarization
+    const conversationText = messages
+      .map(m => `${m.role}: ${m.content}`)
+      .join('\n\n')
+
+    // Build summary prompt
+    const summaryPrompt = `Summarize this trading conversation concisely. Preserve:
+- Key questions asked by the user
+- Important insights and recommendations given
+- Specific metrics or numbers mentioned
+- Action items or next steps discussed
+
+Keep the summary under 300 words. Focus on actionable insights and patterns.
+
+Conversation:
+${conversationText}
+
+Summary:`
+
+    // Generate summary using Haiku (cheaper)
+    const summary = await generateCompletion({
+      prompt: summaryPrompt,
+      model: AI_MODELS.HAIKU.id,
+      maxTokens: 400,
+      temperature: 0.3
+    })
+
+    // Update conversation with summary
+    const { error: updateError } = await supabase
+      .from('ai_conversations')
+      .update({
+        summary: summary,
+        message_count: messages.length,
+        last_summarized_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', conversationId)
+
+    if (updateError) {
+      console.error('Error saving summary:', updateError)
+      return NextResponse.json(
+        { error: 'Failed to save summary' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      summary: summary
+    })
+
+  } catch (error) {
+    console.error('Summarization error:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
