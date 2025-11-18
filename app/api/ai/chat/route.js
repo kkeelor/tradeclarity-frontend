@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
 import { generateCompletion, AI_MODELS, isAIConfigured } from '@/lib/ai/client'
 import Anthropic from '@anthropic-ai/sdk'
+import { buildVegaSystemPrompt, determineExperienceLevel } from '@/lib/ai/prompts/vega-system-prompt'
 
 function getAnthropicClient() {
   return new Anthropic({
@@ -426,71 +427,14 @@ export async function POST(request) {
 
 /**
  * Build system prompt with user context and previous conversation summaries
+ * Uses the structured Vega prompt system
  */
 function buildSystemPrompt(contextData, currentSummary, previousSummaries, tier) {
-  let contextInfo = ''
+  // Determine user experience level dynamically
+  const experienceLevel = determineExperienceLevel(contextData.tradesStats, contextData.analytics)
   
-  if (contextData.tradesStats) {
-    const stats = contextData.tradesStats
-    contextInfo += `\nUser's Trading Statistics:
-- Total Trades: ${stats.totalTrades || 0}
-- Spot Trades: ${stats.spotTrades || 0}
-- Futures Trades: ${stats.futuresIncome || 0}
-${stats.oldestTrade ? `- Trading Since: ${new Date(stats.oldestTrade).toLocaleDateString()}` : ''}`
-  }
-
-  if (contextData.analytics) {
-    const analytics = contextData.analytics
-    contextInfo += `\n\nPerformance Metrics:
-- Total P&L: $${(analytics.totalPnL || 0).toFixed(2)}
-- Win Rate: ${((analytics.winRate || 0) * 100).toFixed(1)}%
-- Profit Factor: ${(analytics.profitFactor || 0).toFixed(2)}x
-- Average Win: $${(analytics.avgWin || 0).toFixed(2)}
-- Average Loss: $${(analytics.avgLoss || 0).toFixed(2)}
-${analytics.totalCommission ? `- Total Fees: $${analytics.totalCommission.toFixed(2)}` : ''}`
-  }
-
-  if (contextData.allTrades && contextData.allTrades.length > 0) {
-    const symbols = {}
-    contextData.allTrades.forEach(trade => {
-      if (trade.symbol) {
-        symbols[trade.symbol] = (symbols[trade.symbol] || 0) + 1
-      }
-    })
-    const topSymbols = Object.entries(symbols)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([symbol]) => symbol)
-    
-    if (topSymbols.length > 0) {
-      contextInfo += `\n\nMost Traded Symbols: ${topSymbols.join(', ')}`
-    }
-  }
-
-  let previousContext = ''
-  if (currentSummary) {
-    previousContext += `\n\nCurrent conversation summary: ${currentSummary}`
-  }
-  
-  if (previousSummaries && previousSummaries.length > 0) {
-    previousContext += `\n\nPrevious conversations (for context):\n${previousSummaries.map((s, i) => `${i + 1}. ${s.summary || s}`).join('\n\n')}`
-  }
-
-  return `You are Vega, a personalized trading performance analyst assistant.
-
-Your role:
-- Provide data-driven insights about trading performance
-- Reference specific metrics and numbers from the user's data when available
-- Give actionable recommendations based on their actual performance
-- Be concise but thorough
-- Ask clarifying questions when needed
-- Use the user's actual trading statistics to provide personalized insights
-
-${contextInfo}${previousContext}
-
-Subscription Tier: ${tier}${tier === 'pro' ? ' (Full access)' : tier === 'trader' ? ' (Standard access)' : ' (Free tier)'}
-
-Provide helpful, personalized trading insights based on the user's data and questions. Always reference specific numbers from their statistics when relevant.`
+  // Build the comprehensive system prompt using the new structured system
+  return buildVegaSystemPrompt(contextData, currentSummary, previousSummaries, tier, experienceLevel)
 }
 
 /**
