@@ -78,6 +78,29 @@
   display: none;  /* Chrome, Safari and Opera */
 }
 
+/* Custom visible scrollbar for chat */
+.chat-scrollbar {
+  scrollbar-width: thin;  /* Firefox */
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;  /* Firefox */
+}
+
+.chat-scrollbar::-webkit-scrollbar {
+  width: 6px;  /* Chrome, Safari and Opera */
+}
+
+.chat-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.chat-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
 /* Screen reader only - for accessibility */
 .sr-only {
   position: absolute;
