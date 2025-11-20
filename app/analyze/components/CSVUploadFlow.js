@@ -427,6 +427,12 @@ export default function CSVUploadFlow({ onBack }) {
         progress: ''
       })
 
+      // Set flag to show analytics ready toast when user returns to dashboard
+      if (newTrades > 0) {
+        sessionStorage.setItem('justAddedTrades', 'true')
+        sessionStorage.setItem('tradesAddedAt', Date.now().toString())
+      }
+
       // Show success toast
       toast.success(
         'Import Complete',

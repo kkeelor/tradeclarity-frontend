@@ -4,7 +4,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Send, Loader2, Bot, User, Sparkles, X, RotateCcw, Square, Minimize2 } from 'lucide-react'
+import { Send, Loader2, Bot, User, Sparkles, X, RotateCcw, Square, Minimize2, Database, Link as LinkIcon, Upload } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 
@@ -21,7 +21,7 @@ const SAMPLE_QUESTIONS = [
   "What's my biggest opportunity for improvement?"
 ]
 
-export default function AIChat({ analytics, allTrades, tradesStats }) {
+export default function AIChat({ analytics, allTrades, tradesStats, onConnectExchange, onUploadCSV }) {
   const { user } = useAuth()
   const [messages, setMessages] = useState([])
   const [sessionMessages, setSessionMessages] = useState([]) // In-memory messages for current session
@@ -37,6 +37,12 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
   const [isMaximized, setIsMaximized] = useState(false)
   const [tokenUsage, setTokenUsage] = useState({ input: 0, output: 0 })
   const [isClearing, setIsClearing] = useState(false)
+  
+  // Analytics state - fetch if not provided via props
+  const [computedAnalytics, setComputedAnalytics] = useState(analytics)
+  const [computedAllTrades, setComputedAllTrades] = useState(allTrades)
+  const [analyticsReady, setAnalyticsReady] = useState(!!analytics)
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false)
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
   const inputRef = useRef(null)
@@ -48,6 +54,47 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
   const shouldAutoScrollRef = useRef(true)
   const lastMessageCountRef = useRef(0)
   const scrollTimeoutRef = useRef(null)
+
+  // Fetch analytics if not provided via props
+  useEffect(() => {
+    // If analytics not provided and we have trades, fetch from cache
+    if (!analytics && tradesStats && tradesStats.totalTrades > 0 && user) {
+      setLoadingAnalytics(true)
+      fetch('/api/analytics/cache')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.analytics) {
+            setComputedAnalytics(data.analytics)
+            setComputedAllTrades(data.allTrades || [])
+            setAnalyticsReady(true)
+          } else {
+            // No cache - analytics not ready yet
+            setAnalyticsReady(false)
+          }
+        })
+        .catch(err => {
+          console.error('Error fetching analytics:', err)
+          setAnalyticsReady(false)
+        })
+        .finally(() => {
+          setLoadingAnalytics(false)
+        })
+    } else if (analytics) {
+      // Analytics provided via props
+      setComputedAnalytics(analytics)
+      setComputedAllTrades(allTrades)
+      setAnalyticsReady(true)
+    } else if (!tradesStats || tradesStats.totalTrades === 0) {
+      // No trades - analytics not needed
+      setAnalyticsReady(true)
+      setComputedAnalytics(null)
+      setComputedAllTrades(null)
+    }
+  }, [analytics, allTrades, tradesStats, user])
+
+  // Use computed analytics if available, otherwise use props
+  const effectiveAnalytics = computedAnalytics || analytics
+  const effectiveAllTrades = computedAllTrades || allTrades
 
   // Animate sample questions inside the input box
   useEffect(() => {
@@ -120,8 +167,8 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
           messages: sessionMessages,
           contextData: {
             tradesStats,
-            analytics,
-            allTrades
+            analytics: effectiveAnalytics,
+            allTrades: effectiveAllTrades
           }
         })
       })
@@ -131,7 +178,7 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
     } catch (error) {
       console.error('Error summarizing conversation:', error)
     }
-  }, [conversationId, sessionMessages, tradesStats, analytics, allTrades])
+  }, [conversationId, sessionMessages, tradesStats, effectiveAnalytics, effectiveAllTrades])
 
   // Load previous conversation summaries on mount
   useEffect(() => {
@@ -211,8 +258,8 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
           messages: sessionMessages,
           contextData: {
             tradesStats,
-            analytics,
-            allTrades
+            analytics: effectiveAnalytics,
+            allTrades: effectiveAllTrades
           }
         })
         navigator.sendBeacon('/api/ai/chat/summarize', data)
@@ -221,7 +268,7 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
 
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [conversationId, sessionMessages])
+  }, [conversationId, sessionMessages, tradesStats, effectiveAnalytics, effectiveAllTrades])
 
   // Smart scroll management - only scroll the container, not the page
   const scrollToBottom = useCallback((smooth = false, immediate = false) => {
@@ -419,8 +466,8 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
             includeContext: true,
             contextData: {
               tradesStats: tradesStats,
-              analytics: analytics,
-              allTrades: allTrades
+              analytics: effectiveAnalytics,
+              allTrades: effectiveAllTrades
             },
             sessionMessages: sessionMessages,
             previousSummaries: previousSummaries
@@ -798,7 +845,38 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
           overflowY: isMaximizedView ? 'auto' : (messages.length > 0 ? 'auto' : 'hidden')
         }}
       >
-        {messages.length === 0 ? (
+        {/* Show "No Trading Data Yet" if no trades */}
+        {(!tradesStats || tradesStats.totalTrades === 0) ? (
+          <div className="h-full flex flex-col items-center justify-center p-6 text-center">
+            <Database className="w-12 h-12 text-slate-500 mb-4" />
+            <h3 className="text-lg font-semibold text-slate-300 mb-2">
+              No Trading Data Yet
+            </h3>
+            <p className="text-sm text-slate-400 mb-6 max-w-md">
+              Connect your exchange or upload CSV files to start analyzing your trading performance with Vega AI.
+            </p>
+            <div className="flex gap-3">
+              {onConnectExchange && (
+                <button
+                  onClick={onConnectExchange}
+                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  <LinkIcon className="w-4 h-4" />
+                  Connect Exchange
+                </button>
+              )}
+              {onUploadCSV && (
+                <button
+                  onClick={onUploadCSV}
+                  className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  <Upload className="w-4 h-4" />
+                  Upload CSV
+                </button>
+              )}
+            </div>
+          </div>
+        ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4 relative z-10">
             <h4 className="text-base font-bold text-slate-200 mb-2 bg-gradient-to-r from-emerald-300 to-emerald-400 bg-clip-text text-transparent">
               Ask me anything about your trading
@@ -871,6 +949,7 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
           <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 via-transparent to-emerald-500/5 rounded-lg" />
           <textarea
             ref={inputRef}
+            data-ai-chat-input
             value={input}
             onChange={handleInputChange}
             onFocus={handleInputFocus}

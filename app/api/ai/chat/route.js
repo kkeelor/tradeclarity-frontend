@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
 import { generateCompletion, AI_MODELS, isAIConfigured } from '@/lib/ai/client'
 import Anthropic from '@anthropic-ai/sdk'
-import { buildVegaSystemPrompt, determineExperienceLevel } from '@/lib/ai/prompts/vega-system-prompt'
+import { buildVegaSystemPrompt, buildCachedSystemBlocks, determineExperienceLevel } from '@/lib/ai/prompts/vega-system-prompt'
 
 function getAnthropicClient() {
   return new Anthropic({
@@ -111,39 +111,45 @@ export async function POST(request) {
     const currentSummary = convData?.summary || null
     const previousMessageCount = convData?.message_count || 0
 
-    // Build context from user's data (passed from frontend)
-    const contextData = userContextData || {}
+    // Fetch cached analytics for AI context (optimized path)
+    let aiContext = null
+    let analytics = null
+    let tradesStats = null
     
-    // Build system prompt with user context and previous conversation summaries
-    const systemPrompt = buildSystemPrompt(contextData, currentSummary, previousSummaries, tier)
-    
-    // Build messages array for Claude
-    const claudeMessages = []
-    
-    // Always include full system context with structured data
-    // This ensures the AI has access to all trading data in every message
-    if (systemPrompt && typeof systemPrompt === 'string' && systemPrompt.trim().length > 0) {
-      // For new conversations, include full context
-      if (sessionMessages.length === 0 && !currentSummary) {
-        claudeMessages.push({
-          role: 'user',
-          content: systemPrompt.trim()
-        })
-      } else {
-        // For continuing conversations, still include full context but acknowledge continuation
-        let contextMessage = systemPrompt.trim()
-        
-        // Add conversation continuation note if summary exists
-        if (currentSummary && typeof currentSummary === 'string' && currentSummary.trim().length > 0) {
-          contextMessage = `Continuing previous conversation. Summary: ${currentSummary.trim()}\n\n${contextMessage}`
-        }
-        
-        claudeMessages.push({
-          role: 'user',
-          content: contextMessage
-        })
+    try {
+      // Check cache directly from database
+      const { data: cached } = await supabase
+        .from('user_analytics_cache')
+        .select('ai_context, analytics_data, expires_at')
+        .eq('user_id', user.id)
+        .single()
+      
+      // Only use cache if it exists and is not expired
+      if (cached && cached.ai_context && new Date(cached.expires_at) > new Date()) {
+        aiContext = cached.ai_context
+        analytics = cached.analytics_data
       }
+    } catch (error) {
+      // Cache miss or error - will fall back to contextData
+      console.warn('[Chat API] Cache miss or error, falling back to contextData:', error.message)
     }
+    
+    // Fallback to contextData if cache miss (backward compatibility)
+    if (!aiContext && userContextData) {
+      const { formatStructuredContext } = await import('@/lib/ai/prompts/vega-system-prompt')
+      aiContext = formatStructuredContext(userContextData)
+      analytics = userContextData.analytics
+      tradesStats = userContextData.tradesStats
+    }
+    
+    // Determine experience level
+    const experienceLevel = determineExperienceLevel(tradesStats || (aiContext?.summary ? { totalTrades: aiContext.summary.totalTrades } : null), analytics)
+    
+    // Build cached system blocks with prompt caching
+    const systemBlocks = buildCachedSystemBlocks(aiContext, currentSummary, previousSummaries, tier, experienceLevel)
+    
+    // Build messages array for Claude (ONLY conversation messages, NO system prompt)
+    const claudeMessages = []
 
     // Add current session messages (in-memory only)
     if (Array.isArray(sessionMessages)) {
@@ -247,6 +253,9 @@ export async function POST(request) {
               max_tokens: tier === 'pro' ? 2000 : 1000,
               temperature: 0.7,
               stream: true,
+              // CRITICAL: Use system parameter with cache control (NOT in messages!)
+              system: systemBlocks,
+              // Only conversation messages (no system prompt here)
               messages: messagesForClaude
             })
           } catch (apiError) {
@@ -278,10 +287,22 @@ export async function POST(request) {
                 )
               }
             } else if (event.type === 'message_stop') {
-              // Message complete - get accurate token counts
+              // Message complete - get accurate token counts including cache metrics
               if (event.message?.usage) {
                 inputTokens = event.message.usage.input_tokens
                 outputTokens = event.message.usage.output_tokens
+                
+                // Log cache metrics for monitoring
+                if (event.message.usage.cache_creation_input_tokens || event.message.usage.cache_read_input_tokens) {
+                  console.log('[Chat API] Cache metrics:', {
+                    cacheCreationTokens: event.message.usage.cache_creation_input_tokens,
+                    cacheReadTokens: event.message.usage.cache_read_input_tokens,
+                    totalInputTokens: inputTokens,
+                    cacheHitRate: event.message.usage.cache_read_input_tokens 
+                      ? ((event.message.usage.cache_read_input_tokens / inputTokens) * 100).toFixed(1) + '%'
+                      : '0%'
+                  })
+                }
               }
               console.log('[Chat API] Stream complete:', { inputTokens, outputTokens, responseLength: fullResponse.length })
               break // Exit loop when message is complete
@@ -427,6 +448,8 @@ export async function POST(request) {
 /**
  * Build system prompt with user context and previous conversation summaries
  * Uses the structured Vega prompt system
+ * NOTE: Legacy function - kept for backward compatibility
+ * New implementation uses buildCachedSystemBlocks() with system parameter
  */
 function buildSystemPrompt(contextData, currentSummary, previousSummaries, tier) {
   // Determine user experience level dynamically
