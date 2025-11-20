@@ -120,30 +120,29 @@ export async function POST(request) {
     // Build messages array for Claude
     const claudeMessages = []
     
-    // Add system context as first user message (only if no conversation history)
-    if (sessionMessages.length === 0 && !currentSummary) {
-      if (systemPrompt && typeof systemPrompt === 'string' && systemPrompt.trim().length > 0) {
+    // Always include full system context with structured data
+    // This ensures the AI has access to all trading data in every message
+    if (systemPrompt && typeof systemPrompt === 'string' && systemPrompt.trim().length > 0) {
+      // For new conversations, include full context
+      if (sessionMessages.length === 0 && !currentSummary) {
         claudeMessages.push({
           role: 'user',
           content: systemPrompt.trim()
         })
+      } else {
+        // For continuing conversations, still include full context but acknowledge continuation
+        let contextMessage = systemPrompt.trim()
+        
+        // Add conversation continuation note if summary exists
+        if (currentSummary && typeof currentSummary === 'string' && currentSummary.trim().length > 0) {
+          contextMessage = `Continuing previous conversation. Summary: ${currentSummary.trim()}\n\n${contextMessage}`
+        }
+        
+        claudeMessages.push({
+          role: 'user',
+          content: contextMessage
+        })
       }
-    } else {
-      // If there's history, add system context more subtly
-      const contextPreview = systemPrompt ? systemPrompt.split('\n')[0] : 'User context'
-      const hasTradingData = systemPrompt && systemPrompt.includes('Total Trades:')
-      claudeMessages.push({
-        role: 'user',
-        content: `[Context: ${contextPreview} - ${hasTradingData ? 'User has trading data available' : 'New user'}]`
-      })
-    }
-
-    // Add current conversation summary if exists (for continuing conversations)
-    if (currentSummary && typeof currentSummary === 'string' && currentSummary.trim().length > 0 && sessionMessages.length === 0) {
-      claudeMessages.push({
-        role: 'user',
-        content: `Continuing previous conversation. Summary: ${currentSummary.trim()}`
-      })
     }
 
     // Add current session messages (in-memory only)

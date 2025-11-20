@@ -36,6 +36,7 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
   const [isInputFocused, setIsInputFocused] = useState(false)
   const [isMaximized, setIsMaximized] = useState(false)
   const [tokenUsage, setTokenUsage] = useState({ input: 0, output: 0 })
+  const [isClearing, setIsClearing] = useState(false)
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
   const inputRef = useRef(null)
@@ -695,26 +696,36 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
   }, [isLoading])
 
   const handleClear = async () => {
-    // Summarize current conversation before clearing
-    if (conversationId && sessionMessages.length > 0) {
-      await summarizeConversation()
-    }
+    if (isClearing || isLoading) return
     
-    setMessages([])
-    setSessionMessages([])
-    setConversationId(null)
-    setTokenUsage({ input: 0, output: 0 })
+    setIsClearing(true)
     
-    // Reset scroll state
-    shouldAutoScrollRef.current = true
-    lastMessageCountRef.current = 0
-    
-    // Clear timeouts
-    if (summarizeTimeoutRef.current) {
-      clearTimeout(summarizeTimeoutRef.current)
-    }
-    if (scrollTimeoutRef.current) {
-      clearTimeout(scrollTimeoutRef.current)
+    try {
+      // Summarize current conversation before clearing
+      if (conversationId && sessionMessages.length > 0) {
+        await summarizeConversation()
+      }
+      
+      setMessages([])
+      setSessionMessages([])
+      setConversationId(null)
+      setTokenUsage({ input: 0, output: 0 })
+      
+      // Reset scroll state
+      shouldAutoScrollRef.current = true
+      lastMessageCountRef.current = 0
+      
+      // Clear timeouts
+      if (summarizeTimeoutRef.current) {
+        clearTimeout(summarizeTimeoutRef.current)
+      }
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current)
+      }
+    } catch (error) {
+      console.error('Error clearing conversation:', error)
+    } finally {
+      setIsClearing(false)
     }
   }
 
@@ -761,10 +772,15 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
             {messages.length > 0 && (
               <button
                 onClick={handleClear}
-                className="p-2 rounded-lg hover:bg-slate-700/50 transition-all hover:scale-110 active:scale-95"
-                title="Clear conversation"
+                disabled={isClearing || isLoading}
+                className="p-2 rounded-lg hover:bg-slate-700/50 transition-all hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                title={isClearing ? "Clearing conversation..." : "Clear conversation"}
               >
-                <RotateCcw className="w-4 h-4 text-slate-400 hover:text-emerald-400 transition-colors" />
+                {isClearing ? (
+                  <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
+                ) : (
+                  <RotateCcw className="w-4 h-4 text-slate-400 hover:text-emerald-400 transition-colors" />
+                )}
               </button>
             )}
           </div>
@@ -986,11 +1002,15 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
                 {messages.length > 0 && (
                   <button
                     onClick={handleClear}
-                    className="p-1.5 rounded-lg hover:bg-slate-700/50 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Clear conversation"
-                    disabled={isLoading}
+                    className="p-1.5 rounded-lg hover:bg-slate-700/50 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                    title={isClearing ? "Clearing conversation..." : "Clear conversation"}
+                    disabled={isLoading || isClearing}
                   >
-                    <RotateCcw className="w-4 h-4 text-slate-400 hover:text-emerald-400 transition-colors" />
+                    {isClearing ? (
+                      <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
+                    ) : (
+                      <RotateCcw className="w-4 h-4 text-slate-400 hover:text-emerald-400 transition-colors" />
+                    )}
                   </button>
                 )}
                 <button
