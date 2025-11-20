@@ -43,6 +43,10 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
   const [computedAllTrades, setComputedAllTrades] = useState(allTrades)
   const [analyticsReady, setAnalyticsReady] = useState(!!analytics)
   const [loadingAnalytics, setLoadingAnalytics] = useState(false)
+  
+  // Track if user has sent messages without data (for onboarding mode)
+  const hasNoData = !tradesStats || tradesStats.totalTrades === 0
+  const [hasSentMessagesWithoutData, setHasSentMessagesWithoutData] = useState(false)
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
   const inputRef = useRef(null)
@@ -95,6 +99,13 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
   // Use computed analytics if available, otherwise use props
   const effectiveAnalytics = computedAnalytics || analytics
   const effectiveAllTrades = computedAllTrades || allTrades
+  
+  // Reset onboarding flag when user adds data
+  useEffect(() => {
+    if (!hasNoData && hasSentMessagesWithoutData) {
+      setHasSentMessagesWithoutData(false)
+    }
+  }, [hasNoData, hasSentMessagesWithoutData])
 
   // Animate sample questions inside the input box
   useEffect(() => {
@@ -440,6 +451,11 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
     }
     setMessages(prev => [...prev, newUserMessage])
     setSessionMessages(prev => [...prev, { role: 'user', content: userMessage }])
+    
+    // Track if user has sent messages without data
+    if (hasNoData && !hasSentMessagesWithoutData) {
+      setHasSentMessagesWithoutData(true)
+    }
 
     // Add placeholder for assistant response
     const assistantMessageId = Date.now() + 1
@@ -757,6 +773,10 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
       setSessionMessages([])
       setConversationId(null)
       setTokenUsage({ input: 0, output: 0 })
+      // Reset onboarding flag if user still has no data
+      if (hasNoData) {
+        setHasSentMessagesWithoutData(false)
+      }
       
       // Reset scroll state
       shouldAutoScrollRef.current = true
@@ -811,11 +831,6 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {tokenUsage.input + tokenUsage.output > 0 && (
-              <div className="px-2 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[10px] text-emerald-300">
-                <span className="font-semibold">{tokenUsage.input + tokenUsage.output}</span> tokens
-              </div>
-            )}
             {messages.length > 0 && (
               <button
                 onClick={handleClear}
@@ -845,38 +860,40 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
           overflowY: isMaximizedView ? 'auto' : (messages.length > 0 ? 'auto' : 'hidden')
         }}
       >
-        {/* Show "No Trading Data Yet" if no trades */}
-        {(!tradesStats || tradesStats.totalTrades === 0) ? (
-          <div className="h-full flex flex-col items-center justify-center p-6 text-center">
-            <Database className="w-12 h-12 text-slate-500 mb-4" />
-            <h3 className="text-lg font-semibold text-slate-300 mb-2">
-              No Trading Data Yet
-            </h3>
-            <p className="text-sm text-slate-400 mb-6 max-w-md">
-              Connect your exchange or upload CSV files to start analyzing your trading performance with Vega AI.
-            </p>
-            <div className="flex gap-3">
-              {onConnectExchange && (
-                <button
-                  onClick={onConnectExchange}
-                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                >
-                  <LinkIcon className="w-4 h-4" />
-                  Connect Exchange
-                </button>
-              )}
-              {onUploadCSV && (
-                <button
-                  onClick={onUploadCSV}
-                  className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                >
-                  <Upload className="w-4 h-4" />
-                  Upload CSV
-                </button>
-              )}
+        {/* Show messages if they exist, otherwise show empty state */}
+        {messages.length === 0 ? (
+          /* Empty state - show onboarding if no data, otherwise show welcome */
+          hasNoData ? (
+            <div className="h-full flex flex-col items-center justify-center p-6 text-center">
+              <Database className="w-12 h-12 text-slate-500 mb-4" />
+              <h3 className="text-lg font-semibold text-slate-300 mb-2">
+                No Trading Data Yet
+              </h3>
+              <p className="text-sm text-slate-400 mb-6 max-w-md">
+                Connect your exchange or upload CSV files to start analyzing your trading performance with Vega AI.
+              </p>
+              <div className="flex gap-3">
+                {onConnectExchange && (
+                  <button
+                    onClick={onConnectExchange}
+                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                  >
+                    <LinkIcon className="w-4 h-4" />
+                    Connect Exchange
+                  </button>
+                )}
+                {onUploadCSV && (
+                  <button
+                    onClick={onUploadCSV}
+                    className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                  >
+                    <Upload className="w-4 h-4" />
+                    Upload CSV
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-        ) : messages.length === 0 ? (
+          ) : (
           <div className="flex flex-col items-center justify-center h-full text-center px-4 relative z-10">
             <h4 className="text-base font-bold text-slate-200 mb-2 bg-gradient-to-r from-emerald-300 to-emerald-400 bg-clip-text text-transparent">
               Ask me anything about your trading
@@ -900,7 +917,7 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
               ))}
             </div>
           </div>
-        ) : (
+        )) : (
           <>
             {messages.map((message, idx) => (
               <div
@@ -945,6 +962,41 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
 
       {/* Input */}
       <div className="relative p-4 border-t border-emerald-500/20 bg-gradient-to-r from-slate-800/40 via-slate-800/30 to-slate-800/40 backdrop-blur-sm flex-shrink-0">
+        {/* Persistent banner for users without data after first message */}
+        {hasNoData && hasSentMessagesWithoutData && (
+          <div className="mb-3 px-4 py-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-sm">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 mt-0.5">
+                <Sparkles className="w-4 h-4 text-emerald-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-emerald-300 mb-2">
+                  Connect your exchange or upload CSV to unlock personalized insights
+                </p>
+                <div className="flex gap-2 flex-wrap">
+                  {onConnectExchange && (
+                    <button
+                      onClick={onConnectExchange}
+                      className="px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 rounded-md text-[11px] font-medium transition-colors flex items-center gap-1.5"
+                    >
+                      <LinkIcon className="w-3 h-3" />
+                      Connect Exchange
+                    </button>
+                  )}
+                  {onUploadCSV && (
+                    <button
+                      onClick={onUploadCSV}
+                      className="px-3 py-1.5 bg-slate-700/50 hover:bg-slate-700/70 border border-slate-600/40 text-slate-300 rounded-md text-[11px] font-medium transition-colors flex items-center gap-1.5"
+                    >
+                      <Upload className="w-3 h-3" />
+                      Upload CSV
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="relative flex items-center">
           <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 via-transparent to-emerald-500/5 rounded-lg" />
           <textarea
@@ -1003,16 +1055,10 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
             </button>
           )}
         </div>
-        {!isMaximizedView && tokenUsage.input + tokenUsage.output > 0 && (
-          <div className="mt-3 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[10px] text-emerald-300/80 flex items-center justify-between">
-            <span className="font-medium">Tokens: <span className="text-emerald-400">{tokenUsage.input}</span> in / <span className="text-emerald-400">{tokenUsage.output}</span> out</span>
-            <span className="font-semibold text-emerald-400">Total: {tokenUsage.input + tokenUsage.output}</span>
-          </div>
-        )}
       </div>
     </div>
     )
-  }, [messages, input, isInputFocused, displayedSample, isTypingSample, isDeletingSample, isLoading, tokenUsage, handleSend, handleStop, handleInputChange, handleInputFocus, handleInputBlur, handleInputClick, handleKeyPress, handleClear])
+  }, [messages, input, isInputFocused, displayedSample, isTypingSample, isDeletingSample, isLoading, tokenUsage, handleSend, handleStop, handleInputChange, handleInputFocus, handleInputBlur, handleInputClick, handleKeyPress, handleClear, hasNoData, hasSentMessagesWithoutData, onConnectExchange, onUploadCSV])
 
   return (
     <>

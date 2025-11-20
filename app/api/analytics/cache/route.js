@@ -35,8 +35,35 @@ export async function GET(request) {
       )
     }
 
-    // 2. If cache valid and not expired, return it
+    // 2. If cache valid and not expired, verify trades still exist
     if (cached && new Date(cached.expires_at) > new Date()) {
+      // Safety check: Verify trades still exist (cache might be stale if trades were deleted)
+      const { count: tradesCount } = await supabase
+        .from('trades')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+      
+      // If no trades exist but cache says there are trades, invalidate cache
+      if (tradesCount === 0 && cached.total_trades > 0) {
+        console.warn(`⚠️  Cache inconsistency detected: cache has ${cached.total_trades} trades but database has 0. Invalidating cache.`)
+        await supabase
+          .from('user_analytics_cache')
+          .delete()
+          .eq('user_id', user.id)
+          .catch(() => {}) // Ignore errors
+        
+        return NextResponse.json({
+          success: false,
+          cached: false,
+          analytics: null,
+          aiContext: null,
+          allTrades: null,
+          psychology: null,
+          message: 'Analytics not cached. No trades found.'
+        })
+      }
+      
+      // Cache is valid and trades exist - return it
       return NextResponse.json({
         success: true,
         analytics: cached.analytics_data,
