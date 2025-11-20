@@ -54,19 +54,29 @@ export async function POST(request) {
       .map(m => `${m.role}: ${m.content}`)
       .join('\n\n')
 
-    // Build summary prompt
-    const summaryPrompt = `Summarize this trading conversation concisely. Preserve:
-- Key questions asked by the user
-- Important insights and recommendations given
-- Specific metrics or numbers mentioned
-- Action items or next steps discussed
+    // Build summary prompt with structured format
+    const summaryPrompt = `You are summarizing a trading performance analysis conversation. Create a concise summary that preserves:
 
-Keep the summary under 300 words. Focus on actionable insights and patterns.
+KEY ELEMENTS TO PRESERVE:
+1. User's main questions and concerns
+2. Specific insights provided about their trading performance
+3. Metrics and numbers referenced (win rate, profit factor, P&L, etc.)
+4. Actionable recommendations given
+5. Patterns or behaviors identified
+6. Next steps or action items discussed
 
-Conversation:
+SUMMARY GUIDELINES:
+- Keep under 300 words
+- Focus on actionable insights and patterns
+- Maintain a positive, constructive tone
+- Highlight both strengths and growth opportunities
+- Preserve specific numbers and metrics mentioned
+- Use clear, structured format
+
+CONVERSATION TO SUMMARIZE:
 ${conversationText}
 
-Summary:`
+Provide a well-structured summary that captures the essence of the conversation while preserving all important details:`
 
     // Generate summary using Haiku (cheaper)
     let summary

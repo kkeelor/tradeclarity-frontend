@@ -4,7 +4,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Send, Loader2, Bot, User, Sparkles, X, RotateCcw, Square, Minimize2 } from 'lucide-react'
+import { Send, Loader2, Bot, User, Sparkles, X, RotateCcw, Square, Minimize2, Database, Link as LinkIcon, Upload } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 
@@ -21,7 +21,7 @@ const SAMPLE_QUESTIONS = [
   "What's my biggest opportunity for improvement?"
 ]
 
-export default function AIChat({ analytics, allTrades, tradesStats }) {
+export default function AIChat({ analytics, allTrades, tradesStats, onConnectExchange, onUploadCSV }) {
   const { user } = useAuth()
   const [messages, setMessages] = useState([])
   const [sessionMessages, setSessionMessages] = useState([]) // In-memory messages for current session
@@ -36,6 +36,13 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
   const [isInputFocused, setIsInputFocused] = useState(false)
   const [isMaximized, setIsMaximized] = useState(false)
   const [tokenUsage, setTokenUsage] = useState({ input: 0, output: 0 })
+  const [isClearing, setIsClearing] = useState(false)
+  
+  // Analytics state - fetch if not provided via props
+  const [computedAnalytics, setComputedAnalytics] = useState(analytics)
+  const [computedAllTrades, setComputedAllTrades] = useState(allTrades)
+  const [analyticsReady, setAnalyticsReady] = useState(!!analytics)
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false)
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
   const inputRef = useRef(null)
@@ -47,6 +54,47 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
   const shouldAutoScrollRef = useRef(true)
   const lastMessageCountRef = useRef(0)
   const scrollTimeoutRef = useRef(null)
+
+  // Fetch analytics if not provided via props
+  useEffect(() => {
+    // If analytics not provided and we have trades, fetch from cache
+    if (!analytics && tradesStats && tradesStats.totalTrades > 0 && user) {
+      setLoadingAnalytics(true)
+      fetch('/api/analytics/cache')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.analytics) {
+            setComputedAnalytics(data.analytics)
+            setComputedAllTrades(data.allTrades || [])
+            setAnalyticsReady(true)
+          } else {
+            // No cache - analytics not ready yet
+            setAnalyticsReady(false)
+          }
+        })
+        .catch(err => {
+          console.error('Error fetching analytics:', err)
+          setAnalyticsReady(false)
+        })
+        .finally(() => {
+          setLoadingAnalytics(false)
+        })
+    } else if (analytics) {
+      // Analytics provided via props
+      setComputedAnalytics(analytics)
+      setComputedAllTrades(allTrades)
+      setAnalyticsReady(true)
+    } else if (!tradesStats || tradesStats.totalTrades === 0) {
+      // No trades - analytics not needed
+      setAnalyticsReady(true)
+      setComputedAnalytics(null)
+      setComputedAllTrades(null)
+    }
+  }, [analytics, allTrades, tradesStats, user])
+
+  // Use computed analytics if available, otherwise use props
+  const effectiveAnalytics = computedAnalytics || analytics
+  const effectiveAllTrades = computedAllTrades || allTrades
 
   // Animate sample questions inside the input box
   useEffect(() => {
@@ -119,8 +167,8 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
           messages: sessionMessages,
           contextData: {
             tradesStats,
-            analytics,
-            allTrades
+            analytics: effectiveAnalytics,
+            allTrades: effectiveAllTrades
           }
         })
       })
@@ -130,7 +178,7 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
     } catch (error) {
       console.error('Error summarizing conversation:', error)
     }
-  }, [conversationId, sessionMessages, tradesStats, analytics, allTrades])
+  }, [conversationId, sessionMessages, tradesStats, effectiveAnalytics, effectiveAllTrades])
 
   // Load previous conversation summaries on mount
   useEffect(() => {
@@ -210,8 +258,8 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
           messages: sessionMessages,
           contextData: {
             tradesStats,
-            analytics,
-            allTrades
+            analytics: effectiveAnalytics,
+            allTrades: effectiveAllTrades
           }
         })
         navigator.sendBeacon('/api/ai/chat/summarize', data)
@@ -220,12 +268,16 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
 
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [conversationId, sessionMessages])
+  }, [conversationId, sessionMessages, tradesStats, effectiveAnalytics, effectiveAllTrades])
 
   // Smart scroll management - only scroll the container, not the page
   const scrollToBottom = useCallback((smooth = false, immediate = false) => {
     const container = messagesContainerRef.current
-    if (!container || !shouldAutoScrollRef.current) return
+    if (!container) return
+    
+    // In maximized view, always auto-scroll (ignore shouldAutoScroll)
+    const shouldScroll = isMaximized ? true : shouldAutoScrollRef.current
+    if (!shouldScroll) return
     
     // Clear any pending scroll
     if (scrollTimeoutRef.current) {
@@ -234,22 +286,28 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
     
     const performScroll = () => {
       const container = messagesContainerRef.current
-      if (!container || !shouldAutoScrollRef.current) return
+      if (!container) return
+      
+      // Check again if we should scroll
+      const shouldScrollNow = isMaximized ? true : shouldAutoScrollRef.current
+      if (!shouldScrollNow) return
       
       // Use requestAnimationFrame to ensure DOM has updated
       requestAnimationFrame(() => {
-        if (!container || !shouldAutoScrollRef.current) return
+        if (!container) return
         
-        // Scroll the container itself, not the page
-        // Using scrollTop directly prevents any page-level scrolling
+        // Scroll container to bottom (most reliable method)
+        const scrollHeight = container.scrollHeight
+        const clientHeight = container.clientHeight
+        
         if (smooth) {
           container.scrollTo({
-            top: container.scrollHeight,
+            top: scrollHeight - clientHeight,
             behavior: 'smooth'
           })
         } else {
-          // Instant scroll - directly set scrollTop (this only affects the container)
-          container.scrollTop = container.scrollHeight
+          // Instant scroll - directly set scrollTop
+          container.scrollTop = scrollHeight - clientHeight
         }
       })
     }
@@ -260,10 +318,10 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
         requestAnimationFrame(performScroll)
       })
     } else {
-      // Throttle scroll updates during streaming (every 150ms)
-      scrollTimeoutRef.current = setTimeout(performScroll, 150)
+      // Throttle scroll updates during streaming (every 50ms for very smooth experience)
+      scrollTimeoutRef.current = setTimeout(performScroll, 50)
     }
-  }, [])
+  }, [isMaximized])
 
   // Check if user is near bottom of scroll container
   const isNearBottom = useCallback(() => {
@@ -303,24 +361,31 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
     }
   }, [isNearBottom])
 
-  // Scroll to bottom when new messages are added (not on content updates)
+  // Scroll to bottom when new messages are added or content updates
   useEffect(() => {
     const currentMessageCount = messages.length
     const lastMessageCount = lastMessageCountRef.current
+    const lastMessage = messages[messages.length - 1]
+    const isStreaming = lastMessage?.isLoading || false
+    
+    // In maximized view, always auto-scroll during streaming
+    if (isMaximized && isStreaming) {
+      // During streaming in maximized view, scroll instantly but throttled
+      scrollToBottom(false, false)
+      return
+    }
     
     // Only scroll if message count changed (new message added)
     if (currentMessageCount !== lastMessageCount) {
-      const lastMessage = messages[messages.length - 1]
-      const isStreaming = lastMessage?.isLoading || false
-      
-      // Use instant scroll during streaming to avoid glitchiness
       // Use smooth scroll when new message is added
-      scrollToBottom(!isStreaming, !isStreaming)
+      scrollToBottom(true, true)
       lastMessageCountRef.current = currentMessageCount
     } else {
       // Content update during streaming - only scroll if user is already at bottom
-      // Throttled to avoid excessive scrolling
-      if (shouldAutoScrollRef.current) {
+      // In maximized view, always scroll during streaming
+      if (isMaximized && isStreaming) {
+        scrollToBottom(false, false)
+      } else if (shouldAutoScrollRef.current) {
         scrollToBottom(false, false)
       }
     }
@@ -330,7 +395,7 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
         clearTimeout(scrollTimeoutRef.current)
       }
     }
-  }, [messages, scrollToBottom])
+  }, [messages, scrollToBottom, isMaximized])
 
   const handleStop = () => {
     if (abortControllerRef.current) {
@@ -363,6 +428,8 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
     if (inputRef.current) {
       inputRef.current.blur()
     }
+    
+    // Focus will be restored after response completes (see handleStreamComplete)
     
     // Add user message to UI immediately
     const newUserMessage = {
@@ -399,8 +466,8 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
             includeContext: true,
             contextData: {
               tradesStats: tradesStats,
-              analytics: analytics,
-              allTrades: allTrades
+              analytics: effectiveAnalytics,
+              allTrades: effectiveAllTrades
             },
             sessionMessages: sessionMessages,
             previousSummaries: previousSummaries
@@ -559,6 +626,13 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
           ))
         }
         abortControllerRef.current = null
+        
+        // Restore focus to input box for seamless UX
+        setTimeout(() => {
+          if (inputRef.current) {
+            inputRef.current.focus()
+          }
+        }, 100)
       }
 
     } catch (error) {
@@ -580,6 +654,12 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
             : msg
         ))
         abortControllerRef.current = null
+        // Restore focus to input box
+        setTimeout(() => {
+          if (inputRef.current) {
+            inputRef.current.focus()
+          }
+        }, 100)
         return
       }
       
@@ -606,32 +686,33 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
           : msg
       ))
       abortControllerRef.current = null
+      
+      // Restore focus to input box for seamless UX
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus()
+        }
+      }, 100)
     }
   }
 
-  // Open maximized dialog when input is focused or has content
+  // Open maximized dialog when Vega starts responding (isLoading becomes true)
   useEffect(() => {
-    if (isInputFocused || input.length > 0 || messages.length > 0) {
+    if (isLoading) {
       setIsMaximized(true)
     }
-  }, [isInputFocused, input.length, messages.length])
+  }, [isLoading])
 
   const handleInputFocus = () => {
     setIsInputFocused(true)
-    setIsMaximized(true)
   }
 
   const handleInputClick = () => {
     setIsInputFocused(true)
-    setIsMaximized(true)
   }
 
   const handleInputBlur = () => {
     setIsInputFocused(false)
-    // Don't close if there's content or messages
-    if (input.length === 0 && messages.length === 0) {
-      setIsMaximized(false)
-    }
   }
 
   const handleInputChange = (e) => {
@@ -639,13 +720,17 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
     // Stop animation when user types
     if (e.target.value.length > 0) {
       setIsInputFocused(true)
-      setIsMaximized(true)
     }
   }
 
-  const handleCloseMaximized = (open) => {
-    // Only allow closing if there are no messages and no input
-    if (!open && messages.length === 0 && input.length === 0) {
+  const handleCloseMaximized = useCallback((open) => {
+    // Don't allow closing while loading
+    if (!open && isLoading) {
+      return
+    }
+    
+    // Allow closing if not loading
+    if (!open) {
       setIsMaximized(false)
       // Blur input if it's focused
       if (inputRef.current) {
@@ -655,29 +740,39 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
       // Opening the dialog
       setIsMaximized(true)
     }
-  }
+  }, [isLoading])
 
   const handleClear = async () => {
-    // Summarize current conversation before clearing
-    if (conversationId && sessionMessages.length > 0) {
-      await summarizeConversation()
-    }
+    if (isClearing || isLoading) return
     
-    setMessages([])
-    setSessionMessages([])
-    setConversationId(null)
-    setTokenUsage({ input: 0, output: 0 })
+    setIsClearing(true)
     
-    // Reset scroll state
-    shouldAutoScrollRef.current = true
-    lastMessageCountRef.current = 0
-    
-    // Clear timeouts
-    if (summarizeTimeoutRef.current) {
-      clearTimeout(summarizeTimeoutRef.current)
-    }
-    if (scrollTimeoutRef.current) {
-      clearTimeout(scrollTimeoutRef.current)
+    try {
+      // Summarize current conversation before clearing
+      if (conversationId && sessionMessages.length > 0) {
+        await summarizeConversation()
+      }
+      
+      setMessages([])
+      setSessionMessages([])
+      setConversationId(null)
+      setTokenUsage({ input: 0, output: 0 })
+      
+      // Reset scroll state
+      shouldAutoScrollRef.current = true
+      lastMessageCountRef.current = 0
+      
+      // Clear timeouts
+      if (summarizeTimeoutRef.current) {
+        clearTimeout(summarizeTimeoutRef.current)
+      }
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current)
+      }
+    } catch (error) {
+      console.error('Error clearing conversation:', error)
+    } finally {
+      setIsClearing(false)
     }
   }
 
@@ -689,8 +784,9 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
   }
 
   // Render chat content (reusable for both compact and maximized views)
-  const renderChatContent = (isMaximizedView = false, showHeader = true) => (
-    <div className={`flex flex-col ${isMaximizedView ? 'h-[85vh]' : 'h-full'} bg-gradient-to-br from-slate-900/90 via-slate-900/80 to-slate-800/70 ${!isMaximizedView ? 'rounded-xl border border-emerald-500/20 shadow-2xl shadow-emerald-500/10' : ''} overflow-hidden transition-all duration-300 backdrop-blur-sm`} style={{ position: 'relative', isolation: 'isolate', display: 'flex', flexDirection: 'column' }}>
+  const renderChatContent = useCallback((isMaximizedView = false, showHeader = true) => {
+    return (
+    <div className={`flex flex-col h-full bg-gradient-to-br from-slate-900/90 via-slate-900/80 to-slate-800/70 ${!isMaximizedView ? 'rounded-xl border border-emerald-500/20 shadow-2xl shadow-emerald-500/10' : ''} overflow-hidden transition-all duration-300 backdrop-blur-sm`} style={{ position: 'relative', isolation: 'isolate', display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       {/* Animated background gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-emerald-500/5 opacity-50 pointer-events-none" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(16,185,129,0.1),transparent_70%)] pointer-events-none" />
@@ -723,23 +819,64 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
             {messages.length > 0 && (
               <button
                 onClick={handleClear}
-                className="p-2 rounded-lg hover:bg-slate-700/50 transition-all hover:scale-110 active:scale-95"
-                title="Clear conversation"
+                disabled={isClearing || isLoading}
+                className="p-2 rounded-lg hover:bg-slate-700/50 transition-all hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                title={isClearing ? "Clearing conversation..." : "Clear conversation"}
               >
-                <RotateCcw className="w-4 h-4 text-slate-400 hover:text-emerald-400 transition-colors" />
+                {isClearing ? (
+                  <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
+                ) : (
+                  <RotateCcw className="w-4 h-4 text-slate-400 hover:text-emerald-400 transition-colors" />
+                )}
               </button>
             )}
           </div>
         </div>
       )}
 
-      {/* Messages */}
+      {/* Messages - Always scrollable in maximized view */}
       <div 
         ref={messagesContainerRef} 
-        className={`relative flex-1 p-4 space-y-4 ${messages.length > 0 ? 'overflow-y-auto' : 'overflow-hidden'}`}
-        style={{ overscrollBehavior: 'contain', minHeight: 0 }}
+        className={`relative flex-1 p-4 space-y-4 ${isMaximizedView ? 'overflow-y-auto' : messages.length > 0 ? 'overflow-y-auto' : 'overflow-hidden'}`}
+        style={{ 
+          overscrollBehavior: 'contain', 
+          minHeight: 0, 
+          maxHeight: '100%',
+          overflowY: isMaximizedView ? 'auto' : (messages.length > 0 ? 'auto' : 'hidden')
+        }}
       >
-        {messages.length === 0 ? (
+        {/* Show "No Trading Data Yet" if no trades */}
+        {(!tradesStats || tradesStats.totalTrades === 0) ? (
+          <div className="h-full flex flex-col items-center justify-center p-6 text-center">
+            <Database className="w-12 h-12 text-slate-500 mb-4" />
+            <h3 className="text-lg font-semibold text-slate-300 mb-2">
+              No Trading Data Yet
+            </h3>
+            <p className="text-sm text-slate-400 mb-6 max-w-md">
+              Connect your exchange or upload CSV files to start analyzing your trading performance with Vega AI.
+            </p>
+            <div className="flex gap-3">
+              {onConnectExchange && (
+                <button
+                  onClick={onConnectExchange}
+                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  <LinkIcon className="w-4 h-4" />
+                  Connect Exchange
+                </button>
+              )}
+              {onUploadCSV && (
+                <button
+                  onClick={onUploadCSV}
+                  className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  <Upload className="w-4 h-4" />
+                  Upload CSV
+                </button>
+              )}
+            </div>
+          </div>
+        ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4 relative z-10">
             <h4 className="text-base font-bold text-slate-200 mb-2 bg-gradient-to-r from-emerald-300 to-emerald-400 bg-clip-text text-transparent">
               Ask me anything about your trading
@@ -812,6 +949,7 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
           <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 via-transparent to-emerald-500/5 rounded-lg" />
           <textarea
             ref={inputRef}
+            data-ai-chat-input
             value={input}
             onChange={handleInputChange}
             onFocus={handleInputFocus}
@@ -865,7 +1003,7 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
             </button>
           )}
         </div>
-        {tokenUsage.input + tokenUsage.output > 0 && (
+        {!isMaximizedView && tokenUsage.input + tokenUsage.output > 0 && (
           <div className="mt-3 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[10px] text-emerald-300/80 flex items-center justify-between">
             <span className="font-medium">Tokens: <span className="text-emerald-400">{tokenUsage.input}</span> in / <span className="text-emerald-400">{tokenUsage.output}</span> out</span>
             <span className="font-semibold text-emerald-400">Total: {tokenUsage.input + tokenUsage.output}</span>
@@ -873,7 +1011,8 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
         )}
       </div>
     </div>
-  )
+    )
+  }, [messages, input, isInputFocused, displayedSample, isTypingSample, isDeletingSample, isLoading, tokenUsage, handleSend, handleStop, handleInputChange, handleInputFocus, handleInputBlur, handleInputClick, handleKeyPress, handleClear])
 
   return (
     <>
@@ -885,62 +1024,87 @@ export default function AIChat({ analytics, allTrades, tradesStats }) {
       )}
 
       {/* Maximized Dialog */}
-      <Dialog open={isMaximized} onOpenChange={handleCloseMaximized}>
+      <Dialog 
+        open={isMaximized} 
+        onOpenChange={(open) => {
+          // Prevent closing via overlay click when loading
+          if (!open && isLoading) {
+            return
+          }
+          handleCloseMaximized(open)
+        }}
+        modal={true}
+      >
         <DialogContent 
-          className="bg-slate-900 border-slate-700 max-w-[95vw] max-h-[90vh] p-0 gap-0 overflow-hidden"
+          className="bg-slate-900 border-slate-700 p-0 gap-0 overflow-hidden rounded-xl [&>button]:hidden !max-w-none"
           style={{ 
-            width: '95vw', 
-            height: '90vh',
-            maxWidth: '95vw',
-            maxHeight: '90vh'
+            width: 'min(70vw, 1000px)',
+            height: 'min(70vh, 700px)',
+            maxWidth: 'min(70vw, 1000px)',
+            maxHeight: 'min(70vh, 700px)',
+            display: 'flex',
+            flexDirection: 'column'
+          }}
+          onInteractOutside={(e) => {
+            // Prevent closing when clicking outside while loading
+            if (isLoading) {
+              e.preventDefault()
+            }
+          }}
+          onEscapeKeyDown={(e) => {
+            // Prevent closing with Escape key while loading
+            if (isLoading) {
+              e.preventDefault()
+            }
           }}
         >
-          <div className="flex flex-col h-full w-full">
-            {/* Dialog Header with minimize button */}
-            <div className="relative flex items-center justify-between p-5 border-b border-emerald-500/20 bg-gradient-to-r from-emerald-500/10 via-transparent to-emerald-500/10 backdrop-blur-sm">
+          <div className="flex flex-col h-full w-full" style={{ minHeight: 0, maxHeight: '100%' }}>
+            {/* Dialog Header with close button */}
+            <div className="relative flex items-center justify-between p-4 border-b border-emerald-500/20 bg-gradient-to-r from-emerald-500/10 via-transparent to-emerald-500/10 backdrop-blur-sm flex-shrink-0">
               <div className="flex items-center gap-3">
-                <div className="relative w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400/30 to-emerald-600/20 border border-emerald-500/40 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400/30 to-emerald-600/20 border border-emerald-500/40 flex items-center justify-center shadow-lg shadow-emerald-500/20">
                   <div className="absolute inset-0 rounded-xl bg-emerald-400/20 animate-pulse" />
-                  <Bot className="w-6 h-6 text-emerald-300 relative z-10" />
+                  <Bot className="w-5 h-5 text-emerald-300 relative z-10" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-emerald-300 uppercase tracking-wider flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-emerald-300 uppercase tracking-wider flex items-center gap-2">
                     Vega
                     <span className="inline-flex items-center gap-1">
-                      <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                      <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
                       <span className="text-xs font-normal text-emerald-400/70">AI</span>
                     </span>
                   </h3>
-                  <p className="text-xs text-slate-400">Your trading performance analyst</p>
+                  <p className="text-[10px] text-slate-400">Your trading performance analyst</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                {tokenUsage.input + tokenUsage.output > 0 && (
-                  <div className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300">
-                    <span className="font-semibold">{tokenUsage.input + tokenUsage.output}</span> tokens
-                  </div>
-                )}
+              <div className="flex items-center gap-2">
                 {messages.length > 0 && (
                   <button
                     onClick={handleClear}
-                    className="p-2 rounded-lg hover:bg-slate-700/50 transition-all hover:scale-110 active:scale-95"
-                    title="Clear conversation"
+                    className="p-1.5 rounded-lg hover:bg-slate-700/50 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                    title={isClearing ? "Clearing conversation..." : "Clear conversation"}
+                    disabled={isLoading || isClearing}
                   >
-                    <RotateCcw className="w-5 h-5 text-slate-400 hover:text-emerald-400 transition-colors" />
+                    {isClearing ? (
+                      <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
+                    ) : (
+                      <RotateCcw className="w-4 h-4 text-slate-400 hover:text-emerald-400 transition-colors" />
+                    )}
                   </button>
                 )}
                 <button
-                  onClick={handleCloseMaximized}
-                  className="p-2 rounded-lg hover:bg-slate-700/50 transition-all hover:scale-110 active:scale-95 text-slate-400 hover:text-emerald-400"
-                  title="Minimize"
+                  onClick={() => handleCloseMaximized(false)}
+                  disabled={isLoading}
+                  className="p-1.5 rounded-lg hover:bg-slate-700/50 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed text-slate-400 hover:text-emerald-400"
+                  title={isLoading ? "Cannot close while responding" : "Minimize"}
                 >
-                  <Minimize2 className="w-5 h-5" />
+                  <Minimize2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
             
-            {/* Maximized Chat Content */}
-            <div className="flex-1 overflow-hidden">
+            {/* Maximized Chat Content - Fixed height container with proper flex layout */}
+            <div className="flex-1 overflow-hidden" style={{ minHeight: 0, height: 0, display: 'flex', flexDirection: 'column' }}>
               {renderChatContent(true, false)}
             </div>
           </div>

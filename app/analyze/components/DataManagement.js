@@ -683,6 +683,12 @@ export default function DataManagement() {
         progress: ''
       })
 
+      // Set flag to show analytics ready toast when user returns to dashboard
+      if (newTrades > 0) {
+        sessionStorage.setItem('justAddedTrades', 'true')
+        sessionStorage.setItem('tradesAddedAt', Date.now().toString())
+      }
+
       toast.success(
         'Import Complete',
         {

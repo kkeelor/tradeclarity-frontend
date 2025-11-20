@@ -526,8 +526,31 @@ export default function AnalyticsContent() {
             return
           }
           
-          // No pre-analyzed data - fetch from database (existing flow)
-          // Start with fetching message
+          // No pre-analyzed data - try cache first (fast path)
+          setProgress('Loading cached analytics...')
+          await new Promise(resolve => setTimeout(resolve, 100))
+          
+          // Try to get cached analytics first
+          const cacheResponse = await fetch('/api/analytics/cache')
+          const cacheData = await cacheResponse.json()
+          
+          if (cacheData.success && cacheData.analytics) {
+            // Cache hit - use cached analytics (fast path!)
+            setAnalytics(cacheData.analytics)
+            setCurrencyMetadata(cacheData.analytics.metadata || { primaryCurrency: 'USD' })
+            
+            // Use persisted currency or default to USD
+            const savedCurrency = typeof window !== 'undefined' ? localStorage.getItem('tradeclarity_currency') : null
+            if (savedCurrency) {
+              setCurrency(savedCurrency)
+            }
+            
+            setProgress('Preparing your dashboard...')
+            await new Promise(resolve => setTimeout(resolve, 50))
+            return // Fast path - skip fetching trades
+          }
+          
+          // Cache miss - fallback to fetching trades and computing client-side
           setProgress('Fetching your trading data...')
           await new Promise(resolve => setTimeout(resolve, 100))
           
@@ -607,6 +630,20 @@ export default function AnalyticsContent() {
             setCurrency(savedCurrency)
           }
           
+          // Trigger background cache update after client-side computation
+          // Don't await - fire and forget
+          fetch('/api/analytics/compute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              userId: user.id, 
+              trigger: 'analytics_page_load' 
+            })
+          }).catch(err => {
+            console.error('Background cache update failed:', err)
+            // Non-critical - cache will be updated on next load
+          })
+          
           // Always set progress to "Preparing" to trigger 100% animation
           // Use setTimeout to ensure state update propagates before component might unmount
           setProgress('Preparing your dashboard...')
@@ -668,6 +705,20 @@ export default function AnalyticsContent() {
           const savedCurrency = typeof window !== 'undefined' ? localStorage.getItem('tradeclarity_currency') : null
           if (savedCurrency) {
             setCurrency(savedCurrency)
+          }
+          
+          // Trigger background cache update after client-side computation
+          if (user?.id) {
+            fetch('/api/analytics/compute', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                userId: user.id, 
+                trigger: 'analytics_page_filter' 
+              })
+            }).catch(err => {
+              console.error('Background cache update failed:', err)
+            })
           }
         }
       }

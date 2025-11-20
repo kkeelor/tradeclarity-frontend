@@ -1,0 +1,69 @@
+// app/api/analytics/cache/route.js
+// Retrieves cached analytics from user_analytics_cache table
+// Related: ANALYTICS_DATA_FLOW_STRATEGY.md, CLAUDE_AI_OPTIMIZATION_STRATEGY.md
+
+import { createClient } from '@/lib/supabase-server'
+import { NextResponse } from 'next/server'
+
+export const dynamic = 'force-dynamic'
+
+export async function GET(request) {
+  try {
+    const supabase = createClient()
+    
+    // Get current user
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    // 1. Check cache
+    const { data: cached, error: cacheError } = await supabase
+      .from('user_analytics_cache')
+      .select('*')
+      .eq('user_id', user.id)
+      .single()
+
+    if (cacheError && cacheError.code !== 'PGRST116') { // PGRST116 = not found
+      console.error('Error fetching cache:', cacheError)
+      return NextResponse.json(
+        { success: false, error: 'CACHE_ERROR', message: cacheError.message },
+        { status: 500 }
+      )
+    }
+
+    // 2. If cache valid and not expired, return it
+    if (cached && new Date(cached.expires_at) > new Date()) {
+      return NextResponse.json({
+        success: true,
+        analytics: cached.analytics_data,
+        aiContext: cached.ai_context,
+        allTrades: cached.analytics_data?.allTrades || [],
+        psychology: cached.analytics_data?.psychology || null,
+        cached: true,
+        computedAt: cached.computed_at,
+        expiresAt: cached.expires_at
+      })
+    }
+
+    // 3. Cache miss or expired - return null (trigger computation)
+    return NextResponse.json({
+      success: false,
+      cached: false,
+      analytics: null,
+      aiContext: null,
+      allTrades: null,
+      psychology: null,
+      message: 'Analytics not cached. Computation triggered.'
+    })
+  } catch (error) {
+    console.error('Error fetching analytics cache:', error)
+    return NextResponse.json(
+      { success: false, error: 'INTERNAL_ERROR', message: error.message },
+      { status: 500 }
+    )
+  }
+}

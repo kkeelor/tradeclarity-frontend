@@ -234,12 +234,43 @@ export async function POST(request) {
       }
     }
 
+    // Trigger background analytics computation if new trades were inserted
+    // This works for BOTH CSV uploads AND exchange connections
+    // Fire and forget - don't await (non-blocking)
+    if (insertedCount > 0) {
+      const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
+      const host = request.headers.get('host') || 'localhost:3000'
+      const baseUrl = `${protocol}://${host}`
+      
+      // Trigger analytics computation in background
+      fetch(`${baseUrl}/api/analytics/compute`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          // Forward authorization header if present
+          ...(request.headers.get('authorization') && {
+            'authorization': request.headers.get('authorization')
+          })
+        },
+        body: JSON.stringify({
+          userId: userId,
+          trigger: csvUploadId ? 'trades_stored_csv' : 'trades_stored_exchange',
+          tradeCount: insertedCount,
+          source: csvUploadId ? 'csv' : 'exchange'
+        })
+      }).catch(err => {
+        console.error('⚠️ Background analytics computation failed:', err)
+        // Non-critical - analytics will be computed on next page load or cache miss
+      })
+    }
+
     return NextResponse.json({
       success: true,
       tradesCount: insertedCount,
       totalProcessed: tradesToInsert.length,
       alreadyExisted: existingTradeIds.size,
-      portfolioSnapshotStored: snapshotStored
+      portfolioSnapshotStored: snapshotStored,
+      analyticsComputationTriggered: insertedCount > 0
     })
   } catch (error) {
     console.error('Store trades error:', error)

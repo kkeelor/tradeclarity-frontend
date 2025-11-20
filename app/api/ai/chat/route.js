@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
 import { generateCompletion, AI_MODELS, isAIConfigured } from '@/lib/ai/client'
 import Anthropic from '@anthropic-ai/sdk'
+import { buildVegaSystemPrompt, buildCachedSystemBlocks, determineExperienceLevel } from '@/lib/ai/prompts/vega-system-prompt'
 
 function getAnthropicClient() {
   return new Anthropic({
@@ -110,40 +111,45 @@ export async function POST(request) {
     const currentSummary = convData?.summary || null
     const previousMessageCount = convData?.message_count || 0
 
-    // Build context from user's data (passed from frontend)
-    const contextData = userContextData || {}
+    // Fetch cached analytics for AI context (optimized path)
+    let aiContext = null
+    let analytics = null
+    let tradesStats = null
     
-    // Build system prompt with user context and previous conversation summaries
-    const systemPrompt = buildSystemPrompt(contextData, currentSummary, previousSummaries, tier)
-    
-    // Build messages array for Claude
-    const claudeMessages = []
-    
-    // Add system context as first user message (only if no conversation history)
-    if (sessionMessages.length === 0 && !currentSummary) {
-      if (systemPrompt && typeof systemPrompt === 'string' && systemPrompt.trim().length > 0) {
-        claudeMessages.push({
-          role: 'user',
-          content: systemPrompt.trim()
-        })
+    try {
+      // Check cache directly from database
+      const { data: cached } = await supabase
+        .from('user_analytics_cache')
+        .select('ai_context, analytics_data, expires_at')
+        .eq('user_id', user.id)
+        .single()
+      
+      // Only use cache if it exists and is not expired
+      if (cached && cached.ai_context && new Date(cached.expires_at) > new Date()) {
+        aiContext = cached.ai_context
+        analytics = cached.analytics_data
       }
-    } else {
-      // If there's history, add system context more subtly
-      const contextPreview = systemPrompt ? systemPrompt.split('\n')[0] : 'User context'
-      const hasTradingData = systemPrompt && systemPrompt.includes('Total Trades:')
-      claudeMessages.push({
-        role: 'user',
-        content: `[Context: ${contextPreview} - ${hasTradingData ? 'User has trading data available' : 'New user'}]`
-      })
+    } catch (error) {
+      // Cache miss or error - will fall back to contextData
+      console.warn('[Chat API] Cache miss or error, falling back to contextData:', error.message)
     }
-
-    // Add current conversation summary if exists (for continuing conversations)
-    if (currentSummary && typeof currentSummary === 'string' && currentSummary.trim().length > 0 && sessionMessages.length === 0) {
-      claudeMessages.push({
-        role: 'user',
-        content: `Continuing previous conversation. Summary: ${currentSummary.trim()}`
-      })
+    
+    // Fallback to contextData if cache miss (backward compatibility)
+    if (!aiContext && userContextData) {
+      const { formatStructuredContext } = await import('@/lib/ai/prompts/vega-system-prompt')
+      aiContext = formatStructuredContext(userContextData)
+      analytics = userContextData.analytics
+      tradesStats = userContextData.tradesStats
     }
+    
+    // Determine experience level
+    const experienceLevel = determineExperienceLevel(tradesStats || (aiContext?.summary ? { totalTrades: aiContext.summary.totalTrades } : null), analytics)
+    
+    // Build cached system blocks with prompt caching
+    const systemBlocks = buildCachedSystemBlocks(aiContext, currentSummary, previousSummaries, tier, experienceLevel)
+    
+    // Build messages array for Claude (ONLY conversation messages, NO system prompt)
+    const claudeMessages = []
 
     // Add current session messages (in-memory only)
     if (Array.isArray(sessionMessages)) {
@@ -247,6 +253,9 @@ export async function POST(request) {
               max_tokens: tier === 'pro' ? 2000 : 1000,
               temperature: 0.7,
               stream: true,
+              // CRITICAL: Use system parameter with cache control (NOT in messages!)
+              system: systemBlocks,
+              // Only conversation messages (no system prompt here)
               messages: messagesForClaude
             })
           } catch (apiError) {
@@ -278,10 +287,22 @@ export async function POST(request) {
                 )
               }
             } else if (event.type === 'message_stop') {
-              // Message complete - get accurate token counts
+              // Message complete - get accurate token counts including cache metrics
               if (event.message?.usage) {
                 inputTokens = event.message.usage.input_tokens
                 outputTokens = event.message.usage.output_tokens
+                
+                // Log cache metrics for monitoring
+                if (event.message.usage.cache_creation_input_tokens || event.message.usage.cache_read_input_tokens) {
+                  console.log('[Chat API] Cache metrics:', {
+                    cacheCreationTokens: event.message.usage.cache_creation_input_tokens,
+                    cacheReadTokens: event.message.usage.cache_read_input_tokens,
+                    totalInputTokens: inputTokens,
+                    cacheHitRate: event.message.usage.cache_read_input_tokens 
+                      ? ((event.message.usage.cache_read_input_tokens / inputTokens) * 100).toFixed(1) + '%'
+                      : '0%'
+                  })
+                }
               }
               console.log('[Chat API] Stream complete:', { inputTokens, outputTokens, responseLength: fullResponse.length })
               break // Exit loop when message is complete
@@ -426,71 +447,16 @@ export async function POST(request) {
 
 /**
  * Build system prompt with user context and previous conversation summaries
+ * Uses the structured Vega prompt system
+ * NOTE: Legacy function - kept for backward compatibility
+ * New implementation uses buildCachedSystemBlocks() with system parameter
  */
 function buildSystemPrompt(contextData, currentSummary, previousSummaries, tier) {
-  let contextInfo = ''
+  // Determine user experience level dynamically
+  const experienceLevel = determineExperienceLevel(contextData.tradesStats, contextData.analytics)
   
-  if (contextData.tradesStats) {
-    const stats = contextData.tradesStats
-    contextInfo += `\nUser's Trading Statistics:
-- Total Trades: ${stats.totalTrades || 0}
-- Spot Trades: ${stats.spotTrades || 0}
-- Futures Trades: ${stats.futuresIncome || 0}
-${stats.oldestTrade ? `- Trading Since: ${new Date(stats.oldestTrade).toLocaleDateString()}` : ''}`
-  }
-
-  if (contextData.analytics) {
-    const analytics = contextData.analytics
-    contextInfo += `\n\nPerformance Metrics:
-- Total P&L: $${(analytics.totalPnL || 0).toFixed(2)}
-- Win Rate: ${((analytics.winRate || 0) * 100).toFixed(1)}%
-- Profit Factor: ${(analytics.profitFactor || 0).toFixed(2)}x
-- Average Win: $${(analytics.avgWin || 0).toFixed(2)}
-- Average Loss: $${(analytics.avgLoss || 0).toFixed(2)}
-${analytics.totalCommission ? `- Total Fees: $${analytics.totalCommission.toFixed(2)}` : ''}`
-  }
-
-  if (contextData.allTrades && contextData.allTrades.length > 0) {
-    const symbols = {}
-    contextData.allTrades.forEach(trade => {
-      if (trade.symbol) {
-        symbols[trade.symbol] = (symbols[trade.symbol] || 0) + 1
-      }
-    })
-    const topSymbols = Object.entries(symbols)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([symbol]) => symbol)
-    
-    if (topSymbols.length > 0) {
-      contextInfo += `\n\nMost Traded Symbols: ${topSymbols.join(', ')}`
-    }
-  }
-
-  let previousContext = ''
-  if (currentSummary) {
-    previousContext += `\n\nCurrent conversation summary: ${currentSummary}`
-  }
-  
-  if (previousSummaries && previousSummaries.length > 0) {
-    previousContext += `\n\nPrevious conversations (for context):\n${previousSummaries.map((s, i) => `${i + 1}. ${s.summary || s}`).join('\n\n')}`
-  }
-
-  return `You are Vega, a personalized trading performance analyst assistant.
-
-Your role:
-- Provide data-driven insights about trading performance
-- Reference specific metrics and numbers from the user's data when available
-- Give actionable recommendations based on their actual performance
-- Be concise but thorough
-- Ask clarifying questions when needed
-- Use the user's actual trading statistics to provide personalized insights
-
-${contextInfo}${previousContext}
-
-Subscription Tier: ${tier}${tier === 'pro' ? ' (Full access)' : tier === 'trader' ? ' (Standard access)' : ' (Free tier)'}
-
-Provide helpful, personalized trading insights based on the user's data and questions. Always reference specific numbers from their statistics when relevant.`
+  // Build the comprehensive system prompt using the new structured system
+  return buildVegaSystemPrompt(contextData, currentSummary, previousSummaries, tier, experienceLevel)
 }
 
 /**

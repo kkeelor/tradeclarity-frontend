@@ -1,7 +1,7 @@
 // app/analyze/components/Dashboard.js
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, LogOut, BarChart3, Sparkles, Database, CheckSquare, Square, Loader2, ChevronRight, Zap, Brain, Clock, DollarSign, PieChart, TrendingDown, Target, Lightbulb, LayoutDashboard, Tag, CreditCard, Crown, Infinity } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
@@ -484,6 +484,10 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
   const [currentInsightIndex, setCurrentInsightIndex] = useState(0)
   const [selectedSources, setSelectedSources] = useState([]) // Array of {type: 'exchange'|'csv', id: string}
   const [whatsNextActions, setWhatsNextActions] = useState(null)
+  
+  // Analytics cache state
+  const [cachedAnalyticsData, setCachedAnalyticsData] = useState({ analytics: null, allTrades: null, psychology: null })
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false)
 
   // Exchange deletion state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -504,6 +508,53 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
     return 'Good evening'
   }
 
+  // Fetch cached analytics from server
+  const loadAnalytics = useCallback(async () => {
+    if (!user || !tradesStats || tradesStats.totalTrades === 0) {
+      // No trades - analytics not needed
+      setCachedAnalyticsData({ analytics: null, allTrades: null, psychology: null })
+      return
+    }
+
+    setLoadingAnalytics(true)
+    try {
+      // Fetch cached analytics from server
+      const response = await fetch('/api/analytics/cache')
+      const data = await response.json()
+
+      if (data.success && data.analytics) {
+        // Cache hit - use cached analytics
+        setCachedAnalyticsData({
+          analytics: data.analytics,
+          allTrades: data.allTrades || [],
+          psychology: data.psychology || null
+        })
+      } else {
+        // Cache miss - trigger background computation
+        // Don't await - fire and forget
+        fetch('/api/analytics/compute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            userId: user.id, 
+            trigger: 'dashboard_load' 
+          })
+        }).catch(err => {
+          console.error('Background analytics computation failed:', err)
+          // Non-critical - will be computed on next load
+        })
+
+        // Set empty for now (will be available on next load)
+        setCachedAnalyticsData({ analytics: null, allTrades: null, psychology: null })
+      }
+    } catch (error) {
+      console.error('Error loading analytics:', error)
+      setCachedAnalyticsData({ analytics: null, allTrades: null, psychology: null })
+    } finally {
+      setLoadingAnalytics(false)
+    }
+  }, [user, tradesStats])
+
   // Fetch connected exchanges and uploaded files on mount
   useEffect(() => {
     // Parallelize all API calls for faster loading
@@ -515,8 +566,83 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
     ]).catch(error => {
       console.error('Error loading dashboard data:', error)
     })
+  }, [])
 
-    // Check if we should show connect modal (from DataManagement page)
+  // Load analytics when tradesStats is available
+  useEffect(() => {
+    if (tradesStats && user) {
+      loadAnalytics()
+    }
+  }, [tradesStats, user, loadAnalytics])
+
+  // Check for analytics readiness and show toast notification
+  useEffect(() => {
+    const checkAnalyticsReady = async () => {
+      if (!user || !tradesStats || tradesStats.totalTrades === 0) {
+        return
+      }
+
+      // Check if user just added trades (flag exists)
+      const justAddedData = sessionStorage.getItem('justAddedTrades')
+      const tradesAddedAt = sessionStorage.getItem('tradesAddedAt')
+
+      if (justAddedData !== 'true' || !tradesAddedAt) {
+        return // No flag - don't show notification
+      }
+
+      // Check if notification is stale (older than 5 minutes)
+      const timeSinceAdded = Date.now() - parseInt(tradesAddedAt)
+      const fiveMinutes = 5 * 60 * 1000
+
+      if (timeSinceAdded > fiveMinutes) {
+        // Too old - clear flag and don't show
+        sessionStorage.removeItem('justAddedTrades')
+        sessionStorage.removeItem('tradesAddedAt')
+        return
+      }
+
+      // Check if analytics are cached and ready
+      try {
+        const response = await fetch('/api/analytics/cache')
+        const data = await response.json()
+
+        if (data.success && data.analytics) {
+          // Analytics are ready - show toast notification
+          toast.success('Analytics Ready', {
+            description: 'Your trading data has been analyzed. Vega AI now has access to your anonymous trading data and is ready to provide insights.',
+            duration: 8000,
+            action: {
+              label: 'Ask Vega',
+              onClick: () => {
+                // Focus AI Chat input
+                const chatInput = document.querySelector('[data-ai-chat-input]')
+                if (chatInput) {
+                  chatInput.focus()
+                  // Optional: Scroll to chat
+                  chatInput.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                }
+              }
+            }
+          })
+
+          // Clear flag (only show once)
+          sessionStorage.removeItem('justAddedTrades')
+          sessionStorage.removeItem('tradesAddedAt')
+        }
+      } catch (error) {
+        console.error('Error checking analytics readiness:', error)
+        // Don't clear flag - will retry on next load
+      }
+    }
+
+    // Check after analytics are loaded
+    if (cachedAnalyticsData.analytics && tradesStats && tradesStats.totalTrades > 0) {
+      checkAnalyticsReady()
+    }
+  }, [cachedAnalyticsData.analytics, tradesStats, user])
+
+  // Check if we should show connect modal (from DataManagement page)
+  useEffect(() => {
     const shouldShowModal = sessionStorage.getItem('showConnectModal')
     if (shouldShowModal === 'true') {
       sessionStorage.removeItem('showConnectModal')
@@ -571,6 +697,11 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
               if (response.ok && data.success) {
                 // API says success - connection created
                 sessionStorage.removeItem('pendingExchangeConnection')
+                
+                // Set flag to show analytics ready toast when analytics are computed
+                sessionStorage.setItem('justAddedTrades', 'true')
+                sessionStorage.setItem('tradesAddedAt', Date.now().toString())
+                
                 router.replace('/dashboard', { scroll: false })
                 
                 toast.success(
@@ -583,6 +714,11 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
               } else if (isActuallyConnected) {
                 // Exchange is connected despite API error - treat as success
                 sessionStorage.removeItem('pendingExchangeConnection')
+                
+                // Set flag to show analytics ready toast when analytics are computed
+                sessionStorage.setItem('justAddedTrades', 'true')
+                sessionStorage.setItem('tradesAddedAt', Date.now().toString())
+                
                 router.replace('/dashboard', { scroll: false })
                 
                 // Check if it's a duplicate connection error
@@ -680,25 +816,6 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
       insightElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
     }
   }, [currentInsightIndex, allInsights.length])
-
-  // Helper function to get cached analytics data
-  const getCachedAnalytics = () => {
-    try {
-      const cached = sessionStorage.getItem('lastAnalytics')
-      if (!cached) return { analytics: null, psychology: null, allTrades: null }
-      const parsed = JSON.parse(cached)
-      return {
-        analytics: parsed.analytics || null,
-        psychology: parsed.psychology || null,
-        allTrades: parsed.allTrades || null
-      }
-    } catch (e) {
-      return { analytics: null, psychology: null, allTrades: null }
-    }
-  }
-
-  // Memoize cached analytics data
-  const cachedAnalyticsData = useMemo(() => getCachedAnalytics(), [])
 
   // Generate "What's Next" actions when tradesStats is available
   useEffect(() => {
@@ -1512,6 +1629,8 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                   analytics={cachedAnalyticsData.analytics}
                   allTrades={cachedAnalyticsData.allTrades}
                   tradesStats={tradesStats}
+                  onConnectExchange={onConnectExchange}
+                  onUploadCSV={onConnectWithCSV}
                 />
               </div>
             </div>
