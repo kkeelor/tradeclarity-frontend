@@ -61,7 +61,7 @@ export default function UsageLimits({ subscription, compact = false, actualUsage
           used={usage.reports}
           limit={limits.reports}
           percentage={limits.reports === 0 ? 0 : getUsagePercentage(usage.reports, limits.reports)}
-          color={limits.reports === 0 ? 'bg-slate-500' : getUsageColor(getUsagePercentage(usage.reports, limits.reports))}
+          color={limits.reports === 0 ? 'bg-white/20' : getUsageColor(getUsagePercentage(usage.reports, limits.reports))}
         />
       </div>
     )
@@ -69,7 +69,7 @@ export default function UsageLimits({ subscription, compact = false, actualUsage
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-white mb-4">Usage This Month</h3>
+      <h3 className="text-lg font-medium text-white/90 mb-4">Usage This Month</h3>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <UsageItem
           icon={Database}
@@ -93,7 +93,7 @@ export default function UsageLimits({ subscription, compact = false, actualUsage
           used={usage.reports}
           limit={limits.reports}
           percentage={limits.reports === 0 ? 0 : getUsagePercentage(usage.reports, limits.reports)}
-          color={limits.reports === 0 ? 'bg-slate-500' : getUsageColor(getUsagePercentage(usage.reports, limits.reports))}
+          color={limits.reports === 0 ? 'bg-white/20' : getUsageColor(getUsagePercentage(usage.reports, limits.reports))}
         />
       </div>
     </div>
@@ -105,18 +105,18 @@ function UsageItem({ icon: Icon, label, used, limit, percentage, color }) {
   const displayUsed = used || 0
 
   return (
-    <div className="rounded-xl border border-white/5 bg-white/[0.03] p-4">
+    <div className="rounded-xl border border-white/10 bg-black p-4">
       <div className="flex items-center gap-2 mb-3">
-        <Icon className="w-4 h-4 text-slate-400" />
-        <p className="text-xs text-slate-400 font-medium">{label}</p>
+        <Icon className="w-4 h-4 text-white/60" />
+        <p className="text-xs text-white/60 font-medium">{label}</p>
       </div>
       <div className="space-y-2">
         <div className="flex items-baseline justify-between">
-          <span className="text-2xl font-bold text-white">{displayUsed}</span>
-          <span className="text-sm text-slate-400">/ {displayLimit}</span>
+          <span className="text-2xl font-semibold text-white/90">{displayUsed}</span>
+          <span className="text-sm text-white/50">/ {displayLimit}</span>
         </div>
         {limit !== Infinity && limit !== 0 && (
-          <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+          <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden">
             <div
               className={`h-full ${color} transition-all duration-300`}
               style={{ width: `${Math.min(100, percentage)}%` }}
@@ -124,13 +124,13 @@ function UsageItem({ icon: Icon, label, used, limit, percentage, color }) {
           </div>
         )}
         {limit === Infinity && (
-          <div className="w-full bg-slate-800 rounded-full h-2">
-            <div className="h-full bg-emerald-500 w-full" />
+          <div className="w-full bg-white/5 rounded-full h-2">
+            <div className="h-full bg-white/60 w-full" />
           </div>
         )}
         {limit === 0 && (
-          <div className="w-full bg-slate-800 rounded-full h-2">
-            <div className="h-full bg-slate-500 w-full" />
+          <div className="w-full bg-white/5 rounded-full h-2">
+            <div className="h-full bg-white/20 w-full" />
           </div>
         )}
       </div>

@@ -1,7 +1,7 @@
 // app/page.js
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { TrendingUp, Shield, Zap, ArrowRight, Sparkles, Lock, Eye, Brain, TrendingDown, Target, AlertCircle, LogOut, LayoutDashboard, HelpCircle, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -9,6 +9,71 @@ import { Button } from '@/components/ui'
 import ThemeToggle from './components/ThemeToggle'
 import { useAuth } from '@/lib/AuthContext'
 import Footer from './components/Footer'
+
+// Typing animation component
+function TypingAnimation({ texts, className = '' }) {
+  const [displayedText, setDisplayedText] = useState('')
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [isTyping, setIsTyping] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const typeIntervalRef = useRef(null)
+  const deleteIntervalRef = useRef(null)
+  const animationTimeoutRef = useRef(null)
+  const charIndexRef = useRef(0)
+
+  useEffect(() => {
+    const currentText = texts[currentIndex]
+    setIsTyping(true)
+    setIsDeleting(false)
+    setDisplayedText('')
+    charIndexRef.current = 0
+
+    // Clear any existing intervals
+    if (typeIntervalRef.current) clearInterval(typeIntervalRef.current)
+    if (deleteIntervalRef.current) clearInterval(deleteIntervalRef.current)
+    if (animationTimeoutRef.current) clearTimeout(animationTimeoutRef.current)
+
+    // Typing animation
+    typeIntervalRef.current = setInterval(() => {
+      if (charIndexRef.current < currentText.length) {
+        charIndexRef.current++
+        setDisplayedText(currentText.substring(0, charIndexRef.current))
+      } else {
+        clearInterval(typeIntervalRef.current)
+        setIsTyping(false)
+        
+        // Wait 3 seconds before deleting
+        animationTimeoutRef.current = setTimeout(() => {
+          setIsDeleting(true)
+          deleteIntervalRef.current = setInterval(() => {
+            if (charIndexRef.current > 0) {
+              charIndexRef.current--
+              setDisplayedText(currentText.substring(0, charIndexRef.current))
+            } else {
+              clearInterval(deleteIntervalRef.current)
+              setIsDeleting(false)
+              // Move to next text (cycles through all)
+              setCurrentIndex((prev) => (prev + 1) % texts.length)
+            }
+          }, 30) // Delete speed
+        }, 3000) // Wait 3 seconds before deleting
+      }
+    }, 50) // Typing speed
+
+    return () => {
+      if (typeIntervalRef.current) clearInterval(typeIntervalRef.current)
+      if (deleteIntervalRef.current) clearInterval(deleteIntervalRef.current)
+      if (animationTimeoutRef.current) clearTimeout(animationTimeoutRef.current)
+    }
+  }, [currentIndex, texts])
+
+  return (
+    <span className={className}>
+      {displayedText}
+      <span className={`inline-block w-0.5 h-[1em] bg-white/80 ml-1 align-middle ${isTyping || isDeleting ? 'animate-pulse' : ''}`} />
+    </span>
+  )
+}
 
 export default function LandingPage() {
   const router = useRouter()
@@ -113,20 +178,37 @@ export default function LandingPage() {
           {/* Headline */}
           <div className="space-y-3 md:space-y-4">
             <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold tracking-tight leading-tight">
-              Why do you always
+              Your Trading Patterns Are
               <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-orange-400">
-                buy the top?
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
+                Hiding in Plain Sight
               </span>
             </h1>
             
-            <p className="text-base md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed px-4">
-              Ever sell a winner at +5%, only to watch it 10x? Ever hold a loser to -70% because "it'll come back"? You're not alone.
-              <br />
-              <span className="text-white font-semibold"> There's a pattern. You just can't see it, yet.</span>
-            </p>
+            <div className="text-base md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed px-4 min-h-[4rem] flex flex-col items-center justify-center">
+              <p className="mb-2 text-white/60 text-sm md:text-base">
+                Ask Vega:
+              </p>
+              <p className="text-center">
+                <TypingAnimation 
+                  texts={[
+                    "What are my biggest trading weaknesses?",
+                    "How can I improve my win rate?",
+                    "What's my best performing trading time?",
+                    "Which symbols should I focus on?",
+                    "Am I overtrading?",
+                    "What's my risk-adjusted return?",
+                    "How do I compare to market benchmarks?",
+                    "What patterns do you see in my losses?",
+                    "Should I change my position sizing?",
+                    "What's my biggest opportunity for improvement?"
+                  ]}
+                  className="text-white font-semibold text-lg md:text-xl"
+                />
+              </p>
+            </div>
             <p className="text-sm md:text-base text-slate-500 max-w-xl mx-auto px-4 pt-2">
-              See our <Link href="/faq" className="text-emerald-400 hover:text-emerald-300 underline transition-colors">FAQ</Link> for common questions, or check out our <Link href="/pricing" className="text-emerald-400 hover:text-emerald-300 underline transition-colors">pricing page</Link>.
+              Vega analyzes your trading data to reveal hidden patterns, behavioral insights, and actionable recommendations. <Link href="/faq" className="text-emerald-400 hover:text-emerald-300 underline transition-colors">Learn more</Link> or check out our <Link href="/pricing" className="text-emerald-400 hover:text-emerald-300 underline transition-colors">pricing</Link>.
             </p>
           </div>
 
@@ -142,7 +224,7 @@ export default function LandingPage() {
               className="hover:scale-105"
             >
               <Sparkles className={`w-5 h-5 transition-transform duration-300 ${isPrimaryHovered ? 'rotate-12' : ''}`} />
-              See The Demo
+              Try Demo
               <ArrowRight className={`w-5 h-5 transition-transform duration-300 ${isPrimaryHovered ? 'translate-x-1' : ''}`} />
             </Button>
 
@@ -161,8 +243,8 @@ export default function LandingPage() {
                 </>
               ) : (
                 <>
-                  <Lock className="w-5 h-5" />
-                  Analyze My Trades
+                  <Brain className="w-5 h-5" />
+                  Get Started
                 </>
               )}
             </Button>
@@ -179,8 +261,8 @@ export default function LandingPage() {
               <span>Encrypted storage</span>
             </div>
             <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-gold" />
-              <span>Analysis in seconds</span>
+              <Brain className="w-4 h-4 text-gold" />
+              <span>Smart insights</span>
             </div>
           </div>
         </div>
@@ -191,10 +273,10 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-8 md:mb-12">
             <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-3 md:mb-4">
-              Sound familiar?
+              Trading Insights That Matter
             </h2>
             <p className="text-slate-400 text-base md:text-lg px-4">
-              Every trader has these moments. But most never realize the pattern.
+              Vega analyzes your trading patterns to reveal what's really happening in your portfolio.
             </p>
           </div>
 
@@ -206,8 +288,8 @@ export default function LandingPage() {
               </div>
               <h3 className="text-xl font-bold mb-2 text-loss">The Stop Loss Hunter</h3>
               <p className="text-slate-300 text-sm">
-                You set a stop loss. Gets hit. Then the price immediately reverses and goes exactly where you predicted. 
-                <span className="text-white font-semibold"> Every. Single. Time.</span>
+                Vega detected that your stop losses get hit right before reversals. The pattern is clear: you're setting stops too tight, missing profitable moves. 
+                <span className="text-white font-semibold"> Vega can show you exactly when this happens.</span>
               </p>
             </div>
 
@@ -218,8 +300,8 @@ export default function LandingPage() {
               </div>
               <h3 className="text-xl font-bold mb-2 text-orange-400">Paper Hands Syndrome</h3>
               <p className="text-slate-300 text-sm">
-                Up 5%? Sell immediately. "Better safe than sorry." Then watch it 10x while you're out. 
-                <span className="text-white font-semibold"> But that -50% loser? You'll hold that forever.</span>
+                Analysis reveals you sell winners at +5% but hold losers to -50%. The data shows this pattern costs you thousands. 
+                <span className="text-white font-semibold"> Vega identifies exactly when you do this.</span>
               </p>
             </div>
 
@@ -230,8 +312,8 @@ export default function LandingPage() {
               </div>
               <h3 className="text-xl font-bold mb-2 text-purple-400">Revenge Trading</h3>
               <p className="text-slate-300 text-sm">
-                Lost $500? Time to make it back with one big trade. 
-                <span className="text-white font-semibold"> Narrator: He did not make it back.</span> In fact, he's now down $2000.
+                Vega detected emotional trading patterns: after losses, your win rate drops from 61% to 18%. Get alerts before revenge trades happen. 
+                <span className="text-white font-semibold"> Stop the cycle before it starts.</span>
               </p>
             </div>
           </div>
@@ -241,19 +323,19 @@ export default function LandingPage() {
             {/* MOVED: The market observation statement */}
             <div className="text-center">
               <div className="inline-flex items-center gap-2 px-6 py-3 bg-slate-800/50 border border-slate-700/50 rounded-full text-slate-300 text-sm backdrop-blur-sm">
-                <AlertCircle className="w-4 h-4 text-amber-400" />
-                The market can only go two ways. Why does it always pick the one that ruins you?
+                <Brain className="w-4 h-4 text-emerald-400" />
+                Vega analyzes thousands of trades in seconds. Why guess when you can know?
               </div>
             </div>
             
             {/* Original kicker content */}
             <div className="text-center">
               <p className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 mb-3">
-                The worst part?
+                The difference data makes?
               </p>
               <p className="text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed">
-                You <span className="italic">know</span> you're doing it. You just don't know <span className="font-bold text-white">how often</span>, 
-                <span className="font-bold text-white"> how much it's costing you</span>, or <span className="font-bold text-white">how to actually fix it</span>.
+                You <span className="italic">know</span> you're making mistakes. Vega shows you <span className="font-bold text-white">exactly how often</span>, 
+                <span className="font-bold text-white"> how much it's costing you</span>, and <span className="font-bold text-white">what to do about it</span>.
               </p>
             </div>
           </div>
@@ -265,10 +347,10 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-8 md:mb-12">
             <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-3 md:mb-4">
-              What you'll actually discover
+              Analytics That Actually Help
             </h2>
             <p className="text-slate-400 text-base md:text-lg px-4">
-              Not generic "trade with the trend" BS. Real insights about <span className="text-white font-semibold">YOUR</span> trading.
+              Vega doesn't give generic advice. It analyzes <span className="text-white font-semibold">YOUR</span> trading data to find actionable insights.
             </p>
           </div>
 
@@ -278,12 +360,12 @@ export default function LandingPage() {
               <div className="w-12 h-12 bg-emerald-500/20 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <Brain className="w-6 h-6 text-emerald-400" />
               </div>
-              <h3 className="text-xl font-bold mb-3">Your Trading Psychology Score</h3>
+              <h3 className="text-xl font-bold mb-3">Psychology Analysis</h3>
               <p className="text-slate-400 mb-4">
-                Are you holding losers 3x longer than winners? Trading bigger after losses? We'll tell you exactly what you're doing wrong.
+                Vega detects behavioral patterns: Are you holding losers 3x longer than winners? Trading bigger after losses? Get precise insights about your trading psychology.
               </p>
               <div className="text-emerald-400 text-sm font-medium">
-                "Holy shit, I didn't realize I was doing this" - Every trader
+                "Vega showed me patterns I never noticed" - Every trader
               </div>
             </div>
 
@@ -292,12 +374,12 @@ export default function LandingPage() {
               <div className="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <Eye className="w-6 h-6 text-cyan-400" />
               </div>
-              <h3 className="text-xl font-bold mb-3">Your Hidden Patterns</h3>
+              <h3 className="text-xl font-bold mb-3">Hidden Patterns</h3>
               <p className="text-slate-400 mb-4">
-                Maybe you're 80% profitable on Tuesdays but lose every Thursday. Or you crush it before 10am but give it all back in the afternoon.
+                Vega scans thousands of trades to find patterns: Maybe you're 80% profitable on Tuesdays but lose every Thursday. Or you crush it before 10am but give it all back in the afternoon.
               </p>
               <div className="text-cyan-400 text-sm font-medium">
-                These patterns are invisible until someone shows you
+                Patterns invisible to the human eye
               </div>
             </div>
 
@@ -306,12 +388,12 @@ export default function LandingPage() {
               <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <Zap className="w-6 h-6 text-purple-400" />
               </div>
-              <h3 className="text-xl font-bold mb-3">What To Actually Do</h3>
+              <h3 className="text-xl font-bold mb-3">Actionable Recommendations</h3>
               <p className="text-slate-400 mb-4">
-                Not "be more disciplined" bullshit. Specific changes: "Stop trading ETH, you're 12% win rate. Focus on BTC where you're 68%."
+                Get specific, data-driven advice from Vega: "Stop trading ETH, you're 12% win rate. Focus on BTC where you're 68%." Not generic discipline tips—real insights from your data.
               </p>
               <div className="text-purple-400 text-sm font-medium">
-                Based on YOUR data, not some guru's opinion
+                Recommendations based on YOUR trading data
               </div>
             </div>
           </div>
@@ -323,14 +405,14 @@ export default function LandingPage() {
   <div className="max-w-6xl mx-auto">
     <div className="text-center mb-10 md:mb-16">
       <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-3 md:mb-4 px-4">
-        The Patterns You Can't See
+        Patterns That Are
         <br />
         <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
-          Are Costing You Money
+          Costing You Money
         </span>
       </h2>
       <p className="text-slate-400 text-base md:text-lg max-w-2xl mx-auto px-4">
-        These are real insights from real traders who connected TradeClarity
+        Real insights from traders who connected their exchange to TradeClarity
       </p>
     </div>
 
@@ -344,7 +426,7 @@ export default function LandingPage() {
             </svg>
           </div>
           <div>
-            <div className="text-purple-400 font-semibold text-sm mb-2">TIME PATTERN DETECTED</div>
+            <div className="text-purple-400 font-semibold text-sm mb-2">VEGA DETECTED: TIME PATTERN</div>
             <h3 className="text-2xl font-bold mb-3">Your 9PM Trades Are Killing You</h3>
           </div>
         </div>
@@ -359,7 +441,7 @@ export default function LandingPage() {
           </div>
         </div>
         <p className="text-slate-400 italic">
-          "I had no idea fatigue was destroying my edge. Now I just stop trading after dinner."
+          "Vega detected my fatigue pattern. I had no idea it was destroying my edge. Now I just stop trading after dinner."
         </p>
       </div>
 
@@ -372,7 +454,7 @@ export default function LandingPage() {
             </svg>
           </div>
           <div>
-            <div className="text-cyan-400 font-semibold text-sm mb-2">EDGE IDENTIFIED</div>
+            <div className="text-cyan-400 font-semibold text-sm mb-2">VEGA IDENTIFIED: HIDDEN EDGE</div>
             <h3 className="text-2xl font-bold mb-3">You Have a Hidden Superpower</h3>
           </div>
         </div>
@@ -387,7 +469,7 @@ export default function LandingPage() {
           </div>
         </div>
         <p className="text-slate-400 italic">
-          "I was 'diversifying' myself into losses. Focus changed everything."
+          "Vega showed me I was 'diversifying' myself into losses. Focusing on my edge changed everything."
         </p>
       </div>
 
@@ -400,7 +482,7 @@ export default function LandingPage() {
             </svg>
           </div>
           <div>
-            <div className="text-red-400 font-semibold text-sm mb-2">EMOTIONAL TRADING ALERT</div>
+            <div className="text-red-400 font-semibold text-sm mb-2">VEGA ALERT: EMOTIONAL TRADING</div>
             <h3 className="text-2xl font-bold mb-3">The Revenge Trade Tax</h3>
           </div>
         </div>
@@ -419,7 +501,7 @@ export default function LandingPage() {
           </div>
         </div>
         <p className="text-slate-400 italic">
-          "I didn't realize I was revenge trading. The data doesn't lie."
+          "Vega caught my revenge trading pattern. I didn't realize I was doing it. The insights don't lie."
         </p>
       </div>
 
@@ -432,7 +514,7 @@ export default function LandingPage() {
             </svg>
           </div>
           <div>
-            <div className="text-orange-400 font-semibold text-sm mb-2">BEHAVIOR PATTERN</div>
+            <div className="text-orange-400 font-semibold text-sm mb-2">VEGA DETECTED: BEHAVIOR PATTERN</div>
             <h3 className="text-2xl font-bold mb-3">Winners vs Losers Hold Time</h3>
           </div>
         </div>
@@ -447,7 +529,7 @@ export default function LandingPage() {
           </div>
         </div>
         <p className="text-slate-400 italic">
-          "Cut your winners, let your losers run. I was doing it backwards without knowing."
+          "Vega revealed I was cutting winners and letting losers run. I was doing it backwards without knowing."
         </p>
       </div>
     </div>
@@ -455,7 +537,7 @@ export default function LandingPage() {
     {/* CTA */}
     <div className="text-center">
       <p className="text-xl text-slate-300 mb-6">
-        What patterns are hiding in <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 font-bold">your</span> trades?
+        What patterns is Vega finding in <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 font-bold">your</span> trades?
       </p>
       <Button
         variant="primary"
@@ -474,14 +556,14 @@ export default function LandingPage() {
       <section className="py-12 md:py-20 px-4 md:px-6 bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border-y border-slate-800/50">
         <div className="max-w-4xl mx-auto text-center space-y-4 md:space-y-6">
           <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold leading-tight px-4">
-            Ready to see what you've been
+            Ready to see what Vega can
             <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
-              missing this whole time?
+              discover in your trading?
             </span>
           </h2>
           <p className="text-base md:text-xl text-slate-300 max-w-2xl mx-auto px-4">
-            Takes 30 seconds to connect. The insights will stick with you forever.
+            Connect your exchange in 30 seconds. Vega will analyze your trades and reveal insights that stick with you forever.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
             <Button
@@ -503,7 +585,7 @@ export default function LandingPage() {
             </Button>
           </div>
           <p className="text-sm text-slate-500 pt-4">
-            No credit card. No signup. Just brutal honesty about your trading.
+            No credit card. No signup. Just insights about your trading.
           </p>
         </div>
       </section>
@@ -525,9 +607,9 @@ export default function LandingPage() {
 
           <div className="grid md:grid-cols-2 gap-4 mb-8">
             <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-6 hover:border-emerald-500/30 transition-all">
-              <h3 className="text-lg font-semibold text-white mb-2">How does TradeClarity analyze my trades?</h3>
+              <h3 className="text-lg font-semibold text-white mb-2">How does Vega analyze my trades?</h3>
               <p className="text-sm text-slate-400 mb-4">
-                TradeClarity connects to your exchange via read-only API keys or analyzes CSV files you upload. We process your trade history to identify patterns and detect behavioral issues.
+                Vega connects to your exchange via read-only API keys or analyzes CSV files. Advanced algorithms process thousands of trades to identify patterns, detect behavioral issues, and generate personalized insights.
               </p>
               <Link href="/faq" className="text-emerald-400 hover:text-emerald-300 text-sm font-medium inline-flex items-center gap-1 transition-colors">
                 Learn more <ChevronRight className="w-4 h-4" />
@@ -537,7 +619,7 @@ export default function LandingPage() {
             <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-6 hover:border-emerald-500/30 transition-all">
               <h3 className="text-lg font-semibold text-white mb-2">Is my trading data safe?</h3>
               <p className="text-sm text-slate-400 mb-4">
-                Yes, absolutely. We use read-only API keys, meaning we can only view your trades - we cannot execute trades or access your funds. All data is encrypted.
+                Yes, absolutely. We use read-only API keys, meaning Vega can only analyze your trades - we cannot execute trades or access your funds. All data is encrypted and processed securely.
               </p>
               <Link href="/faq" className="text-emerald-400 hover:text-emerald-300 text-sm font-medium inline-flex items-center gap-1 transition-colors">
                 Learn more <ChevronRight className="w-4 h-4" />
