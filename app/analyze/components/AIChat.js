@@ -3,23 +3,11 @@
 
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Send, Loader2, Bot, User, Sparkles, X, RotateCcw, Square, Minimize2, Maximize2, Database, Link as LinkIcon, Upload } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
-
-const SAMPLE_QUESTIONS = [
-  "What are my biggest trading weaknesses?",
-  "How can I improve my win rate?",
-  "What's my best performing trading time?",
-  "Which symbols should I focus on?",
-  "Am I overtrading?",
-  "What's my risk-adjusted return?",
-  "How do I compare to market benchmarks?",
-  "What patterns do you see in my losses?",
-  "Should I change my position sizing?",
-  "What's my biggest opportunity for improvement?"
-]
+import { getDynamicSampleQuestions } from '@/lib/ai/prompts/sampleQuestions'
 
 export default function AIChat({ analytics, allTrades, tradesStats, onConnectExchange, onUploadCSV }) {
   const { user } = useAuth()
@@ -47,6 +35,7 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
   // Track if user has sent messages without data (for onboarding mode)
   const hasNoData = !tradesStats || tradesStats.totalTrades === 0
   const [hasSentMessagesWithoutData, setHasSentMessagesWithoutData] = useState(false)
+  const [isDataReady, setIsDataReady] = useState(false) // Track when data is stable
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
   const inputRef = useRef(null)
@@ -58,6 +47,8 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
   const shouldAutoScrollRef = useRef(true)
   const lastMessageCountRef = useRef(0)
   const scrollTimeoutRef = useRef(null)
+  const previousQuestionsRef = useRef([])
+  const animationStartDelayRef = useRef(null)
 
   // Fetch analytics if not provided via props
   useEffect(() => {
@@ -96,9 +87,69 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
     }
   }, [analytics, allTrades, tradesStats, user])
 
+  // Determine when data is ready (not loading and stable)
+  useEffect(() => {
+    // Data is ready when:
+    // 1. Not loading analytics
+    // 2. Either tradesStats is null (no data case) OR tradesStats exists (data loaded)
+    // 3. Analytics ready state has been determined (not undefined)
+    const hasTradesData = tradesStats !== null && tradesStats.totalTrades > 0
+    const noDataCase = tradesStats === null || (tradesStats && tradesStats.totalTrades === 0)
+    
+    // Data is stable when we're not loading and we know the state (either has data or no data)
+    const dataStable = !loadingAnalytics && (hasTradesData || noDataCase)
+    
+    if (dataStable && !isDataReady) {
+      // Add a small delay to ensure questions are stable before starting animation
+      const delayTimeout = setTimeout(() => {
+        setIsDataReady(true)
+      }, 400) // 400ms delay to let questions stabilize after data loads
+      
+      return () => clearTimeout(delayTimeout)
+    } else if (!dataStable && isDataReady) {
+      setIsDataReady(false)
+    }
+  }, [loadingAnalytics, tradesStats, isDataReady])
+
   // Use computed analytics if available, otherwise use props
   const effectiveAnalytics = computedAnalytics || analytics
   const effectiveAllTrades = computedAllTrades || allTrades
+  
+  // Calculate dynamic sample questions based on user context
+  const sampleQuestions = useMemo(() => {
+    // Always return questions, even if analytics are still loading
+    // This ensures smooth UX - questions will update when analytics load
+    return getDynamicSampleQuestions(tradesStats, effectiveAnalytics)
+  }, [tradesStats, effectiveAnalytics])
+  
+  // Reset sample index when questions change (e.g., experience level changes or data loads)
+  // This ensures smooth transitions when user's context changes
+  useEffect(() => {
+    // If questions array changed (not just length, but actual content), reset index
+    const previousLength = previousQuestionsRef.current.length
+    const questionsChanged = previousLength !== sampleQuestions.length ||
+      previousQuestionsRef.current.join('|') !== sampleQuestions.join('|')
+    
+    if (questionsChanged) {
+      setCurrentSampleIndex(0)
+      const wasEmpty = previousLength === 0
+      const lengthChanged = previousLength !== sampleQuestions.length
+      previousQuestionsRef.current = [...sampleQuestions] // Store a copy
+      
+      // If questions changed significantly (initial load or major change), reset data ready flag
+      if (wasEmpty || lengthChanged) {
+        setIsDataReady(false)
+        // Re-enable after questions stabilize
+        const delayTimeout = setTimeout(() => {
+          setIsDataReady(true)
+        }, 500) // Longer delay to ensure questions are stable
+        return () => clearTimeout(delayTimeout)
+      }
+    } else if (currentSampleIndex >= sampleQuestions.length) {
+      // Safety check: if index is out of bounds, reset to 0
+      setCurrentSampleIndex(0)
+    }
+  }, [sampleQuestions, currentSampleIndex])
   
   // Reset onboarding flag when user adds data
   useEffect(() => {
@@ -109,59 +160,72 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
 
   // Animate sample questions inside the input box
   useEffect(() => {
-    // Stop animation if user has messages, is typing, or input is focused
-    if (messages.length > 0 || input.length > 0 || isInputFocused) {
+    // Stop animation if:
+    // - User has messages
+    // - User is typing
+    // - Input is focused
+    // - No questions available
+    // - Data is not ready yet (prevents glitchy animation on load)
+    if (messages.length > 0 || input.length > 0 || isInputFocused || sampleQuestions.length === 0 || !isDataReady) {
       setDisplayedSample('')
       if (typeIntervalRef.current) clearInterval(typeIntervalRef.current)
       if (deleteIntervalRef.current) clearInterval(deleteIntervalRef.current)
       if (animationTimeoutRef.current) clearTimeout(animationTimeoutRef.current)
+      if (animationStartDelayRef.current) clearTimeout(animationStartDelayRef.current)
       return
     }
 
-    const currentQuestion = SAMPLE_QUESTIONS[currentSampleIndex]
-    const charIndexRef = { current: 0 }
-    setIsTypingSample(true)
-    setIsDeletingSample(false)
-    setDisplayedSample('')
+    const currentQuestion = sampleQuestions[currentSampleIndex]
+    if (!currentQuestion) return
+    
+    // Add a small delay before starting animation to ensure smooth start
+    // This prevents glitchy animation when data loads
+    animationStartDelayRef.current = setTimeout(() => {
+      const charIndexRef = { current: 0 }
+      setIsTypingSample(true)
+      setIsDeletingSample(false)
+      setDisplayedSample('')
 
-    // Clear any existing intervals
-    if (typeIntervalRef.current) clearInterval(typeIntervalRef.current)
-    if (deleteIntervalRef.current) clearInterval(deleteIntervalRef.current)
-    if (animationTimeoutRef.current) clearTimeout(animationTimeoutRef.current)
+      // Clear any existing intervals
+      if (typeIntervalRef.current) clearInterval(typeIntervalRef.current)
+      if (deleteIntervalRef.current) clearInterval(deleteIntervalRef.current)
+      if (animationTimeoutRef.current) clearTimeout(animationTimeoutRef.current)
 
-    // Typing animation
-    typeIntervalRef.current = setInterval(() => {
-      if (charIndexRef.current < currentQuestion.length) {
-        charIndexRef.current++
-        setDisplayedSample(currentQuestion.substring(0, charIndexRef.current))
-      } else {
-        clearInterval(typeIntervalRef.current)
-        setIsTypingSample(false)
-        
-        // Wait 3 seconds before deleting (increased for better readability)
-        animationTimeoutRef.current = setTimeout(() => {
-          setIsDeletingSample(true)
-          deleteIntervalRef.current = setInterval(() => {
-            if (charIndexRef.current > 0) {
-              charIndexRef.current--
-              setDisplayedSample(currentQuestion.substring(0, charIndexRef.current))
-            } else {
-              clearInterval(deleteIntervalRef.current)
-              setIsDeletingSample(false)
-              // Move to next question (cycles through all 10)
-              setCurrentSampleIndex((prev) => (prev + 1) % SAMPLE_QUESTIONS.length)
-            }
-          }, 30) // Delete speed
-        }, 3000) // Wait 3 seconds before deleting
-      }
-    }, 50) // Typing speed
+      // Typing animation
+      typeIntervalRef.current = setInterval(() => {
+        if (charIndexRef.current < currentQuestion.length) {
+          charIndexRef.current++
+          setDisplayedSample(currentQuestion.substring(0, charIndexRef.current))
+        } else {
+          clearInterval(typeIntervalRef.current)
+          setIsTypingSample(false)
+          
+          // Wait 3 seconds before deleting (increased for better readability)
+          animationTimeoutRef.current = setTimeout(() => {
+            setIsDeletingSample(true)
+            deleteIntervalRef.current = setInterval(() => {
+              if (charIndexRef.current > 0) {
+                charIndexRef.current--
+                setDisplayedSample(currentQuestion.substring(0, charIndexRef.current))
+              } else {
+                clearInterval(deleteIntervalRef.current)
+                setIsDeletingSample(false)
+                // Move to next question (cycles through all questions)
+                setCurrentSampleIndex((prev) => (prev + 1) % sampleQuestions.length)
+              }
+            }, 30) // Delete speed
+          }, 3000) // Wait 3 seconds before deleting
+        }
+      }, 50) // Typing speed
+    }, 200) // Small delay before starting animation
 
     return () => {
       if (typeIntervalRef.current) clearInterval(typeIntervalRef.current)
       if (deleteIntervalRef.current) clearInterval(deleteIntervalRef.current)
       if (animationTimeoutRef.current) clearTimeout(animationTimeoutRef.current)
+      if (animationStartDelayRef.current) clearTimeout(animationStartDelayRef.current)
     }
-  }, [currentSampleIndex, messages.length, input.length, isInputFocused])
+  }, [currentSampleIndex, messages.length, input.length, isInputFocused, sampleQuestions, isDataReady])
 
   // Summarize conversation function (memoized to avoid stale closures)
   const summarizeConversation = useCallback(async () => {
@@ -907,7 +971,7 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
                 I can analyze your performance and provide personalized insights
               </p>
               <div className="flex flex-wrap gap-1.5 justify-center">
-                {SAMPLE_QUESTIONS.slice(0, 3).map((q, idx) => (
+                {sampleQuestions.slice(0, 3).map((q, idx) => (
                   <button
                     key={idx}
                     className="px-2.5 py-1 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] text-white/70 hover:text-white/90 transition-all cursor-pointer"

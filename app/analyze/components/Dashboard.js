@@ -1402,13 +1402,13 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                   variant="outline" 
                   className={`${
                     subscription.tier === 'pro' 
-                      ? 'border-white/20 bg-white/5 text-white/80' 
+                      ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-400' 
                       : subscription.tier === 'trader'
-                      ? 'border-white/20 bg-white/5 text-white/70'
+                      ? 'border-cyan-400/30 bg-cyan-400/10 text-cyan-400'
                       : 'border-white/10 bg-white/5 text-white/60'
                   } font-medium uppercase tracking-wider text-[10px] px-2 py-0.5 flex items-center gap-1.5`}
                 >
-                  {subscription.tier === 'pro' && <Crown className="w-3 h-3" />}
+                  {subscription.tier === 'pro' && <Crown className="w-3 h-3 text-emerald-400" />}
                   {subscription.tier}
                 </Badge>
               )}
@@ -1930,22 +1930,22 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                                         <span className="text-sm font-medium text-white/90">{exchange.name}</span>
                                       </div>
                                       <div className="flex items-center gap-2 text-xs">
-                                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/5 border border-white/10">
+                                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20">
                                           <span className="relative flex h-2 w-2">
-                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white/40 opacity-75"></span>
-                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-white/60"></span>
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
                                           </span>
-                                          <span className="text-white/70 font-medium">API</span>
+                                          <span className="text-emerald-400 font-medium">API</span>
                                         </div>
                                         {linkedCount > 0 && (
                                           <>
                                             <Separator className="text-white/10" />
-                                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/5 border border-white/10">
+                                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/20">
                                               <span className="relative flex h-2 w-2">
-                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white/40 opacity-75"></span>
-                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-white/60"></span>
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-400"></span>
                                               </span>
-                                              <span className="text-white/70 font-medium">{linkedCount} CSV{linkedCount > 1 ? 's' : ''}</span>
+                                              <span className="text-cyan-400 font-medium">{linkedCount} CSV{linkedCount > 1 ? 's' : ''}</span>
                                             </div>
                                           </>
                                         )}
@@ -2014,9 +2014,13 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                                         <span className="px-2 py-0.5 bg-white/5 border border-white/10 text-white/60 text-[10px] font-medium rounded-md">
                                           {file.account_type}
                                         </span>
-                                        <span className="px-2 py-0.5 bg-white/5 border border-white/10 text-white/60 text-[10px] font-medium rounded-md">
-                                          CSV
-                                        </span>
+                                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-cyan-500/10 border border-cyan-500/20 rounded-md">
+                                          <span className="relative flex h-2 w-2">
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-400"></span>
+                                          </span>
+                                          <span className="text-cyan-400 text-[10px] font-medium">CSV</span>
+                                        </div>
                                       </div>
                                       <p className="text-xs text-white/50">
                                         {file.trades_count || 0} trades ? {(file.size / 1024).toFixed(1)} KB
