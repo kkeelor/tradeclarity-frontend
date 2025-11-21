@@ -89,6 +89,21 @@ function PlanProgressBar({ currentTier, actualUsage, onClick }) {
       })
     }
 
+    // AI Tokens progress - fill based on how close to current limit
+    if (currentLimits.maxTokensPerMonth !== Infinity && actualUsage.tokens !== undefined) {
+      const currentLimit = currentLimits.maxTokensPerMonth
+      const used = actualUsage.tokens || 0
+      // Progress is based on how close to hitting the current limit (0-100%)
+      const progress = Math.min(100, (used / currentLimit) * 100)
+      progressMetrics.push({ 
+        type: 'tokens', 
+        progress, 
+        used, 
+        currentLimit, 
+        isAtLimit: used >= currentLimit 
+      })
+    }
+
     // Use the maximum progress across all metrics - if ANY limit is hit, bar is full
     const maxProgress = progressMetrics.length > 0 
       ? Math.max(...progressMetrics.map(m => m.progress))
@@ -126,21 +141,21 @@ function PlanProgressBar({ currentTier, actualUsage, onClick }) {
       >
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+            <span className="text-[10px] font-medium text-white/60 uppercase tracking-wider">
               {progress.label}
             </span>
-            <span className="text-[10px] text-slate-600">━━━━━━━━━━━━━━━━━━━━</span>
-            <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider group-hover:text-emerald-300 transition-colors">
+            <span className="text-[10px] text-white/20">━━━━━━━━━━━━━━━━━━━━</span>
+            <span className="text-[10px] font-medium text-emerald-400 uppercase tracking-wider group-hover:text-emerald-300 transition-colors">
               {progress.nextLabel}
             </span>
           </div>
-          <span className="text-[10px] text-slate-500 group-hover:text-slate-400 transition-colors">
+          <span className="text-[10px] text-white/60 group-hover:text-white/80 transition-colors">
             {Math.round(progress.percentage)}%
           </span>
         </div>
-        <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+        <div className="w-full bg-white/5 border border-white/10 rounded-full h-2 overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-emerald-500 to-cyan-500 transition-all duration-500"
+            className="h-full bg-emerald-400 transition-all duration-500"
             style={{ width: `${Math.min(100, progress.percentage)}%` }}
           />
         </div>
@@ -151,7 +166,7 @@ function PlanProgressBar({ currentTier, actualUsage, onClick }) {
         <div className="flex justify-end">
           <button
             onClick={handleUpgradeClick}
-            className="w-1/4 py-2 px-3 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white text-xs font-semibold transition-all duration-300 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 flex items-center justify-center gap-1.5"
+            className="w-1/4 py-2 px-3 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 text-white/90 hover:text-white text-xs font-medium transition-all duration-300 flex items-center justify-center gap-1.5"
           >
             <Sparkles className="w-3 h-3" />
             <span>Upgrade</span>
@@ -193,17 +208,25 @@ function UsageBreakdownModal({ open, onOpenChange, subscription, actualUsage }) 
       nextLimit: nextLimits?.maxTradesPerMonth,
       icon: BarChart3,
       color: 'text-emerald-400'
+    },
+    {
+      label: 'AI Tokens',
+      used: actualUsage.tokens || 0,
+      currentLimit: currentLimits.maxTokensPerMonth,
+      nextLimit: nextLimits?.maxTokensPerMonth,
+      icon: Brain,
+      color: 'text-emerald-400'
     }
   ]
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-900 border-slate-700 max-w-md">
+      <DialogContent className="bg-black border-white/10 max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-lg font-semibold text-slate-100">
+          <DialogTitle className="text-lg font-semibold text-white/90">
             Usage Breakdown
           </DialogTitle>
-          <DialogDescription className="text-sm text-slate-400">
+          <DialogDescription className="text-sm text-white/60">
             Your current usage and limits
           </DialogDescription>
         </DialogHeader>
@@ -221,40 +244,48 @@ function UsageBreakdownModal({ open, onOpenChange, subscription, actualUsage }) 
               : Math.min(100, Math.max(0, (used / item.currentLimit) * 100))  // Ensure percentage is between 0-100
             
             return (
-              <div key={item.label} className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
-                <div className="flex items-center gap-2 mb-2">
-                  <Icon className={`w-4 h-4 ${item.color}`} />
-                  <span className="text-sm font-medium text-slate-300">{item.label}</span>
+              <div key={item.label} className="p-4 rounded-lg bg-white/5 border border-white/10">
+                <div className="flex items-center gap-2 mb-3">
+                  <Icon className="w-4 h-4 text-white/60" />
+                  <span className="text-sm font-medium text-white/80">{item.label}</span>
                 </div>
-                <div className="flex items-baseline justify-between mb-2">
-                  <span className="text-2xl font-bold text-white">{used}</span>
-                  <span className="text-sm text-slate-400">
-                    / {currentLimitDisplay}
+                <div className="flex items-baseline justify-between mb-3">
+                  <span className="text-2xl font-semibold text-white/90">
+                    {item.label === 'AI Tokens' ? used.toLocaleString() : used}
+                  </span>
+                  <span className="text-sm text-white/60">
+                    / {typeof currentLimitDisplay === 'number' && item.label === 'AI Tokens' 
+                      ? currentLimitDisplay.toLocaleString() 
+                      : currentLimitDisplay}
                     {nextLimitDisplay && nextLimitDisplay !== currentLimitDisplay && (
-                      <span className="text-slate-600 ml-1">→ {nextLimitDisplay}</span>
+                      <span className="text-emerald-400 ml-1">
+                        → {typeof nextLimitDisplay === 'number' && item.label === 'AI Tokens'
+                          ? nextLimitDisplay.toLocaleString()
+                          : nextLimitDisplay}
+                      </span>
                     )}
                   </span>
                 </div>
                 {item.currentLimit !== Infinity && (
-                  <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+                  <div className="w-full bg-white/5 border border-white/10 rounded-full h-2 overflow-hidden">
                     <div
-                      className={`h-full ${percentage >= 90 ? 'bg-red-500' : percentage >= 75 ? 'bg-amber-500' : 'bg-emerald-500'} transition-all duration-300`}
+                      className="h-full bg-emerald-400 transition-all duration-300"
                       style={{ width: `${Math.min(100, percentage)}%` }}
                     />
                   </div>
                 )}
                 {item.currentLimit === Infinity && (
-                  <div className="w-full bg-slate-700 rounded-full h-2">
-                    <div className="h-full bg-emerald-500 w-full" />
+                  <div className="w-full bg-white/5 border border-white/10 rounded-full h-2">
+                    <div className="h-full bg-emerald-400 w-full" />
                   </div>
                 )}
               </div>
             )
           })}
           {nextTier && (
-            <div className="mt-4 pt-4 border-t border-slate-700">
+            <div className="mt-4 pt-4 border-t border-white/10">
               <div className="flex items-center justify-center gap-2">
-                <p className="text-xs text-slate-400 text-center">
+                <p className="text-xs text-white/60 text-center">
                   Upgrade to <span className="text-emerald-400 font-semibold">{nextTier.toUpperCase()}</span> for higher limits
                 </p>
                 <button
@@ -1246,14 +1277,12 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                   <Badge 
                     variant="outline" 
                     className={`${
-                      subscription.tier === 'pro' 
-                        ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400' 
-                        : subscription.tier === 'trader'
-                        ? 'border-blue-500/50 bg-blue-500/10 text-blue-400'
-                        : 'border-slate-500/50 bg-slate-500/10 text-slate-400'
+                      subscription.tier === 'pro' || subscription.tier === 'trader'
+                        ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-400' 
+                        : 'border-blue-400/30 bg-blue-400/10 text-blue-400'
                     } font-semibold uppercase tracking-wider text-[9px] px-1.5 py-0.5 flex items-center gap-1 hidden sm:flex`}
                   >
-                    {subscription.tier === 'pro' && <Crown className="w-2.5 h-2.5" />}
+                    {subscription.tier === 'pro' && <Crown className="w-2.5 h-2.5 text-emerald-400" />}
                     {subscription.tier}
                   </Badge>
                 )}
@@ -1401,11 +1430,9 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                 <Badge 
                   variant="outline" 
                   className={`${
-                    subscription.tier === 'pro' 
+                    subscription.tier === 'pro' || subscription.tier === 'trader'
                       ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-400' 
-                      : subscription.tier === 'trader'
-                      ? 'border-cyan-400/30 bg-cyan-400/10 text-cyan-400'
-                      : 'border-white/10 bg-white/5 text-white/60'
+                      : 'border-blue-400/30 bg-blue-400/10 text-blue-400'
                   } font-medium uppercase tracking-wider text-[10px] px-2 py-0.5 flex items-center gap-1.5`}
                 >
                   {subscription.tier === 'pro' && <Crown className="w-3 h-3 text-emerald-400" />}
@@ -1499,16 +1526,19 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                         )}
                         
                         {/* Progress Bar */}
-                        <div className="pt-3 border-t border-white/5 flex-shrink-0 mt-auto">
-                          <PlanProgressBar 
-                            currentTier={subscription.tier}
-                            actualUsage={{
-                              connections: connectedExchanges.length,
-                              trades: tradesStats?.totalTrades || 0
-                            }}
-                            onClick={() => setShowUsageModal(true)}
-                          />
-                        </div>
+                        {subscription && subscription.tier !== 'pro' && (
+                          <div className="pt-3 border-t border-white/10 flex-shrink-0 mt-auto">
+                            <PlanProgressBar 
+                              currentTier={subscription.tier}
+                              actualUsage={{
+                                connections: connectedExchanges.length,
+                                trades: tradesStats?.totalTrades || 0,
+                                tokens: tokenUsage.used || 0
+                              }}
+                              onClick={() => setShowUsageModal(true)}
+                            />
+                          </div>
+                        )}
                         </div>
                       </div>
                     </div>
@@ -1521,9 +1551,66 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                           </div>
                           <h3 className="text-xs font-medium text-white/80 uppercase tracking-wider">Get Started</h3>
                         </div>
-                        <p className="text-xs text-white/60 leading-relaxed mb-6">
+                        <p className="text-xs text-white/60 leading-relaxed mb-4">
                           Connect your exchange or upload CSV files to start analyzing your trading performance
                         </p>
+                        
+                        {/* Plan Limits */}
+                        {(() => {
+                          const userTier = subscription?.tier || 'free'
+                          const tierLimits = TIER_LIMITS[userTier] || TIER_LIMITS.free
+                          return (
+                            <div className="space-y-2.5 mb-4">
+                              <div className="flex items-center gap-2 text-xs text-white/70">
+                                <div className="w-1.5 h-1.5 rounded-full bg-white/60" />
+                                <span>Exchange Connections</span>
+                                {tierLimits.maxConnections === Infinity ? (
+                                  <Infinity className="w-3.5 h-3.5 text-white/50 ml-auto" />
+                                ) : (
+                                  <span className="text-white/80 font-semibold ml-auto">
+                                    {connectedExchanges.length} / {tierLimits.maxConnections}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 text-xs text-white/70">
+                                <div className="w-1.5 h-1.5 rounded-full bg-white/60" />
+                                <span>Trades Analyzed</span>
+                                {tierLimits.maxTradesPerMonth === Infinity ? (
+                                  <Infinity className="w-3.5 h-3.5 text-white/50 ml-auto" />
+                                ) : (
+                                  <span className="text-white/80 font-semibold ml-auto">
+                                    {tradesStats?.totalTrades || 0} / {tierLimits.maxTradesPerMonth}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 text-xs text-white/70">
+                                <div className="w-1.5 h-1.5 rounded-full bg-white/60" />
+                                <span className="flex-1">AI Tokens</span>
+                                <span className="text-white/80 font-semibold">
+                                  {tokenUsage.used.toLocaleString()} / {tierLimits.maxTokensPerMonth === Infinity ? (
+                                    <Infinity className="w-3.5 h-3.5 text-white/50 inline" />
+                                  ) : tierLimits.maxTokensPerMonth.toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+                          )
+                        })()}
+                        
+                        {/* Progress Bar - Show for free and trader plans */}
+                        {subscription && subscription.tier !== 'pro' && (
+                          <div className="pt-3 border-t border-white/10 mb-4">
+                            <PlanProgressBar 
+                              currentTier={subscription.tier}
+                              actualUsage={{
+                                connections: connectedExchanges.length,
+                                trades: tradesStats?.totalTrades || 0,
+                                tokens: tokenUsage.used || 0
+                              }}
+                              onClick={() => setShowUsageModal(true)}
+                            />
+                          </div>
+                        )}
+                        
                         <div className="space-y-2 mt-auto">
                           <button
                             onClick={handleOpenConnectModal}
@@ -2083,7 +2170,8 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
         subscription={subscription}
         actualUsage={{
           connections: connectedExchanges.length,
-          trades: tradesStats?.totalTrades || 0
+          trades: tradesStats?.totalTrades || 0,
+          tokens: tokenUsage.used || 0
         }}
       />
 

@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase-server'
 import { generateCompletion, AI_MODELS, isAIConfigured } from '@/lib/ai/client'
 import Anthropic from '@anthropic-ai/sdk'
 import { buildVegaSystemPrompt, buildCachedSystemBlocks, determineExperienceLevel } from '@/lib/ai/prompts/vega-system-prompt'
+import { TIER_LIMITS, canUseTokens, getEffectiveTier } from '@/lib/featureGates'
 
 function getAnthropicClient() {
   return new Anthropic({
@@ -56,12 +57,49 @@ export async function POST(request) {
     // Get user's subscription tier
     const { data: subscription } = await supabase
       .from('subscriptions')
-      .select('tier')
+      .select('tier, status, cancel_at_period_end, current_period_end')
       .eq('user_id', user.id)
       .single()
 
     const tier = subscription?.tier || 'free'
     const model = tier === 'pro' ? AI_MODELS.SONNET.id : AI_MODELS.HAIKU.id
+
+    // Check token limit before processing
+    const now = new Date()
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    
+    // Get current month's token usage
+    const { data: conversations } = await supabase
+      .from('ai_conversations')
+      .select('total_input_tokens, total_output_tokens')
+      .eq('user_id', user.id)
+      .gte('created_at', startOfMonth.toISOString())
+    
+    const tokensUsed = (conversations || []).reduce((sum, conv) => {
+      const inputTokens = conv.total_input_tokens || 0
+      const outputTokens = conv.total_output_tokens || 0
+      return sum + inputTokens + outputTokens
+    }, 0)
+
+    // Check if user can use tokens (estimate ~1000 tokens per request as a conservative check)
+    const estimatedTokensNeeded = 1000
+    if (!canUseTokens(subscription, tokensUsed, estimatedTokensNeeded)) {
+      const effectiveTier = getEffectiveTier(subscription)
+      const limit = TIER_LIMITS[effectiveTier]?.maxTokensPerMonth || TIER_LIMITS.free.maxTokensPerMonth
+      const nextTier = effectiveTier === 'free' ? 'trader' : effectiveTier === 'trader' ? 'pro' : null
+      
+      return NextResponse.json(
+        { 
+          error: 'TOKEN_LIMIT_REACHED',
+          message: `You've reached your AI token limit (${tokensUsed.toLocaleString()}/${limit.toLocaleString()} tokens this month). ${nextTier ? `Upgrade to ${nextTier} for higher limits.` : ''}`,
+          current: tokensUsed,
+          limit: limit,
+          tier: effectiveTier,
+          upgradeTier: nextTier
+        },
+        { status: 403 }
+      )
+    }
 
     // Get or create conversation
     let conversation
