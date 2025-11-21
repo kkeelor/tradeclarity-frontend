@@ -1521,9 +1521,51 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                           </div>
                           <h3 className="text-xs font-medium text-white/80 uppercase tracking-wider">Get Started</h3>
                         </div>
-                        <p className="text-xs text-white/60 leading-relaxed mb-6">
+                        <p className="text-xs text-white/60 leading-relaxed mb-4">
                           Connect your exchange or upload CSV files to start analyzing your trading performance
                         </p>
+                        
+                        {/* Plan Limits */}
+                        {(() => {
+                          const userTier = subscription?.tier || 'free'
+                          const tierLimits = TIER_LIMITS[userTier] || TIER_LIMITS.free
+                          return (
+                            <div className="space-y-2.5 mb-4">
+                              <div className="flex items-center gap-2 text-xs text-white/70">
+                                <div className="w-1.5 h-1.5 rounded-full bg-white/60" />
+                                <span>Exchange Connections</span>
+                                {tierLimits.maxConnections === Infinity ? (
+                                  <Infinity className="w-3.5 h-3.5 text-white/50 ml-auto" />
+                                ) : (
+                                  <span className="text-white/80 font-semibold ml-auto">
+                                    {connectedExchanges.length} / {tierLimits.maxConnections}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 text-xs text-white/70">
+                                <div className="w-1.5 h-1.5 rounded-full bg-white/60" />
+                                <span>Trades Analyzed</span>
+                                {tierLimits.maxTradesPerMonth === Infinity ? (
+                                  <Infinity className="w-3.5 h-3.5 text-white/50 ml-auto" />
+                                ) : (
+                                  <span className="text-white/80 font-semibold ml-auto">
+                                    {tradesStats?.totalTrades || 0} / {tierLimits.maxTradesPerMonth}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 text-xs text-white/70">
+                                <div className="w-1.5 h-1.5 rounded-full bg-white/60" />
+                                <span className="flex-1">AI Tokens</span>
+                                <span className="text-white/80 font-semibold">
+                                  {tokenUsage.used.toLocaleString()} / {tierLimits.maxTokensPerMonth === Infinity ? (
+                                    <Infinity className="w-3.5 h-3.5 text-white/50 inline" />
+                                  ) : tierLimits.maxTokensPerMonth.toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+                          )
+                        })()}
+                        
                         <div className="space-y-2 mt-auto">
                           <button
                             onClick={handleOpenConnectModal}
