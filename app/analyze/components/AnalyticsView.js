@@ -2519,15 +2519,34 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
       })()
     : null
 
-  // Check if portfolio data is available (only present on live connections)
-  const hasPortfolioData = metadata?.totalPortfolioValue !== undefined && metadata?.totalPortfolioValue !== null
+  // Calculate total portfolio value from spotHoldings if not already in metadata
+  const calculatedPortfolioValue = useMemo(() => {
+    // If totalPortfolioValue exists in metadata, use it
+    if (metadata?.totalPortfolioValue !== undefined && metadata?.totalPortfolioValue !== null) {
+      return metadata.totalPortfolioValue
+    }
+    
+    // Otherwise, calculate from spotHoldings
+    if (metadata?.spotHoldings && Array.isArray(metadata.spotHoldings) && metadata.spotHoldings.length > 0) {
+      const totalValue = metadata.spotHoldings.reduce((sum, holding) => {
+        const usdValue = parseFloat(holding.usdValue || 0)
+        return sum + usdValue
+      }, 0)
+      return totalValue > 0 ? totalValue : null
+    }
+    
+    return null
+  }, [metadata?.totalPortfolioValue, metadata?.spotHoldings])
+
+  // Check if portfolio data is available (from metadata or calculated from holdings)
+  const hasPortfolioData = calculatedPortfolioValue !== null && calculatedPortfolioValue !== undefined
 
   // Convert portfolio value to selected currency
   const convertedPortfolioValue = useMemo(() => {
-    if (!hasPortfolioData || !metadata?.totalPortfolioValue) return null
-    if (currency === 'USD') return metadata.totalPortfolioValue
-    return convertCurrencySync(metadata.totalPortfolioValue, 'USD', currency)
-  }, [hasPortfolioData, metadata?.totalPortfolioValue, currency])
+    if (!hasPortfolioData || !calculatedPortfolioValue) return null
+    if (currency === 'USD') return calculatedPortfolioValue
+    return convertCurrencySync(calculatedPortfolioValue, 'USD', currency)
+  }, [hasPortfolioData, calculatedPortfolioValue, currency])
 
   // Helper function to calculate exchange breakdowns
   const calculateExchangeBreakdown = useMemo(() => {

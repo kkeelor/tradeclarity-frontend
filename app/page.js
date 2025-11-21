@@ -2,13 +2,15 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { TrendingUp, Shield, Zap, ArrowRight, Sparkles, Lock, Eye, Brain, TrendingDown, Target, AlertCircle, LogOut, LayoutDashboard, HelpCircle, ChevronRight } from 'lucide-react'
+import { TrendingUp, Shield, Zap, ArrowRight, Sparkles, Lock, Eye, Brain, TrendingDown, Target, AlertCircle, LogOut, LayoutDashboard, HelpCircle, ChevronRight, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui'
 import ThemeToggle from './components/ThemeToggle'
 import { useAuth } from '@/lib/AuthContext'
+import { useMultipleTabs } from '@/lib/hooks/useMultipleTabs'
 import Footer from './components/Footer'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 
 // Typing animation component
 function TypingAnimation({ texts, className = '' }) {
@@ -78,9 +80,12 @@ function TypingAnimation({ texts, className = '' }) {
 export default function LandingPage() {
   const router = useRouter()
   const { user } = useAuth()
+  const { hasOtherTabs, otherTabCount } = useMultipleTabs()
   const [isPrimaryHovered, setIsPrimaryHovered] = useState(false)
   const [isSecondaryHovered, setIsSecondaryHovered] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [showTabDialog, setShowTabDialog] = useState(false)
+  const [pendingNavigation, setPendingNavigation] = useState(null)
 
   const handleSignOut = async () => {
     try {
@@ -91,6 +96,51 @@ export default function LandingPage() {
       window.location.href = '/'
     }
   }
+
+  const handleDashboardClick = (e) => {
+    // Check if there are other active tabs
+    if (hasOtherTabs && user) {
+      e.preventDefault()
+      setPendingNavigation('/dashboard')
+      setShowTabDialog(true)
+      return
+    }
+    // Normal navigation
+    router.push('/dashboard')
+  }
+
+  const handleSwitchToTab = () => {
+    // Try to focus existing tab by broadcasting a message
+    localStorage.setItem('tradeclarity_switch_to_dashboard', Date.now().toString())
+    setShowTabDialog(false)
+    setPendingNavigation(null)
+    
+    // Show message that user should check other tab
+    setTimeout(() => {
+      alert('Please check your other tab. If it doesn\'t switch automatically, click Dashboard there.')
+    }, 100)
+  }
+
+  const handleContinueInThisTab = () => {
+    setShowTabDialog(false)
+    if (pendingNavigation) {
+      router.push(pendingNavigation)
+      setPendingNavigation(null)
+    }
+  }
+
+  // Listen for switch requests from other tabs
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'tradeclarity_switch_to_dashboard' && window.location.pathname === '/dashboard') {
+        // This tab is the dashboard - focus it
+        window.focus()
+        localStorage.removeItem('tradeclarity_switch_to_dashboard')
+      }
+    }
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex flex-col">
@@ -145,9 +195,9 @@ export default function LandingPage() {
                       <p className="text-xs text-slate-300 truncate">{user?.email}</p>
                     </div>
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
                         setShowUserMenu(false)
-                        router.push('/dashboard')
+                        handleDashboardClick(e)
                       }}
                       className="w-full px-3 py-2 text-left text-xs text-slate-300 hover:text-white hover:bg-slate-700/50 transition-colors flex items-center gap-2"
                     >
@@ -232,7 +282,7 @@ export default function LandingPage() {
             <Button
               variant="outline"
               size="xl"
-              onClick={() => router.push('/dashboard')}
+              onClick={handleDashboardClick}
               onMouseEnter={() => setIsSecondaryHovered(true)}
               onMouseLeave={() => setIsSecondaryHovered(false)}
             >
@@ -578,7 +628,7 @@ export default function LandingPage() {
             <Button
               variant="outline"
               size="lg"
-              onClick={() => router.push('/dashboard')}
+              onClick={handleDashboardClick}
               className="hover:scale-105 hover:border-gold"
             >
               Connect My Exchange
@@ -660,6 +710,38 @@ export default function LandingPage() {
 
       {/* Footer */}
       <Footer />
+
+      {/* Multiple Tabs Dialog */}
+      <Dialog open={showTabDialog} onOpenChange={setShowTabDialog}>
+        <DialogContent className="bg-black border-white/10 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold text-white/90 flex items-center gap-2">
+              <ExternalLink className="w-5 h-5 text-emerald-400" />
+              Another Tab Already Open
+            </DialogTitle>
+            <DialogDescription className="text-sm text-white/60">
+              {otherTabCount === 1 
+                ? 'You have TradeClarity open in another tab. Would you like to switch to that tab or continue here?'
+                : `You have TradeClarity open in ${otherTabCount} other tabs. Would you like to switch to one of them or continue here?`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 space-y-3">
+            <button
+              onClick={handleSwitchToTab}
+              className="w-full px-4 py-3 bg-emerald-400/10 hover:bg-emerald-400/15 border border-emerald-400/30 hover:border-emerald-400/40 rounded-lg font-medium transition-all text-white/90 hover:text-white flex items-center justify-center gap-2"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Switch to Other Tab
+            </button>
+            <button
+              onClick={handleContinueInThisTab}
+              className="w-full px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg font-medium transition-all text-white/70 hover:text-white/90"
+            >
+              Continue in This Tab
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

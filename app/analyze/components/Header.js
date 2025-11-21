@@ -2,31 +2,71 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
+import Link from 'next/link'
 import { TrendingUp, ArrowRight, LayoutDashboard, Database, BarChart3, LogOut, ChevronDown, Menu, X, Tag, CreditCard } from 'lucide-react'
 import ThemeToggle from '../../components/ThemeToggle'
 import { getCurrencySymbol } from '../utils/currencyFormatter'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
-function NavButton({ icon: Icon, label, onClick, isActive = false, disabled = false }) {
+function NavButton({ icon: Icon, label, href, onClick, isActive = false, disabled = false }) {
+  if (disabled) {
+    return (
+      <button
+        disabled={true}
+        className="group inline-flex items-center justify-center gap-1 md:gap-2 rounded-full px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium transition-colors flex-shrink-0 whitespace-nowrap min-w-[32px] md:min-w-auto text-slate-500 cursor-not-allowed"
+        style={{ minHeight: '32px' }}
+      >
+        <Icon className="h-3 w-3 md:h-4 md:w-4 transition-colors flex-shrink-0 text-slate-600" />
+        <span className="hidden sm:inline">{label}</span>
+      </button>
+    )
+  }
+
+  if (href) {
+    const handleClick = (e) => {
+      // Only call custom onClick if it's a regular click (not right-click, middle-click, etc.)
+      if (onClick && e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+        e.preventDefault()
+        onClick()
+      }
+      // Otherwise, let the Link handle navigation naturally (allows right-click context menu)
+    }
+    
+    return (
+      <Link
+        href={href}
+        onClick={handleClick}
+        className={`group inline-flex items-center justify-center gap-1 md:gap-2 rounded-full px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium transition-colors flex-shrink-0 whitespace-nowrap min-w-[32px] md:min-w-auto ${
+          isActive
+            ? 'text-white'
+            : 'text-slate-300 hover:text-white'
+        }`}
+        style={{ minHeight: '32px' }}
+      >
+        <Icon className={`h-3 w-3 md:h-4 md:w-4 transition-colors flex-shrink-0 ${
+          isActive
+            ? 'text-emerald-300'
+            : 'text-slate-500 group-hover:text-emerald-300'
+        }`} />
+        <span className="hidden sm:inline">{label}</span>
+      </Link>
+    )
+  }
+
   if (!onClick) return null
 
   return (
     <button
-      onClick={disabled ? undefined : onClick}
-      disabled={disabled}
+      onClick={onClick}
       className={`group inline-flex items-center justify-center gap-1 md:gap-2 rounded-full px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium transition-colors flex-shrink-0 whitespace-nowrap min-w-[32px] md:min-w-auto ${
-        disabled
-          ? 'text-slate-500 cursor-not-allowed'
-          : isActive
+        isActive
           ? 'text-white'
           : 'text-slate-300 hover:text-white'
       }`}
       style={{ minHeight: '32px' }}
     >
       <Icon className={`h-3 w-3 md:h-4 md:w-4 transition-colors flex-shrink-0 ${
-        disabled
-          ? 'text-slate-600'
-          : isActive
+        isActive
           ? 'text-emerald-300'
           : 'text-slate-500 group-hover:text-emerald-300'
       }`} />
@@ -96,12 +136,12 @@ export default function Header({
   const pathname = usePathname()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const navItems = [
-    { label: 'Dashboard', icon: LayoutDashboard, onClick: onNavigateDashboard || (() => router.push('/dashboard')), path: '/dashboard' },
-    { label: 'Your Data', icon: Database, onClick: onNavigateUpload || (() => router.push('/data')), path: '/data' },
-    { label: 'Analytics', icon: BarChart3, onClick: onNavigateAll || (() => router.push('/analyze')), path: '/analyze', disabled: !hasDataSources && !isDemoMode },
-    { label: 'Pricing', icon: Tag, onClick: () => router.push('/pricing'), path: '/pricing' },
-    { label: 'Billing', icon: CreditCard, onClick: () => router.push('/billing'), path: '/billing' }
-  ].filter(item => Boolean(item.onClick))
+    { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', onClick: onNavigateDashboard, path: '/dashboard' },
+    { label: 'Your Data', icon: Database, href: '/data', onClick: onNavigateUpload, path: '/data' },
+    { label: 'Analytics', icon: BarChart3, href: '/analyze', onClick: onNavigateAll, path: '/analyze', disabled: !hasDataSources && !isDemoMode },
+    { label: 'Pricing', icon: Tag, href: '/pricing', path: '/pricing' },
+    { label: 'Billing', icon: CreditCard, href: '/billing', path: '/billing' }
+  ].filter(item => Boolean(item.href || item.onClick))
 
   // Close mobile menu on ESC key
   useEffect(() => {
@@ -160,7 +200,15 @@ export default function Header({
                 {navItems.map(item => {
                   const isActive = pathname === item.path || (item.path === '/dashboard' && pathname?.startsWith('/dashboard'))
                   return (
-                    <NavButton key={item.label} {...item} isActive={isActive} disabled={item.disabled} />
+                    <NavButton 
+                      key={item.label} 
+                      icon={item.icon}
+                      label={item.label}
+                      href={item.href}
+                      onClick={item.onClick}
+                      isActive={isActive} 
+                      disabled={item.disabled} 
+                    />
                   )
                 })}
               </nav>
@@ -244,23 +292,63 @@ export default function Header({
                   const Icon = item.icon
                   const isActive = pathname === item.path || (item.path === '/dashboard' && pathname?.startsWith('/dashboard'))
                   const isDisabled = item.disabled
+                  
+                  if (isDisabled) {
+                    return (
+                      <button
+                        key={item.label}
+                        disabled={true}
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-300 text-slate-600 cursor-not-allowed opacity-50"
+                      >
+                        <Icon className="h-5 w-5 text-slate-600" />
+                        <span>{item.label}</span>
+                      </button>
+                    )
+                  }
+                  
+                  if (item.href) {
+                    const handleLinkClick = (e) => {
+                      // Only call custom onClick if it's a regular click (not right-click, middle-click, etc.)
+                      if (item.onClick && e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                        e.preventDefault()
+                        handleNavClick(item.onClick)
+                      }
+                      // Otherwise, let the Link handle navigation naturally (allows right-click context menu)
+                    }
+                    
+                    return (
+                      <Link
+                        key={item.label}
+                        href={item.href}
+                        onClick={handleLinkClick}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-300 ${
+                          isActive
+                            ? 'bg-white/10 text-white'
+                            : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        <Icon className={`h-5 w-5 ${
+                          isActive
+                            ? 'text-emerald-300'
+                            : 'text-slate-400'
+                        }`} />
+                        <span>{item.label}</span>
+                      </Link>
+                    )
+                  }
+                  
                   return (
                     <button
                       key={item.label}
-                      onClick={() => !isDisabled && handleNavClick(item.onClick)}
-                      disabled={isDisabled}
+                      onClick={() => handleNavClick(item.onClick)}
                       className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-300 ${
-                        isDisabled
-                          ? 'text-slate-600 cursor-not-allowed opacity-50'
-                          : isActive
+                        isActive
                           ? 'bg-white/10 text-white'
                           : 'text-slate-300 hover:bg-white/10 hover:text-white'
                       }`}
                     >
                       <Icon className={`h-5 w-5 ${
-                        isDisabled
-                          ? 'text-slate-600'
-                          : isActive
+                        isActive
                           ? 'text-emerald-300'
                           : 'text-slate-400'
                       }`} />

@@ -11,6 +11,7 @@ import CSVUploadFlow from '../analyze/components/CSVUploadFlow'
 import { EXCHANGES, getExchangeList } from '../analyze/utils/exchanges'
 import { analyzeData } from '../analyze/utils/masterAnalyzer'
 import { TrendingUp, BarChart3, Brain, Zap, Sparkles } from 'lucide-react'
+import { useMultipleTabs } from '@/lib/hooks/useMultipleTabs'
 
 // Loading screen component for real mode (API connection) - from main branch
 function RealModeLoadingScreen({ progress, onComplete }) {
@@ -196,6 +197,7 @@ function RealModeLoadingScreen({ progress, onComplete }) {
 export default function DashboardContent() {
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
+  useMultipleTabs() // Register this tab
   const [status, setStatus] = useState('idle')
   const [error, setError] = useState('')
   const [progress, setProgress] = useState('')
@@ -206,6 +208,19 @@ export default function DashboardContent() {
 
   const exchangeList = getExchangeList()
   const currentExchange = EXCHANGES[exchange]
+
+  // Listen for switch requests from other tabs
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'tradeclarity_switch_to_dashboard') {
+        // This tab is the dashboard - focus it
+        window.focus()
+        localStorage.removeItem('tradeclarity_switch_to_dashboard')
+      }
+    }
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [])
 
   const handleConnect = async (apiKey, apiSecret, preFetchedData = null) => {
     // If we're already connecting and receiving data, update progress and analyze
