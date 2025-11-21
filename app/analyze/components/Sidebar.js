@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Home, Database, Sparkles, LogOut, TrendingUp, Twitter, Linkedin, Menu, X } from 'lucide-react'
+import { Home, Database, Sparkles, LogOut, TrendingUp, Twitter, Linkedin, Menu, X, Brain } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function Sidebar({
   activePage = 'dashboard',
   onDashboardClick,
   onUploadClick,
+  onVegaClick,
   onMyPatternsClick,
   onSignOutClick,
   isMyPatternsDisabled = false,
@@ -124,6 +125,20 @@ export default function Sidebar({
           <Database className="w-5 h-5" />
           <span>Your Data</span>
         </button>
+
+        {onVegaClick && (
+          <button
+            onClick={() => handleNavClick(onVegaClick)}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
+              activePage === 'vega'
+                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/10'
+                : 'text-slate-300 hover:bg-white/[0.05] border border-transparent'
+            }`}
+          >
+            <Brain className="w-5 h-5" />
+            <span>VegaAI</span>
+          </button>
+        )}
 
         <button
           onClick={() => handleNavClick(onMyPatternsClick)}

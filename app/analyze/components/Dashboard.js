@@ -33,6 +33,7 @@ import { Badge } from '@/components/ui/badge'
 import { DashboardStatsSkeleton, DataSourceSkeleton } from '@/app/components/LoadingSkeletons'
 import ConnectExchangeModal from './ConnectExchangeModal'
 import Sidebar from './Sidebar'
+import Header from './Header'
 import Footer from '../../components/Footer'
 import UsageLimits from '../../components/UsageLimits'
 import { TIER_LIMITS, canAddConnection, getTierDisplayName } from '@/lib/featureGates'
@@ -505,7 +506,6 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
   const [uploadedFiles, setUploadedFiles] = useState([])
   const [connectedExchanges, setConnectedExchanges] = useState([])
   const [showConnectModal, setShowConnectModal] = useState(false)
-  const [showUserMenu, setShowUserMenu] = useState(false)
   const [loadingExchanges, setLoadingExchanges] = useState(true)
   const [loadingFiles, setLoadingFiles] = useState(true)
   const [loadingStats, setLoadingStats] = useState(true)
@@ -1248,6 +1248,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
           activePage="dashboard"
           onDashboardClick={() => {}}
           onUploadClick={() => router.push('/data')}
+          onVegaClick={() => router.push('/vega')}
           onMyPatternsClick={() => {
             if (connectedExchanges.length > 0 || !loadingExchanges) {
               onViewAnalytics()
@@ -1261,161 +1262,21 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <header className="sticky top-0 z-30 border-b border-white/10 bg-black/80 backdrop-blur-xl">
-          <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-2 sm:gap-4 px-2 sm:px-4 py-3 sm:py-4 pl-14 md:pl-4">
-            <div className="flex items-center gap-1 sm:gap-2 md:gap-4 lg:gap-8 min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-                <button
-                  onClick={() => window.location.href = '/'}
-                  className="flex items-center gap-1 sm:gap-2 rounded-lg border border-white/10 bg-white/5 px-2 sm:px-3 py-1 text-sm font-semibold text-white/90 transition-all duration-300 hover:border-white/20 hover:bg-white/10 flex-shrink-0"
-                >
-                  <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-white/80" />
-                  <span className="hidden sm:inline">TradeClarity</span>
-                </button>
-                {subscription && (
-                  <Badge 
-                    variant="outline" 
-                    className={`${
-                      subscription.tier === 'pro' || subscription.tier === 'trader'
-                        ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-400' 
-                        : 'border-blue-400/30 bg-blue-400/10 text-blue-400'
-                    } font-semibold uppercase tracking-wider text-[9px] px-1.5 py-0.5 flex items-center gap-1 hidden sm:flex`}
-                  >
-                    {subscription.tier === 'pro' && <Crown className="w-2.5 h-2.5 text-emerald-400" />}
-                    {subscription.tier}
-                  </Badge>
-                )}
-              </div>
-
-              <nav className="hidden md:flex items-center gap-1 md:gap-2 overflow-x-auto scrollbar-hide min-w-0">
-                <button
-                  onClick={() => router.push('/dashboard')}
-                  className={`group inline-flex items-center justify-center gap-1 md:gap-2 rounded-lg px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium transition-all duration-300 flex-shrink-0 whitespace-nowrap ${
-                    pathname === '/dashboard' || pathname?.startsWith('/dashboard')
-                      ? 'text-white/90 bg-white/10 border border-white/10'
-                      : 'text-white/60 hover:text-white/90 hover:bg-white/5'
-                  }`}
-                  style={{ minHeight: '32px', minWidth: '32px' }}
-                >
-                  <LayoutDashboard className={`h-3 w-3 md:h-4 md:w-4 transition-colors flex-shrink-0 ${
-                    pathname === '/dashboard' || pathname?.startsWith('/dashboard')
-                      ? 'text-white/90'
-                      : 'text-white/50 group-hover:text-white/80'
-                  }`} />
-                  <span className="hidden sm:inline">Dashboard</span>
-                </button>
-                <button
-                  onClick={() => router.push('/data')}
-                  className={`group inline-flex items-center justify-center gap-1 md:gap-2 rounded-lg px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium transition-all duration-300 flex-shrink-0 whitespace-nowrap ${
-                    pathname === '/data'
-                      ? 'text-white/90 bg-white/10 border border-white/10'
-                      : 'text-white/60 hover:text-white/90 hover:bg-white/5'
-                  }`}
-                  style={{ minHeight: '32px', minWidth: '32px' }}
-                >
-                  <Database className={`h-3 w-3 md:h-4 md:w-4 transition-colors flex-shrink-0 ${
-                    pathname === '/data'
-                      ? 'text-white/90'
-                      : 'text-white/50 group-hover:text-white/80'
-                  }`} />
-                  <span className="hidden sm:inline">Your Data</span>
-                </button>
-                <button
-                  onClick={() => onViewAnalytics()}
-                  disabled={connectedExchanges.length === 0 && !loadingExchanges}
-                  className={`group inline-flex items-center justify-center gap-1 md:gap-2 rounded-lg px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium transition-all duration-300 flex-shrink-0 whitespace-nowrap ${
-                    connectedExchanges.length === 0 && !loadingExchanges
-                      ? 'text-white/30 cursor-not-allowed'
-                      : pathname === '/analyze' || pathname?.startsWith('/analyze')
-                      ? 'text-white/90 bg-white/10 border border-white/10'
-                      : 'text-white/60 hover:text-white/90 hover:bg-white/5'
-                  }`}
-                  style={{ minHeight: '32px', minWidth: '32px' }}
-                >
-                  <BarChart3 className={`h-3 w-3 md:h-4 md:w-4 transition-colors flex-shrink-0 ${
-                    connectedExchanges.length === 0 && !loadingExchanges
-                      ? 'text-white/20'
-                      : pathname === '/analyze' || pathname?.startsWith('/analyze')
-                      ? 'text-white/90'
-                      : 'text-white/50 group-hover:text-white/80'
-                  }`} />
-                  <span className="hidden sm:inline">Analytics</span>
-                </button>
-                <button
-                  onClick={() => router.push('/pricing')}
-                  className={`group inline-flex items-center justify-center gap-1 md:gap-2 rounded-lg px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium transition-all duration-300 flex-shrink-0 whitespace-nowrap ${
-                    pathname === '/pricing'
-                      ? 'text-white/90 bg-white/10 border border-white/10'
-                      : 'text-white/60 hover:text-white/90 hover:bg-white/5'
-                  }`}
-                  style={{ minHeight: '32px', minWidth: '32px' }}
-                >
-                  <Tag className={`h-3 w-3 md:h-4 md:w-4 transition-colors flex-shrink-0 ${
-                    pathname === '/pricing'
-                      ? 'text-white/90'
-                      : 'text-white/50 group-hover:text-white/80'
-                  }`} />
-                  <span className="hidden sm:inline">Pricing</span>
-                </button>
-                <button
-                  onClick={() => router.push('/billing')}
-                  className={`group inline-flex items-center justify-center gap-1 md:gap-2 rounded-lg px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium transition-all duration-300 flex-shrink-0 whitespace-nowrap ${
-                    pathname === '/billing'
-                      ? 'text-white/90 bg-white/10 border border-white/10'
-                      : 'text-white/60 hover:text-white/90 hover:bg-white/5'
-                  }`}
-                  style={{ minHeight: '32px', minWidth: '32px' }}
-                >
-                  <CreditCard className={`h-3 w-3 md:h-4 md:w-4 transition-colors flex-shrink-0 ${
-                    pathname === '/billing'
-                      ? 'text-white/90'
-                      : 'text-white/50 group-hover:text-white/80'
-                  }`} />
-                  <span className="hidden sm:inline">Billing</span>
-                </button>
-              </nav>
-            </div>
-
-            <div className="flex items-center gap-1 sm:gap-2 md:gap-3 flex-shrink-0">
-              <ThemeToggle />
-              
-              <div className="relative">
-                <button
-                  onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="w-8 h-8 rounded-lg bg-white/10 border border-white/10 flex items-center justify-center text-white/90 font-medium text-sm hover:bg-white/15 hover:border-white/20 transition-all duration-300"
-                >
-                  {user?.user_metadata?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
-                </button>
-
-                {showUserMenu && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-10"
-                      onClick={() => setShowUserMenu(false)}
-                    />
-                    <div className="absolute right-0 mt-2 w-48 bg-black border border-white/10 rounded-xl z-20 overflow-hidden">
-                      <div className="p-3 border-b border-white/5">
-                        <p className="text-[10px] text-white/50 mb-0.5">Signed in as</p>
-                        <p className="text-xs text-white/80 truncate">{user?.email}</p>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setShowUserMenu(false)
-                          handleSignOut()
-                        }}
-                        className="w-full px-3 py-2 text-left text-xs text-white/60 hover:text-red-400 hover:bg-white/5 transition-colors flex items-center gap-2"
-                      >
-                        <LogOut className="w-3.5 h-3.5" />
-                        Sign Out
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </header>
+        <Header
+          exchangeConfig={null}
+          currencyMetadata={null}
+          currency="USD"
+          setCurrency={() => {}}
+          onNavigateDashboard={() => router.push('/dashboard')}
+          onNavigateUpload={() => router.push('/data')}
+          onNavigateAll={() => onViewAnalytics()}
+          onNavigateVega={() => router.push('/vega')}
+          onSignOut={handleSignOut}
+          subscription={subscription}
+          showSubscriptionBadge={true}
+          mobilePaddingLeft={true}
+          hasDataSources={connectedExchanges.length > 0 || !loadingExchanges}
+        />
 
         {/* Main Content */}
         <main className="relative mx-auto w-full max-w-[1400px] px-4 sm:px-6 pb-16 pt-8 space-y-8">

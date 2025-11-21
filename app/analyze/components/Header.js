@@ -3,10 +3,12 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { TrendingUp, ArrowRight, LayoutDashboard, Database, BarChart3, LogOut, ChevronDown, Menu, X, Tag, CreditCard } from 'lucide-react'
+import { TrendingUp, ArrowRight, LayoutDashboard, Database, BarChart3, LogOut, ChevronDown, Menu, X, Tag, CreditCard, Brain, Crown } from 'lucide-react'
 import ThemeToggle from '../../components/ThemeToggle'
 import { getCurrencySymbol } from '../utils/currencyFormatter'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Badge } from '@/components/ui/badge'
+import { useAuth } from '@/lib/AuthContext'
 
 function NavButton({ icon: Icon, label, href, onClick, isActive = false, disabled = false }) {
   if (disabled) {
@@ -128,16 +130,23 @@ export default function Header({
   onNavigateDashboard,
   onNavigateUpload,
   onNavigateAll,
+  onNavigateVega,
   onSignOut,
+  subscription = null, // Optional subscription object with tier property
+  showSubscriptionBadge = false, // Whether to show subscription badge in header
   isDemoMode = false,
-  hasDataSources = true // Default to true to allow access unless explicitly disabled
+  hasDataSources = true, // Default to true to allow access unless explicitly disabled
+  mobilePaddingLeft = false // Add left padding on mobile (for Dashboard sidebar)
 }) {
   const router = useRouter()
   const pathname = usePathname()
+  const { user } = useAuth()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [showUserMenu, setShowUserMenu] = useState(false)
   const navItems = [
     { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', onClick: onNavigateDashboard, path: '/dashboard' },
     { label: 'Your Data', icon: Database, href: '/data', onClick: onNavigateUpload, path: '/data' },
+    { label: 'VegaAI', icon: Brain, href: '/vega', onClick: onNavigateVega || (() => router.push('/vega')), path: '/vega' },
     { label: 'Analytics', icon: BarChart3, href: '/analyze', onClick: onNavigateAll, path: '/analyze', disabled: !hasDataSources && !isDemoMode },
     { label: 'Pricing', icon: Tag, href: '/pricing', path: '/pricing' },
     { label: 'Billing', icon: CreditCard, href: '/billing', path: '/billing' }
@@ -174,10 +183,10 @@ export default function Header({
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-white/5 bg-slate-950/70 backdrop-blur-xl">
-        <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-2 sm:gap-4 px-2 sm:px-4 py-3 sm:py-4 overflow-hidden">
+        <div className={`mx-auto flex w-full max-w-[1400px] items-center justify-between gap-2 sm:gap-4 px-2 sm:px-4 py-3 sm:py-4 overflow-hidden ${mobilePaddingLeft ? 'pl-14 md:pl-4' : ''}`}>
           <div className="flex items-center gap-1 sm:gap-2 md:gap-4 lg:gap-8 min-w-0 flex-1">
-            {/* Mobile Menu Button */}
-            {navItems.length > 0 && (
+            {/* Mobile Menu Button - Hidden when used in Dashboard (which has its own sidebar) */}
+            {navItems.length > 0 && pathname !== '/dashboard' && (
               <button
                 onClick={() => setIsMobileMenuOpen(true)}
                 className="md:hidden p-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
@@ -187,13 +196,28 @@ export default function Header({
               </button>
             )}
 
-            <button
-              onClick={() => window.location.href = '/'}
-              className="flex items-center gap-1 sm:gap-2 rounded-full border border-white/5 bg-white/[0.03] px-2 sm:px-3 py-1 text-sm font-semibold text-white/90 transition hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white flex-shrink-0"
-            >
-              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-300" />
-              <span className="hidden sm:inline">TradeClarity</span>
-            </button>
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+              <button
+                onClick={() => window.location.href = '/'}
+                className="flex items-center gap-1 sm:gap-2 rounded-full border border-white/5 bg-white/[0.03] px-2 sm:px-3 py-1 text-sm font-semibold text-white/90 transition hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white flex-shrink-0"
+              >
+                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-300" />
+                <span className="hidden sm:inline">TradeClarity</span>
+              </button>
+              {showSubscriptionBadge && subscription && (
+                <Badge 
+                  variant="outline" 
+                  className={`${
+                    subscription.tier === 'pro' || subscription.tier === 'trader'
+                      ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-400' 
+                      : 'border-blue-400/30 bg-blue-400/10 text-blue-400'
+                  } font-semibold uppercase tracking-wider text-[9px] px-1.5 py-0.5 flex items-center gap-1 hidden sm:flex`}
+                >
+                  {subscription.tier === 'pro' && <Crown className="w-2.5 h-2.5 text-emerald-400" />}
+                  {subscription.tier}
+                </Badge>
+              )}
+            </div>
 
             {navItems.length > 0 && (
               <nav className="hidden md:flex items-center gap-1 md:gap-2 overflow-x-auto scrollbar-hide min-w-0">
@@ -249,7 +273,45 @@ export default function Header({
 
             <ThemeToggle />
 
-            {onSignOut && (
+            {user && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="w-8 h-8 rounded-lg bg-white/10 border border-white/10 flex items-center justify-center text-white/90 font-medium text-sm hover:bg-white/15 hover:border-white/20 transition-all duration-300"
+                >
+                  {user?.user_metadata?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
+                </button>
+
+                {showUserMenu && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setShowUserMenu(false)}
+                    />
+                    <div className="absolute right-0 mt-2 w-48 bg-black border border-white/10 rounded-xl z-20 overflow-hidden">
+                      <div className="p-3 border-b border-white/5">
+                        <p className="text-[10px] text-white/50 mb-0.5">Signed in as</p>
+                        <p className="text-xs text-white/80 truncate">{user?.email}</p>
+                      </div>
+                      {onSignOut && (
+                        <button
+                          onClick={() => {
+                            setShowUserMenu(false)
+                            onSignOut()
+                          }}
+                          className="w-full px-3 py-2 text-left text-xs text-white/60 hover:text-red-400 hover:bg-white/5 transition-colors flex items-center gap-2"
+                        >
+                          <LogOut className="w-3.5 h-3.5" />
+                          Sign Out
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {!user && onSignOut && (
               <button
                 onClick={onSignOut}
                 className="hidden items-center gap-2 rounded-full border border-white/5 px-3 py-1 text-xs font-medium text-slate-500 transition hover:border-white/10 hover:bg-white/10 hover:text-white md:inline-flex"

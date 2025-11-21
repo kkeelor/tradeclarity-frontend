@@ -230,7 +230,7 @@ export default function DashboardContent() {
       try {
         const analysis = await analyzeData(preFetchedData)
 
-        // Store analytics and data in sessionStorage for AnalyticsContent
+        // Store analytics and data in sessionStorage for VegaAI
         sessionStorage.setItem('preAnalyzedData', JSON.stringify({
           analytics: analysis,
           data: preFetchedData,
@@ -238,7 +238,13 @@ export default function DashboardContent() {
           currency: preFetchedData.metadata?.primaryCurrency || 'USD'
         }))
 
-        setProgress('Analysis complete! Preparing dashboard...')
+        setProgress('Analysis complete! Redirecting to Vega AI...')
+        setLoadingComplete(true)
+        
+        // Redirect to VegaAI after a brief delay
+        setTimeout(() => {
+          router.push('/vega')
+        }, 500)
       } catch (err) {
         console.error('? [DashboardContent] Analysis error:', err)
         setError(err.message || 'Failed to analyze trading data')
@@ -260,7 +266,7 @@ export default function DashboardContent() {
         setProgress('Analyzing your trading data...')
         const analysis = await analyzeData(preFetchedData)
 
-        // Store analytics and data in sessionStorage for AnalyticsContent
+        // Store analytics and data in sessionStorage for VegaAI
         sessionStorage.setItem('preAnalyzedData', JSON.stringify({
           analytics: analysis,
           data: preFetchedData,
@@ -268,7 +274,13 @@ export default function DashboardContent() {
           currency: preFetchedData.metadata?.primaryCurrency || 'USD'
         }))
 
-        setProgress('Analysis complete! Preparing dashboard...')
+        setProgress('Analysis complete! Redirecting to Vega AI...')
+        setLoadingComplete(true)
+        
+        // Redirect to VegaAI after a brief delay
+        setTimeout(() => {
+          router.push('/vega')
+        }, 500)
       } catch (err) {
         console.error('? [DashboardContent] Connection error:', err)
         setError(err.message || 'Failed to connect to exchange. Please check your API credentials.')
@@ -304,7 +316,7 @@ export default function DashboardContent() {
       setProgress('Analyzing your trading data...')
       const analysis = await analyzeData(data)
 
-      // Store analytics and data in sessionStorage for AnalyticsContent
+      // Store analytics and data in sessionStorage for VegaAI
       sessionStorage.setItem('preAnalyzedData', JSON.stringify({
         analytics: analysis,
         data,
@@ -312,7 +324,13 @@ export default function DashboardContent() {
         currency: data.metadata?.primaryCurrency || 'USD'
       }))
 
-      setProgress('Analysis complete! Preparing dashboard...')
+      setProgress('Analysis complete! Redirecting to Vega AI...')
+      setLoadingComplete(true)
+      
+      // Redirect to VegaAI after a brief delay
+      setTimeout(() => {
+        router.push('/vega')
+      }, 500)
     } catch (err) {
       console.error('? [DashboardContent] Connection error:', err)
       setError(err.message || 'Failed to connect to exchange. Please check your API credentials.')
@@ -321,10 +339,10 @@ export default function DashboardContent() {
     }
   }
 
-  // Navigate to analytics page when loading completes (after exchange connection)
+  // Navigate to VegaAI page when loading completes (after exchange connection)
   useEffect(() => {
     if (loadingComplete && status === 'connecting') {
-      router.push('/analyze')
+      router.push('/vega')
     }
   }, [loadingComplete, status, router])
 
