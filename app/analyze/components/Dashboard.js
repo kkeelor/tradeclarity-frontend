@@ -126,21 +126,21 @@ function PlanProgressBar({ currentTier, actualUsage, onClick }) {
       >
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+            <span className="text-[10px] font-medium text-white/60 uppercase tracking-wider">
               {progress.label}
             </span>
-            <span className="text-[10px] text-slate-600">━━━━━━━━━━━━━━━━━━━━</span>
-            <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider group-hover:text-emerald-300 transition-colors">
+            <span className="text-[10px] text-white/20">━━━━━━━━━━━━━━━━━━━━</span>
+            <span className="text-[10px] font-medium text-emerald-400 uppercase tracking-wider group-hover:text-emerald-300 transition-colors">
               {progress.nextLabel}
             </span>
           </div>
-          <span className="text-[10px] text-slate-500 group-hover:text-slate-400 transition-colors">
+          <span className="text-[10px] text-white/60 group-hover:text-white/80 transition-colors">
             {Math.round(progress.percentage)}%
           </span>
         </div>
-        <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+        <div className="w-full bg-white/5 border border-white/10 rounded-full h-2 overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-emerald-500 to-cyan-500 transition-all duration-500"
+            className="h-full bg-emerald-400 transition-all duration-500"
             style={{ width: `${Math.min(100, progress.percentage)}%` }}
           />
         </div>
@@ -151,7 +151,7 @@ function PlanProgressBar({ currentTier, actualUsage, onClick }) {
         <div className="flex justify-end">
           <button
             onClick={handleUpgradeClick}
-            className="w-1/4 py-2 px-3 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white text-xs font-semibold transition-all duration-300 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 flex items-center justify-center gap-1.5"
+            className="w-1/4 py-2 px-3 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 text-white/90 hover:text-white text-xs font-medium transition-all duration-300 flex items-center justify-center gap-1.5"
           >
             <Sparkles className="w-3 h-3" />
             <span>Upgrade</span>
@@ -1246,14 +1246,12 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                   <Badge 
                     variant="outline" 
                     className={`${
-                      subscription.tier === 'pro' 
-                        ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400' 
-                        : subscription.tier === 'trader'
-                        ? 'border-blue-500/50 bg-blue-500/10 text-blue-400'
-                        : 'border-slate-500/50 bg-slate-500/10 text-slate-400'
+                      subscription.tier === 'pro' || subscription.tier === 'trader'
+                        ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-400' 
+                        : 'border-blue-400/30 bg-blue-400/10 text-blue-400'
                     } font-semibold uppercase tracking-wider text-[9px] px-1.5 py-0.5 flex items-center gap-1 hidden sm:flex`}
                   >
-                    {subscription.tier === 'pro' && <Crown className="w-2.5 h-2.5" />}
+                    {subscription.tier === 'pro' && <Crown className="w-2.5 h-2.5 text-emerald-400" />}
                     {subscription.tier}
                   </Badge>
                 )}
@@ -1401,11 +1399,9 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                 <Badge 
                   variant="outline" 
                   className={`${
-                    subscription.tier === 'pro' 
+                    subscription.tier === 'pro' || subscription.tier === 'trader'
                       ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-400' 
-                      : subscription.tier === 'trader'
-                      ? 'border-cyan-400/30 bg-cyan-400/10 text-cyan-400'
-                      : 'border-white/10 bg-white/5 text-white/60'
+                      : 'border-blue-400/30 bg-blue-400/10 text-blue-400'
                   } font-medium uppercase tracking-wider text-[10px] px-2 py-0.5 flex items-center gap-1.5`}
                 >
                   {subscription.tier === 'pro' && <Crown className="w-3 h-3 text-emerald-400" />}
@@ -1499,16 +1495,18 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                         )}
                         
                         {/* Progress Bar */}
-                        <div className="pt-3 border-t border-white/5 flex-shrink-0 mt-auto">
-                          <PlanProgressBar 
-                            currentTier={subscription.tier}
-                            actualUsage={{
-                              connections: connectedExchanges.length,
-                              trades: tradesStats?.totalTrades || 0
-                            }}
-                            onClick={() => setShowUsageModal(true)}
-                          />
-                        </div>
+                        {subscription && subscription.tier !== 'pro' && (
+                          <div className="pt-3 border-t border-white/10 flex-shrink-0 mt-auto">
+                            <PlanProgressBar 
+                              currentTier={subscription.tier}
+                              actualUsage={{
+                                connections: connectedExchanges.length,
+                                trades: tradesStats?.totalTrades || 0
+                              }}
+                              onClick={() => setShowUsageModal(true)}
+                            />
+                          </div>
+                        )}
                         </div>
                       </div>
                     </div>
@@ -1565,6 +1563,20 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                             </div>
                           )
                         })()}
+                        
+                        {/* Progress Bar - Show for free and trader plans */}
+                        {subscription && subscription.tier !== 'pro' && (
+                          <div className="pt-3 border-t border-white/10 mb-4">
+                            <PlanProgressBar 
+                              currentTier={subscription.tier}
+                              actualUsage={{
+                                connections: connectedExchanges.length,
+                                trades: tradesStats?.totalTrades || 0
+                              }}
+                              onClick={() => setShowUsageModal(true)}
+                            />
+                          </div>
+                        )}
                         
                         <div className="space-y-2 mt-auto">
                           <button
