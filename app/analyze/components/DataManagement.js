@@ -747,11 +747,11 @@ export default function DataManagement() {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'ready': return 'bg-gradient-to-br from-slate-800/50 to-slate-800/30 border-slate-700/50'
-      case 'processing': return 'bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border-blue-500/30'
-      case 'success': return 'bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-500/30'
-      case 'error': return 'bg-gradient-to-br from-red-500/10 via-red-500/5 to-transparent border-red-500/30'
-      default: return 'bg-gradient-to-br from-slate-800/50 to-slate-800/30 border-slate-700/50'
+      case 'ready': return 'bg-black border-white/10'
+      case 'processing': return 'bg-black border-white/20'
+      case 'success': return 'bg-black border-white/20'
+      case 'error': return 'bg-black border-red-500/30'
+      default: return 'bg-black border-white/10'
     }
   }
 
@@ -761,7 +761,7 @@ export default function DataManagement() {
   const fileToDelete = showDeleteCSVConfirm ? uploadedFiles.find(f => f.id === showDeleteCSVConfirm) : null
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
+    <div className="min-h-screen bg-black text-white">
       <Header
         exchangeConfig={null}
         currencyMetadata={null}
@@ -780,8 +780,8 @@ export default function DataManagement() {
         <div className="space-y-8">
           {/* Page Header */}
           <div className="space-y-2">
-            <h1 className="text-2xl md:text-3xl font-bold text-white">Your Data</h1>
-            <p className="text-sm text-slate-400 max-w-3xl">
+            <h1 className="text-2xl md:text-3xl font-semibold text-white/90">Your Data</h1>
+            <p className="text-sm text-white/60 max-w-3xl">
               Manage your exchange connections and CSV uploads. View, organize, and delete your data sources.
             </p>
           </div>
@@ -790,16 +790,16 @@ export default function DataManagement() {
           <section className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-slate-800/50 border border-slate-700/50 flex items-center justify-center">
-                  <Link2 className="w-4 h-4 text-slate-400" />
+                <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                  <Link2 className="w-4 h-4 text-white/70" />
                 </div>
-                <h2 className="text-lg font-semibold text-slate-300">
+                <h2 className="text-lg font-medium text-white/90">
                   Exchange Connections ({connectedExchanges.length})
                 </h2>
               </div>
               <button
                 onClick={handleConnectExchange}
-                className="group px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 rounded-xl text-sm font-semibold transition-all shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-105 inline-flex items-center gap-2"
+                className="group px-4 py-2 bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-2"
               >
                 <Plus className="w-4 h-4" />
                 Connect Exchange
@@ -809,18 +809,18 @@ export default function DataManagement() {
             {loadingExchanges ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {[1, 2, 3].map(i => (
-                  <div key={i} className="h-24 bg-slate-800/30 border border-slate-700/50 rounded-xl animate-pulse" />
+                  <div key={i} className="h-24 bg-white/5 border border-white/10 rounded-xl animate-pulse" />
                 ))}
               </div>
             ) : connectedExchanges.length === 0 ? (
-              <div className="relative overflow-hidden border border-slate-700/50 rounded-2xl p-8 text-center bg-gradient-to-br from-slate-800/40 to-slate-800/20">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-700/30 border border-slate-600/50 flex items-center justify-center">
-                  <Link2 className="w-8 h-8 text-slate-500" />
+              <div className="relative overflow-hidden border border-white/10 rounded-xl p-8 text-center bg-black">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                  <Link2 className="w-8 h-8 text-white/50" />
                 </div>
-                <p className="text-sm text-slate-400 mb-4">No exchange connections yet</p>
+                <p className="text-sm text-white/60 mb-4">No exchange connections yet</p>
                 <button
                   onClick={handleConnectExchange}
-                  className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 rounded-xl text-sm font-semibold transition-all inline-flex items-center gap-2"
+                  className="px-4 py-2 bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-2"
                 >
                   <Plus className="w-4 h-4" />
                   Connect Your First Exchange
@@ -832,21 +832,21 @@ export default function DataManagement() {
                 {connectedExchanges.map(exchange => (
                   <div
                     key={exchange.id}
-                    className="relative overflow-hidden border border-slate-700/50 rounded-xl p-4 bg-gradient-to-br from-slate-800/40 to-slate-800/20 hover:border-slate-600/70 transition-all"
+                    className="relative overflow-hidden border border-white/10 rounded-xl p-4 bg-black hover:border-white/20 transition-all"
                   >
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <ExchangeIcon exchange={exchange.exchange} size={32} className="w-8 h-8" />
                           <div>
-                            <p className="text-sm font-semibold text-slate-200">{exchange.name}</p>
-                            <p className="text-xs text-slate-500">API Connection</p>
+                            <p className="text-sm font-medium text-white/90">{exchange.name}</p>
+                            <p className="text-xs text-white/50">API Connection</p>
                           </div>
                         </div>
                         <button
                           onClick={() => handleDeleteExchange(exchange)}
                           disabled={isDeletingExchange}
-                          className="p-2 text-slate-500 hover:text-red-400 transition-colors disabled:opacity-50"
+                          className="p-2 text-white/50 hover:text-red-400 transition-colors disabled:opacity-50"
                           title="Delete exchange"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -855,8 +855,8 @@ export default function DataManagement() {
                       
                       {/* Last Key Saved Info */}
                       {exchange.updatedAt && (
-                        <div className="flex items-center gap-2 text-xs text-slate-400 pt-2 border-t border-slate-700/50">
-                          <Clock className="w-3.5 h-3.5 text-slate-500" />
+                        <div className="flex items-center gap-2 text-xs text-white/50 pt-2 border-t border-white/5">
+                          <Clock className="w-3.5 h-3.5 text-white/40" />
                           <span>
                             Keys saved: {new Date(exchange.updatedAt).toLocaleDateString('en-US', { 
                               month: 'short', 
@@ -873,14 +873,14 @@ export default function DataManagement() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleUpdateKeys(exchange)}
-                          className="flex-1 px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 rounded-lg text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-all inline-flex items-center justify-center gap-2"
+                          className="flex-1 px-3 py-2 bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 rounded-lg text-xs font-medium text-white/80 hover:text-white transition-all inline-flex items-center justify-center gap-2"
                         >
                           <KeyRound className="w-3.5 h-3.5" />
                           Update Keys
                         </button>
                         <button
                           onClick={() => handleUploadTradeData(exchange)}
-                          className="flex-1 px-3 py-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 hover:border-blue-500/50 rounded-lg text-xs font-semibold text-blue-400 hover:text-blue-300 transition-all inline-flex items-center justify-center gap-2"
+                          className="flex-1 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg text-xs font-medium text-white/70 hover:text-white/90 transition-all inline-flex items-center justify-center gap-2"
                         >
                           <Upload className="w-3.5 h-3.5" />
                           Upload Data
@@ -894,27 +894,27 @@ export default function DataManagement() {
                 {otherExchanges.map(exchange => (
                   <div
                     key={`other-${exchange.exchange}`}
-                    className="relative overflow-hidden border border-slate-700/50 rounded-xl p-4 bg-gradient-to-br from-slate-800/40 to-slate-800/20 hover:border-slate-600/70 transition-all"
+                    className="relative overflow-hidden border border-white/10 rounded-xl p-4 bg-black hover:border-white/20 transition-all"
                   >
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <ExchangeIcon exchange={exchange.exchange} size={32} className="w-8 h-8" />
                           <div>
-                            <p className="text-sm font-semibold text-slate-200">{exchange.name}</p>
-                            <p className="text-xs text-slate-500">CSV Upload</p>
+                            <p className="text-sm font-medium text-white/90">{exchange.name}</p>
+                            <p className="text-xs text-white/50">CSV Upload</p>
                           </div>
                         </div>
                       </div>
                       
                       {/* Stats */}
-                      <div className="flex items-center gap-4 text-xs text-slate-400 pt-2 border-t border-slate-700/50">
+                      <div className="flex items-center gap-4 text-xs text-white/50 pt-2 border-t border-white/5">
                         <div className="flex items-center gap-1.5">
-                          <FileText className="w-3.5 h-3.5 text-slate-500" />
+                          <FileText className="w-3.5 h-3.5 text-white/40" />
                           <span>{exchange.fileCount} {exchange.fileCount === 1 ? 'file' : 'files'}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <TrendingUp className="w-3.5 h-3.5 text-slate-500" />
+                          <TrendingUp className="w-3.5 h-3.5 text-white/40" />
                           <span>{exchange.totalTrades.toLocaleString()} trades</span>
                         </div>
                       </div>
@@ -928,43 +928,40 @@ export default function DataManagement() {
           {/* CSV Uploads Section */}
           <section className="space-y-4">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-slate-800/50 border border-slate-700/50 flex items-center justify-center">
-                <FileText className="w-4 h-4 text-slate-400" />
+              <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                <FileText className="w-4 h-4 text-white/70" />
               </div>
-              <h2 className="text-lg font-semibold text-slate-300">
+              <h2 className="text-lg font-medium text-white/90">
                 CSV Uploads ({uploadedFiles.length})
               </h2>
             </div>
 
             {/* Upload Area */}
             <div
-              className={`relative overflow-hidden border-2 border-dashed rounded-2xl p-8 text-center transition-all backdrop-blur-sm ${
+              className={`relative overflow-hidden border-2 border-dashed rounded-xl p-8 text-center transition-all ${
                 dragActive
-                  ? 'border-emerald-500 bg-gradient-to-br from-emerald-500/20 via-emerald-500/10 to-transparent'
-                  : 'border-slate-600 hover:border-emerald-500/50 bg-gradient-to-br from-slate-800/40 to-slate-800/20'
+                  ? 'border-white/30 bg-white/5'
+                  : 'border-white/10 hover:border-white/20 bg-black'
               }`}
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}
               onDragOver={handleDrag}
               onDrop={handleDrop}
             >
-              {dragActive && (
-                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/5" />
-              )}
               <div className="relative">
-                <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center transition-all ${
+                <div className={`w-16 h-16 mx-auto mb-4 rounded-xl flex items-center justify-center transition-all border ${
                   dragActive 
-                    ? 'bg-emerald-500/30 border border-emerald-500/50' 
-                    : 'bg-slate-700/30 border border-slate-600/50'
+                    ? 'bg-white/10 border-white/20' 
+                    : 'bg-white/5 border-white/10'
                 }`}>
                   <Upload className={`w-8 h-8 transition-colors ${
-                    dragActive ? 'text-emerald-400' : 'text-slate-400'
+                    dragActive ? 'text-white/80' : 'text-white/50'
                   }`} />
                 </div>
-                <p className="text-sm text-slate-200 font-semibold mb-1">
+                <p className="text-sm text-white/90 font-medium mb-1">
                   Drop CSV files here or click to browse
                 </p>
-                <p className="text-xs text-slate-400 mb-4">
+                <p className="text-xs text-white/50 mb-4">
                   Max 10MB per file ? CSV format only
                 </p>
                 <input
@@ -982,7 +979,7 @@ export default function DataManagement() {
                 />
                 <label
                   htmlFor="file-upload"
-                  className="inline-block px-5 py-2.5 rounded-xl font-semibold text-sm cursor-pointer transition-all bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-105"
+                  className="inline-block px-5 py-2.5 rounded-lg font-medium text-sm cursor-pointer transition-all bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20"
                 >
                   Select Files
                 </label>
@@ -994,19 +991,19 @@ export default function DataManagement() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-slate-800/50 border border-slate-700/50 flex items-center justify-center">
-                      <Upload className="w-4 h-4 text-slate-400" />
+                    <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                      <Upload className="w-4 h-4 text-white/70" />
                     </div>
-                    <h3 className="text-sm font-semibold text-slate-300">
+                    <h3 className="text-sm font-medium text-white/90">
                       Files to Upload ({fileConfigs.length})
                     </h3>
                   </div>
                   {hasReadyFiles && (
                     <button
                       onClick={handleUploadAll}
-                      className="group px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 rounded-xl text-sm font-semibold transition-all shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-105 inline-flex items-center gap-2"
+                      className="group px-5 py-2.5 bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-2"
                     >
-                      <Upload className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                      <Upload className="w-4 h-4" />
                       Upload All
                     </button>
                   )}
@@ -1037,7 +1034,7 @@ export default function DataManagement() {
                         }
                       }
                     }}
-                    className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-slate-200 border border-slate-700/50 hover:border-slate-600/70 rounded-lg transition-all inline-flex items-center gap-2"
+                    className="px-4 py-2 text-sm font-medium text-white/60 hover:text-white/90 border border-white/10 hover:border-white/20 rounded-lg transition-all inline-flex items-center gap-2"
                   >
                     <Plus className="w-4 h-4" />
                     Add Another File
@@ -1046,12 +1043,12 @@ export default function DataManagement() {
 
                 {/* Upload All Button at Bottom */}
                 {hasReadyFiles && (
-                  <div className="flex justify-center pt-4 border-t border-slate-700/50">
+                  <div className="flex justify-center pt-4 border-t border-white/5">
                     <button
                       onClick={handleUploadAll}
-                      className="group px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 rounded-xl text-sm font-semibold transition-all shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-105 inline-flex items-center gap-2"
+                      className="group px-6 py-3 bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-2"
                     >
-                      <Upload className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                      <Upload className="w-5 h-5" />
                       Upload All Files ({fileConfigs.filter(c => c.status === 'ready').length})
                     </button>
                   </div>
@@ -1237,8 +1234,7 @@ function FileConfigCard({ config, connectedExchanges, otherExchanges, onUpdate, 
   }, [config.useOtherExchange])
 
   return (
-      <div className={`relative overflow-hidden border rounded-2xl p-4 md:p-5 transition-all backdrop-blur-sm ${getStatusColor(config.status)}`}>
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-800/40 via-slate-800/20 to-slate-800/10" />
+      <div className={`relative overflow-hidden border rounded-xl p-4 md:p-5 transition-all ${getStatusColor(config.status)}`}>
         <div className="relative">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
@@ -1247,10 +1243,10 @@ function FileConfigCard({ config, connectedExchanges, otherExchanges, onUpdate, 
               ) : config.useOtherExchange && config.customExchangeName ? (
                 <ExchangeIcon exchange={config.customExchangeName.toLowerCase()} size={20} className="w-5 h-5 flex-shrink-0" />
               ) : (
-                <FileText className="w-5 h-5 text-slate-400 flex-shrink-0" />
+                <FileText className="w-5 h-5 text-white/50 flex-shrink-0" />
               )}
-              <span className="text-sm font-medium text-slate-200 truncate">{config.file.name}</span>
-              <span className="text-xs text-slate-500 whitespace-nowrap">
+              <span className="text-sm font-medium text-white/90 truncate">{config.file.name}</span>
+              <span className="text-xs text-white/50 whitespace-nowrap">
                 ({(config.file.size / 1024).toFixed(1)} KB)
               </span>
               {config.status && (
@@ -1273,7 +1269,7 @@ function FileConfigCard({ config, connectedExchanges, otherExchanges, onUpdate, 
             {config.status === 'ready' && (
               <button
                 onClick={onRemove}
-                className="p-1 text-slate-500 hover:text-red-400 transition-colors flex-shrink-0 ml-2"
+                className="p-1 text-white/50 hover:text-red-400 transition-colors flex-shrink-0 ml-2"
                 title="Remove file"
               >
                 <X className="w-4 h-4" />
@@ -1294,8 +1290,8 @@ function FileConfigCard({ config, connectedExchanges, otherExchanges, onUpdate, 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Label Field */}
               <div>
-                <Label htmlFor="file-label" className="block text-xs font-medium text-slate-300 mb-2">
-                  Label <span className="text-slate-500 font-normal">(optional)</span>
+                <Label htmlFor="file-label" className="block text-xs font-medium text-white/70 mb-2">
+                  Label <span className="text-white/50 font-normal">(optional)</span>
                 </Label>
                 <Input
                   id="file-label"
@@ -1303,20 +1299,20 @@ function FileConfigCard({ config, connectedExchanges, otherExchanges, onUpdate, 
                   value={config.label || ''}
                   onChange={(e) => onUpdate({ label: e.target.value })}
                   placeholder="e.g., Trading data from January 2024"
-                  className="bg-slate-800/60 border-slate-600/50 text-slate-200 placeholder-slate-500 focus:border-emerald-500/50 focus:ring-emerald-500/20"
+                  className="bg-white/5 border-white/10 text-white/90 placeholder-white/40 focus:border-white/20 focus:ring-white/10"
                 />
               </div>
 
               {/* Account Type */}
               <div>
-                <Label htmlFor="account-type" className="block text-xs font-medium text-slate-300 mb-2">
+                <Label htmlFor="account-type" className="block text-xs font-medium text-white/70 mb-2">
                   Account Type
                 </Label>
                 <Select value={config.accountType} onValueChange={(value) => onUpdate({ accountType: value })}>
-                  <SelectTrigger id="account-type" className="bg-slate-800/60 border-slate-600/50 text-slate-200 focus:border-emerald-500/50 focus:ring-emerald-500/20">
+                  <SelectTrigger id="account-type" className="bg-white/5 border-white/10 text-white/90 focus:border-white/20 focus:ring-white/10">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-700 text-slate-200">
+                  <SelectContent className="bg-black border-white/10 text-white/90">
                     <SelectItem value="BOTH">Both (SPOT & FUTURES)</SelectItem>
                     <SelectItem value="SPOT">SPOT Only</SelectItem>
                     <SelectItem value="FUTURES">FUTURES Only</SelectItem>
@@ -1326,10 +1322,10 @@ function FileConfigCard({ config, connectedExchanges, otherExchanges, onUpdate, 
             </div>
 
             {/* Exchange Selection - Full Width, More Prominent */}
-            <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-4 space-y-3">
-              <Label className="block text-xs font-semibold text-slate-200 mb-3">
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
+              <Label className="block text-xs font-medium text-white/80 mb-3">
                 Exchange Selection <span className="text-red-400">*</span>
-                <span className="text-[10px] text-slate-400 ml-2 font-normal">Required for accurate analytics</span>
+                <span className="text-[10px] text-white/50 ml-2 font-normal">Required for accurate analytics</span>
               </Label>
               
               {/* Radio Buttons Row */}
@@ -1345,9 +1341,9 @@ function FileConfigCard({ config, connectedExchanges, otherExchanges, onUpdate, 
                         onUpdate({ useOtherExchange: false, customExchangeName: '' })
                         setShowOtherInput(false)
                       }}
-                      className="w-4 h-4 text-emerald-500 bg-slate-800 border-slate-600 focus:ring-emerald-500/50"
+                      className="w-4 h-4 text-white/60 bg-black border-white/20 focus:ring-white/20"
                     />
-                    <label htmlFor={`link-exchange-${config.id}`} className="text-xs font-medium text-slate-300 cursor-pointer">
+                    <label htmlFor={`link-exchange-${config.id}`} className="text-xs font-medium text-white/70 cursor-pointer">
                       Link to Existing Exchange
                     </label>
                   </div>
@@ -1355,21 +1351,21 @@ function FileConfigCard({ config, connectedExchanges, otherExchanges, onUpdate, 
                   {!config.useOtherExchange && (
                     <DropdownMenu open={showExchangeDropdown} onOpenChange={setShowExchangeDropdown}>
                       <DropdownMenuTrigger asChild>
-                        <button className="w-full px-4 py-2.5 bg-slate-800/60 border border-slate-600/50 rounded-lg text-sm text-left flex items-center justify-between hover:border-emerald-500/50 hover:bg-slate-800/80 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                        <button className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-left flex items-center justify-between hover:border-white/20 hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-white/80">
                           {selectedExchange ? (
                             <span className="flex items-center gap-2">
                               <ExchangeIcon exchange={selectedExchange.exchange} size={14} className="w-5 h-5" />
-                              <span className="text-slate-200">{selectedExchange.name}</span>
+                              <span className="text-white/90">{selectedExchange.name}</span>
                             </span>
                           ) : (
-                            <span className="text-slate-500">
+                            <span className="text-white/50">
                               {connectedExchanges.length > 0 ? 'Select exchange...' : 'No exchanges connected'}
                             </span>
                           )}
-                          <ChevronDown className="w-4 h-4 text-slate-400" />
+                          <ChevronDown className="w-4 h-4 text-white/50" />
                         </button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-full bg-slate-800 border-slate-700 max-h-48 overflow-y-auto">
+                      <DropdownMenuContent align="start" className="w-full bg-black border-white/10 max-h-48 overflow-y-auto">
                         {connectedExchanges.length > 0 ? (
                           connectedExchanges.map(exchange => (
                             <DropdownMenuItem
@@ -1379,14 +1375,14 @@ function FileConfigCard({ config, connectedExchanges, otherExchanges, onUpdate, 
                                 setShowExchangeDropdown(false)
                                 setShowOtherInput(false)
                               }}
-                              className="text-sm hover:bg-slate-700/50 flex items-center gap-2 cursor-pointer"
+                              className="text-sm hover:bg-white/10 flex items-center gap-2 cursor-pointer text-white/80"
                             >
                               <ExchangeIcon exchange={exchange.exchange} size={14} className="w-5 h-5" />
-                              <span className="text-slate-200">{exchange.name}</span>
+                              <span className="text-white/90">{exchange.name}</span>
                             </DropdownMenuItem>
                           ))
                         ) : (
-                          <div className="px-3 py-2 text-xs text-slate-400">
+                          <div className="px-3 py-2 text-xs text-white/50">
                             No exchanges connected. Use "Other Exchange" option below.
                           </div>
                         )}
@@ -1407,9 +1403,9 @@ function FileConfigCard({ config, connectedExchanges, otherExchanges, onUpdate, 
                         setShowOtherInput(true)
                         setShowExchangeDropdown(false)
                       }}
-                      className="w-4 h-4 text-emerald-500 bg-slate-800 border-slate-600 focus:ring-emerald-500/50"
+                      className="w-4 h-4 text-white/60 bg-black border-white/20 focus:ring-white/20"
                     />
-                    <label htmlFor={`other-exchange-${config.id}`} className="text-xs font-medium text-slate-300 cursor-pointer">
+                    <label htmlFor={`other-exchange-${config.id}`} className="text-xs font-medium text-white/70 cursor-pointer">
                       Other Exchange
                     </label>
                   </div>
@@ -1422,9 +1418,9 @@ function FileConfigCard({ config, connectedExchanges, otherExchanges, onUpdate, 
                         value={config.customExchangeName || ''}
                         onChange={(e) => onUpdate({ customExchangeName: e.target.value.trim() })}
                         placeholder="e.g., Kraken, Coinbase, Bybit..."
-                        className={`bg-slate-800/60 border rounded-lg text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 transition-all ${
+                        className={`bg-white/5 border rounded-lg text-sm text-white/90 placeholder-white/40 focus:outline-none focus:ring-2 transition-all ${
                           config.customExchangeName?.trim()
-                            ? 'border-emerald-500/50 focus:border-emerald-500/50 focus:ring-emerald-500/20'
+                            ? 'border-white/20 focus:border-white/30 focus:ring-white/10'
                             : 'border-red-500/50 focus:border-red-500/50 focus:ring-red-500/20'
                         }`}
                         list={`other-exchanges-${config.id}`}
@@ -1538,37 +1534,37 @@ function UploadedFileCard({ file, connectedExchanges, onRefresh, onDelete, isDel
   }
 
   return (
-    <div className="flex items-center justify-between p-4 border border-slate-700/50 rounded-xl bg-gradient-to-br from-slate-800/40 to-slate-800/20 hover:border-slate-600/70 transition-all">
+    <div className="flex items-center justify-between p-4 border border-white/10 rounded-xl bg-black hover:border-white/20 transition-all">
       <div className="flex items-center gap-3 flex-1 min-w-0">
         {selectedExchange ? (
           <ExchangeIcon exchange={selectedExchange.exchange} size={20} className="w-5 h-5 flex-shrink-0" />
         ) : (
-          <FileText className="w-5 h-5 text-slate-400 flex-shrink-0" />
+          <FileText className="w-5 h-5 text-white/50 flex-shrink-0" />
         )}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-slate-200 truncate">
+          <p className="text-sm font-medium text-white/90 truncate">
             {file.label || file.filename}
           </p>
           <div className="flex items-center gap-3 mt-1">
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-white/50">
               {file.trades_count || 0} trades
             </span>
             {file.uploaded_at && (
               <>
-                <Separator className="text-xs text-slate-500" />
-                <span className="text-xs text-slate-500">
+                <Separator className="text-xs text-white/10" />
+                <span className="text-xs text-white/50">
                   {new Date(file.uploaded_at).toLocaleDateString()}
                 </span>
               </>
             )}
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline" className="text-xs border-white/10 bg-white/5 text-white/70">
               {getAccountTypeLabel(file.account_type)}
             </Badge>
           </div>
           {selectedExchange && (
             <div className="flex items-center gap-2 mt-1 text-xs">
-              <span className="text-slate-500">Linked to:</span>
-              <span className="text-slate-300">{selectedExchange.name}</span>
+              <span className="text-white/50">Linked to:</span>
+              <span className="text-white/70">{selectedExchange.name}</span>
             </div>
           )}
         </div>
@@ -1576,7 +1572,7 @@ function UploadedFileCard({ file, connectedExchanges, onRefresh, onDelete, isDel
       <button
         onClick={onDelete}
         disabled={isDeleting}
-        className="p-2 text-slate-500 hover:text-red-400 transition-colors disabled:opacity-50 ml-4"
+        className="p-2 text-white/50 hover:text-red-400 transition-colors disabled:opacity-50 ml-4"
         title="Delete file"
       >
         {isDeleting ? (
@@ -1655,20 +1651,20 @@ function UpdateKeysModal({ exchange, isOpen, onClose, onConfirm, isUpdating }) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-gradient-to-br from-slate-900/95 via-slate-900/95 to-slate-900/95 border-slate-700/50 max-w-lg">
+      <DialogContent className="bg-black border-white/10 max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">Update API Keys</DialogTitle>
-          <DialogDescription>{exchange.name}</DialogDescription>
+          <DialogTitle className="text-2xl font-semibold text-white/90">Update API Keys</DialogTitle>
+          <DialogDescription className="text-white/60">{exchange.name}</DialogDescription>
         </DialogHeader>
 
         {/* Content */}
         <div className="p-6 space-y-6">
-          <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
             <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-blue-300">
-                <p className="font-semibold mb-1">Your keys will be encrypted</p>
-                <p className="text-blue-400/80">
+              <AlertCircle className="w-5 h-5 text-white/70 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-white/70">
+                <p className="font-medium mb-1">Your keys will be encrypted</p>
+                <p className="text-white/60">
                   Enter your new API key and secret. They will be encrypted and securely stored. We never store your keys in plain text.
                 </p>
               </div>
@@ -1677,7 +1673,7 @@ function UpdateKeysModal({ exchange, isOpen, onClose, onConfirm, isUpdating }) {
 
           {/* API Key Field */}
           <div>
-            <Label htmlFor="update-api-key" className="block text-sm text-slate-300 mb-2">
+            <Label htmlFor="update-api-key" className="block text-sm text-white/70 mb-2">
               API Key
             </Label>
             <div className="relative">
@@ -1691,19 +1687,19 @@ function UpdateKeysModal({ exchange, isOpen, onClose, onConfirm, isUpdating }) {
                 }}
                 placeholder={`Enter your ${exchange.name} API key`}
                 disabled={isUpdating}
-                className={`bg-slate-800/60 text-slate-200 placeholder-slate-500 disabled:opacity-50 disabled:cursor-not-allowed ${
-                  apiKeyValid === true ? 'border-emerald-500/50 focus:ring-emerald-500/30' :
-                  apiKeyValid === false ? 'border-red-500/50 focus:ring-red-500/30' :
-                  'border-slate-600/50 focus:ring-slate-500/30'
+                className={`bg-white/5 border-white/10 text-white/90 placeholder-white/40 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  apiKeyValid === true ? 'border-white/20 focus:ring-white/10' :
+                  apiKeyValid === false ? 'border-red-500/50 focus:ring-red-500/20' :
+                  'border-white/10 focus:ring-white/10'
                 }`}
               />
               <div className="absolute right-3 top-1/2 -translate-y-1/2 z-10">
-                {apiKeyValid === true && <CheckCircle className="w-5 h-5 text-emerald-400" />}
+                {apiKeyValid === true && <CheckCircle className="w-5 h-5 text-white/70" />}
                 {apiKeyValid === false && <AlertCircle className="w-5 h-5 text-red-400" />}
               </div>
             </div>
             {apiKeyValid === true && (
-              <p className="text-xs text-emerald-400 mt-1.5 flex items-center gap-1">
+              <p className="text-xs text-white/60 mt-1.5 flex items-center gap-1">
                 <CheckCircle className="w-3.5 h-3.5" />
                 Valid format
               </p>
@@ -1718,7 +1714,7 @@ function UpdateKeysModal({ exchange, isOpen, onClose, onConfirm, isUpdating }) {
 
           {/* API Secret Field */}
           <div>
-            <Label htmlFor="update-api-secret" className="block text-sm text-slate-300 mb-2">
+            <Label htmlFor="update-api-secret" className="block text-sm text-white/70 mb-2">
               API Secret
             </Label>
             <div className="relative">
@@ -1732,19 +1728,19 @@ function UpdateKeysModal({ exchange, isOpen, onClose, onConfirm, isUpdating }) {
                 }}
                 placeholder={`Enter your ${exchange.name} API secret`}
                 disabled={isUpdating}
-                className={`bg-slate-800/60 text-slate-200 placeholder-slate-500 disabled:opacity-50 disabled:cursor-not-allowed pr-12 ${
-                  apiSecretValid === true ? 'border-emerald-500/50 focus:ring-emerald-500/30' :
-                  apiSecretValid === false ? 'border-red-500/50 focus:ring-red-500/30' :
-                  'border-slate-600/50 focus:ring-slate-500/30'
+                className={`bg-white/5 border-white/10 text-white/90 placeholder-white/40 disabled:opacity-50 disabled:cursor-not-allowed pr-12 ${
+                  apiSecretValid === true ? 'border-white/20 focus:ring-white/10' :
+                  apiSecretValid === false ? 'border-red-500/50 focus:ring-red-500/20' :
+                  'border-white/10 focus:ring-white/10'
                 }`}
               />
               <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2 z-10">
-                {apiSecretValid === true && <CheckCircle className="w-5 h-5 text-emerald-400" />}
+                {apiSecretValid === true && <CheckCircle className="w-5 h-5 text-white/70" />}
                 {apiSecretValid === false && <AlertCircle className="w-5 h-5 text-red-400" />}
                 <button
                   type="button"
                   onClick={() => setShowSecret(!showSecret)}
-                  className="text-slate-500 hover:text-slate-300 transition-colors"
+                  className="text-white/50 hover:text-white/70 transition-colors"
                   tabIndex={-1}
                 >
                   {showSecret ? (
@@ -1756,7 +1752,7 @@ function UpdateKeysModal({ exchange, isOpen, onClose, onConfirm, isUpdating }) {
               </div>
             </div>
             {apiSecretValid === true && (
-              <p className="text-xs text-emerald-400 mt-1.5 flex items-center gap-1">
+              <p className="text-xs text-white/60 mt-1.5 flex items-center gap-1">
                 <CheckCircle className="w-3.5 h-3.5" />
                 Valid format
               </p>
@@ -1771,18 +1767,18 @@ function UpdateKeysModal({ exchange, isOpen, onClose, onConfirm, isUpdating }) {
         </div>
 
         {/* Footer */}
-        <DialogFooter className="border-t border-slate-700/50 pt-6">
+        <DialogFooter className="border-t border-white/5 pt-6">
           <button
             onClick={onClose}
             disabled={isUpdating}
-            className="px-4 py-2 text-slate-400 hover:text-white transition-colors disabled:opacity-50"
+            className="px-4 py-2 text-white/60 hover:text-white/90 transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={isUpdating || !apiKey || !apiSecret || apiKeyValid !== true || apiSecretValid !== true}
-            className="px-6 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 rounded-xl text-sm font-semibold transition-all shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+            className="px-6 py-2 bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
           >
             {isUpdating ? (
               <>

@@ -136,6 +136,21 @@ export async function POST(request) {
 
     const totalTradesDeleted = apiTradesDeleted + csvTradesDeleted
 
+    // Step 5: Invalidate analytics cache if trades were deleted
+    if (totalTradesDeleted > 0) {
+      const { error: cacheError } = await supabase
+        .from('user_analytics_cache')
+        .delete()
+        .eq('user_id', user.id)
+      
+      if (cacheError && cacheError.code !== 'PGRST116') { // PGRST116 = not found (ok)
+        console.warn('⚠️  Failed to invalidate analytics cache:', cacheError)
+        // Don't fail the request - cache will be invalidated on next analytics computation
+      } else {
+        console.log(`✅ Analytics cache invalidated (${totalTradesDeleted} trades deleted)`)
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Exchange connection deleted successfully',

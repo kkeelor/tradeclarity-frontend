@@ -1,9 +1,17 @@
 // app/layout.js
 import './globals.css'
+import { Plus_Jakarta_Sans } from 'next/font/google'
 import { AuthProvider } from '@/lib/AuthContext'
 import { Toaster } from 'sonner'
 import { Analytics } from '@vercel/analytics/react'
 import { OrganizationSchema, SoftwareApplicationSchema, WebSiteSchema } from './components/StructuredData'
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  variable: '--font-plus-jakarta-sans',
+  display: 'swap',
+  weight: ['300', '400', '500', '600', '700', '800'],
+})
 
 export const metadata = {
   metadataBase: new URL('https://tradeclarity.xyz'),
@@ -80,8 +88,8 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body>
+    <html lang="en" suppressHydrationWarning className={plusJakartaSans.variable}>
+      <body className="font-sans">
         <OrganizationSchema />
         <SoftwareApplicationSchema />
         <WebSiteSchema />

@@ -3,23 +3,11 @@
 
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { Send, Loader2, Bot, User, Sparkles, X, RotateCcw, Square, Minimize2, Database, Link as LinkIcon, Upload } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { Send, Loader2, Bot, User, Sparkles, X, RotateCcw, Square, Minimize2, Maximize2, Database, Link as LinkIcon, Upload } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
-
-const SAMPLE_QUESTIONS = [
-  "What are my biggest trading weaknesses?",
-  "How can I improve my win rate?",
-  "What's my best performing trading time?",
-  "Which symbols should I focus on?",
-  "Am I overtrading?",
-  "What's my risk-adjusted return?",
-  "How do I compare to market benchmarks?",
-  "What patterns do you see in my losses?",
-  "Should I change my position sizing?",
-  "What's my biggest opportunity for improvement?"
-]
+import { getDynamicSampleQuestions } from '@/lib/ai/prompts/sampleQuestions'
 
 export default function AIChat({ analytics, allTrades, tradesStats, onConnectExchange, onUploadCSV }) {
   const { user } = useAuth()
@@ -43,6 +31,11 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
   const [computedAllTrades, setComputedAllTrades] = useState(allTrades)
   const [analyticsReady, setAnalyticsReady] = useState(!!analytics)
   const [loadingAnalytics, setLoadingAnalytics] = useState(false)
+  
+  // Track if user has sent messages without data (for onboarding mode)
+  const hasNoData = !tradesStats || tradesStats.totalTrades === 0
+  const [hasSentMessagesWithoutData, setHasSentMessagesWithoutData] = useState(false)
+  const [isDataReady, setIsDataReady] = useState(false) // Track when data is stable
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
   const inputRef = useRef(null)
@@ -54,6 +47,8 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
   const shouldAutoScrollRef = useRef(true)
   const lastMessageCountRef = useRef(0)
   const scrollTimeoutRef = useRef(null)
+  const previousQuestionsRef = useRef([])
+  const animationStartDelayRef = useRef(null)
 
   // Fetch analytics if not provided via props
   useEffect(() => {
@@ -92,65 +87,145 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
     }
   }, [analytics, allTrades, tradesStats, user])
 
+  // Determine when data is ready (not loading and stable)
+  useEffect(() => {
+    // Data is ready when:
+    // 1. Not loading analytics
+    // 2. Either tradesStats is null (no data case) OR tradesStats exists (data loaded)
+    // 3. Analytics ready state has been determined (not undefined)
+    const hasTradesData = tradesStats !== null && tradesStats.totalTrades > 0
+    const noDataCase = tradesStats === null || (tradesStats && tradesStats.totalTrades === 0)
+    
+    // Data is stable when we're not loading and we know the state (either has data or no data)
+    const dataStable = !loadingAnalytics && (hasTradesData || noDataCase)
+    
+    if (dataStable && !isDataReady) {
+      // Add a small delay to ensure questions are stable before starting animation
+      const delayTimeout = setTimeout(() => {
+        setIsDataReady(true)
+      }, 400) // 400ms delay to let questions stabilize after data loads
+      
+      return () => clearTimeout(delayTimeout)
+    } else if (!dataStable && isDataReady) {
+      setIsDataReady(false)
+    }
+  }, [loadingAnalytics, tradesStats, isDataReady])
+
   // Use computed analytics if available, otherwise use props
   const effectiveAnalytics = computedAnalytics || analytics
   const effectiveAllTrades = computedAllTrades || allTrades
+  
+  // Calculate dynamic sample questions based on user context
+  const sampleQuestions = useMemo(() => {
+    // Always return questions, even if analytics are still loading
+    // This ensures smooth UX - questions will update when analytics load
+    return getDynamicSampleQuestions(tradesStats, effectiveAnalytics)
+  }, [tradesStats, effectiveAnalytics])
+  
+  // Reset sample index when questions change (e.g., experience level changes or data loads)
+  // This ensures smooth transitions when user's context changes
+  useEffect(() => {
+    // If questions array changed (not just length, but actual content), reset index
+    const previousLength = previousQuestionsRef.current.length
+    const questionsChanged = previousLength !== sampleQuestions.length ||
+      previousQuestionsRef.current.join('|') !== sampleQuestions.join('|')
+    
+    if (questionsChanged) {
+      setCurrentSampleIndex(0)
+      const wasEmpty = previousLength === 0
+      const lengthChanged = previousLength !== sampleQuestions.length
+      previousQuestionsRef.current = [...sampleQuestions] // Store a copy
+      
+      // If questions changed significantly (initial load or major change), reset data ready flag
+      if (wasEmpty || lengthChanged) {
+        setIsDataReady(false)
+        // Re-enable after questions stabilize
+        const delayTimeout = setTimeout(() => {
+          setIsDataReady(true)
+        }, 500) // Longer delay to ensure questions are stable
+        return () => clearTimeout(delayTimeout)
+      }
+    } else if (currentSampleIndex >= sampleQuestions.length) {
+      // Safety check: if index is out of bounds, reset to 0
+      setCurrentSampleIndex(0)
+    }
+  }, [sampleQuestions, currentSampleIndex])
+  
+  // Reset onboarding flag when user adds data
+  useEffect(() => {
+    if (!hasNoData && hasSentMessagesWithoutData) {
+      setHasSentMessagesWithoutData(false)
+    }
+  }, [hasNoData, hasSentMessagesWithoutData])
 
   // Animate sample questions inside the input box
   useEffect(() => {
-    // Stop animation if user has messages, is typing, or input is focused
-    if (messages.length > 0 || input.length > 0 || isInputFocused) {
+    // Stop animation if:
+    // - User has messages
+    // - User is typing
+    // - Input is focused
+    // - No questions available
+    // - Data is not ready yet (prevents glitchy animation on load)
+    if (messages.length > 0 || input.length > 0 || isInputFocused || sampleQuestions.length === 0 || !isDataReady) {
       setDisplayedSample('')
       if (typeIntervalRef.current) clearInterval(typeIntervalRef.current)
       if (deleteIntervalRef.current) clearInterval(deleteIntervalRef.current)
       if (animationTimeoutRef.current) clearTimeout(animationTimeoutRef.current)
+      if (animationStartDelayRef.current) clearTimeout(animationStartDelayRef.current)
       return
     }
 
-    const currentQuestion = SAMPLE_QUESTIONS[currentSampleIndex]
-    const charIndexRef = { current: 0 }
-    setIsTypingSample(true)
-    setIsDeletingSample(false)
-    setDisplayedSample('')
+    const currentQuestion = sampleQuestions[currentSampleIndex]
+    if (!currentQuestion) return
+    
+    // Add a small delay before starting animation to ensure smooth start
+    // This prevents glitchy animation when data loads
+    animationStartDelayRef.current = setTimeout(() => {
+      const charIndexRef = { current: 0 }
+      setIsTypingSample(true)
+      setIsDeletingSample(false)
+      setDisplayedSample('')
 
-    // Clear any existing intervals
-    if (typeIntervalRef.current) clearInterval(typeIntervalRef.current)
-    if (deleteIntervalRef.current) clearInterval(deleteIntervalRef.current)
-    if (animationTimeoutRef.current) clearTimeout(animationTimeoutRef.current)
+      // Clear any existing intervals
+      if (typeIntervalRef.current) clearInterval(typeIntervalRef.current)
+      if (deleteIntervalRef.current) clearInterval(deleteIntervalRef.current)
+      if (animationTimeoutRef.current) clearTimeout(animationTimeoutRef.current)
 
-    // Typing animation
-    typeIntervalRef.current = setInterval(() => {
-      if (charIndexRef.current < currentQuestion.length) {
-        charIndexRef.current++
-        setDisplayedSample(currentQuestion.substring(0, charIndexRef.current))
-      } else {
-        clearInterval(typeIntervalRef.current)
-        setIsTypingSample(false)
-        
-        // Wait 3 seconds before deleting (increased for better readability)
-        animationTimeoutRef.current = setTimeout(() => {
-          setIsDeletingSample(true)
-          deleteIntervalRef.current = setInterval(() => {
-            if (charIndexRef.current > 0) {
-              charIndexRef.current--
-              setDisplayedSample(currentQuestion.substring(0, charIndexRef.current))
-            } else {
-              clearInterval(deleteIntervalRef.current)
-              setIsDeletingSample(false)
-              // Move to next question (cycles through all 10)
-              setCurrentSampleIndex((prev) => (prev + 1) % SAMPLE_QUESTIONS.length)
-            }
-          }, 30) // Delete speed
-        }, 3000) // Wait 3 seconds before deleting
-      }
-    }, 50) // Typing speed
+      // Typing animation
+      typeIntervalRef.current = setInterval(() => {
+        if (charIndexRef.current < currentQuestion.length) {
+          charIndexRef.current++
+          setDisplayedSample(currentQuestion.substring(0, charIndexRef.current))
+        } else {
+          clearInterval(typeIntervalRef.current)
+          setIsTypingSample(false)
+          
+          // Wait 3 seconds before deleting (increased for better readability)
+          animationTimeoutRef.current = setTimeout(() => {
+            setIsDeletingSample(true)
+            deleteIntervalRef.current = setInterval(() => {
+              if (charIndexRef.current > 0) {
+                charIndexRef.current--
+                setDisplayedSample(currentQuestion.substring(0, charIndexRef.current))
+              } else {
+                clearInterval(deleteIntervalRef.current)
+                setIsDeletingSample(false)
+                // Move to next question (cycles through all questions)
+                setCurrentSampleIndex((prev) => (prev + 1) % sampleQuestions.length)
+              }
+            }, 30) // Delete speed
+          }, 3000) // Wait 3 seconds before deleting
+        }
+      }, 50) // Typing speed
+    }, 200) // Small delay before starting animation
 
     return () => {
       if (typeIntervalRef.current) clearInterval(typeIntervalRef.current)
       if (deleteIntervalRef.current) clearInterval(deleteIntervalRef.current)
       if (animationTimeoutRef.current) clearTimeout(animationTimeoutRef.current)
+      if (animationStartDelayRef.current) clearTimeout(animationStartDelayRef.current)
     }
-  }, [currentSampleIndex, messages.length, input.length, isInputFocused])
+  }, [currentSampleIndex, messages.length, input.length, isInputFocused, sampleQuestions, isDataReady])
 
   // Summarize conversation function (memoized to avoid stale closures)
   const summarizeConversation = useCallback(async () => {
@@ -440,6 +515,11 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
     }
     setMessages(prev => [...prev, newUserMessage])
     setSessionMessages(prev => [...prev, { role: 'user', content: userMessage }])
+    
+    // Track if user has sent messages without data
+    if (hasNoData && !hasSentMessagesWithoutData) {
+      setHasSentMessagesWithoutData(true)
+    }
 
     // Add placeholder for assistant response
     const assistantMessageId = Date.now() + 1
@@ -757,6 +837,10 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
       setSessionMessages([])
       setConversationId(null)
       setTokenUsage({ input: 0, output: 0 })
+      // Reset onboarding flag if user still has no data
+      if (hasNoData) {
+        setHasSentMessagesWithoutData(false)
+      }
       
       // Reset scroll state
       shouldAutoScrollRef.current = true
@@ -786,50 +870,48 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
   // Render chat content (reusable for both compact and maximized views)
   const renderChatContent = useCallback((isMaximizedView = false, showHeader = true) => {
     return (
-    <div className={`flex flex-col h-full bg-gradient-to-br from-slate-900/90 via-slate-900/80 to-slate-800/70 ${!isMaximizedView ? 'rounded-xl border border-emerald-500/20 shadow-2xl shadow-emerald-500/10' : ''} overflow-hidden transition-all duration-300 backdrop-blur-sm`} style={{ position: 'relative', isolation: 'isolate', display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-      {/* Animated background gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-emerald-500/5 opacity-50 pointer-events-none" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(16,185,129,0.1),transparent_70%)] pointer-events-none" />
-      
+    <div className={`flex flex-col h-full bg-black ${!isMaximizedView ? 'rounded-xl border border-white/10' : ''} overflow-hidden transition-all duration-300`} style={{ position: 'relative', isolation: 'isolate', display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       {/* Header - only show in compact view or if explicitly requested */}
       {showHeader && !isMaximizedView && (
-        <div className="relative flex items-center justify-between p-4 border-b border-emerald-500/20 bg-gradient-to-r from-emerald-500/10 via-transparent to-emerald-500/10 backdrop-blur-sm flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400/30 to-emerald-600/20 border border-emerald-500/40 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-              <div className="absolute inset-0 rounded-xl bg-emerald-400/20 animate-pulse" />
-              <Bot className="w-5 h-5 text-emerald-300 relative z-10" />
+        <div className="relative flex items-center justify-between px-4 py-3 border-b border-white/5 flex-shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
+              <Bot className="w-4 h-4 text-white/80" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-emerald-300 uppercase tracking-wider flex items-center gap-2">
-                Vega
-                <span className="inline-flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-                  <span className="text-[10px] font-normal text-emerald-400/70">AI</span>
-                </span>
+              <h3 className="text-sm font-semibold text-white/90">
+                Vega AI
               </h3>
-              <p className="text-[10px] text-slate-400">Your trading performance analyst</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {tokenUsage.input + tokenUsage.output > 0 && (
-              <div className="px-2 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[10px] text-emerald-300">
-                <span className="font-semibold">{tokenUsage.input + tokenUsage.output}</span> tokens
-              </div>
-            )}
             {messages.length > 0 && (
               <button
                 onClick={handleClear}
                 disabled={isClearing || isLoading}
-                className="p-2 rounded-lg hover:bg-slate-700/50 transition-all hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                title={isClearing ? "Clearing conversation..." : "Clear conversation"}
+                className="px-2.5 py-1.5 rounded-md hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 text-xs text-white/60 hover:text-white/80"
+                title={isClearing ? "Clearing conversation..." : "Refresh conversation"}
               >
                 {isClearing ? (
-                  <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Refreshing...</span>
+                  </>
                 ) : (
-                  <RotateCcw className="w-4 h-4 text-slate-400 hover:text-emerald-400 transition-colors" />
+                  <>
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Refresh</span>
+                  </>
                 )}
               </button>
             )}
+            <button
+              onClick={() => setIsMaximized(true)}
+              className="p-1.5 rounded-md hover:bg-white/5 transition-colors text-white/50 hover:text-white/80"
+              title="Maximize chat"
+            >
+              <Maximize2 className="w-4 h-4" />
+            </button>
           </div>
         </div>
       )}
@@ -837,7 +919,7 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
       {/* Messages - Always scrollable in maximized view */}
       <div 
         ref={messagesContainerRef} 
-        className={`relative flex-1 p-4 space-y-4 ${isMaximizedView ? 'overflow-y-auto' : messages.length > 0 ? 'overflow-y-auto' : 'overflow-hidden'}`}
+        className={`relative flex-1 px-4 py-3 space-y-3 chat-scrollbar ${isMaximizedView ? 'overflow-y-auto' : messages.length > 0 ? 'overflow-y-auto' : 'overflow-hidden'}`}
         style={{ 
           overscrollBehavior: 'contain', 
           minHeight: 0, 
@@ -845,95 +927,98 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
           overflowY: isMaximizedView ? 'auto' : (messages.length > 0 ? 'auto' : 'hidden')
         }}
       >
-        {/* Show "No Trading Data Yet" if no trades */}
-        {(!tradesStats || tradesStats.totalTrades === 0) ? (
-          <div className="h-full flex flex-col items-center justify-center p-6 text-center">
-            <Database className="w-12 h-12 text-slate-500 mb-4" />
-            <h3 className="text-lg font-semibold text-slate-300 mb-2">
-              No Trading Data Yet
-            </h3>
-            <p className="text-sm text-slate-400 mb-6 max-w-md">
-              Connect your exchange or upload CSV files to start analyzing your trading performance with Vega AI.
-            </p>
-            <div className="flex gap-3">
-              {onConnectExchange && (
-                <button
-                  onClick={onConnectExchange}
-                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                >
-                  <LinkIcon className="w-4 h-4" />
-                  Connect Exchange
-                </button>
-              )}
-              {onUploadCSV && (
-                <button
-                  onClick={onUploadCSV}
-                  className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                >
-                  <Upload className="w-4 h-4" />
-                  Upload CSV
-                </button>
-              )}
+        {/* Show messages if they exist, otherwise show empty state */}
+        {messages.length === 0 ? (
+          /* Empty state - show onboarding if no data, otherwise show welcome */
+          hasNoData ? (
+            <div className="h-full flex flex-col items-center justify-center p-6 text-center">
+              <div className="mb-6">
+                <Database className="w-10 h-10 text-white/30 mx-auto mb-3" />
+                <h3 className="text-base font-medium text-white/90 mb-1.5">
+                  No Trading Data Yet
+                </h3>
+                <p className="text-xs text-white/50 max-w-sm">
+                  Connect your exchange or upload CSV files to get started
+                </p>
+              </div>
+              <div className="flex gap-2">
+                {onConnectExchange && (
+                  <button
+                    onClick={onConnectExchange}
+                    className="px-3 py-1.5 bg-white/10 hover:bg-white/15 text-white/90 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 border border-white/10"
+                  >
+                    <LinkIcon className="w-3.5 h-3.5" />
+                    Connect Exchange
+                  </button>
+                )}
+                {onUploadCSV && (
+                  <button
+                    onClick={onUploadCSV}
+                    className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/70 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 border border-white/5"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    Upload CSV
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center px-4 relative z-10">
-            <h4 className="text-base font-bold text-slate-200 mb-2 bg-gradient-to-r from-emerald-300 to-emerald-400 bg-clip-text text-transparent">
-              Ask me anything about your trading
-            </h4>
-            <p className="text-xs text-slate-400 max-w-sm">
-              I can analyze your performance, identify patterns, and provide personalized insights
-            </p>
-            <div className="mt-6 flex flex-wrap gap-2 justify-center">
-              {SAMPLE_QUESTIONS.slice(0, 3).map((q, idx) => (
-                <div
-                  key={idx}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[10px] text-emerald-300/80 hover:bg-emerald-500/20 transition-all cursor-pointer hover:scale-105"
-                  onClick={() => {
-                    setInput(q)
-                    setIsMaximized(true)
-                    inputRef.current?.focus()
-                  }}
-                >
-                  {q}
-                </div>
-              ))}
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-center px-4 relative z-10">
+              <h4 className="text-sm font-medium text-white/90 mb-1.5">
+                Ask me anything about your trading
+              </h4>
+              <p className="text-xs text-white/50 max-w-sm mb-5">
+                I can analyze your performance and provide personalized insights
+              </p>
+              <div className="flex flex-wrap gap-1.5 justify-center">
+                {sampleQuestions.slice(0, 3).map((q, idx) => (
+                  <button
+                    key={idx}
+                    className="px-2.5 py-1 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] text-white/70 hover:text-white/90 transition-all cursor-pointer"
+                    onClick={() => {
+                      setInput(q)
+                      setIsMaximized(true)
+                      inputRef.current?.focus()
+                    }}
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        ) : (
+          )) : (
           <>
             {messages.map((message, idx) => (
               <div
                 key={message.id}
-                className={`flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                style={{ animationDelay: `${idx * 50}ms` }}
+                className={`flex gap-2.5 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 {message.role === 'assistant' && (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400/30 to-emerald-600/20 border border-emerald-500/40 flex items-center justify-center flex-shrink-0 mt-1 shadow-lg shadow-emerald-500/20">
-                    <Bot className="w-4 h-4 text-emerald-300" />
+                  <div className="w-6 h-6 rounded-md bg-white/5 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Bot className="w-3.5 h-3.5 text-white/60" />
                   </div>
                 )}
                 <div
-                  className={`max-w-[80%] rounded-xl px-4 py-2.5 shadow-lg transition-all hover:shadow-xl ${
+                  className={`max-w-[80%] rounded-lg px-3 py-2 ${
                     message.role === 'user'
-                      ? 'bg-gradient-to-br from-emerald-500/30 to-emerald-600/20 border border-emerald-400/40 text-slate-100 shadow-emerald-500/20'
+                      ? 'bg-white/10 text-white/90'
                       : message.error
-                      ? 'bg-gradient-to-br from-red-500/20 to-red-600/10 border border-red-500/30 text-red-300 shadow-red-500/20'
-                      : 'bg-gradient-to-br from-slate-800/80 to-slate-700/60 border border-slate-600/40 text-slate-200 shadow-slate-900/50 backdrop-blur-sm'
+                      ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                      : 'bg-white/5 text-white/80'
                   }`}
                 >
                   {message.isLoading ? (
                     <div className="flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
-                      <span className="text-xs text-slate-400 font-medium">Thinking...</span>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-white/50" />
+                      <span className="text-xs text-white/50">Thinking...</span>
                     </div>
                   ) : (
                     <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
                   )}
                 </div>
                 {message.role === 'user' && (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-700/80 to-slate-600/60 border border-slate-500/40 flex items-center justify-center flex-shrink-0 mt-1 shadow-lg">
-                    <User className="w-4 h-4 text-slate-300" />
+                  <div className="w-6 h-6 rounded-md bg-white/5 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <User className="w-3.5 h-3.5 text-white/60" />
                   </div>
                 )}
               </div>
@@ -944,9 +1029,31 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
       </div>
 
       {/* Input */}
-      <div className="relative p-4 border-t border-emerald-500/20 bg-gradient-to-r from-slate-800/40 via-slate-800/30 to-slate-800/40 backdrop-blur-sm flex-shrink-0">
+      <div className="relative px-4 py-3 border-t border-white/5 flex-shrink-0">
+        {/* Action buttons for users without data after first message - minimal inline */}
+        {hasNoData && hasSentMessagesWithoutData && (
+          <div className="mb-2 flex gap-2 justify-center">
+            {onConnectExchange && (
+              <button
+                onClick={onConnectExchange}
+                className="px-2.5 py-1 bg-white/10 hover:bg-white/15 text-white/80 rounded-md text-[10px] font-medium transition-colors flex items-center gap-1 border border-white/10"
+              >
+                <LinkIcon className="w-3 h-3" />
+                Connect Exchange
+              </button>
+            )}
+            {onUploadCSV && (
+              <button
+                onClick={onUploadCSV}
+                className="px-2.5 py-1 bg-white/5 hover:bg-white/10 text-white/60 rounded-md text-[10px] font-medium transition-colors flex items-center gap-1 border border-white/5"
+              >
+                <Upload className="w-3 h-3" />
+                Upload CSV
+              </button>
+            )}
+          </div>
+        )}
         <div className="relative flex items-center">
-          <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 via-transparent to-emerald-500/5 rounded-lg" />
           <textarea
             ref={inputRef}
             data-ai-chat-input
@@ -957,7 +1064,7 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
             onClick={handleInputClick}
             onKeyPress={handleKeyPress}
             placeholder=""
-            className="relative w-full min-h-[44px] max-h-[120px] px-4 py-3 pr-12 text-sm bg-slate-900/60 border border-emerald-500/30 rounded-xl text-slate-200 resize-none focus:outline-none focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-500/30 transition-all backdrop-blur-sm shadow-lg shadow-emerald-500/10 placeholder:text-slate-500"
+            className="relative w-full min-h-[40px] max-h-[120px] px-3 py-2.5 pr-10 text-sm bg-white/5 border border-white/10 rounded-lg text-white/90 resize-none focus:outline-none focus:border-white/20 transition-all placeholder:text-white/30"
             style={{ lineHeight: '1.5' }}
             rows={1}
             disabled={isLoading}
@@ -965,12 +1072,12 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
           {/* Animated placeholder overlay - typing animation */}
           {input.length === 0 && !isInputFocused && messages.length === 0 && (
             <div 
-              className="absolute inset-0 px-4 py-3 flex items-center pointer-events-none rounded-xl"
+              className="absolute inset-0 px-3 py-2.5 flex items-center pointer-events-none rounded-lg"
               style={{ pointerEvents: 'none', zIndex: 20 }}
             >
-              <span className="text-sm text-emerald-300/70 font-medium">
+              <span className="text-sm text-white/40 font-normal">
                 {displayedSample}
-                <span className={`inline-block w-0.5 h-4 bg-emerald-400 ml-1 align-middle ${isTypingSample || isDeletingSample ? 'animate-pulse' : 'opacity-0'}`} />
+                <span className={`inline-block w-0.5 h-4 bg-white/40 ml-1 align-middle ${isTypingSample || isDeletingSample ? 'animate-pulse' : 'opacity-0'}`} />
               </span>
             </div>
           )}
@@ -978,7 +1085,7 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
           {isLoading ? (
             <button
               onClick={handleStop}
-              className="absolute right-3 text-red-400 hover:text-red-300 transition-all z-20 flex items-center justify-center p-2 rounded-lg hover:bg-red-500/20 hover:scale-110 active:scale-95 shadow-lg"
+              className="absolute right-2 text-white/60 hover:text-white/80 transition-colors z-20 flex items-center justify-center p-1.5"
               style={{ 
                 top: '50%',
                 transform: 'translateY(-50%)'
@@ -992,7 +1099,7 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
             <button
               onClick={handleSend}
               disabled={!input.trim()}
-              className="absolute right-3 text-emerald-400 hover:text-emerald-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all z-20 flex items-center justify-center p-2 rounded-lg hover:bg-emerald-500/20 hover:scale-110 active:scale-95 disabled:hover:scale-100 shadow-lg shadow-emerald-500/20"
+              className="absolute right-2 text-white/60 hover:text-white/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors z-20 flex items-center justify-center p-1.5"
               style={{ 
                 top: '50%',
                 transform: 'translateY(-50%)'
@@ -1003,16 +1110,10 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
             </button>
           )}
         </div>
-        {!isMaximizedView && tokenUsage.input + tokenUsage.output > 0 && (
-          <div className="mt-3 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[10px] text-emerald-300/80 flex items-center justify-between">
-            <span className="font-medium">Tokens: <span className="text-emerald-400">{tokenUsage.input}</span> in / <span className="text-emerald-400">{tokenUsage.output}</span> out</span>
-            <span className="font-semibold text-emerald-400">Total: {tokenUsage.input + tokenUsage.output}</span>
-          </div>
-        )}
       </div>
     </div>
     )
-  }, [messages, input, isInputFocused, displayedSample, isTypingSample, isDeletingSample, isLoading, tokenUsage, handleSend, handleStop, handleInputChange, handleInputFocus, handleInputBlur, handleInputClick, handleKeyPress, handleClear])
+  }, [messages, input, isInputFocused, displayedSample, isTypingSample, isDeletingSample, isLoading, tokenUsage, handleSend, handleStop, handleInputChange, handleInputFocus, handleInputBlur, handleInputClick, handleKeyPress, handleClear, hasNoData, hasSentMessagesWithoutData, onConnectExchange, onUploadCSV])
 
   return (
     <>
@@ -1036,7 +1137,7 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
         modal={true}
       >
         <DialogContent 
-          className="bg-slate-900 border-slate-700 p-0 gap-0 overflow-hidden rounded-xl [&>button]:hidden !max-w-none"
+          className="bg-black border-white/10 p-0 gap-0 overflow-hidden rounded-xl [&>button]:hidden !max-w-none"
           style={{ 
             width: 'min(70vw, 1000px)',
             height: 'min(70vh, 700px)',
@@ -1060,42 +1161,36 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
         >
           <div className="flex flex-col h-full w-full" style={{ minHeight: 0, maxHeight: '100%' }}>
             {/* Dialog Header with close button */}
-            <div className="relative flex items-center justify-between p-4 border-b border-emerald-500/20 bg-gradient-to-r from-emerald-500/10 via-transparent to-emerald-500/10 backdrop-blur-sm flex-shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400/30 to-emerald-600/20 border border-emerald-500/40 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                  <div className="absolute inset-0 rounded-xl bg-emerald-400/20 animate-pulse" />
-                  <Bot className="w-5 h-5 text-emerald-300 relative z-10" />
+            <div className="relative flex items-center justify-between px-4 py-3 border-b border-white/5 flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
+                  <Bot className="w-4 h-4 text-white/80" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-emerald-300 uppercase tracking-wider flex items-center gap-2">
-                    Vega
-                    <span className="inline-flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-                      <span className="text-xs font-normal text-emerald-400/70">AI</span>
-                    </span>
+                  <h3 className="text-sm font-semibold text-white/90">
+                    Vega AI
                   </h3>
-                  <p className="text-[10px] text-slate-400">Your trading performance analyst</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 {messages.length > 0 && (
                   <button
                     onClick={handleClear}
-                    className="p-1.5 rounded-lg hover:bg-slate-700/50 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                    className="p-1.5 rounded-md hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     title={isClearing ? "Clearing conversation..." : "Clear conversation"}
                     disabled={isLoading || isClearing}
                   >
                     {isClearing ? (
-                      <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
+                      <Loader2 className="w-4 h-4 text-white/60 animate-spin" />
                     ) : (
-                      <RotateCcw className="w-4 h-4 text-slate-400 hover:text-emerald-400 transition-colors" />
+                      <RotateCcw className="w-4 h-4 text-white/50 hover:text-white/80 transition-colors" />
                     )}
                   </button>
                 )}
                 <button
                   onClick={() => handleCloseMaximized(false)}
                   disabled={isLoading}
-                  className="p-1.5 rounded-lg hover:bg-slate-700/50 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed text-slate-400 hover:text-emerald-400"
+                  className="p-1.5 rounded-md hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-white/50 hover:text-white/80"
                   title={isLoading ? "Cannot close while responding" : "Minimize"}
                 >
                   <Minimize2 className="w-4 h-4" />

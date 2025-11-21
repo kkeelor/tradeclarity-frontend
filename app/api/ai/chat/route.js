@@ -120,14 +120,32 @@ export async function POST(request) {
       // Check cache directly from database
       const { data: cached } = await supabase
         .from('user_analytics_cache')
-        .select('ai_context, analytics_data, expires_at')
+        .select('ai_context, analytics_data, expires_at, total_trades')
         .eq('user_id', user.id)
         .single()
       
-      // Only use cache if it exists and is not expired
+      // Only use cache if it exists, is not expired, and trades still exist
       if (cached && cached.ai_context && new Date(cached.expires_at) > new Date()) {
-        aiContext = cached.ai_context
-        analytics = cached.analytics_data
+        // Safety check: Verify trades still exist (cache might be stale if trades were deleted)
+        const { count: tradesCount } = await supabase
+          .from('trades')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+        
+        // If no trades exist but cache says there are trades, don't use cache
+        if (tradesCount === 0 && cached.total_trades > 0) {
+          console.warn('[Chat API] Cache inconsistency: cache has trades but database has none. Ignoring cache.')
+          // Invalidate cache
+          await supabase
+            .from('user_analytics_cache')
+            .delete()
+            .eq('user_id', user.id)
+            .catch(() => {}) // Ignore errors
+        } else {
+          // Cache is valid and trades exist (or both are 0) - use it
+          aiContext = cached.ai_context
+          analytics = cached.analytics_data
+        }
       }
     } catch (error) {
       // Cache miss or error - will fall back to contextData

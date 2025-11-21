@@ -58,20 +58,20 @@ function CurrencyDropdown({ currencies, selectedCurrency, onSelectCurrency }) {
           <ChevronDown className="h-3 w-3 transition-transform" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48 bg-slate-800/95 backdrop-blur-xl border-slate-700/50">
+      <DropdownMenuContent align="end" className="w-48 bg-black border-white/10">
         {currencies.map((curr) => (
           <DropdownMenuItem
             key={curr}
             onClick={() => onSelectCurrency(curr)}
             className={`flex items-center gap-2 text-xs cursor-pointer ${
               selectedCurrency === curr
-                ? 'bg-emerald-400/20 text-emerald-300 font-medium'
-                : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+                ? 'bg-white/10 text-white/90 font-medium data-[highlighted]:bg-white/10 data-[highlighted]:text-white/90'
+                : 'text-white/70 data-[highlighted]:bg-white/10 data-[highlighted]:text-white/90'
             }`}
           >
             <span className="w-8 text-right">{getCurrencySymbol(curr)}</span>
             <span className="flex-1">{curr}</span>
-            <span className="text-[10px] text-slate-500">{currencyNames[curr] || ''}</span>
+            <span className="text-[10px] text-white/40">{currencyNames[curr] || ''}</span>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
