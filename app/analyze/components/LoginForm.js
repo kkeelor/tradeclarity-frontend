@@ -214,9 +214,7 @@ export default function LoginForm({
 
     try {
       // Call the new API endpoint to save credentials and fetch data
-      // Check limit FIRST before showing loader/navigating
-      setLocalProgress('Checking connection limit...')
-      
+      // Connection limit check happens silently on backend
       const response = await fetch('/api/exchange/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -262,17 +260,16 @@ export default function LoginForm({
         throw new Error(data.error || data.message || 'Failed to connect exchange')
       }
 
-      // Only call onConnect AFTER successful API response
+      // Connection limit check passed - proceed with connection
       setLocalProgress('Preparing analytics...')
-      onConnect(apiKey, apiSecret, null) // Pass null to indicate data will come later
-
-      setLocalProgress('Preparing analytics...')
-
+      
       // Update the parent with the fetched data
-      // onConnect was already called above, now update with actual data
       if (data.data) {
-        // Call onConnect again with the actual data - this will trigger analysis
+        // Call onConnect with the actual data - this will trigger analysis
         onConnect(apiKey, apiSecret, data.data)
+      } else {
+        // Fallback: call onConnect without data if backend doesn't return it
+        onConnect(apiKey, apiSecret, null)
       }
     } catch (err) {
       console.error('Connection error:', err)
@@ -765,7 +762,7 @@ export default function LoginForm({
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting || status === 'connecting' || !apiKey || !apiSecret || apiKeyValid === false || apiSecretValid === false}
-                className="w-full px-6 py-3.5 sm:py-4 bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 disabled:bg-white/5 disabled:border-white/10 disabled:cursor-not-allowed rounded-lg font-medium transition-all text-base sm:text-lg flex items-center justify-center gap-2 group text-white/90 hover:text-white disabled:text-white/40 mt-2"
+                className="w-full px-6 py-3.5 sm:py-4 bg-emerald-400/10 hover:bg-emerald-400/15 border border-emerald-400/30 hover:border-emerald-400/40 disabled:bg-white/5 disabled:border-white/10 disabled:cursor-not-allowed rounded-lg font-medium transition-all text-base sm:text-lg flex items-center justify-center gap-2 group text-emerald-400 hover:text-emerald-300 disabled:text-white/40 mt-2"
               >
                 {(isSubmitting || status === 'connecting') ? (
                   <>

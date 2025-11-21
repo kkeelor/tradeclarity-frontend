@@ -89,6 +89,21 @@ function PlanProgressBar({ currentTier, actualUsage, onClick }) {
       })
     }
 
+    // AI Tokens progress - fill based on how close to current limit
+    if (currentLimits.maxTokensPerMonth !== Infinity && actualUsage.tokens !== undefined) {
+      const currentLimit = currentLimits.maxTokensPerMonth
+      const used = actualUsage.tokens || 0
+      // Progress is based on how close to hitting the current limit (0-100%)
+      const progress = Math.min(100, (used / currentLimit) * 100)
+      progressMetrics.push({ 
+        type: 'tokens', 
+        progress, 
+        used, 
+        currentLimit, 
+        isAtLimit: used >= currentLimit 
+      })
+    }
+
     // Use the maximum progress across all metrics - if ANY limit is hit, bar is full
     const maxProgress = progressMetrics.length > 0 
       ? Math.max(...progressMetrics.map(m => m.progress))
@@ -193,17 +208,25 @@ function UsageBreakdownModal({ open, onOpenChange, subscription, actualUsage }) 
       nextLimit: nextLimits?.maxTradesPerMonth,
       icon: BarChart3,
       color: 'text-emerald-400'
+    },
+    {
+      label: 'AI Tokens',
+      used: actualUsage.tokens || 0,
+      currentLimit: currentLimits.maxTokensPerMonth,
+      nextLimit: nextLimits?.maxTokensPerMonth,
+      icon: Brain,
+      color: 'text-emerald-400'
     }
   ]
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-900 border-slate-700 max-w-md">
+      <DialogContent className="bg-black border-white/10 max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-lg font-semibold text-slate-100">
+          <DialogTitle className="text-lg font-semibold text-white/90">
             Usage Breakdown
           </DialogTitle>
-          <DialogDescription className="text-sm text-slate-400">
+          <DialogDescription className="text-sm text-white/60">
             Your current usage and limits
           </DialogDescription>
         </DialogHeader>
@@ -221,40 +244,48 @@ function UsageBreakdownModal({ open, onOpenChange, subscription, actualUsage }) 
               : Math.min(100, Math.max(0, (used / item.currentLimit) * 100))  // Ensure percentage is between 0-100
             
             return (
-              <div key={item.label} className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
-                <div className="flex items-center gap-2 mb-2">
-                  <Icon className={`w-4 h-4 ${item.color}`} />
-                  <span className="text-sm font-medium text-slate-300">{item.label}</span>
+              <div key={item.label} className="p-4 rounded-lg bg-white/5 border border-white/10">
+                <div className="flex items-center gap-2 mb-3">
+                  <Icon className="w-4 h-4 text-white/60" />
+                  <span className="text-sm font-medium text-white/80">{item.label}</span>
                 </div>
-                <div className="flex items-baseline justify-between mb-2">
-                  <span className="text-2xl font-bold text-white">{used}</span>
-                  <span className="text-sm text-slate-400">
-                    / {currentLimitDisplay}
+                <div className="flex items-baseline justify-between mb-3">
+                  <span className="text-2xl font-semibold text-white/90">
+                    {item.label === 'AI Tokens' ? used.toLocaleString() : used}
+                  </span>
+                  <span className="text-sm text-white/60">
+                    / {typeof currentLimitDisplay === 'number' && item.label === 'AI Tokens' 
+                      ? currentLimitDisplay.toLocaleString() 
+                      : currentLimitDisplay}
                     {nextLimitDisplay && nextLimitDisplay !== currentLimitDisplay && (
-                      <span className="text-slate-600 ml-1">→ {nextLimitDisplay}</span>
+                      <span className="text-emerald-400 ml-1">
+                        → {typeof nextLimitDisplay === 'number' && item.label === 'AI Tokens'
+                          ? nextLimitDisplay.toLocaleString()
+                          : nextLimitDisplay}
+                      </span>
                     )}
                   </span>
                 </div>
                 {item.currentLimit !== Infinity && (
-                  <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+                  <div className="w-full bg-white/5 border border-white/10 rounded-full h-2 overflow-hidden">
                     <div
-                      className={`h-full ${percentage >= 90 ? 'bg-red-500' : percentage >= 75 ? 'bg-amber-500' : 'bg-emerald-500'} transition-all duration-300`}
+                      className="h-full bg-emerald-400 transition-all duration-300"
                       style={{ width: `${Math.min(100, percentage)}%` }}
                     />
                   </div>
                 )}
                 {item.currentLimit === Infinity && (
-                  <div className="w-full bg-slate-700 rounded-full h-2">
-                    <div className="h-full bg-emerald-500 w-full" />
+                  <div className="w-full bg-white/5 border border-white/10 rounded-full h-2">
+                    <div className="h-full bg-emerald-400 w-full" />
                   </div>
                 )}
               </div>
             )
           })}
           {nextTier && (
-            <div className="mt-4 pt-4 border-t border-slate-700">
+            <div className="mt-4 pt-4 border-t border-white/10">
               <div className="flex items-center justify-center gap-2">
-                <p className="text-xs text-slate-400 text-center">
+                <p className="text-xs text-white/60 text-center">
                   Upgrade to <span className="text-emerald-400 font-semibold">{nextTier.toUpperCase()}</span> for higher limits
                 </p>
                 <button
@@ -1501,7 +1532,8 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                               currentTier={subscription.tier}
                               actualUsage={{
                                 connections: connectedExchanges.length,
-                                trades: tradesStats?.totalTrades || 0
+                                trades: tradesStats?.totalTrades || 0,
+                                tokens: tokenUsage.used || 0
                               }}
                               onClick={() => setShowUsageModal(true)}
                             />
@@ -1571,7 +1603,8 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                               currentTier={subscription.tier}
                               actualUsage={{
                                 connections: connectedExchanges.length,
-                                trades: tradesStats?.totalTrades || 0
+                                trades: tradesStats?.totalTrades || 0,
+                                tokens: tokenUsage.used || 0
                               }}
                               onClick={() => setShowUsageModal(true)}
                             />
@@ -2137,7 +2170,8 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
         subscription={subscription}
         actualUsage={{
           connections: connectedExchanges.length,
-          trades: tradesStats?.totalTrades || 0
+          trades: tradesStats?.totalTrades || 0,
+          tokens: tokenUsage.used || 0
         }}
       />
 
