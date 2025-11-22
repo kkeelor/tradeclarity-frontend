@@ -19,3 +19,6 @@ pnpm-debug.log*
 # Documentation files
 *.md
 docs/
+
+# MCP Test Results (contains API responses and potentially sensitive data)
+mcp-test-results/

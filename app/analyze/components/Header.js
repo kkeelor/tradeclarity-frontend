@@ -1,6 +1,7 @@
 // app/analyze/components/Header.js
 
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { TrendingUp, ArrowRight, LayoutDashboard, Database, BarChart3, LogOut, ChevronDown, Menu, X, Tag, CreditCard, Brain, Crown } from 'lucide-react'
@@ -9,6 +10,69 @@ import { getCurrencySymbol } from '../utils/currencyFormatter'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/lib/AuthContext'
+
+// User Menu Component with Portal to avoid overflow-hidden clipping
+function UserMenuButton({ user, onSignOut, showUserMenu, setShowUserMenu }) {
+  const buttonRef = useRef(null)
+  const [menuPosition, setMenuPosition] = useState({ top: 0, right: 0 })
+
+  useEffect(() => {
+    if (showUserMenu && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect()
+      setMenuPosition({
+        top: rect.bottom + 8, // 8px = mt-2 equivalent
+        right: window.innerWidth - rect.right
+      })
+    }
+  }, [showUserMenu])
+
+  return (
+    <>
+      <div className="relative" ref={buttonRef}>
+        <button
+          onClick={() => setShowUserMenu(!showUserMenu)}
+          className="w-8 h-8 rounded-lg bg-white/10 border border-white/10 flex items-center justify-center text-white/90 font-medium text-sm hover:bg-white/15 hover:border-white/20 transition-all duration-300"
+        >
+          {user?.user_metadata?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
+        </button>
+      </div>
+
+      {showUserMenu && typeof window !== 'undefined' && createPortal(
+        <>
+          <div
+            className="fixed inset-0 z-[9998]"
+            onClick={() => setShowUserMenu(false)}
+          />
+          <div 
+            className="fixed w-48 bg-black border border-white/10 rounded-xl z-[9999] overflow-hidden shadow-2xl"
+            style={{
+              top: `${menuPosition.top}px`,
+              right: `${menuPosition.right}px`
+            }}
+          >
+            <div className="p-3 border-b border-white/5">
+              <p className="text-[10px] text-white/50 mb-0.5">Signed in as</p>
+              <p className="text-xs text-white/80 truncate">{user?.email}</p>
+            </div>
+            {onSignOut && (
+              <button
+                onClick={() => {
+                  setShowUserMenu(false)
+                  onSignOut()
+                }}
+                className="w-full px-3 py-2 text-left text-xs text-white/60 hover:text-red-400 hover:bg-white/5 transition-colors flex items-center gap-2"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                Sign Out
+              </button>
+            )}
+          </div>
+        </>,
+        document.body
+      )}
+    </>
+  )
+}
 
 function NavButton({ icon: Icon, label, href, onClick, isActive = false, disabled = false }) {
   if (disabled) {
@@ -274,41 +338,12 @@ export default function Header({
             <ThemeToggle />
 
             {user && (
-              <div className="relative">
-                <button
-                  onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="w-8 h-8 rounded-lg bg-white/10 border border-white/10 flex items-center justify-center text-white/90 font-medium text-sm hover:bg-white/15 hover:border-white/20 transition-all duration-300"
-                >
-                  {user?.user_metadata?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
-                </button>
-
-                {showUserMenu && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-10"
-                      onClick={() => setShowUserMenu(false)}
-                    />
-                    <div className="absolute right-0 mt-2 w-48 bg-black border border-white/10 rounded-xl z-20 overflow-hidden">
-                      <div className="p-3 border-b border-white/5">
-                        <p className="text-[10px] text-white/50 mb-0.5">Signed in as</p>
-                        <p className="text-xs text-white/80 truncate">{user?.email}</p>
-                      </div>
-                      {onSignOut && (
-                        <button
-                          onClick={() => {
-                            setShowUserMenu(false)
-                            onSignOut()
-                          }}
-                          className="w-full px-3 py-2 text-left text-xs text-white/60 hover:text-red-400 hover:bg-white/5 transition-colors flex items-center gap-2"
-                        >
-                          <LogOut className="w-3.5 h-3.5" />
-                          Sign Out
-                        </button>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
+              <UserMenuButton 
+                user={user}
+                onSignOut={onSignOut}
+                showUserMenu={showUserMenu}
+                setShowUserMenu={setShowUserMenu}
+              />
             )}
 
             {!user && onSignOut && (

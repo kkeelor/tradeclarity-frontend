@@ -42,22 +42,22 @@ export async function GET(request) {
         } else {
           console.log('❌ User is not authenticated. Database error prevented auth.');
           // User is not authenticated - show error
-          return NextResponse.redirect(`${requestUrl.origin}/analyze?error=${error}&error_code=${errorCode}&error_description=${encodeURIComponent(errorDescription)}`);
+          return NextResponse.redirect(`${requestUrl.origin}/login?error=${error}&error_code=${errorCode}&error_description=${encodeURIComponent(errorDescription)}`);
         }
       } catch (checkError) {
         console.error('❌ Error checking session:', checkError);
         // If we can't check, assume error and redirect with error info
-        return NextResponse.redirect(`${requestUrl.origin}/analyze?error=${error}&error_code=${errorCode}&error_description=${encodeURIComponent(errorDescription)}`);
+        return NextResponse.redirect(`${requestUrl.origin}/login?error=${error}&error_code=${errorCode}&error_description=${encodeURIComponent(errorDescription)}`);
       }
     }
     
     // For other errors, redirect with error info
-    return NextResponse.redirect(`${requestUrl.origin}/analyze?error=${error}&error_code=${errorCode}&error_description=${encodeURIComponent(errorDescription)}`);
+    return NextResponse.redirect(`${requestUrl.origin}/login?error=${error}&error_code=${errorCode}&error_description=${encodeURIComponent(errorDescription)}`);
   }
 
   if (!code) {
     console.error('❌ No code in callback');
-    return NextResponse.redirect(`${requestUrl.origin}/analyze?error=no_code`);
+    return NextResponse.redirect(`${requestUrl.origin}/login?error=no_code`);
   }
 
   try {
@@ -168,12 +168,20 @@ export async function GET(request) {
       // Don't fail auth - user can still use the app
     }
 
-    console.log('🟢 Redirecting to /dashboard...');
-    return NextResponse.redirect(`${requestUrl.origin}/dashboard`);
+    // Check if user was logging in from admin page
+    const adminLogin = request.headers.get('referer')?.includes('/admin') || 
+                       requestUrl.searchParams.get('state')?.includes('admin')
+    
+    const redirectUrl = adminLogin ? `${requestUrl.origin}/admin` : `${requestUrl.origin}/dashboard`
+    console.log('🟢 Redirecting to:', redirectUrl);
+    return NextResponse.redirect(redirectUrl);
 
   } catch (err) {
     console.error('❌ Callback route exception:', err);
     console.error('❌ Error stack:', err.stack);
-    return NextResponse.redirect(`${requestUrl.origin}/dashboard?error=callback_exception&details=${encodeURIComponent(err.message)}`);
+    // Check if user was logging in from admin page
+    const adminLogin = request.headers.get('referer')?.includes('/admin')
+    const redirectUrl = adminLogin ? `${requestUrl.origin}/admin` : `${requestUrl.origin}/dashboard`
+    return NextResponse.redirect(`${redirectUrl}?error=callback_exception&details=${encodeURIComponent(err.message)}`);
   }
 }

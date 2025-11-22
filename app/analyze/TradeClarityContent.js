@@ -821,9 +821,9 @@ export default function TradeClarityContent() {
         isAuthenticated={!!user}
         exchangeConfig={currentExchange}
         onDisconnect={() => {
-          // If in demo mode without auth, redirect to auth page
+          // If in demo mode without auth, redirect to login page
           if (isDemoMode && !user) {
-            window.location.href = '/analyze'
+            window.location.href = '/login'
             return
           }
           // Reset to dashboard view
@@ -837,9 +837,9 @@ export default function TradeClarityContent() {
           setLoadingComplete(false)
         }}
         onUploadClick={() => {
-          // If in demo mode without auth, redirect to auth page
+          // If in demo mode without auth, redirect to login page
           if (isDemoMode && !user) {
-            window.location.href = '/analyze'
+            window.location.href = '/login'
             return
           }
           // Navigate to /data page for CSV upload

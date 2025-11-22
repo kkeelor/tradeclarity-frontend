@@ -186,10 +186,10 @@ export default function LandingPage() {
               {showUserMenu && (
                 <>
                   <div
-                    className="fixed inset-0 z-10"
+                    className="fixed inset-0 z-40"
                     onClick={() => setShowUserMenu(false)}
                   />
-                  <div className="absolute right-0 mt-2 w-48 bg-slate-800/95 backdrop-blur-xl border border-slate-700/50 rounded-lg shadow-2xl z-20 overflow-hidden">
+                  <div className="absolute right-0 mt-2 w-48 bg-slate-800/95 backdrop-blur-xl border border-slate-700/50 rounded-lg shadow-2xl z-50 overflow-hidden">
                     <div className="p-2.5 border-b border-slate-700/50">
                       <p className="text-[10px] text-slate-500 mb-0.5">Signed in as</p>
                       <p className="text-xs text-slate-300 truncate">{user?.email}</p>

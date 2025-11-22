@@ -7,6 +7,7 @@ import { generateCompletion, AI_MODELS, isAIConfigured } from '@/lib/ai/client'
 import Anthropic from '@anthropic-ai/sdk'
 import { buildVegaSystemPrompt, buildCachedSystemBlocks, determineExperienceLevel } from '@/lib/ai/prompts/vega-system-prompt'
 import { TIER_LIMITS, canUseTokens, getEffectiveTier } from '@/lib/featureGates'
+import { getSelectedMCPTools, callMCPTool, isMCPAvailable } from '@/lib/ai/mcpClient'
 
 function getAnthropicClient() {
   return new Anthropic({
@@ -201,8 +202,34 @@ export async function POST(request) {
     // Determine experience level
     const experienceLevel = determineExperienceLevel(tradesStats || (aiContext?.summary ? { totalTrades: aiContext.summary.totalTrades } : null), analytics)
     
+    // Fetch MCP tools if available (for AI chat tool integration)
+    let mcpTools = []
+    const mcpStartTime = Date.now()
+    if (isMCPAvailable()) {
+      console.log('[Chat API] 🔍 MCP is available, loading tools...')
+      try {
+        mcpTools = await getSelectedMCPTools()
+        const mcpLoadTime = Date.now() - mcpStartTime
+        if (mcpTools.length > 0) {
+          console.log(`[Chat API] ✅ Loaded ${mcpTools.length} MCP tools in ${mcpLoadTime}ms`)
+          console.log(`[Chat API] MCP tools:`, mcpTools.map(t => t.name).join(', '))
+        } else {
+          console.warn(`[Chat API] ⚠️ MCP available but no tools loaded (${mcpLoadTime}ms)`)
+        }
+      } catch (error) {
+        const mcpLoadTime = Date.now() - mcpStartTime
+        console.error(`[Chat API] ❌ Failed to load MCP tools after ${mcpLoadTime}ms:`, error.message)
+        console.error('[Chat API] Error stack:', error.stack?.split('\n').slice(0, 5).join('\n'))
+        // Continue without tools - graceful degradation
+      }
+    } else {
+      console.log('[Chat API] ℹ️ MCP not available (ALPHA_VANTAGE_API_KEY not set)')
+    }
+    
     // Build cached system blocks with prompt caching
-    const systemBlocks = buildCachedSystemBlocks(aiContext, currentSummary, previousSummaries, tier, experienceLevel)
+    // Include MCP tools guidance if tools are available
+    const hasMCPTools = mcpTools.length > 0
+    const systemBlocks = buildCachedSystemBlocks(aiContext, currentSummary, previousSummaries, tier, experienceLevel, hasMCPTools)
     
     // Build messages array for Claude (ONLY conversation messages, NO system prompt)
     const claudeMessages = []
@@ -242,6 +269,64 @@ export async function POST(request) {
         let fullResponse = ''
         let inputTokens = 0
         let outputTokens = 0
+        let streamClosed = false
+
+        // Helper function to safely enqueue data
+        const safeEnqueue = (data) => {
+          if (streamClosed) {
+            return false
+          }
+          try {
+            // Try to enqueue - desiredSize check isn't reliable (can be null when queue full)
+            controller.enqueue(data)
+            return true
+          } catch (error) {
+            // Check if it's a "closed" error
+            if (error.name === 'TypeError' && 
+                (error.message.includes('closed') || error.message.includes('Invalid state'))) {
+              streamClosed = true
+              return false
+            }
+            // Other errors - log but don't mark as closed
+            console.error('[Chat API] Error enqueueing data:', error.message)
+            return false
+          }
+        }
+
+        // Helper function to safely close stream
+        const safeClose = () => {
+          try {
+            if (!streamClosed) {
+              controller.close()
+              streamClosed = true
+            }
+          } catch (error) {
+            console.error('[Chat API] Error closing stream:', error.message)
+            streamClosed = true
+          }
+        }
+
+        // Helper function to send logs to browser console
+        const sendBrowserLog = (level, message, data = null) => {
+          const logData = {
+            type: 'log',
+            level, // 'info', 'warn', 'error', 'debug'
+            message,
+            data: data ? (typeof data === 'object' ? JSON.stringify(data).substring(0, 500) : String(data).substring(0, 500)) : null,
+            timestamp: new Date().toISOString()
+          }
+          safeEnqueue(
+            new TextEncoder().encode(`data: ${JSON.stringify(logData)}\n\n`)
+          )
+          // Also log to server console
+          if (level === 'error') {
+            console.error(`[Chat API] [BROWSER] ${message}`, data)
+          } else if (level === 'warn') {
+            console.warn(`[Chat API] [BROWSER] ${message}`, data)
+          } else {
+            console.log(`[Chat API] [BROWSER] ${message}`, data)
+          }
+        }
 
         try {
           const client = getAnthropicClient()
@@ -304,7 +389,8 @@ export async function POST(request) {
           
           let streamResponse
           try {
-            streamResponse = await client.messages.create({
+            // Prepare API call parameters
+            const apiParams = {
               model,
               max_tokens: tier === 'pro' ? 2000 : 1000,
               temperature: 0.7,
@@ -313,7 +399,15 @@ export async function POST(request) {
               system: systemBlocks,
               // Only conversation messages (no system prompt here)
               messages: messagesForClaude
-            })
+            }
+
+            // Add tools if MCP is available and tools were loaded
+            if (mcpTools.length > 0) {
+              apiParams.tools = mcpTools
+              console.log(`[Chat API] Added ${mcpTools.length} tools to API call`)
+            }
+
+            streamResponse = await client.messages.create(apiParams)
           } catch (apiError) {
             console.error('[Chat API] Anthropic API call failed:', {
               error: apiError.message,
@@ -325,23 +419,68 @@ export async function POST(request) {
             throw apiError
           }
 
+          // Track tool use requests
+          const pendingToolUses = new Map() // tool_use_id -> { name, input, inputJson, id }
+          let currentToolUseId = null
+
           for await (const event of streamResponse) {
             // Log event type for debugging (first few events only)
             if (outputTokens === 0 && event.type) {
               console.log('[Chat API] First stream event:', event.type)
             }
             
-            if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
-              const chunk = event.delta.text
-              if (chunk) {
-                fullResponse += chunk
-                outputTokens += estimateTokens(chunk)
-                
-                // Send chunk to client
-                controller.enqueue(
-                  new TextEncoder().encode(`data: ${JSON.stringify({ chunk, type: 'token' })}\n\n`)
-                )
+            // Handle tool_use events (when Claude wants to call a tool)
+            // Collect tool_use blocks during streaming - execute after stream completes
+            if (event.type === 'content_block_start' && event.content_block?.type === 'tool_use') {
+              const toolUse = event.content_block
+              currentToolUseId = toolUse.id
+              // Initialize with name and id, input will be accumulated from deltas
+              pendingToolUses.set(toolUse.id, {
+                name: toolUse.name,
+                input: toolUse.input || {},
+                inputJson: '', // Accumulate JSON string from deltas
+                id: toolUse.id
+              })
+              console.log(`[Chat API] 🔧 Tool use requested: ${toolUse.name}`, { 
+                id: toolUse.id, 
+                initialInput: toolUse.input,
+                hasInput: !!toolUse.input,
+                inputKeys: toolUse.input ? Object.keys(toolUse.input) : []
+              })
+              sendBrowserLog('info', `Tool requested: ${toolUse.name}`, { 
+                toolId: toolUse.id,
+                input: toolUse.input 
+              })
+            } else if (event.type === 'content_block_delta') {
+              // Handle different types of deltas
+              if (event.delta?.type === 'input_json_delta') {
+                // Tool input comes in JSON delta chunks - accumulate them
+                const delta = event.delta.partial_json || ''
+                if (currentToolUseId && pendingToolUses.has(currentToolUseId)) {
+                  const toolUse = pendingToolUses.get(currentToolUseId)
+                  toolUse.inputJson += delta
+                  // Try to parse accumulated JSON to update input object
+                  try {
+                    toolUse.input = JSON.parse(toolUse.inputJson)
+                  } catch (e) {
+                    // JSON not complete yet, keep accumulating
+                  }
+                }
+                // Don't log as unexpected, continue to next event
+              } else if (event.delta?.type === 'text_delta') {
+                const chunk = event.delta.text
+                if (chunk) {
+                  fullResponse += chunk
+                  outputTokens += estimateTokens(chunk)
+                  
+                  // Send chunk to client
+                  safeEnqueue(
+                    new TextEncoder().encode(`data: ${JSON.stringify({ chunk, type: 'token' })}\n\n`)
+                  )
+                }
               }
+              // Continue to next event (don't fall through to "unexpected" handler)
+              continue
             } else if (event.type === 'message_stop') {
               // Message complete - get accurate token counts including cache metrics
               if (event.message?.usage) {
@@ -360,17 +499,471 @@ export async function POST(request) {
                   })
                 }
               }
-              console.log('[Chat API] Stream complete:', { inputTokens, outputTokens, responseLength: fullResponse.length })
+              console.log('[Chat API] Stream complete:', { 
+                inputTokens, 
+                outputTokens, 
+                responseLength: fullResponse.length,
+                pendingToolUses: pendingToolUses.size,
+                hasTextResponse: fullResponse.length > 0
+              })
+              
+              // If we have tool uses but no text response, that's normal (Claude requested tools)
+              if (pendingToolUses.size > 0 && fullResponse.length === 0) {
+                console.log('[Chat API] ℹ️ Initial stream had no text (only tool_use blocks) - this is normal')
+              }
+              
               break // Exit loop when message is complete
             } else if (event.type === 'error') {
               console.error('[Chat API] Stream error event:', event.error)
               throw new Error(event.error?.message || 'Stream error occurred')
-            } else if (event.type === 'message_start' || event.type === 'content_block_start' || event.type === 'content_block_stop') {
-              // These are normal events, just continue
+            } else if (event.type === 'content_block_stop') {
+              // Tool use block complete - finalize input parsing if this was a tool_use block
+              if (currentToolUseId && pendingToolUses.has(currentToolUseId)) {
+                const toolUse = pendingToolUses.get(currentToolUseId)
+                if (toolUse.inputJson) {
+                  try {
+                    toolUse.input = JSON.parse(toolUse.inputJson)
+                    console.log(`[Chat API] ✅ Tool ${toolUse.name} input finalized:`, toolUse.input)
+                    sendBrowserLog('info', `Tool input finalized: ${toolUse.name}`, { input: toolUse.input })
+                  } catch (e) {
+                    console.warn(`[Chat API] ⚠️ Failed to parse tool input JSON for ${toolUse.name}:`, e.message)
+                    sendBrowserLog('warn', `Failed to parse tool input: ${toolUse.name}`, { error: e.message })
+                  }
+                }
+                currentToolUseId = null
+              }
+              // Continue processing (normal event)
+              continue
+            } else if (event.type === 'content_block_start' && event.content_block?.type === 'text') {
+              // Text content block start - normal, continue
+              continue
+            } else if (event.type === 'message_start') {
+              // Normal event, continue
               continue
             } else {
-              // Log unexpected event types for debugging
-              console.warn('[Chat API] Unexpected event type:', event.type)
+              // Log unexpected event types for debugging (but don't break)
+              // Skip logging for known normal events
+              const knownEventTypes = ['ping', 'message_delta'] // message_delta is normal, contains usage stats
+              if (!knownEventTypes.includes(event.type)) {
+                console.warn('[Chat API] Unexpected event type:', event.type, { event: JSON.stringify(event).substring(0, 200) })
+              }
+            }
+          }
+
+          // After initial stream, check if tools were requested
+          // If tools were requested but not yet executed, handle them
+          console.log(`[Chat API] Post-stream check:`, {
+            pendingToolUses: pendingToolUses.size,
+            mcpToolsAvailable: mcpTools.length,
+            initialResponseLength: fullResponse.length
+          })
+          
+          if (pendingToolUses.size > 0 && mcpTools.length > 0) {
+            console.log(`[Chat API] 🔧 Processing ${pendingToolUses.size} pending tool uses`)
+            sendBrowserLog('info', `Executing ${pendingToolUses.size} tool(s)`, { 
+              toolCount: pendingToolUses.size,
+              toolNames: Array.from(pendingToolUses.values()).map(t => t.name).join(', ')
+            })
+            
+            // Execute all pending tools
+            for (const [toolUseId, toolUse] of pendingToolUses.entries()) {
+              const toolExecutionStart = Date.now()
+              try {
+                console.log(`[Chat API] 🚀 Executing MCP tool: ${toolUse.name}`, { 
+                  toolId: toolUseId,
+                  input: toolUse.input 
+                })
+                sendBrowserLog('info', `Executing tool: ${toolUse.name}`, { 
+                  toolId: toolUseId,
+                  input: toolUse.input 
+                })
+                
+                // Execute MCP tool (with retries)
+                const toolResult = await callMCPTool(toolUse.name, toolUse.input, 2)
+                const toolExecutionTime = Date.now() - toolExecutionStart
+                
+                console.log(`[Chat API] ✅ Tool executed successfully: ${toolUse.name} (${toolExecutionTime}ms)`, {
+                  resultSize: typeof toolResult === 'string' ? toolResult.length : JSON.stringify(toolResult).length,
+                  resultPreview: typeof toolResult === 'string' ? toolResult.substring(0, 200) : 'non-string result'
+                })
+                sendBrowserLog('info', `Tool executed: ${toolUse.name}`, { 
+                  duration: toolExecutionTime,
+                  resultSize: typeof toolResult === 'string' ? toolResult.length : 0
+                })
+                
+                // Add tool_result to messages for follow-up API call
+                claudeMessages.push({
+                  role: 'assistant',
+                  content: [{
+                    type: 'tool_use',
+                    id: toolUse.id,
+                    name: toolUse.name,
+                    input: toolUse.input
+                  }]
+                })
+                
+                // Tool result is already a string from callMCPTool
+                claudeMessages.push({
+                  role: 'user',
+                  content: [{
+                    type: 'tool_result',
+                    tool_use_id: toolUse.id,
+                    content: toolResult
+                  }]
+                })
+              } catch (toolError) {
+                const toolExecutionTime = Date.now() - toolExecutionStart
+                const isRateLimit = toolError.message?.toLowerCase().includes('rate limit') || 
+                                   toolError.message?.toLowerCase().includes('429') ||
+                                   toolError.message?.toLowerCase().includes('too many requests')
+                
+                if (isRateLimit) {
+                  console.error(`[Chat API] ⚠️ RATE LIMIT: Tool execution failed (${toolUse.name}):`, {
+                    error: toolError.message,
+                    duration: toolExecutionTime,
+                    toolId: toolUseId
+                  })
+                  sendBrowserLog('error', `Rate limit exceeded for tool: ${toolUse.name}`, {
+                    error: toolError.message,
+                    duration: toolExecutionTime
+                  })
+                } else {
+                  console.error(`[Chat API] ❌ Tool execution failed (${toolUse.name}):`, {
+                    error: toolError.message,
+                    duration: toolExecutionTime,
+                    toolId: toolUseId,
+                    stack: toolError.stack?.split('\n').slice(0, 3).join('\n')
+                  })
+                  sendBrowserLog('error', `Tool execution failed: ${toolUse.name}`, {
+                    error: toolError.message,
+                    duration: toolExecutionTime
+                  })
+                }
+                
+                // Determine if we should try a fallback tool
+                let fallbackTool = null
+                let fallbackInput = null
+                
+                // Fallback logic: If REALTIME_BULK_QUOTES fails, try GLOBAL_QUOTE
+                if (toolUse.name === 'REALTIME_BULK_QUOTES' && toolUse.input?.symbols) {
+                  const symbols = Array.isArray(toolUse.input.symbols) ? toolUse.input.symbols : [toolUse.input.symbols]
+                  if (symbols.length === 1) {
+                    fallbackTool = 'GLOBAL_QUOTE'
+                    fallbackInput = { symbol: symbols[0], entitlement: 'realtime' }
+                    console.log(`[Chat API] 🔄 Attempting fallback: ${fallbackTool} for ${symbols[0]}`)
+                    sendBrowserLog('info', `Trying fallback tool: ${fallbackTool}`, { originalTool: toolUse.name })
+                  }
+                }
+                
+                // Try fallback if available
+                if (fallbackTool) {
+                  try {
+                    const fallbackStart = Date.now()
+                    const fallbackResult = await callMCPTool(fallbackTool, fallbackInput, 2) // Use retries for fallback too
+                    const fallbackTime = Date.now() - fallbackStart
+                    console.log(`[Chat API] ✅ Fallback tool ${fallbackTool} succeeded (${fallbackTime}ms)`)
+                    sendBrowserLog('info', `Fallback tool succeeded: ${fallbackTool}`, { duration: fallbackTime })
+                    
+                    // Use fallback result instead of error
+                    claudeMessages.push({
+                      role: 'assistant',
+                      content: [{
+                        type: 'tool_use',
+                        id: toolUse.id,
+                        name: toolUse.name,
+                        input: toolUse.input
+                      }]
+                    })
+                    
+                    claudeMessages.push({
+                      role: 'user',
+                      content: [{
+                        type: 'tool_result',
+                        tool_use_id: toolUse.id,
+                        content: `Note: ${toolUse.name} failed, using ${fallbackTool} instead.\n${fallbackResult}`
+                      }]
+                    })
+                    continue // Skip error handling, use fallback result
+                  } catch (fallbackError) {
+                    const isFallbackRateLimit = fallbackError.message?.toLowerCase().includes('rate limit') || 
+                                               fallbackError.message?.toLowerCase().includes('429')
+                    console.error(`[Chat API] ❌ Fallback tool ${fallbackTool} also failed:`, {
+                      error: fallbackError.message,
+                      isRateLimit: isFallbackRateLimit
+                    })
+                    sendBrowserLog('error', `Fallback tool failed: ${fallbackTool}`, {
+                      error: fallbackError.message,
+                      isRateLimit: isFallbackRateLimit
+                    })
+                    // Continue to error handling below
+                  }
+                }
+                
+                // Add error result (or if fallback also failed)
+                claudeMessages.push({
+                  role: 'assistant',
+                  content: [{
+                    type: 'tool_use',
+                    id: toolUse.id,
+                    name: toolUse.name,
+                    input: toolUse.input
+                  }]
+                })
+                
+                // Provide helpful error message
+                const isServerError = toolError.message.includes('500') || toolError.message.includes('502') || toolError.message.includes('503')
+                const errorMessage = isServerError
+                  ? `The market data service is temporarily unavailable (server error). This is likely a temporary issue with Alpha Vantage. Please try again in a moment, or I can provide analysis based on available data.`
+                  : `Tool execution failed: ${toolError.message}. Please continue without this data.`
+                
+                claudeMessages.push({
+                  role: 'user',
+                  content: [{
+                    type: 'tool_result',
+                    tool_use_id: toolUse.id,
+                    is_error: true,
+                    content: errorMessage
+                  }]
+                })
+              }
+            }
+            
+            // Make follow-up API call with tool results
+            // Support recursive tool calls (max 3 rounds to prevent infinite loops)
+            let followUpRound = 0
+            const maxFollowUpRounds = 3
+            let currentMessages = claudeMessages
+            
+            while (currentMessages.length > messagesForClaude.length && followUpRound < maxFollowUpRounds) {
+              followUpRound++
+              const followUpStart = Date.now()
+              console.log(`[Chat API] 🔄 Making follow-up API call #${followUpRound} with tool results`)
+              sendBrowserLog('info', `Making follow-up API call #${followUpRound}`, {
+                round: followUpRound,
+                toolResultsCount: currentMessages.length - messagesForClaude.length
+              })
+              
+              const followUpResponse = await client.messages.create({
+                model,
+                max_tokens: tier === 'pro' ? 2000 : 1000,
+                temperature: 0.7,
+                stream: true,
+                system: systemBlocks,
+                tools: mcpTools,
+                messages: currentMessages
+              })
+              
+              // Stream follow-up response
+              let followUpChunkCount = 0
+              let followUpEventCount = 0
+              const followUpPendingToolUses = new Map()
+              let followUpCurrentToolUseId = null
+              let followUpFullResponse = ''
+              
+              console.log(`[Chat API] Starting to stream follow-up response (round ${followUpRound})...`)
+              
+              for await (const followUpEvent of followUpResponse) {
+                followUpEventCount++
+                
+                // Log ALL events for the first 10 events to debug
+                if (followUpEventCount <= 10) {
+                  console.log(`[Chat API] Follow-up event #${followUpEventCount}:`, {
+                    type: followUpEvent.type,
+                    hasDelta: !!followUpEvent.delta,
+                    deltaType: followUpEvent.delta?.type,
+                    deltaText: followUpEvent.delta?.text?.substring(0, 50),
+                    hasContentBlock: !!followUpEvent.content_block,
+                    contentBlockType: followUpEvent.content_block?.type,
+                    hasMessage: !!followUpEvent.message,
+                    messageUsage: followUpEvent.message?.usage
+                  })
+                }
+                
+                // Check if Claude is requesting more tools in follow-up (handle recursive tool calls)
+                if (followUpEvent.type === 'content_block_start' && followUpEvent.content_block?.type === 'tool_use') {
+                  const toolUse = followUpEvent.content_block
+                  followUpCurrentToolUseId = toolUse.id
+                  followUpPendingToolUses.set(toolUse.id, {
+                    name: toolUse.name,
+                    input: toolUse.input || {},
+                    inputJson: '',
+                    id: toolUse.id
+                  })
+                  console.log(`[Chat API] 🔧 Follow-up round ${followUpRound} requested tool: ${toolUse.name}`)
+                  sendBrowserLog('info', `Tool requested in follow-up: ${toolUse.name}`, { round: followUpRound })
+                } else if (followUpEvent.type === 'content_block_delta' && followUpEvent.delta?.type === 'input_json_delta') {
+                  // Accumulate tool input JSON
+                  const delta = followUpEvent.delta.partial_json || ''
+                  if (followUpCurrentToolUseId && followUpPendingToolUses.has(followUpCurrentToolUseId)) {
+                    const toolUse = followUpPendingToolUses.get(followUpCurrentToolUseId)
+                    toolUse.inputJson += delta
+                    try {
+                      toolUse.input = JSON.parse(toolUse.inputJson)
+                    } catch (e) {
+                      // JSON not complete yet
+                    }
+                  }
+                  continue
+                } else if (followUpEvent.type === 'content_block_delta' && followUpEvent.delta?.type === 'text_delta') {
+                  const chunk = followUpEvent.delta.text
+                  if (chunk) {
+                    followUpChunkCount++
+                    followUpFullResponse += chunk
+                    fullResponse += chunk
+                    outputTokens += estimateTokens(chunk)
+                    
+                    if (followUpChunkCount <= 3) {
+                      console.log(`[Chat API] Follow-up chunk ${followUpChunkCount}:`, chunk.substring(0, 50))
+                    }
+                    
+                    const enqueued = safeEnqueue(
+                      new TextEncoder().encode(`data: ${JSON.stringify({ chunk, type: 'token' })}\n\n`)
+                    )
+                    if (!enqueued && followUpChunkCount === 1) {
+                      console.error('[Chat API] ⚠️ Failed to enqueue first follow-up chunk - stream may be closed')
+                    }
+                  }
+                } else if (followUpEvent.type === 'content_block_start') {
+                  console.log(`[Chat API] Follow-up content_block_start:`, {
+                    type: followUpEvent.content_block?.type,
+                    index: followUpEvent.index
+                  })
+                } else if (followUpEvent.type === 'content_block_stop') {
+                  console.log(`[Chat API] Follow-up content_block_stop`)
+                } else if (followUpEvent.type === 'message_start') {
+                  console.log(`[Chat API] Follow-up message_start`)
+                } else if (followUpEvent.type === 'message_delta') {
+                  // Normal event, contains usage stats
+                } else if (followUpEvent.type === 'message_stop') {
+                  // Update token counts from final message
+                  if (followUpEvent.message?.usage) {
+                    inputTokens = followUpEvent.message.usage.input_tokens
+                    outputTokens = followUpEvent.message.usage.output_tokens
+                  }
+                  const followUpTime = Date.now() - followUpStart
+                  console.log(`[Chat API] ✅ Follow-up API call complete (${followUpTime}ms)`, {
+                    chunksReceived: followUpChunkCount,
+                    finalResponseLength: fullResponse.length,
+                    inputTokens,
+                    outputTokens
+                  })
+                  sendBrowserLog('info', 'Follow-up API call complete', { 
+                    duration: followUpTime,
+                    chunksReceived: followUpChunkCount,
+                    responseLength: fullResponse.length
+                  })
+                  break
+                } else if (followUpEvent.type === 'error') {
+                  console.error('[Chat API] ❌ Follow-up stream error:', followUpEvent.error)
+                  sendBrowserLog('error', 'Follow-up stream error', { error: followUpEvent.error?.message })
+                  break
+                } else {
+                  console.warn(`[Chat API] Unexpected follow-up event type:`, followUpEvent.type)
+                }
+              }
+              
+              console.log(`[Chat API] Follow-up stream finished (round ${followUpRound}):`, {
+                totalEvents: followUpEventCount,
+                chunksReceived: followUpChunkCount,
+                finalResponseLength: followUpFullResponse.length,
+                pendingToolUsesInFollowUp: followUpPendingToolUses.size
+              })
+              
+              // If tools were requested in follow-up, execute them and make another follow-up call
+              if (followUpPendingToolUses.size > 0) {
+                console.log(`[Chat API] 🔧 Executing ${followUpPendingToolUses.size} tool(s) from follow-up round ${followUpRound}`)
+                sendBrowserLog('info', `Executing ${followUpPendingToolUses.size} tool(s) from follow-up`, {
+                  round: followUpRound,
+                  toolCount: followUpPendingToolUses.size
+                })
+                
+                // Add assistant message with tool_use
+                currentMessages.push({
+                  role: 'assistant',
+                  content: Array.from(followUpPendingToolUses.values()).map(toolUse => ({
+                    type: 'tool_use',
+                    id: toolUse.id,
+                    name: toolUse.name,
+                    input: toolUse.input
+                  }))
+                })
+                
+                // Execute all tools
+                for (const [toolUseId, toolUse] of followUpPendingToolUses.entries()) {
+                  try {
+                    console.log(`[Chat API] 🚀 Executing follow-up tool: ${toolUse.name}`)
+                    const toolResult = await callMCPTool(toolUse.name, toolUse.input, 2)
+                    
+                    // Add tool result
+                    currentMessages.push({
+                      role: 'user',
+                      content: [{
+                        type: 'tool_result',
+                        tool_use_id: toolUse.id,
+                        content: toolResult
+                      }]
+                    })
+                    
+                    console.log(`[Chat API] ✅ Follow-up tool ${toolUse.name} executed successfully`)
+                  } catch (toolError) {
+                    console.error(`[Chat API] ❌ Follow-up tool ${toolUse.name} failed:`, toolError.message)
+                    currentMessages.push({
+                      role: 'user',
+                      content: [{
+                        type: 'tool_result',
+                        tool_use_id: toolUse.id,
+                        is_error: true,
+                        content: `Tool execution failed: ${toolError.message}`
+                      }]
+                    })
+                  }
+                }
+                
+                // Clear pending tools and continue loop for another follow-up call
+                followUpPendingToolUses.clear()
+                continue // Make another follow-up call
+              }
+              
+              // No more tools requested - we're done with this follow-up round
+              if (followUpChunkCount === 0) {
+                console.error('[Chat API] ⚠️ No chunks received in follow-up response!', {
+                  round: followUpRound,
+                  totalEvents: followUpEventCount,
+                  possibleCause: 'Claude may have returned empty response or error'
+                })
+                sendBrowserLog('warn', 'No response chunks received', {
+                  round: followUpRound,
+                  totalEvents: followUpEventCount
+                })
+                
+                // Send a fallback message if we have tool results but no response
+                if (followUpFullResponse.length === 0 && followUpRound === 1) {
+                  const fallbackMessage = "I've retrieved the market data, but encountered an issue generating the response. Please try asking again."
+                  safeEnqueue(
+                    new TextEncoder().encode(`data: ${JSON.stringify({ chunk: fallbackMessage, type: 'token' })}\n\n`)
+                  )
+                  fullResponse = fallbackMessage
+                  console.log('[Chat API] Sent fallback message to user')
+                }
+              } else {
+                // We got a response with text - we're done
+                const followUpTime = Date.now() - followUpStart
+                console.log(`[Chat API] ✅ Follow-up round ${followUpRound} complete (${followUpTime}ms)`, {
+                  chunksReceived: followUpChunkCount,
+                  responseLength: followUpFullResponse.length
+                })
+                sendBrowserLog('info', `Follow-up round ${followUpRound} complete`, {
+                  duration: followUpTime,
+                  chunksReceived: followUpChunkCount,
+                  responseLength: followUpFullResponse.length
+                })
+                break // Exit the while loop - we have a response
+              }
+            }
+            
+            if (followUpRound >= maxFollowUpRounds) {
+              console.warn(`[Chat API] ⚠️ Reached max follow-up rounds (${maxFollowUpRounds})`)
+              sendBrowserLog('warn', `Reached max follow-up rounds (${maxFollowUpRounds})`, {})
             }
           }
 
@@ -393,7 +986,7 @@ export async function POST(request) {
           }
 
           // Send final stats
-          controller.enqueue(
+          safeEnqueue(
             new TextEncoder().encode(
               `data: ${JSON.stringify({ 
                 type: 'done', 
@@ -404,9 +997,9 @@ export async function POST(request) {
                 }
               })}\n\n`
             )
-          )
+          );
 
-          controller.close()
+          safeClose();
         } catch (error) {
           console.error('[Chat API] Streaming error:', error)
           console.error('[Chat API] Error details:', {
@@ -450,22 +1043,18 @@ export async function POST(request) {
             console.error('[Chat API] Original error message:', error.message)
           }
           
-          // Ensure error is sent to client
-          try {
-            controller.enqueue(
-              new TextEncoder().encode(
-                `data: ${JSON.stringify({ type: 'error', error: errorMessage, errorType, originalMessage: error.message })}\n\n`
-              )
+          // Ensure error is sent to client (safely)
+          const errorSent = safeEnqueue(
+            new TextEncoder().encode(
+              `data: ${JSON.stringify({ type: 'error', error: errorMessage, errorType, originalMessage: error.message })}\n\n`
             )
-          } catch (enqueueError) {
-            console.error('[Chat API] Failed to enqueue error:', enqueueError)
+          );
+          
+          if (!errorSent) {
+            console.warn('[Chat API] Could not send error message - stream already closed')
           }
           
-          try {
-            controller.close()
-          } catch (closeError) {
-            console.error('[Chat API] Failed to close controller:', closeError)
-          }
+          safeClose();
         }
       }
     })

@@ -678,6 +678,31 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                       ? { ...msg, content: assistantContent, isLoading: false }
                       : msg
                   ))
+                } else if (data.type === 'log') {
+                  // Handle browser-visible logs from server
+                  const logLevel = data.level || 'info'
+                  const logMessage = `[MCP] ${data.message}`
+                  let logData = null
+                  
+                  if (data.data) {
+                    try {
+                      // Try to parse if it's a string, otherwise use as-is
+                      logData = typeof data.data === 'string' ? JSON.parse(data.data) : data.data
+                    } catch (e) {
+                      // If parsing fails, use as string
+                      logData = data.data
+                    }
+                  }
+                  
+                  if (logLevel === 'error') {
+                    console.error(logMessage, logData)
+                  } else if (logLevel === 'warn') {
+                    console.warn(logMessage, logData)
+                  } else if (logLevel === 'debug') {
+                    console.debug(logMessage, logData)
+                  } else {
+                    console.log(logMessage, logData)
+                  }
                 } else if (data.type === 'done') {
                   streamComplete = true
                   setIsLoading(false) // Ensure loading is cleared

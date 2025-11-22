@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:mcp": "node test-mcp-tools.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.67.1",

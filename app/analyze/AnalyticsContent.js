@@ -745,11 +745,15 @@ export default function AnalyticsContent() {
     )
   }
 
+  // Redirect to login if not authenticated (unless in demo mode)
+  useEffect(() => {
+    if (!authLoading && !user && searchParams.get('demo') !== 'true') {
+      router.push('/login')
+    }
+  }, [user, authLoading, searchParams, router])
+
   if (!user && searchParams.get('demo') !== 'true') {
-    return <AuthScreen onAuthSuccess={(user) => {
-      // Refresh page to reload with authenticated user
-      window.location.href = '/dashboard';
-    }} />
+    return null // Redirect is happening
   }
 
   if (status === 'loading') {
