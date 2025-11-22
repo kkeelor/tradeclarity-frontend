@@ -1,7 +1,7 @@
 // app/vega/VegaContent.js
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/AuthContext'
 import AuthScreen from '../analyze/components/AuthScreen'
@@ -10,7 +10,8 @@ import AIChat from '../analyze/components/AIChat'
 import Header from '../analyze/components/Header'
 import { useMultipleTabs } from '@/lib/hooks/useMultipleTabs'
 import { EXCHANGES, getExchangeList } from '../analyze/utils/exchanges'
-import { Loader2, Brain, Sparkles } from 'lucide-react'
+import { Loader2, Brain } from 'lucide-react'
+import Footer from '../components/Footer'
 
 export default function VegaContent() {
   const router = useRouter()
@@ -19,10 +20,12 @@ export default function VegaContent() {
   const [analytics, setAnalytics] = useState(null)
   const [allTrades, setAllTrades] = useState([])
   const [tradesStats, setTradesStats] = useState(null)
+  const [metadata, setMetadata] = useState(null)
   const [currencyMetadata, setCurrencyMetadata] = useState(null)
   const [currency, setCurrency] = useState('USD')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const chatInputRef = useRef(null)
 
   // Listen for switch requests from other tabs
   useEffect(() => {
@@ -49,9 +52,17 @@ export default function VegaContent() {
         const preAnalyzedData = sessionStorage.getItem('preAnalyzedData')
         if (preAnalyzedData) {
           const parsed = JSON.parse(preAnalyzedData)
+          console.log('[VegaContent] Loading from sessionStorage:', {
+            hasAnalytics: !!parsed.analytics,
+            hasData: !!parsed.data,
+            tradesStats: parsed.tradesStats || parsed.data?.tradesStats,
+            totalTrades: (parsed.tradesStats || parsed.data?.tradesStats)?.totalTrades,
+            tradesCount: parsed.data?.trades?.length || parsed.data?.spotTrades?.length
+          })
           setAnalytics(parsed.analytics)
-          setAllTrades(parsed.data?.trades || [])
-          setTradesStats(parsed.data?.tradesStats || null)
+          setAllTrades(parsed.data?.trades || parsed.analytics?.allTrades || [])
+          setTradesStats(parsed.tradesStats || parsed.data?.tradesStats || null)
+          setMetadata(parsed.data?.metadata || parsed.currencyMetadata || null)
           setCurrencyMetadata(parsed.currencyMetadata)
           setCurrency(parsed.currency || 'USD')
           // Clear sessionStorage after loading
@@ -60,20 +71,54 @@ export default function VegaContent() {
           return
         }
 
-        // Otherwise, fetch from cache
-        const response = await fetch('/api/analytics/cache')
-        const data = await response.json()
+        // Otherwise, fetch from cache and stats endpoint
+        const [cacheResponse, statsResponse] = await Promise.all([
+          fetch('/api/analytics/cache'),
+          fetch('/api/trades/stats')
+        ])
+        
+        const cacheData = await cacheResponse.json()
+        const statsData = await statsResponse.json()
 
-        if (data.success && data.analytics) {
-          setAnalytics(data.analytics)
-          setAllTrades(data.allTrades || [])
-          setTradesStats(data.tradesStats || null)
-          setCurrencyMetadata(data.currencyMetadata)
-          setCurrency(data.currency || 'USD')
+        console.log('[VegaContent] Loading from API:', {
+          cacheSuccess: cacheData.success,
+          hasAnalytics: !!cacheData.analytics,
+          statsSuccess: statsData.success,
+          tradesStats: statsData.metadata,
+          totalTrades: statsData.metadata?.totalTrades
+        })
+
+        if (cacheData.success && cacheData.analytics) {
+          setAnalytics(cacheData.analytics)
+          setAllTrades(cacheData.allTrades || [])
+          
+          // Extract metadata from analytics if available
+          const metadataFromAnalytics = cacheData.analytics.metadata || null
+          setMetadata(metadataFromAnalytics)
+          setCurrencyMetadata(metadataFromAnalytics)
+          setCurrency(metadataFromAnalytics?.primaryCurrency || 'USD')
         } else {
-          // No data available
+          // No analytics cache available
           setAnalytics(null)
           setAllTrades([])
+          setMetadata(null)
+        }
+
+        // Always set tradesStats from stats endpoint (works even without cache)
+        if (statsData.success && statsData.metadata) {
+          setTradesStats(statsData.metadata)
+          // Also update currency from stats if metadata wasn't available
+          if (!cacheData.success || !cacheData.analytics) {
+            setCurrency(statsData.metadata.primaryCurrency || 'USD')
+            setCurrencyMetadata({
+              primaryCurrency: statsData.metadata.primaryCurrency || 'USD',
+              availableCurrencies: statsData.metadata.availableCurrencies || ['USD'],
+              supportsCurrencySwitch: statsData.metadata.supportsCurrencySwitch || false
+            })
+          }
+        } else {
+          // No trades stats available
+          console.warn('[VegaContent] No tradesStats available:', statsData)
           setTradesStats(null)
         }
       } catch (err) {
@@ -125,7 +170,7 @@ export default function VegaContent() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-black text-white flex flex-col">
       <Header
         exchangeConfig={null}
         currencyMetadata={currencyMetadata}
@@ -142,29 +187,34 @@ export default function VegaContent() {
         hasDataSources={!!tradesStats && tradesStats.totalTrades > 0}
       />
       
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="mb-8 text-center space-y-2">
+      <main className="max-w-6xl mx-auto px-6 py-6 flex flex-col flex-1 min-h-0">
+        <div className="mb-4 text-center space-y-2 flex-shrink-0">
           <div className="flex items-center justify-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-emerald-400/10 border border-emerald-400/30 flex items-center justify-center">
-              <Brain className="w-6 h-6 text-emerald-400" />
+            <div className="w-10 h-10 rounded-xl bg-emerald-400/10 border border-emerald-400/30 flex items-center justify-center">
+              <Brain className="w-5 h-5 text-emerald-400" />
             </div>
-            <h1 className="text-3xl font-bold text-white/90">Vega AI</h1>
+            <h1 className="text-2xl font-bold text-white/90">Vega AI</h1>
           </div>
-          <p className="text-white/60 text-sm">
+          <p className="text-white/60 text-xs">
             Your AI trading assistant powered by Claude
           </p>
         </div>
 
-        <div className="max-w-4xl mx-auto">
+        <div className="flex-1 min-h-0 overflow-hidden">
           <AIChat
+            ref={chatInputRef}
             analytics={analytics}
             allTrades={allTrades}
             tradesStats={tradesStats}
+            metadata={metadata}
             onConnectExchange={() => router.push('/dashboard')}
             onUploadCSV={() => router.push('/data')}
+            isVegaPage={true}
           />
         </div>
       </main>
+
+      <Footer />
     </div>
   )
 }

@@ -230,10 +230,34 @@ export default function DashboardContent() {
       try {
         const analysis = await analyzeData(preFetchedData)
 
+        // Calculate tradesStats from raw data
+        const allTradesArray = [
+          ...(preFetchedData.spotTrades || []),
+          ...(preFetchedData.futuresTrades || []),
+          ...(preFetchedData.futuresIncome || [])
+        ]
+        const sortedTrades = [...allTradesArray].sort((a, b) => {
+          const timeA = a.time || a.trade_time || 0
+          const timeB = b.time || b.trade_time || 0
+          return new Date(timeA) - new Date(timeB)
+        })
+        
+        const tradesStats = {
+          totalTrades: allTradesArray.length,
+          spotTrades: preFetchedData.spotTrades?.length || 0,
+          futuresIncome: preFetchedData.futuresIncome?.length || 0,
+          futuresPositions: preFetchedData.futuresPositions?.length || 0,
+          oldestTrade: sortedTrades.length > 0 ? (sortedTrades[0].time || sortedTrades[0].trade_time) : null,
+          newestTrade: sortedTrades.length > 0 ? (sortedTrades[sortedTrades.length - 1].time || sortedTrades[sortedTrades.length - 1].trade_time) : null,
+          primaryCurrency: preFetchedData.metadata?.primaryCurrency || 'USD',
+          exchanges: preFetchedData.metadata?.exchanges || []
+        }
+
         // Store analytics and data in sessionStorage for VegaAI
         sessionStorage.setItem('preAnalyzedData', JSON.stringify({
           analytics: analysis,
           data: preFetchedData,
+          tradesStats: tradesStats,
           currencyMetadata: preFetchedData.metadata,
           currency: preFetchedData.metadata?.primaryCurrency || 'USD'
         }))
@@ -266,10 +290,34 @@ export default function DashboardContent() {
         setProgress('Analyzing your trading data...')
         const analysis = await analyzeData(preFetchedData)
 
+        // Calculate tradesStats from raw data
+        const allTradesArray = [
+          ...(preFetchedData.spotTrades || []),
+          ...(preFetchedData.futuresTrades || []),
+          ...(preFetchedData.futuresIncome || [])
+        ]
+        const sortedTrades = [...allTradesArray].sort((a, b) => {
+          const timeA = a.time || a.trade_time || 0
+          const timeB = b.time || b.trade_time || 0
+          return new Date(timeA) - new Date(timeB)
+        })
+        
+        const tradesStats = {
+          totalTrades: allTradesArray.length,
+          spotTrades: preFetchedData.spotTrades?.length || 0,
+          futuresIncome: preFetchedData.futuresIncome?.length || 0,
+          futuresPositions: preFetchedData.futuresPositions?.length || 0,
+          oldestTrade: sortedTrades.length > 0 ? (sortedTrades[0].time || sortedTrades[0].trade_time) : null,
+          newestTrade: sortedTrades.length > 0 ? (sortedTrades[sortedTrades.length - 1].time || sortedTrades[sortedTrades.length - 1].trade_time) : null,
+          primaryCurrency: preFetchedData.metadata?.primaryCurrency || 'USD',
+          exchanges: preFetchedData.metadata?.exchanges || []
+        }
+
         // Store analytics and data in sessionStorage for VegaAI
         sessionStorage.setItem('preAnalyzedData', JSON.stringify({
           analytics: analysis,
           data: preFetchedData,
+          tradesStats: tradesStats,
           currencyMetadata: preFetchedData.metadata,
           currency: preFetchedData.metadata?.primaryCurrency || 'USD'
         }))
@@ -316,10 +364,34 @@ export default function DashboardContent() {
       setProgress('Analyzing your trading data...')
       const analysis = await analyzeData(data)
 
+      // Calculate tradesStats from raw data
+      const allTradesArray = [
+        ...(data.spotTrades || []),
+        ...(data.futuresTrades || []),
+        ...(data.futuresIncome || [])
+      ]
+      const sortedTrades = [...allTradesArray].sort((a, b) => {
+        const timeA = a.time || a.trade_time || 0
+        const timeB = b.time || b.trade_time || 0
+        return new Date(timeA) - new Date(timeB)
+      })
+      
+      const tradesStats = {
+        totalTrades: allTradesArray.length,
+        spotTrades: data.spotTrades?.length || 0,
+        futuresIncome: data.futuresIncome?.length || 0,
+        futuresPositions: data.futuresPositions?.length || 0,
+        oldestTrade: sortedTrades.length > 0 ? (sortedTrades[0].time || sortedTrades[0].trade_time) : null,
+        newestTrade: sortedTrades.length > 0 ? (sortedTrades[sortedTrades.length - 1].time || sortedTrades[sortedTrades.length - 1].trade_time) : null,
+        primaryCurrency: data.metadata?.primaryCurrency || 'USD',
+        exchanges: data.metadata?.exchanges || []
+      }
+
       // Store analytics and data in sessionStorage for VegaAI
       sessionStorage.setItem('preAnalyzedData', JSON.stringify({
         analytics: analysis,
         data,
+        tradesStats: tradesStats,
         currencyMetadata: data.metadata,
         currency: data.metadata?.primaryCurrency || 'USD'
       }))

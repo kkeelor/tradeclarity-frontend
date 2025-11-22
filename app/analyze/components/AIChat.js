@@ -3,18 +3,47 @@
 
 'use client'
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { Send, Loader2, Bot, User, Sparkles, X, RotateCcw, Square, Minimize2, Maximize2, Database, Link as LinkIcon, Upload } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback, useMemo, useImperativeHandle, forwardRef } from 'react'
+import { Send, Loader2, Bot, User, Sparkles, X, RotateCcw, Square, Minimize2, Maximize2, Database, Link as LinkIcon, Upload, TrendingUp, DollarSign, PieChart, Target, AlertCircle } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { getDynamicSampleQuestions } from '@/lib/ai/prompts/sampleQuestions'
 
-export default function AIChat({ analytics, allTrades, tradesStats, onConnectExchange, onUploadCSV }) {
+const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConnectExchange, onUploadCSV, isVegaPage = false }, ref) => {
   const { user } = useAuth()
   const [messages, setMessages] = useState([])
   const [sessionMessages, setSessionMessages] = useState([]) // In-memory messages for current session
   const [previousSummaries, setPreviousSummaries] = useState([]) // Previous conversation summaries
   const [input, setInput] = useState('')
+  
+  // Refs must be defined before useImperativeHandle
+  const messagesEndRef = useRef(null)
+  const messagesContainerRef = useRef(null)
+  const inputRef = useRef(null)
+  const summarizeTimeoutRef = useRef(null)
+  const animationTimeoutRef = useRef(null)
+  const typeIntervalRef = useRef(null)
+  const deleteIntervalRef = useRef(null)
+  const abortControllerRef = useRef(null)
+  const shouldAutoScrollRef = useRef(true)
+  const lastMessageCountRef = useRef(0)
+  const scrollTimeoutRef = useRef(null)
+  const previousQuestionsRef = useRef([])
+  const animationStartDelayRef = useRef(null)
+  
+  // Expose methods to parent via ref
+  useImperativeHandle(ref, () => ({
+    setPrompt: (prompt) => {
+      setInput(prompt)
+      // Focus input after setting
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus()
+        }
+      }, 100)
+    }
+  }))
+  
   const [isLoading, setIsLoading] = useState(false)
   const [conversationId, setConversationId] = useState(null)
   const [currentSampleIndex, setCurrentSampleIndex] = useState(0)
@@ -36,19 +65,6 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
   const hasNoData = !tradesStats || tradesStats.totalTrades === 0
   const [hasSentMessagesWithoutData, setHasSentMessagesWithoutData] = useState(false)
   const [isDataReady, setIsDataReady] = useState(false) // Track when data is stable
-  const messagesEndRef = useRef(null)
-  const messagesContainerRef = useRef(null)
-  const inputRef = useRef(null)
-  const summarizeTimeoutRef = useRef(null)
-  const animationTimeoutRef = useRef(null)
-  const typeIntervalRef = useRef(null)
-  const deleteIntervalRef = useRef(null)
-  const abortControllerRef = useRef(null)
-  const shouldAutoScrollRef = useRef(true)
-  const lastMessageCountRef = useRef(0)
-  const scrollTimeoutRef = useRef(null)
-  const previousQuestionsRef = useRef([])
-  const animationStartDelayRef = useRef(null)
 
   // Fetch analytics if not provided via props
   useEffect(() => {
@@ -97,7 +113,8 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
     const noDataCase = tradesStats === null || (tradesStats && tradesStats.totalTrades === 0)
     
     // Data is stable when we're not loading and we know the state (either has data or no data)
-    const dataStable = !loadingAnalytics && (hasTradesData || noDataCase)
+    // Also need analyticsReady to be true (or tradesStats to be explicitly null/empty for no-data case)
+    const dataStable = !loadingAnalytics && analyticsReady && (hasTradesData || noDataCase)
     
     if (dataStable && !isDataReady) {
       // Add a small delay to ensure questions are stable before starting animation
@@ -109,7 +126,7 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
     } else if (!dataStable && isDataReady) {
       setIsDataReady(false)
     }
-  }, [loadingAnalytics, tradesStats, isDataReady])
+  }, [loadingAnalytics, analyticsReady, tradesStats, isDataReady])
 
   // Use computed analytics if available, otherwise use props
   const effectiveAnalytics = computedAnalytics || analytics
@@ -121,6 +138,48 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
     // This ensures smooth UX - questions will update when analytics load
     return getDynamicSampleQuestions(tradesStats, effectiveAnalytics)
   }, [tradesStats, effectiveAnalytics])
+
+  // Calculate portfolio data for Vega welcome (only when on Vega page)
+  const portfolioData = useMemo(() => {
+    if (!isVegaPage || !metadata?.spotHoldings || !Array.isArray(metadata.spotHoldings)) {
+      return null
+    }
+    const totalValue = metadata.spotHoldings.reduce((sum, holding) => {
+      const usdValue = parseFloat(holding.usdValue || 0)
+      return sum + usdValue
+    }, 0)
+    const sortedHoldings = [...metadata.spotHoldings]
+      .sort((a, b) => parseFloat(b.usdValue || 0) - parseFloat(a.usdValue || 0))
+      .slice(0, 5)
+    return { totalValue, topHoldings: sortedHoldings }
+  }, [isVegaPage, metadata])
+
+  // Generate insights for Vega welcome
+  const insights = useMemo(() => {
+    if (!isVegaPage || !effectiveAnalytics || !tradesStats) return []
+    const insightsList = []
+    if (effectiveAnalytics.winRate !== undefined) {
+      // winRate is already a percentage (0-100), no need to multiply
+      const winRate = effectiveAnalytics.winRate
+      if (winRate >= 60) {
+        insightsList.push({ type: 'strength', text: `Strong ${winRate.toFixed(1)}% win rate`, icon: TrendingUp })
+      } else if (winRate < 40) {
+        insightsList.push({ type: 'weakness', text: `Win rate of ${winRate.toFixed(1)}% needs improvement`, icon: AlertCircle })
+      }
+    }
+    if (effectiveAnalytics.profitFactor !== undefined) {
+      const pf = effectiveAnalytics.profitFactor
+      if (pf >= 2) {
+        insightsList.push({ type: 'strength', text: `Excellent ${pf.toFixed(2)}x profit factor`, icon: TrendingUp })
+      } else if (pf < 1) {
+        insightsList.push({ type: 'weakness', text: `Profit factor of ${pf.toFixed(2)}x indicates losses`, icon: AlertCircle })
+      }
+    }
+    if (tradesStats.totalTrades > 0) {
+      insightsList.push({ type: 'info', text: `${tradesStats.totalTrades.toLocaleString()} trades analyzed`, icon: Target })
+    }
+    return insightsList.slice(0, 3)
+  }, [isVegaPage, effectiveAnalytics, tradesStats])
   
   // Reset sample index when questions change (e.g., experience level changes or data loads)
   // This ensures smooth transitions when user's context changes
@@ -870,7 +929,7 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
   // Render chat content (reusable for both compact and maximized views)
   const renderChatContent = useCallback((isMaximizedView = false, showHeader = true) => {
     return (
-    <div className={`flex flex-col h-full bg-black ${!isMaximizedView ? 'rounded-xl border border-white/10' : ''} overflow-hidden transition-all duration-300`} style={{ position: 'relative', isolation: 'isolate', display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+    <div className={`flex flex-col bg-black ${!isMaximizedView ? 'rounded-xl border border-white/10' : ''} overflow-hidden transition-all duration-300`} style={{ position: 'relative', isolation: 'isolate', display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, maxHeight: '100%' }}>
       {/* Header - only show in compact view or if explicitly requested */}
       {showHeader && !isMaximizedView && (
         <div className="relative flex items-center justify-between px-4 py-3 border-b border-white/5 flex-shrink-0">
@@ -963,29 +1022,130 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center h-full text-center px-4 relative z-10">
-              <h4 className="text-sm font-medium text-white/90 mb-1.5">
-                Ask me anything about your trading
-              </h4>
-              <p className="text-xs text-white/50 max-w-sm mb-5">
-                I can analyze your performance and provide personalized insights
-              </p>
-              <div className="flex flex-wrap gap-1.5 justify-center">
-                {sampleQuestions.slice(0, 3).map((q, idx) => (
-                  <button
-                    key={idx}
-                    className="px-2.5 py-1 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] text-white/70 hover:text-white/90 transition-all cursor-pointer"
-                    onClick={() => {
-                      setInput(q)
-                      setIsMaximized(true)
-                      inputRef.current?.focus()
-                    }}
-                  >
-                    {q}
-                  </button>
-                ))}
+            // Welcome state - show rich content on Vega page, simple on other pages
+            isVegaPage && tradesStats && tradesStats.totalTrades > 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center px-6 py-8 relative z-10 overflow-y-auto">
+                {/* Welcome Message */}
+                <div className="mb-8 space-y-4 max-w-2xl">
+                  <div className="flex items-center justify-center gap-2 mb-4">
+                    <Sparkles className="w-5 h-5 text-emerald-400" />
+                    <h3 className="text-lg font-semibold text-white/90">
+                      Welcome! I've analyzed your trading data
+                    </h3>
+                  </div>
+                  
+                  {/* Portfolio Value & Asset Distribution */}
+                  {(portfolioData?.totalValue > 0 || tradesStats.totalTrades > 0) && (
+                    <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-white/70 mb-4">
+                      {portfolioData && portfolioData.totalValue > 0 && (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <DollarSign className="w-4 h-4 text-emerald-400" />
+                            <span>
+                              Portfolio Value: <span className="text-white/90 font-semibold">
+                                ${portfolioData.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            </span>
+                          </div>
+                          {portfolioData.topHoldings.length > 0 && (
+                            <div className="flex items-center gap-2">
+                              <PieChart className="w-4 h-4 text-emerald-400" />
+                              <span>
+                                Top Holdings: {portfolioData.topHoldings.slice(0, 3).map((h, idx) => (
+                                  <span key={idx}>
+                                    {h.asset}
+                                    {idx < Math.min(2, portfolioData.topHoldings.length - 1) && ', '}
+                                  </span>
+                                ))}
+                              </span>
+                            </div>
+                          )}
+                        </>
+                      )}
+                      {tradesStats.totalTrades > 0 && (
+                        <div className="flex items-center gap-2">
+                          <Target className="w-4 h-4 text-emerald-400" />
+                          <span>
+                            {tradesStats.totalTrades.toLocaleString()} trades analyzed
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Insights */}
+                  {insights.length > 0 && (
+                    <div className="flex flex-wrap items-center justify-center gap-3 text-xs mb-6">
+                      {insights.map((insight, idx) => {
+                        const Icon = insight.icon
+                        return (
+                          <div
+                            key={idx}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border ${
+                              insight.type === 'strength'
+                                ? 'bg-emerald-400/10 border-emerald-400/30 text-emerald-400'
+                                : insight.type === 'weakness'
+                                ? 'bg-red-400/10 border-red-400/30 text-red-400'
+                                : 'bg-white/5 border-white/10 text-white/70'
+                            }`}
+                          >
+                            <Icon className="w-3.5 h-3.5" />
+                            <span>{insight.text}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Context-Aware Prompt Buttons */}
+                {sampleQuestions.length > 0 && (
+                  <div className="space-y-3 w-full max-w-3xl">
+                    <p className="text-xs text-white/60 mb-3">
+                      Try asking me:
+                    </p>
+                    <div className="flex flex-wrap items-center justify-center gap-2">
+                      {sampleQuestions.slice(0, 5).map((q, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setInput(q)
+                            inputRef.current?.focus()
+                          }}
+                          className="px-4 py-2 text-sm text-white/80 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg transition-all duration-200 font-medium"
+                        >
+                          {q}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-center px-4 relative z-10">
+                <h4 className="text-sm font-medium text-white/90 mb-1.5">
+                  Ask me anything about your trading
+                </h4>
+                <p className="text-xs text-white/50 max-w-sm mb-5">
+                  I can analyze your performance and provide personalized insights
+                </p>
+                <div className="flex flex-wrap gap-1.5 justify-center">
+                  {sampleQuestions.slice(0, 3).map((q, idx) => (
+                    <button
+                      key={idx}
+                      className="px-2.5 py-1 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] text-white/70 hover:text-white/90 transition-all cursor-pointer"
+                      onClick={() => {
+                        setInput(q)
+                        setIsMaximized(true)
+                        inputRef.current?.focus()
+                      }}
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )
           )) : (
           <>
             {messages.map((message, idx) => (
@@ -1113,13 +1273,13 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
       </div>
     </div>
     )
-  }, [messages, input, isInputFocused, displayedSample, isTypingSample, isDeletingSample, isLoading, tokenUsage, handleSend, handleStop, handleInputChange, handleInputFocus, handleInputBlur, handleInputClick, handleKeyPress, handleClear, hasNoData, hasSentMessagesWithoutData, onConnectExchange, onUploadCSV])
+  }, [messages, input, isInputFocused, displayedSample, isTypingSample, isDeletingSample, isLoading, tokenUsage, handleSend, handleStop, handleInputChange, handleInputFocus, handleInputBlur, handleInputClick, handleKeyPress, handleClear, hasNoData, hasSentMessagesWithoutData, onConnectExchange, onUploadCSV, isVegaPage, tradesStats, portfolioData, insights, sampleQuestions])
 
   return (
     <>
       {/* Compact View - only render when not maximized */}
       {!isMaximized && (
-        <div className="h-full w-full transition-all duration-300 animate-in fade-in">
+        <div className="h-full w-full transition-all duration-300 animate-in fade-in" style={{ minHeight: 0, maxHeight: '100%' }}>
           {renderChatContent(false)}
         </div>
       )}
@@ -1207,4 +1367,8 @@ export default function AIChat({ analytics, allTrades, tradesStats, onConnectExc
       </Dialog>
     </>
   )
-}
+})
+
+AIChat.displayName = 'AIChat'
+
+export default AIChat
