@@ -22,3 +22,6 @@ docs/
 
 # MCP Test Results (contains API responses and potentially sensitive data)
 mcp-test-results/
+
+# Supabase migrations (contains database queries and potentially sensitive data)
+supabase/migrations/
