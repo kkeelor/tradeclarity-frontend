@@ -77,8 +77,39 @@ export default function VegaContent() {
           fetch('/api/trades/stats')
         ])
         
-        const cacheData = await cacheResponse.json()
-        const statsData = await statsResponse.json()
+        // Check if responses are OK before parsing JSON
+        let cacheData = { success: false, analytics: null }
+        let statsData = { success: false, metadata: null }
+        
+        if (cacheResponse.ok) {
+          try {
+            const contentType = cacheResponse.headers.get('content-type')
+            if (contentType && contentType.includes('application/json')) {
+              cacheData = await cacheResponse.json()
+            } else {
+              console.warn('[VegaContent] Cache API returned non-JSON response')
+            }
+          } catch (error) {
+            console.error('[VegaContent] Error parsing cache response:', error)
+          }
+        } else {
+          console.warn(`[VegaContent] Cache API returned ${cacheResponse.status}`)
+        }
+        
+        if (statsResponse.ok) {
+          try {
+            const contentType = statsResponse.headers.get('content-type')
+            if (contentType && contentType.includes('application/json')) {
+              statsData = await statsResponse.json()
+            } else {
+              console.warn('[VegaContent] Stats API returned non-JSON response')
+            }
+          } catch (error) {
+            console.error('[VegaContent] Error parsing stats response:', error)
+          }
+        } else {
+          console.warn(`[VegaContent] Stats API returned ${statsResponse.status}`)
+        }
 
         console.log('[VegaContent] Loading from API:', {
           cacheSuccess: cacheData.success,

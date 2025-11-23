@@ -75,6 +75,11 @@ function UserMenuButton({ user, onSignOut, showUserMenu, setShowUserMenu }) {
 }
 
 function NavButton({ icon: Icon, label, href, onClick, isActive = false, disabled = false }) {
+  // Debug logging
+  if (isActive) {
+    console.log(`[NavButton] Rendering active button: ${label}`, { isActive, href })
+  }
+  
   if (disabled) {
     return (
       <button
@@ -98,16 +103,23 @@ function NavButton({ icon: Icon, label, href, onClick, isActive = false, disable
       // Otherwise, let the Link handle navigation naturally (allows right-click context menu)
     }
     
+    const activeClasses = isActive 
+      ? 'text-white bg-emerald-500/30 border border-emerald-400/60 shadow-lg shadow-emerald-500/20' 
+      : 'text-slate-300 hover:text-white hover:bg-white/5 border border-transparent'
+    
     return (
       <Link
         href={href}
         onClick={handleClick}
-        className={`group inline-flex items-center justify-center gap-1 md:gap-2 rounded-full px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium transition-colors flex-shrink-0 whitespace-nowrap min-w-[32px] md:min-w-auto ${
-          isActive
-            ? 'text-white'
-            : 'text-slate-300 hover:text-white'
-        }`}
-        style={{ minHeight: '32px' }}
+        className={`group inline-flex items-center justify-center gap-1 md:gap-2 rounded-full px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium transition-all duration-200 flex-shrink-0 whitespace-nowrap min-w-[32px] md:min-w-auto ${activeClasses}`}
+        style={{ 
+          minHeight: '32px',
+          ...(isActive && {
+            backgroundColor: 'rgba(16, 185, 129, 0.3)',
+            borderColor: 'rgba(16, 185, 129, 0.6)',
+            boxShadow: '0 10px 15px -3px rgba(16, 185, 129, 0.2), 0 4px 6px -2px rgba(16, 185, 129, 0.1)'
+          })
+        }}
       >
         <Icon className={`h-3 w-3 md:h-4 md:w-4 transition-colors flex-shrink-0 ${
           isActive
@@ -124,10 +136,10 @@ function NavButton({ icon: Icon, label, href, onClick, isActive = false, disable
   return (
     <button
       onClick={onClick}
-      className={`group inline-flex items-center justify-center gap-1 md:gap-2 rounded-full px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium transition-colors flex-shrink-0 whitespace-nowrap min-w-[32px] md:min-w-auto ${
+      className={`group inline-flex items-center justify-center gap-1 md:gap-2 rounded-full px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium transition-all duration-200 flex-shrink-0 whitespace-nowrap min-w-[32px] md:min-w-auto ${
         isActive
-          ? 'text-white'
-          : 'text-slate-300 hover:text-white'
+          ? '!text-white !bg-emerald-500/30 !border !border-emerald-400/60 shadow-lg shadow-emerald-500/20'
+          : 'text-slate-300 hover:text-white hover:bg-white/5 border border-transparent'
       }`}
       style={{ minHeight: '32px' }}
     >
@@ -286,7 +298,15 @@ export default function Header({
             {navItems.length > 0 && (
               <nav className="hidden md:flex items-center gap-1 md:gap-2 overflow-x-auto scrollbar-hide min-w-0">
                 {navItems.map(item => {
-                  const isActive = pathname === item.path || (item.path === '/dashboard' && pathname?.startsWith('/dashboard'))
+                  const isActive = pathname === item.path || 
+                    (item.path === '/dashboard' && pathname?.startsWith('/dashboard')) ||
+                    (item.path === '/analyze' && pathname?.startsWith('/analyze')) ||
+                    (item.path === '/data' && pathname?.startsWith('/data')) ||
+                    (item.path === '/vega' && pathname?.startsWith('/vega'))
+                  // Debug logging
+                  if (isActive) {
+                    console.log(`[Header] Active nav item: ${item.label} (pathname: ${pathname}, item.path: ${item.path})`)
+                  }
                   return (
                     <NavButton 
                       key={item.label} 
@@ -387,7 +407,10 @@ export default function Header({
               <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
                 {navItems.map(item => {
                   const Icon = item.icon
-                  const isActive = pathname === item.path || (item.path === '/dashboard' && pathname?.startsWith('/dashboard'))
+                  const isActive = pathname === item.path || 
+                    (item.path === '/dashboard' && pathname?.startsWith('/dashboard')) ||
+                    (item.path === '/analyze' && pathname?.startsWith('/analyze')) ||
+                    (item.path === '/data' && pathname?.startsWith('/data'))
                   const isDisabled = item.disabled
                   
                   if (isDisabled) {
@@ -420,8 +443,8 @@ export default function Header({
                         onClick={handleLinkClick}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-300 ${
                           isActive
-                            ? 'bg-white/10 text-white'
-                            : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                            ? 'bg-white/10 text-white border-l-2 border-emerald-400'
+                            : 'text-slate-300 hover:bg-white/10 hover:text-white border-l-2 border-transparent'
                         }`}
                       >
                         <Icon className={`h-5 w-5 ${
@@ -429,7 +452,7 @@ export default function Header({
                             ? 'text-emerald-300'
                             : 'text-slate-400'
                         }`} />
-                        <span>{item.label}</span>
+                        <span className={isActive ? 'font-medium' : ''}>{item.label}</span>
                       </Link>
                     )
                   }
@@ -440,8 +463,8 @@ export default function Header({
                       onClick={() => handleNavClick(item.onClick)}
                       className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-300 ${
                         isActive
-                          ? 'bg-white/10 text-white'
-                          : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                          ? 'bg-white/10 text-white border-l-2 border-emerald-400'
+                          : 'text-slate-300 hover:bg-white/10 hover:text-white border-l-2 border-transparent'
                       }`}
                     >
                       <Icon className={`h-5 w-5 ${
@@ -449,7 +472,7 @@ export default function Header({
                           ? 'text-emerald-300'
                           : 'text-slate-400'
                       }`} />
-                      <span>{item.label}</span>
+                      <span className={isActive ? 'font-medium' : ''}>{item.label}</span>
                     </button>
                   )
                 })}
