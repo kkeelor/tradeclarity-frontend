@@ -45,7 +45,7 @@ export default function Footer() {
         <Link href="/legal/shipping" className="hover:text-emerald-400 transition-colors">Shipping Policy</Link>
       </div>
       <p className="font-medium">Built for traders who are tired of guessing</p>
-      <p>? 2025 TradeClarity. Your data stays yours. Always.</p>
+      <p>&copy; 2025 TradeClarity. Your data stays yours. Always.</p>
     </footer>
   )
 }
