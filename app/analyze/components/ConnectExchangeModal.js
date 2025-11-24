@@ -1,7 +1,7 @@
 // app/analyze/components/ConnectExchangeModal.js
 'use client'
 
-import { Upload, Link as LinkIcon, FileText, ArrowRight } from 'lucide-react'
+import { Upload, Link as LinkIcon, FileText, ArrowRight, Building2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 
@@ -14,6 +14,14 @@ export default function ConnectExchangeModal({ isOpen, onClose, onSelectMethod }
       description: 'Live connection to your exchange. Get real-time data and automatic updates.',
       benefits: ['Real-time data', 'Automatic updates', 'No manual exports'],
       recommended: true
+    },
+    {
+      id: 'snaptrade',
+      icon: Building2,
+      title: 'Connect via Snaptrade',
+      description: 'Connect 20+ brokerages securely through Snaptrade. No API keys needed - OAuth connection.',
+      benefits: ['20+ brokerages', 'No API keys', 'Secure OAuth', 'Robinhood, Coinbase, Fidelity'],
+      recommended: false
     },
     {
       id: 'csv',
@@ -98,7 +106,7 @@ export default function ConnectExchangeModal({ isOpen, onClose, onSelectMethod }
             <FileText className="w-3 h-3 text-white/20 flex-shrink-0 mt-0.5" />
             <p>
               <span className="font-medium text-white/40">Supported exchanges:</span>{' '}
-              Binance, CoinDCX (more coming soon)
+              Binance, CoinDCX, Snaptrade (20+ brokerages), CSV upload
             </p>
           </div>
         </div>

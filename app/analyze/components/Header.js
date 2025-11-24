@@ -75,10 +75,6 @@ function UserMenuButton({ user, onSignOut, showUserMenu, setShowUserMenu }) {
 }
 
 function NavButton({ icon: Icon, label, href, onClick, isActive = false, disabled = false }) {
-  // Debug logging
-  if (isActive) {
-    console.log(`[NavButton] Rendering active button: ${label}`, { isActive, href })
-  }
   
   if (disabled) {
     return (
@@ -303,10 +299,6 @@ export default function Header({
                     (item.path === '/analyze' && pathname?.startsWith('/analyze')) ||
                     (item.path === '/data' && pathname?.startsWith('/data')) ||
                     (item.path === '/vega' && pathname?.startsWith('/vega'))
-                  // Debug logging
-                  if (isActive) {
-                    console.log(`[Header] Active nav item: ${item.label} (pathname: ${pathname}, item.path: ${item.path})`)
-                  }
                   return (
                     <NavButton 
                       key={item.label} 

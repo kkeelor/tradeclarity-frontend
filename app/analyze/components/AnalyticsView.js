@@ -27,6 +27,7 @@ import { ExchangeIcon, SeparatorText, Separator, Card as ShadcnCard, CardHeader,
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { getCurrencySymbol, formatCurrencyNumber } from '../utils/currencyFormatter'
 import {
@@ -6152,32 +6153,69 @@ export default function AnalyticsView({
             </div>
 
             {/* Filter Panel */}
-            {showFilters && currencyMetadata?.exchanges && currencyMetadata.exchanges.length > 1 && (
+            {showFilters && currencyMetadata?.exchanges && currencyMetadata.exchanges.length > 0 && (
               <div className="border-b border-white/5 bg-white/[0.03] px-4 py-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  {/* Exchange Buttons */}
-                  {currencyMetadata.exchanges.map(exchange => (
-                    <button
-                      key={exchange}
-                      onClick={() => {
-                        if (selectedExchanges.includes(exchange)) {
-                          setSelectedExchanges(selectedExchanges.filter(ex => ex !== exchange))
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Exchange Dropdown */}
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-slate-400 whitespace-nowrap">Exchange:</label>
+                    <Select
+                      value={selectedExchanges.length > 0 ? selectedExchanges[0].toLowerCase() : 'all'}
+                      onValueChange={(value) => {
+                        if (value && value !== 'all') {
+                          setSelectedExchanges([value])
                         } else {
-                          setSelectedExchanges([...selectedExchanges, exchange])
+                          setSelectedExchanges([])
                         }
                       }}
-                      className={`relative flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium capitalize transition-all ${
-                        selectedExchanges.includes(exchange)
-                          ? 'border-purple-400/50 bg-purple-500/20 text-white'
-                          : 'border-white/10 bg-white/5 text-slate-200 hover:border-purple-400/40 hover:text-white'
-                      }`}
                     >
-                      {selectedExchanges.includes(exchange) && (
-                        <CheckCircle className="w-3.5 h-3.5 text-purple-200" />
-                      )}
-                      {exchange}
-                    </button>
-                  ))}
+                      <SelectTrigger className="w-[180px] bg-black border-white/10 text-white/90 hover:border-white/20">
+                        <SelectValue placeholder="All exchanges">
+                          {selectedExchanges.length > 0 
+                            ? selectedExchanges[0].charAt(0).toUpperCase() + selectedExchanges[0].slice(1)
+                            : 'All exchanges'}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent className="bg-black border-white/10">
+                        <SelectItem value="all" className="text-white/90 hover:bg-white/10 focus:bg-white/10">
+                          All exchanges
+                        </SelectItem>
+                        {(() => {
+                          // Get unique exchanges, normalize to lowercase, ensure Binance is included, and sort
+                          const existingExchanges = (currencyMetadata.exchanges || []).map(ex => String(ex).toLowerCase().trim())
+                          const allExchanges = [...new Set([
+                            'binance', // Always include Binance first
+                            ...existingExchanges
+                          ])]
+                          
+                          // Sort alphabetically but keep Binance visible
+                          const sortedExchanges = allExchanges.sort((a, b) => {
+                            if (a === 'binance') return -1
+                            if (b === 'binance') return 1
+                            return a.localeCompare(b)
+                          })
+                          
+                          return sortedExchanges.map(exchange => {
+                            const displayName = exchange === 'binance' 
+                              ? 'Binance' 
+                              : exchange === 'snaptrade'
+                              ? 'Snaptrade'
+                              : exchange.charAt(0).toUpperCase() + exchange.slice(1)
+                            
+                            return (
+                              <SelectItem 
+                                key={exchange} 
+                                value={exchange}
+                                className="text-white/90 hover:bg-white/10 focus:bg-white/10"
+                              >
+                                {displayName}
+                              </SelectItem>
+                            )
+                          })
+                        })()}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
                   {/* Apply Button */}
                   <button
@@ -6185,14 +6223,12 @@ export default function AnalyticsView({
                       setAppliedExchanges(selectedExchanges)
                       if (onFilterExchanges && selectedExchanges.length > 0) {
                         onFilterExchanges(selectedExchanges)
+                      } else if (onFilterExchanges && selectedExchanges.length === 0) {
+                        // If "All exchanges" selected, pass empty array to show all
+                        onFilterExchanges([])
                       }
                     }}
-                    disabled={selectedExchanges.length === 0}
-                    className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-all ${
-                      selectedExchanges.length > 0
-                        ? 'bg-gradient-to-r from-purple-500 to-purple-400 text-white shadow-lg shadow-purple-500/30 hover:from-purple-400 hover:to-purple-300'
-                        : 'cursor-not-allowed bg-white/5 text-slate-500'
-                    }`}
+                    className="rounded-full px-4 py-1.5 text-sm font-semibold transition-all bg-gradient-to-r from-purple-500 to-purple-400 text-white shadow-lg shadow-purple-500/30 hover:from-purple-400 hover:to-purple-300"
                   >
                     Apply
                   </button>
@@ -6203,8 +6239,11 @@ export default function AnalyticsView({
                       onClick={() => {
                         setSelectedExchanges([])
                         setAppliedExchanges([])
+                        if (onFilterExchanges) {
+                          onFilterExchanges([]) // Show all exchanges
+                        }
                       }}
-                      className="ml-auto inline-flex items-center gap-1 text-xs text-slate-400 transition-colors hover:text-purple-200"
+                      className="inline-flex items-center gap-1 text-xs text-slate-400 transition-colors hover:text-purple-200"
                     >
                       <X className="w-3 h-3" />
                       Clear

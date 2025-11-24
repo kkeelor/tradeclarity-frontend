@@ -1,7 +1,7 @@
 // app/dashboard/DashboardContent.js
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/AuthContext'
 import AuthScreen from '../analyze/components/AuthScreen'
@@ -205,6 +205,12 @@ export default function DashboardContent() {
   const [showAPIConnection, setShowAPIConnection] = useState(false)
   const [showCSVUpload, setShowCSVUpload] = useState(false)
   const [loadingComplete, setLoadingComplete] = useState(false)
+  
+  // Store user reference for use in async callbacks
+  const userRef = useRef(user)
+  useEffect(() => {
+    userRef.current = user
+  }, [user])
 
   const exchangeList = getExchangeList()
   const currentExchange = EXCHANGES[exchange]
@@ -221,6 +227,376 @@ export default function DashboardContent() {
     window.addEventListener('storage', handleStorageChange)
     return () => window.removeEventListener('storage', handleStorageChange)
   }, [])
+
+  const handleSnaptradeConnection = async () => {
+    console.log('🚀 [Snaptrade Flow] Starting Snaptrade connection flow')
+    setStatus('connecting')
+    setError('')
+    setProgress('Connecting to Snaptrade...')
+
+    // CRITICAL: Open popup IMMEDIATELY to preserve user gesture chain
+    // Chrome blocks popups opened after async operations
+    const width = 600
+    const height = 700
+    const left = window.screenX + (window.outerWidth - width) / 2
+    const top = window.screenY + (window.outerHeight - height) / 2
+
+    // Open popup with loading page first
+    const popup = window.open(
+      '/snaptrade/loading',
+      'Snaptrade Connection',
+      `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+    )
+
+    if (!popup) {
+      console.error('❌ [Snaptrade Flow] Popup blocked')
+      setStatus('error')
+      setProgress('')
+      setError('Popup blocked. Please allow popups for this site and try again.')
+      return
+    }
+
+    try {
+      console.log('✅ [Snaptrade Flow] Popup opened, calling initiate-connection API')
+      // Call initiate-connection API (handles registration check and login URL generation)
+      const response = await fetch('/api/snaptrade/initiate-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customRedirect: `${window.location.origin}/snaptrade/callback?status=success`,
+        }),
+      })
+
+      console.log('📡 [Snaptrade Flow] API response status:', response.status, response.statusText)
+      const data = await response.json()
+      console.log('📡 [Snaptrade Flow] API response data:', {
+        success: data.success,
+        hasRedirectURI: !!data.redirectURI,
+        hasSessionId: !!data.sessionId,
+        wasRegistered: data.wasRegistered,
+        error: data.error,
+      })
+
+      if (!response.ok) {
+        console.error('❌ [Snaptrade Flow] API error:', {
+          status: response.status,
+          data,
+        })
+        popup.close()
+        // Handle duplicate user error
+        if (data.code === 'DUPLICATE_USER' || response.status === 409) {
+          throw new Error('Your account is already connected to Snaptrade. Please contact support if you need assistance.')
+        }
+        throw new Error(data.error || 'Failed to initiate Snaptrade connection')
+      }
+
+      console.log('✅ [Snaptrade Flow] Login URL received, updating popup location')
+      // Update popup location to Snaptrade URL (maintains user gesture chain)
+      popup.location.href = data.redirectURI
+
+      console.log('✅ [Snaptrade Flow] Popup opened, waiting for callback')
+      setProgress('Waiting for brokerage connection...')
+
+      // Listen for callback via message from callback page
+      const handleMessage = (event) => {
+        console.log('📨 [Snaptrade Flow] Message received:', {
+          origin: event.origin,
+          expectedOrigin: window.location.origin,
+          type: event.data?.type,
+          data: event.data,
+        })
+
+        // Only process messages from our own origin (callback page)
+        // Ignore messages from Snaptrade's domain (app.snaptrade.com)
+        if (event.origin !== window.location.origin) {
+          console.log('ℹ️ [Snaptrade Flow] Message from external origin (likely Snaptrade modal), ignoring:', event.origin)
+          return
+        }
+
+        // Only process messages with our expected type
+        if (!event.data || typeof event.data !== 'object' || !event.data.type) {
+          console.log('ℹ️ [Snaptrade Flow] Message without expected type, ignoring')
+          return
+        }
+
+        if (event.data.type === 'snaptrade_connected') {
+          console.log('✅ [Snaptrade Flow] Connection successful, starting data fetch')
+          window.removeEventListener('message', handleMessage)
+          setProgress('Brokerage connected! Fetching your data...')
+
+          // Wait a moment for Snaptrade to process, then fetch accounts and data
+          setTimeout(async () => {
+            try {
+              console.log('📊 [Snaptrade Flow] Fetching accounts...')
+              // Fetch accounts
+              const accountsResponse = await fetch('/api/snaptrade/accounts')
+              console.log('📊 [Snaptrade Flow] Accounts response:', {
+                status: accountsResponse.status,
+                ok: accountsResponse.ok,
+              })
+              
+              if (accountsResponse.ok) {
+                const accountsData = await accountsResponse.json()
+                console.log('📊 [Snaptrade Flow] Accounts data:', {
+                  accountCount: accountsData.accounts?.length || 0,
+                  accounts: accountsData.accounts?.map(a => ({ id: a.id, name: a.name, institution: a.institution_name })),
+                })
+                const accounts = accountsData.accounts || []
+
+                if (accounts.length > 0) {
+                  // Fetch transactions for all accounts
+                  console.log('📊 [Snaptrade Flow] Fetching transactions...')
+                  setProgress('Fetching transaction history...')
+                  const transactionsResponse = await fetch('/api/snaptrade/transactions')
+                  console.log('📊 [Snaptrade Flow] Transactions response:', {
+                    status: transactionsResponse.status,
+                    ok: transactionsResponse.ok,
+                  })
+                  
+                  if (transactionsResponse.ok) {
+                    const transactionsData = await transactionsResponse.json()
+                    console.log('📊 [Snaptrade Flow] Transactions data:', {
+                      activityCount: transactionsData.activities?.length || 0,
+                      firstFew: transactionsData.activities?.slice(0, 3),
+                    })
+                    const activities = transactionsData.activities || []
+
+                    // Fetch holdings data
+                    console.log('📊 [Snaptrade Flow] Fetching holdings...')
+                    setProgress('Fetching account balances...')
+                    const holdingsResponse = await fetch('/api/snaptrade/holdings')
+                    console.log('📊 [Snaptrade Flow] Holdings response:', {
+                      status: holdingsResponse.status,
+                      ok: holdingsResponse.ok,
+                    })
+                    
+                    let holdingsData = null
+                    if (holdingsResponse.ok) {
+                      const holdingsResult = await holdingsResponse.json()
+                      holdingsData = holdingsResult.holdings
+                      console.log('📊 [Snaptrade Flow] Holdings data:', {
+                        hasHoldings: !!holdingsData,
+                        isArray: Array.isArray(holdingsData),
+                        accountCount: Array.isArray(holdingsData) ? holdingsData.length : 0,
+                        holdingsStructure: Array.isArray(holdingsData) && holdingsData.length > 0 ? {
+                          firstAccount: {
+                            accountId: holdingsData[0]?.account?.id,
+                            accountName: holdingsData[0]?.account?.name,
+                            positionsCount: holdingsData[0]?.positions?.length || 0,
+                            cashCount: holdingsData[0]?.cash?.length || 0,
+                            totalValue: holdingsData[0]?.total_value,
+                            positions: holdingsData[0]?.positions?.slice(0, 3).map(p => ({
+                              symbol: p.symbol?.symbol,
+                              units: p.units,
+                              price: p.price,
+                              value: p.units * p.price,
+                            })),
+                            cash: holdingsData[0]?.cash?.map(c => ({
+                              currency: c.currency?.code || c.currency,
+                              amount: c.amount,
+                            })),
+                          },
+                        } : holdingsData,
+                      })
+                    } else {
+                      const errorData = await holdingsResponse.json().catch(() => ({}))
+                      console.error('❌ [Snaptrade Flow] Failed to fetch holdings:', {
+                        status: holdingsResponse.status,
+                        error: errorData,
+                      })
+                    }
+
+                    if (activities.length > 0) {
+                      // Transform Snaptrade activities to TradeClarity format
+                      console.log('🔄 [Snaptrade Flow] Transforming trades...')
+                      const { transformActivitiesToTrades } = await import('@/lib/snaptrade-transform')
+                      const transformedTrades = transformActivitiesToTrades(activities)
+                      console.log('✅ [Snaptrade Flow] Transformed trades:', {
+                        originalCount: activities.length,
+                        transformedCount: transformedTrades.length,
+                        sampleTrade: transformedTrades[0],
+                      })
+
+                      // Prepare data for analysis
+                      const analysisData = {
+                        spotTrades: transformedTrades,
+                        futuresTrades: [],
+                        futuresIncome: [],
+                        metadata: {
+                          primaryCurrency: 'USD',
+                          exchanges: ['snaptrade'],
+                          source: 'snaptrade',
+                        },
+                      }
+
+                      // Transform and analyze data
+                      console.log('📊 [Snaptrade Flow] Analyzing data...')
+                      setProgress('Analyzing your trading data...')
+                      const analysis = await analyzeData(analysisData)
+                      console.log('✅ [Snaptrade Flow] Analysis complete:', {
+                        hasAnalysis: !!analysis,
+                        analysisKeys: analysis ? Object.keys(analysis) : [],
+                      })
+
+                      // Calculate tradesStats
+                      const allTradesArray = transformedTrades
+                      const sortedTrades = [...allTradesArray].sort((a, b) => {
+                        const timeA = a.time || a.trade_time || 0
+                        const timeB = b.time || b.trade_time || 0
+                        return new Date(timeA) - new Date(timeB)
+                      })
+                      
+                      const tradesStats = {
+                        totalTrades: allTradesArray.length,
+                        spotTrades: transformedTrades.length,
+                        futuresIncome: 0,
+                        futuresPositions: 0,
+                        oldestTrade: sortedTrades.length > 0 ? (sortedTrades[0].time || sortedTrades[0].trade_time) : null,
+                        newestTrade: sortedTrades.length > 0 ? (sortedTrades[sortedTrades.length - 1].time || sortedTrades[sortedTrades.length - 1].trade_time) : null,
+                        primaryCurrency: 'USD',
+                        exchanges: ['snaptrade'],
+                      }
+
+                      // Store analytics and data in sessionStorage for VegaAI
+                      sessionStorage.setItem('preAnalyzedData', JSON.stringify({
+                        analytics: analysis,
+                        data: analysisData,
+                        tradesStats: tradesStats,
+                        currencyMetadata: analysisData.metadata,
+                        currency: 'USD',
+                        holdings: holdingsData, // Include holdings data
+                      }))
+
+                      // Store trades
+                      console.log('💾 [Snaptrade Flow] Storing trades...')
+                      const currentUser = userRef.current
+                      if (!currentUser) {
+                        console.error('❌ [Snaptrade Flow] No user found for storing trades')
+                      } else {
+                        const storeResponse = await fetch('/api/trades/store', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            spotTrades: transformedTrades,
+                            futuresIncome: [],
+                            userId: currentUser.id,
+                            exchange: 'snaptrade',
+                            metadata: {
+                              primaryCurrency: 'USD',
+                              exchanges: ['snaptrade'],
+                              source: 'snaptrade',
+                            },
+                          }),
+                        })
+                        
+                        const storeData = await storeResponse.json().catch(() => ({}))
+                        console.log('💾 [Snaptrade Flow] Store response:', {
+                          status: storeResponse.status,
+                          ok: storeResponse.ok,
+                          data: storeData,
+                        })
+                        
+                        if (!storeResponse.ok) {
+                          console.error('❌ [Snaptrade Flow] Failed to store trades:', {
+                            status: storeResponse.status,
+                            error: storeData,
+                          })
+                        }
+                      }
+
+                      console.log('✅ [Snaptrade Flow] Flow complete, redirecting to analyze')
+                      setStatus('success')
+                      setProgress('')
+                      router.push('/analyze')
+                    } else {
+                      console.warn('⚠️ [Snaptrade Flow] No transactions found')
+                      setStatus('idle')
+                      setProgress('')
+                      setError('No transactions found. Please ensure your brokerage account has trading history.')
+                    }
+                  } else {
+                    const errorData = await transactionsResponse.json().catch(() => ({}))
+                    console.error('❌ [Snaptrade Flow] Failed to fetch transactions:', {
+                      status: transactionsResponse.status,
+                      error: errorData,
+                    })
+                    setStatus('idle')
+                    setProgress('')
+                    setError('Failed to fetch transactions. Please try again.')
+                  }
+                } else {
+                  console.warn('⚠️ [Snaptrade Flow] No accounts found')
+                  setStatus('idle')
+                  setProgress('')
+                  setError('No accounts found. Please ensure your brokerage account is connected.')
+                }
+              } else {
+                let errorData = {}
+                try {
+                  const text = await accountsResponse.text()
+                  console.error('❌ [Snaptrade Flow] Failed to fetch accounts - raw response:', text)
+                  errorData = JSON.parse(text)
+                } catch (e) {
+                  console.error('❌ [Snaptrade Flow] Failed to parse error response:', e)
+                }
+                
+                console.error('❌ [Snaptrade Flow] Failed to fetch accounts:', {
+                  status: accountsResponse.status,
+                  statusText: accountsResponse.statusText,
+                  error: errorData,
+                  url: accountsResponse.url,
+                })
+                setStatus('idle')
+                setProgress('')
+                setError(errorData.error || `Failed to fetch accounts (${accountsResponse.status}). Please check server logs.`)
+              }
+            } catch (err) {
+              console.error('❌ [Snaptrade Flow] Error fetching Snaptrade data:', {
+                error: err,
+                message: err.message,
+                stack: err.stack,
+              })
+              setStatus('idle')
+              setProgress('')
+              setError(err.message || 'Failed to fetch your trading data')
+            }
+          }, 2000)
+        } else if (event.data.type === 'snaptrade_error') {
+          console.error('❌ [Snaptrade Flow] Connection error from callback:', event.data.error)
+          window.removeEventListener('message', handleMessage)
+          setStatus('idle')
+          setProgress('')
+          setError(event.data.error || 'Failed to connect brokerage')
+        }
+      }
+
+      window.addEventListener('message', handleMessage)
+      console.log('👂 [Snaptrade Flow] Message listener attached')
+
+      // Fallback: Check if popup closed (user might have closed it manually)
+      const checkClosed = setInterval(() => {
+        if (popup.closed) {
+          console.log('⚠️ [Snaptrade Flow] Popup closed by user')
+          clearInterval(checkClosed)
+          window.removeEventListener('message', handleMessage)
+          // Only reset if we're still in connecting state (user closed before completion)
+          if (status === 'connecting') {
+            setStatus('idle')
+            setProgress('')
+          }
+        }
+      }, 500)
+    } catch (err) {
+      console.error('❌ [Snaptrade Flow] Connection error:', {
+        error: err,
+        message: err.message,
+        stack: err.stack,
+      })
+      setStatus('error')
+      setProgress('')
+      setError(err.message || 'Failed to connect with Snaptrade')
+    }
+  }
 
   const handleConnect = async (apiKey, apiSecret, preFetchedData = null) => {
     // If we're already connecting and receiving data, update progress and analyze
@@ -501,11 +877,13 @@ export default function DashboardContent() {
     )
   }
 
+
   return (
     <Dashboard
       onConnectExchange={() => setShowAPIConnection(true)}
       onTryDemo={handleTryDemo}
       onConnectWithCSV={() => setShowCSVUpload(true)}
+      onConnectSnaptrade={handleSnaptradeConnection}
       onViewAnalytics={handleViewAnalytics}
     />
   )

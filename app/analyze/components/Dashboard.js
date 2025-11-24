@@ -498,7 +498,7 @@ function getIconComponent(iconName) {
   return iconMap[iconName] || Lightbulb
 }
 
-export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithCSV, onViewAnalytics }) {
+export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithCSV, onConnectSnaptrade, onViewAnalytics }) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -1212,6 +1212,11 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
       // Go to CSV upload flow
       if (onConnectWithCSV) {
         onConnectWithCSV()
+      }
+    } else if (method === 'snaptrade') {
+      // Go to Snaptrade OAuth flow
+      if (onConnectSnaptrade) {
+        onConnectSnaptrade()
       }
     }
   }

@@ -24,27 +24,49 @@ export async function POST(request) {
     // Process spot trades
     if (spotTrades && spotTrades.length > 0) {
       spotTrades.forEach(trade => {
-        tradesToInsert.push({
+        // Handle both formats: Binance/CoinDCX format and Snaptrade format
+        // Binance/CoinDCX format: { symbol, isBuyer, qty, price, time, id, orderId, isMaker, commission, commissionAsset, quoteQty }
+        // Snaptrade format: { symbol, side, isBuyer, quantity, price, timestamp, trade_time, trade_id, order_id, commission, commission_asset, quote_quantity }
+        
+        const isSnaptradeFormat = trade.trade_id !== undefined || trade.trade_time !== undefined
+        
+        const normalizedTrade = {
           user_id: userId,
           exchange: normalizedExchange,
-          exchange_connection_id: connectionId || null, // Optional for CSV uploads
+          exchange_connection_id: connectionId || null,
           csv_upload_id: csvUploadId || null,
           symbol: trade.symbol,
-          side: trade.isBuyer ? 'BUY' : 'SELL',
-          type: trade.isMaker ? 'LIMIT' : 'MARKET',
-          quantity: parseFloat(trade.qty),
+          side: isSnaptradeFormat 
+            ? trade.side 
+            : (trade.isBuyer ? 'BUY' : 'SELL'),
+          type: isSnaptradeFormat
+            ? (trade.type || 'MARKET')
+            : (trade.isMaker ? 'LIMIT' : 'MARKET'),
+          quantity: parseFloat(isSnaptradeFormat ? trade.quantity : trade.qty),
           price: parseFloat(trade.price),
-          quote_quantity: parseFloat(trade.quoteQty || parseFloat(trade.qty) * parseFloat(trade.price)),
+          quote_quantity: parseFloat(
+            isSnaptradeFormat 
+              ? trade.quote_quantity 
+              : (trade.quoteQty || parseFloat(trade.qty || trade.quantity) * parseFloat(trade.price))
+          ),
           commission: parseFloat(trade.commission || 0),
-          commission_asset: trade.commissionAsset || 'USDT',
-          timestamp: trade.time,
-          trade_time: new Date(trade.time).toISOString(),
-          trade_id: String(trade.id),
-          order_id: String(trade.orderId),
-          is_futures: false,
-          account_type: 'SPOT',
+          commission_asset: isSnaptradeFormat 
+            ? (trade.commission_asset || 'USD')
+            : (trade.commissionAsset || 'USDT'),
+          timestamp: isSnaptradeFormat 
+            ? trade.timestamp 
+            : trade.time,
+          trade_time: isSnaptradeFormat
+            ? trade.trade_time
+            : new Date(trade.time).toISOString(),
+          trade_id: String(isSnaptradeFormat ? trade.trade_id : trade.id),
+          order_id: String(isSnaptradeFormat ? (trade.order_id || trade.trade_id) : (trade.orderId || trade.id)),
+          is_futures: trade.is_futures || false,
+          account_type: trade.account_type || 'SPOT',
           raw_data: trade
-        })
+        }
+        
+        tradesToInsert.push(normalizedTrade)
       })
     }
 
