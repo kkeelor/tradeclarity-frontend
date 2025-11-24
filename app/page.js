@@ -72,7 +72,7 @@ function TypingAnimation({ texts, className = '' }) {
   return (
     <span className={className}>
       {displayedText}
-      <span className={`inline-block w-0.5 h-[1em] bg-white/80 ml-1 align-middle ${isTyping || isDeleting ? 'animate-pulse' : ''}`} />
+      <span className={`inline-block w-0.5 h-[1em] bg-slate-200/80 ml-1 align-middle ${isTyping || isDeleting ? 'animate-pulse' : ''}`} />
     </span>
   )
 }
@@ -227,35 +227,42 @@ export default function LandingPage() {
         <div className="max-w-4xl text-center space-y-6 md:space-y-8">
           {/* Headline */}
           <div className="space-y-3 md:space-y-4">
-            <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold tracking-tight leading-tight">
-              Your Trading Patterns Are
+            <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold tracking-tight leading-tight">
+              Wealth isn't built in distraction,
               <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
-                Hiding in Plain Sight
+                it's built in clarity.
               </span>
             </h1>
             
-            <div className="text-base md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed px-4 min-h-[4rem] flex flex-col items-center justify-center">
+            <div className="text-base md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed px-4 min-h-[4rem] flex flex-col items-center justify-center mt-12 md:mt-16">
               <p className="mb-2 text-white/60 text-sm md:text-base">
                 Ask Vega:
               </p>
-              <p className="text-center">
-                <TypingAnimation 
-                  texts={[
-                    "What are my biggest trading weaknesses?",
-                    "How can I improve my win rate?",
-                    "What's my best performing trading time?",
-                    "Which symbols should I focus on?",
-                    "Am I overtrading?",
-                    "What's my risk-adjusted return?",
-                    "How do I compare to market benchmarks?",
-                    "What patterns do you see in my losses?",
-                    "Should I change my position sizing?",
-                    "What's my biggest opportunity for improvement?"
-                  ]}
-                  className="text-white font-semibold text-lg md:text-xl"
-                />
-              </p>
+              <div className="w-full max-w-xl bg-slate-800/30 border border-slate-700/30 rounded-lg px-4 py-3">
+                <div className="text-slate-200 font-normal text-sm md:text-base">
+                  <TypingAnimation 
+                    texts={[
+                      "Am I actually profitable, or am I lying to myself?",
+                      "What are the technicals on NVDA today?",
+                      "Why do I keep making the same mistakes?",
+                      "What if I just bought Bitcoin instead of trading, would I be more profitable?",
+                      "What's the market sentiment right now?",
+                      "Which tickers am I secretly terrible at trading?",
+                      "What's the RSI on Bitcoin?",
+                      "Am I cutting winners too early and holding losers too long?",
+                      "Which sectors are outperforming today?",
+                      "Am I letting FOMO drive my trading decisions?",
+                      "What patterns are secretly costing me money?",
+                      "What's the support level on TSLA?",
+                      "Do I trade better in bull markets or bear markets?",
+                      "Would I have made more money just buying the S&P 500?",
+                      "Are we in a bull or bear market?"
+                    ]}
+                    className="text-slate-200 font-normal"
+                  />
+                </div>
+              </div>
             </div>
             <p className="text-sm md:text-base text-slate-500 max-w-xl mx-auto px-4 pt-2">
               Vega analyzes your trading data to reveal hidden patterns, behavioral insights, and actionable recommendations. <Link href="/faq" className="text-emerald-400 hover:text-emerald-300 underline transition-colors">Learn more</Link> or check out our <Link href="/pricing" className="text-emerald-400 hover:text-emerald-300 underline transition-colors">pricing</Link>.
