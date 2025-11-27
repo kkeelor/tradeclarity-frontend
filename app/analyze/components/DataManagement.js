@@ -687,6 +687,14 @@ export default function DataManagement() {
         progress: 'Saving trades to database...'
       })
 
+      console.log('Sending trades to store API:', {
+        userId: user.id,
+        userEmail: user.email,
+        exchange: exchange,
+        spotTradesCount: parseData.spotTrades?.length || 0,
+        futuresIncomeCount: parseData.futuresIncome?.length || 0
+      })
+
       const storeResponse = await fetch('/api/trades/store', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -705,10 +713,31 @@ export default function DataManagement() {
       if (!storeResponse.ok || !storeData.success) {
         const errorMsg = storeData.error || 'Failed to store trades'
         
+        // Log full error response for debugging
+        console.error('=== STORE TRADES ERROR ===')
+        console.error('Status:', storeResponse.status)
+        console.error('Error:', storeData.error)
+        console.error('Message:', storeData.message)
+        console.error('Detected Tier:', storeData.detectedTier || storeData.tier)
+        console.error('Subscription Tier:', storeData.subscriptionTier)
+        console.error('Subscription Status:', storeData.subscriptionStatus)
+        console.error('Limit:', storeData.limit)
+        console.error('Current:', storeData.current)
+        console.error('Attempted:', storeData.attempted)
+        console.error('Remaining:', storeData.remaining)
+        console.error('Full Error Data:', JSON.stringify(storeData, null, 2))
+        console.error('==========================')
+        
         // Handle trade limit error with upgrade prompt
         if (storeResponse.status === 403 && storeData.error === 'TRADE_LIMIT_EXCEEDED') {
           const promptProps = getUpgradePromptFromApiError(storeData)
           const toastConfig = promptProps ? getUpgradeToastConfig(promptProps) : null
+          
+          // Enhanced error message with debug info if available
+          let errorDescription = storeData.message || errorMsg
+          if (storeData.debug && process.env.NODE_ENV === 'development') {
+            errorDescription += `\n\nDebug: Detected tier: ${storeData.detectedTier}, Subscription tier: ${storeData.subscriptionTier}, Limit: ${storeData.limit}`
+          }
           
           updateConfig(configId, {
             status: 'error',
@@ -718,7 +747,10 @@ export default function DataManagement() {
           if (toastConfig) {
             toast.error('Trade Limit Exceeded', toastConfig)
           } else {
-            toast.error('Trade Limit Exceeded', { description: storeData.message || errorMsg })
+            toast.error('Trade Limit Exceeded', { 
+              description: errorDescription,
+              duration: 10000 // Show longer for debugging
+            })
           }
         } else {
           updateConfig(configId, {

@@ -115,17 +115,80 @@ export async function POST(request) {
     // Use admin client for database operations (bypasses RLS for trusted server-side operations)
     const adminClient = createAdminClient()
     
-    // Get user's subscription
-    const { data: subscription } = await adminClient
+    // Get user's subscription (include all fields needed for getEffectiveTier)
+    // Use maybeSingle() instead of single() to handle case where subscription doesn't exist
+    console.log('🔍 Fetching subscription for userId:', userId)
+    
+    // Use the exact same query pattern as /api/subscriptions/current (which works)
+    const { data: subscription, error: subError } = await adminClient
       .from('subscriptions')
-      .select('tier, trades_analyzed_this_month, last_trade_reset_date')
+      .select('*')  // Select all fields like the working route does
       .eq('user_id', userId)
-      .single()
+      .maybeSingle()  // Use maybeSingle to handle missing subscriptions gracefully
+
+    // Log subscription data for debugging
+    if (subError) {
+      console.error('❌ Error fetching subscription:', subError)
+      console.error('Error details:', JSON.stringify(subError, null, 2))
+    }
+    
+    console.log('📊 Subscription query result:', { 
+      hasSubscription: !!subscription,
+      subscription: subscription ? {
+        tier: subscription.tier,
+        status: subscription.status,
+        user_id: subscription.user_id,
+        cancel_at_period_end: subscription.cancel_at_period_end,
+        current_period_end: subscription.current_period_end
+      } : null,
+      error: subError ? {
+        code: subError.code,
+        message: subError.message,
+        details: subError.details,
+        hint: subError.hint
+      } : null
+    })
+    
+    // Also try querying all subscriptions to see if any exist for this user
+    const { data: allSubs, error: allSubsError } = await adminClient
+      .from('subscriptions')
+      .select('user_id, tier, status')
+      .eq('user_id', userId)
+    
+    console.log('🔍 All subscriptions for userId:', {
+      count: allSubs?.length || 0,
+      subscriptions: allSubs,
+      error: allSubsError
+    })
 
     // Use effective tier (considers cancel_at_period_end)
     const { getEffectiveTier } = await import('@/lib/featureGates')
-    const userTier = getEffectiveTier(subscription) || 'free'
+    const effectiveTier = getEffectiveTier(subscription)
+    const userTier = (effectiveTier || 'free').toLowerCase()
+    
+    // Double-check: if subscription tier is 'pro' but we got 'free', log warning
+    if (subscription?.tier && subscription.tier.toLowerCase() === 'pro' && userTier !== 'pro') {
+      console.warn('⚠️ TIER MISMATCH DETECTED:', {
+        subscriptionTier: subscription.tier,
+        detectedTier: userTier,
+        subscriptionStatus: subscription.status,
+        cancelAtPeriodEnd: subscription.cancel_at_period_end,
+        currentPeriodEnd: subscription.current_period_end,
+        effectiveTier
+      })
+    }
+    
     const limit = TIER_LIMITS[userTier]?.maxTradesPerMonth || 500
+    
+    console.log('Tier check:', { 
+      effectiveTier, 
+      userTier, 
+      limit, 
+      isUnlimited: limit === Infinity,
+      tierLimitsKeys: Object.keys(TIER_LIMITS),
+      subscriptionTierRaw: subscription?.tier,
+      subscriptionStatus: subscription?.status
+    })
 
     // Check if we need to reset monthly counter (new month)
     const now = new Date()
@@ -163,19 +226,51 @@ export async function POST(request) {
     const newTradesCount = tradesToInsert.filter(trade => !existingTradeIds.has(trade.trade_id)).length
 
     // Check if adding new trades would exceed limit
+    // Skip check entirely if limit is Infinity (Pro plan)
     if (limit !== Infinity && (currentMonthTrades + newTradesCount) > limit) {
       const nextTier = userTier === 'free' ? 'Trader' : userTier === 'trader' ? 'Pro' : null
       const remaining = Math.max(0, limit - currentMonthTrades)
       
+      // Additional debug info for troubleshooting
+      const debugInfo = {
+        userTier,
+        limit,
+        currentMonthTrades,
+        newTradesCount,
+        subscriptionTier: subscription?.tier,
+        subscriptionStatus: subscription?.status,
+        effectiveTier,
+        hasSubscription: !!subscription,
+        isUnlimited: limit === Infinity,
+        tierLimitsAvailable: Object.keys(TIER_LIMITS)
+      }
+      
+      console.error('Trade limit exceeded - Debug info:', debugInfo)
+      
+      // If user thinks they have Pro but we detected free, add helpful message
+      let errorMessage = `Adding ${newTradesCount} trades would exceed your monthly limit (${limit}). You have ${remaining} trades remaining this month.`
+      
+      if (!subscription) {
+        errorMessage += ' No active subscription found. Please contact support if you believe you have an active Pro subscription.'
+      } else if (subscription.tier && subscription.tier.toLowerCase() === 'pro' && userTier !== 'pro') {
+        errorMessage += ` Your subscription shows tier "${subscription.tier}" but was detected as "${userTier}". Please contact support.`
+      } else if (nextTier) {
+        errorMessage += ` Upgrade to ${nextTier} for ${TIER_LIMITS[nextTier.toLowerCase()]?.maxTradesPerMonth === Infinity ? 'unlimited' : TIER_LIMITS[nextTier.toLowerCase()]?.maxTradesPerMonth} trades.`
+      }
+      
       return NextResponse.json({
         error: 'TRADE_LIMIT_EXCEEDED',
-        message: `Adding ${newTradesCount} trades would exceed your monthly limit (${limit}). You have ${remaining} trades remaining this month. ${nextTier ? `Upgrade to ${nextTier} for ${TIER_LIMITS[nextTier.toLowerCase()]?.maxTradesPerMonth === Infinity ? 'unlimited' : TIER_LIMITS[nextTier.toLowerCase()]?.maxTradesPerMonth} trades.` : ''}`,
+        message: errorMessage,
         limit,
         current: currentMonthTrades,
         attempted: newTradesCount,
         remaining,
         tier: userTier,
-        upgradeTier: nextTier?.toLowerCase() || null
+        detectedTier: userTier,
+        subscriptionTier: subscription?.tier,
+        subscriptionStatus: subscription?.status,
+        upgradeTier: nextTier?.toLowerCase() || null,
+        debug: process.env.NODE_ENV === 'development' ? debugInfo : undefined
       }, { status: 403 })
     }
 

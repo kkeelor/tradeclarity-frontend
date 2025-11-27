@@ -94,24 +94,49 @@ export async function GET(request) {
     })
 
     // Fetch holdings for each account using getUserHoldings (preferred method)
-    console.log('📊 [Snaptrade Holdings] Fetching holdings for each account...')
-    const allHoldings = await Promise.all(
-      accounts.map(async (account) => {
-        try {
-          console.log(`📊 [Snaptrade Holdings] Fetching holdings for account ${account.id}...`)
-          const holdings = await getAccountHoldings(
-            account.id,
-            snaptradeUser.snaptrade_user_id,
-            userSecret
-          )
-          return holdings
-        } catch (error) {
-          console.error(`❌ [Snaptrade Holdings] Error fetching holdings for account ${account.id}:`, error.message)
-          // Return null for failed accounts, we'll filter them out
-          return null
+    // IMPORTANT: Fetch sequentially to avoid any potential race conditions or caching issues
+    console.log('📊 [Snaptrade Holdings] Fetching holdings for each account sequentially...')
+    const allHoldings = []
+    
+    for (const account of accounts) {
+      try {
+        console.log(`📊 [Snaptrade Holdings] Fetching holdings for account:`, {
+          requestedAccountId: account.id,
+          accountName: account.name,
+          institution: account.institution_name,
+        })
+        
+        const holdings = await getAccountHoldings(
+          account.id,
+          snaptradeUser.snaptrade_user_id,
+          userSecret
+        )
+        
+        // CRITICAL: Verify the returned holdings match the requested account
+        const returnedAccountId = holdings?.account?.id
+        if (returnedAccountId && returnedAccountId !== account.id) {
+          console.error(`🚨 [Snaptrade Holdings] ACCOUNT MISMATCH DETECTED!`, {
+            requestedAccountId: account.id,
+            returnedAccountId: returnedAccountId,
+            requestedAccountName: account.name,
+            returnedAccountName: holdings?.account?.name,
+          })
+        } else {
+          console.log(`✅ [Snaptrade Holdings] Account ID verified:`, {
+            accountId: returnedAccountId,
+            accountName: holdings?.account?.name,
+            positionsCount: holdings?.positions?.length || 0,
+            balancesCount: holdings?.balances?.length || 0,
+          })
         }
-      })
-    )
+        
+        allHoldings.push(holdings)
+      } catch (error) {
+        console.error(`❌ [Snaptrade Holdings] Error fetching holdings for account ${account.id}:`, error.message)
+        // Push null for failed accounts, we'll filter them out
+        allHoldings.push(null)
+      }
+    }
 
     // Filter out null values (failed fetches)
     const successfulHoldings = allHoldings.filter(h => h !== null)
@@ -119,12 +144,14 @@ export async function GET(request) {
     console.log('✅ [Snaptrade Holdings] Fetched all holdings:', {
       totalAccounts: accounts.length,
       successfulHoldings: successfulHoldings.length,
-      holdings: successfulHoldings.map(h => ({
+      holdingsOrder: successfulHoldings.map((h, idx) => ({
+        index: idx,
         accountId: h?.account?.id,
         accountName: h?.account?.name,
         positionsCount: h?.positions?.length || 0,
-        cashCount: h?.cash?.length || 0,
+        balancesCount: h?.balances?.length || 0,
         totalValue: h?.total_value,
+        firstPosition: h?.positions?.[0]?.symbol?.symbol || 'none',
       })),
     })
 

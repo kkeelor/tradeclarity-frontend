@@ -77,13 +77,38 @@ export async function GET(request) {
       }
     )
 
+    // Group activities by account for debugging
+    const activitiesByAccount = {}
+    activities.forEach(a => {
+      const accountId = a.account?.id || 'unknown'
+      if (!activitiesByAccount[accountId]) {
+        activitiesByAccount[accountId] = {
+          accountName: a.account?.name || 'Unknown',
+          count: 0,
+          activities: []
+        }
+      }
+      activitiesByAccount[accountId].count++
+      if (activitiesByAccount[accountId].activities.length < 2) {
+        activitiesByAccount[accountId].activities.push({
+          id: a.id,
+          type: a.type,
+          symbol: a.symbol?.symbol,
+          date: a.trade_date,
+        })
+      }
+    })
+
     console.log(`✅ [Snaptrade Transactions] Fetched ${activities.length} activities:`, {
       count: activities.length,
+      byAccount: activitiesByAccount,
       firstFew: activities.slice(0, 3).map(a => ({
         id: a.id,
         type: a.type,
         symbol: a.symbol?.symbol,
         date: a.trade_date,
+        accountId: a.account?.id,
+        accountName: a.account?.name,
       })),
     })
 
