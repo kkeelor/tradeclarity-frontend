@@ -234,7 +234,7 @@ export default function DataManagement() {
     setShowConnectModal(true)
   }
 
-  const handleConnectionMethod = (method) => {
+  const handleConnectionMethod = async (method) => {
     // Close modal first
     setShowConnectModal(false)
     
@@ -249,6 +249,83 @@ export default function DataManagement() {
     } else if (method === 'csv') {
       // Stay on /data page - CSV upload is already available here
       // Modal already closed above
+    } else if (method === 'snaptrade') {
+      // Handle Snaptrade connection directly
+      // CRITICAL: Open popup IMMEDIATELY to preserve user gesture chain
+      const width = 600
+      const height = 700
+      const left = window.screenX + (window.outerWidth - width) / 2
+      const top = window.screenY + (window.outerHeight - height) / 2
+
+      // Open popup with loading page first (preserves user gesture)
+      const popup = window.open(
+        '/snaptrade/loading',
+        'Snaptrade Connection',
+        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+      )
+
+      if (!popup) {
+        toast.error('Popup blocked. Please allow popups for this site and try again.')
+        return
+      }
+
+      try {
+        // Call initiate-connection API (handles registration check and login URL generation)
+        const response = await fetch('/api/snaptrade/initiate-connection', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customRedirect: `${window.location.origin}/snaptrade/callback?status=success`,
+          }),
+        })
+
+        const data = await response.json()
+
+        if (!response.ok) {
+          popup.close()
+          // Handle duplicate user error
+          if (data.code === 'DUPLICATE_USER' || response.status === 409) {
+            toast.error('Your account is already connected to Snaptrade. Please contact support if you need assistance.')
+            return
+          }
+          toast.error(data.error || 'Failed to initiate Snaptrade connection')
+          return
+        }
+
+        // Update popup location to Snaptrade URL (maintains user gesture chain)
+        popup.location.href = data.redirectURI
+
+        // Listen for callback via message from callback page
+        const handleMessage = (event) => {
+          if (event.origin !== window.location.origin) return
+
+          if (event.data.type === 'snaptrade_connected') {
+            window.removeEventListener('message', handleMessage)
+            toast.success('Brokerage connected successfully!')
+            
+            // Refresh the page to show new connection
+            setTimeout(() => {
+              window.location.reload()
+            }, 1000)
+          } else if (event.data.type === 'snaptrade_error') {
+            window.removeEventListener('message', handleMessage)
+            toast.error(event.data.error || 'Failed to connect brokerage')
+          }
+        }
+
+        window.addEventListener('message', handleMessage)
+
+        // Fallback: Check if popup closed
+        const checkClosed = setInterval(() => {
+          if (popup.closed) {
+            clearInterval(checkClosed)
+            window.removeEventListener('message', handleMessage)
+          }
+        }, 500)
+      } catch (err) {
+        console.error('Snaptrade connection error:', err)
+        toast.error(err.message || 'Failed to connect with Snaptrade')
+      }
     }
   }
 
@@ -610,6 +687,14 @@ export default function DataManagement() {
         progress: 'Saving trades to database...'
       })
 
+      console.log('Sending trades to store API:', {
+        userId: user.id,
+        userEmail: user.email,
+        exchange: exchange,
+        spotTradesCount: parseData.spotTrades?.length || 0,
+        futuresIncomeCount: parseData.futuresIncome?.length || 0
+      })
+
       const storeResponse = await fetch('/api/trades/store', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -628,10 +713,31 @@ export default function DataManagement() {
       if (!storeResponse.ok || !storeData.success) {
         const errorMsg = storeData.error || 'Failed to store trades'
         
+        // Log full error response for debugging
+        console.error('=== STORE TRADES ERROR ===')
+        console.error('Status:', storeResponse.status)
+        console.error('Error:', storeData.error)
+        console.error('Message:', storeData.message)
+        console.error('Detected Tier:', storeData.detectedTier || storeData.tier)
+        console.error('Subscription Tier:', storeData.subscriptionTier)
+        console.error('Subscription Status:', storeData.subscriptionStatus)
+        console.error('Limit:', storeData.limit)
+        console.error('Current:', storeData.current)
+        console.error('Attempted:', storeData.attempted)
+        console.error('Remaining:', storeData.remaining)
+        console.error('Full Error Data:', JSON.stringify(storeData, null, 2))
+        console.error('==========================')
+        
         // Handle trade limit error with upgrade prompt
         if (storeResponse.status === 403 && storeData.error === 'TRADE_LIMIT_EXCEEDED') {
           const promptProps = getUpgradePromptFromApiError(storeData)
           const toastConfig = promptProps ? getUpgradeToastConfig(promptProps) : null
+          
+          // Enhanced error message with debug info if available
+          let errorDescription = storeData.message || errorMsg
+          if (storeData.debug && process.env.NODE_ENV === 'development') {
+            errorDescription += `\n\nDebug: Detected tier: ${storeData.detectedTier}, Subscription tier: ${storeData.subscriptionTier}, Limit: ${storeData.limit}`
+          }
           
           updateConfig(configId, {
             status: 'error',
@@ -641,7 +747,10 @@ export default function DataManagement() {
           if (toastConfig) {
             toast.error('Trade Limit Exceeded', toastConfig)
           } else {
-            toast.error('Trade Limit Exceeded', { description: storeData.message || errorMsg })
+            toast.error('Trade Limit Exceeded', { 
+              description: errorDescription,
+              duration: 10000 // Show longer for debugging
+            })
           }
         } else {
           updateConfig(configId, {

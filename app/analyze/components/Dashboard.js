@@ -36,7 +36,7 @@ import Sidebar from './Sidebar'
 import Header from './Header'
 import Footer from '../../components/Footer'
 import UsageLimits from '../../components/UsageLimits'
-import { TIER_LIMITS, canAddConnection, getTierDisplayName } from '@/lib/featureGates'
+import { TIER_LIMITS, canAddConnection, getTierDisplayName, getEffectiveTier } from '@/lib/featureGates'
 import { getUpgradeToastConfig } from '@/app/components/UpgradePrompt'
 
 /**
@@ -187,10 +187,10 @@ function UsageBreakdownModal({ open, onOpenChange, subscription, actualUsage }) 
   
   if (!subscription) return null
 
-  const currentTier = subscription.tier
+  const currentTier = (getEffectiveTier(subscription) || 'free').toLowerCase()
   const nextTier = currentTier === 'free' ? 'trader' : currentTier === 'trader' ? 'pro' : null
 
-  const currentLimits = TIER_LIMITS[currentTier]
+  const currentLimits = TIER_LIMITS[currentTier] || TIER_LIMITS.free
   const nextLimits = nextTier ? TIER_LIMITS[nextTier] : null
 
   const usageData = [
@@ -498,7 +498,7 @@ function getIconComponent(iconName) {
   return iconMap[iconName] || Lightbulb
 }
 
-export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithCSV, onViewAnalytics }) {
+export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithCSV, onConnectSnaptrade, onViewAnalytics }) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -1185,12 +1185,13 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
     })
 
     if (!canAdd) {
-      const limit = TIER_LIMITS[subscription.tier || 'free'].maxConnections
+      const effectiveTier = (getEffectiveTier(subscription) || 'free').toLowerCase()
+      const limit = TIER_LIMITS[effectiveTier]?.maxConnections || 1
       const toastConfig = getUpgradeToastConfig({
         type: 'connection',
         current: connectedExchanges.length,
         limit,
-        tier: subscription.tier || 'free'
+        tier: effectiveTier
       })
       
       if (toastConfig) {
@@ -1212,6 +1213,11 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
       // Go to CSV upload flow
       if (onConnectWithCSV) {
         onConnectWithCSV()
+      }
+    } else if (method === 'snaptrade') {
+      // Go to Snaptrade OAuth flow
+      if (onConnectSnaptrade) {
+        onConnectSnaptrade()
       }
     }
   }
