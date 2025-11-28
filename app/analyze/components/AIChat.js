@@ -9,7 +9,7 @@ import { useAuth } from '@/lib/AuthContext'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { getDynamicSampleQuestions } from '@/lib/ai/prompts/sampleQuestions'
 
-const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConnectExchange, onUploadCSV, isVegaPage = false }, ref) => {
+const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConnectExchange, onUploadCSV, isVegaPage = false, isDemoMode = false }, ref) => {
   const { user } = useAuth()
   const [messages, setMessages] = useState([])
   const [sessionMessages, setSessionMessages] = useState([]) // In-memory messages for current session
@@ -53,6 +53,30 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
   const [isInputFocused, setIsInputFocused] = useState(false)
   const [isMaximized, setIsMaximized] = useState(false)
   const [tokenUsage, setTokenUsage] = useState({ input: 0, output: 0 })
+  const [demoTokensUsed, setDemoTokensUsed] = useState(0)
+  
+  // Demo mode token tracking (stored in sessionStorage)
+  const getDemoTokensUsed = useCallback(() => {
+    if (!isDemoMode || typeof window === 'undefined') return 0
+    const stored = sessionStorage.getItem('vega_demo_tokens_used')
+    return stored ? parseInt(stored, 10) : 0
+  }, [isDemoMode])
+  
+  const updateDemoTokensUsed = useCallback((inputTokens, outputTokens) => {
+    if (!isDemoMode || typeof window === 'undefined') return
+    const current = getDemoTokensUsed()
+    const newTotal = current + inputTokens + outputTokens
+    sessionStorage.setItem('vega_demo_tokens_used', newTotal.toString())
+    setDemoTokensUsed(newTotal)
+  }, [isDemoMode, getDemoTokensUsed])
+  
+  // Load demo tokens on mount
+  useEffect(() => {
+    if (isDemoMode) {
+      const tokens = getDemoTokensUsed()
+      setDemoTokensUsed(tokens)
+    }
+  }, [isDemoMode, getDemoTokensUsed])
   const [isClearing, setIsClearing] = useState(false)
   
   // Analytics state - fetch if not provided via props
@@ -548,6 +572,31 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
   const handleSend = async () => {
     if (!input.trim() || isLoading) return
 
+    // Check demo token limit before sending
+    if (isDemoMode) {
+      const DEMO_TOKEN_LIMIT = 3000
+      const currentTokens = getDemoTokensUsed()
+      const estimatedTokensNeeded = 1000 // Conservative estimate
+      
+      // Allow 100% of tokens to be used - only block if we'd exceed the limit
+      if (currentTokens >= DEMO_TOKEN_LIMIT) {
+        // Trigger token limit modal in VegaContent
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('demoTokenLimitReached'))
+        }
+        // Show error message in chat
+        const errorMessage = {
+          id: Date.now(),
+          role: 'assistant',
+          content: `You've reached the demo token limit. Sign up to continue analyzing your trades with higher limits!`,
+          timestamp: new Date(),
+          error: true
+        }
+        setMessages(prev => [...prev, errorMessage])
+        return
+      }
+    }
+
     const userMessage = input.trim()
     setInput('')
     setIsLoading(true)
@@ -609,7 +658,9 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
               allTrades: effectiveAllTrades
             },
             sessionMessages: sessionMessages,
-            previousSummaries: previousSummaries
+            previousSummaries: previousSummaries,
+            isDemoMode: isDemoMode,
+            demoTokensUsed: isDemoMode ? getDemoTokensUsed() : 0
           })
         })
       } catch (fetchError) {
@@ -633,7 +684,11 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
           statusText: response.statusText,
           errorData
         })
-        throw new Error(errorMsg)
+        // Create error with additional data for token limit handling
+        const error = new Error(errorMsg)
+        error.errorData = errorData
+        error.status = response.status
+        throw error
       }
 
       if (!response.body) {
@@ -722,6 +777,14 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                       input: prev.input + data.tokens.input,
                       output: prev.output + data.tokens.output
                     }))
+                    // Update demo token tracking
+                    if (isDemoMode) {
+                      updateDemoTokensUsed(data.tokens.input, data.tokens.output)
+                      // Trigger custom event to update display in VegaContent
+                      if (typeof window !== 'undefined') {
+                        window.dispatchEvent(new CustomEvent('demoTokensUpdated'))
+                      }
+                    }
                   }
                   
                   // Final update to ensure loading state is cleared
@@ -831,7 +894,14 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
       let errorMessage = error.message || 'Sorry, I encountered an error. Please try again.'
       
       // Provide more helpful error messages
-      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+      if (error.errorData?.error === 'TOKEN_LIMIT_REACHED') {
+        // Token limit reached - trigger modal for demo users
+        if (isDemoMode && typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('demoTokenLimitReached'))
+        }
+        // Token limit reached - show specific message
+        errorMessage = error.errorData.message || `You've reached your token limit. ${isDemoMode ? 'Sign up to continue analyzing your trades!' : 'Please upgrade your plan for higher limits.'}`
+      } else if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
         errorMessage = 'Network error. Please check your connection and try again.'
       } else if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
         errorMessage = 'Authentication error. Please refresh the page and try again.'

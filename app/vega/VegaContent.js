@@ -10,8 +10,10 @@ import AIChat from '../analyze/components/AIChat'
 import Header from '../analyze/components/Header'
 import { useMultipleTabs } from '@/lib/hooks/useMultipleTabs'
 import { EXCHANGES, getExchangeList } from '../analyze/utils/exchanges'
-import { Loader2, Brain, LogIn, Sparkles } from 'lucide-react'
+import { Loader2, Brain, LogIn, Sparkles, Zap, TrendingUp, Shield, ArrowRight } from 'lucide-react'
 import Footer from '../components/Footer'
+import AuthModal from '../components/AuthModal'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import demoFuturesData from '../analyze/demo-data/demo-futures-data.json'
 import demoSpotData from '../analyze/demo-data/demo-spot-data.json'
 
@@ -29,10 +31,61 @@ export default function VegaContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [isDemoMode, setIsDemoMode] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [showTokenLimitModal, setShowTokenLimitModal] = useState(false)
+  const [demoTokensUsed, setDemoTokensUsed] = useState(0)
   const chatInputRef = useRef(null)
   
   // Check for demo mode from query params
   const isDemoRequested = searchParams?.get('demo') === 'true'
+  
+  // Track demo token usage from sessionStorage
+  useEffect(() => {
+    if (!isDemoMode || !isDemoRequested) return
+    
+    const updateTokenDisplay = () => {
+      if (typeof window !== 'undefined') {
+        const stored = sessionStorage.getItem('vega_demo_tokens_used')
+        const tokens = stored ? parseInt(stored, 10) : 0
+        setDemoTokensUsed(tokens)
+      }
+    }
+    
+    // Initial load
+    updateTokenDisplay()
+    
+    // Listen for storage changes (when AIChat updates tokens)
+    const handleStorageChange = (e) => {
+      if (e.key === 'vega_demo_tokens_used') {
+        updateTokenDisplay()
+      }
+    }
+    
+    // Listen for custom event from AIChat
+    const handleTokensUpdated = () => {
+      updateTokenDisplay()
+    }
+    
+    // Listen for token limit reached event
+    const handleTokenLimitReached = () => {
+      updateTokenDisplay()
+      setShowTokenLimitModal(true)
+    }
+    
+    // Poll for changes (since storage event only fires in other tabs)
+    const interval = setInterval(updateTokenDisplay, 500)
+    
+    window.addEventListener('storage', handleStorageChange)
+    window.addEventListener('demoTokensUpdated', handleTokensUpdated)
+    window.addEventListener('demoTokenLimitReached', handleTokenLimitReached)
+    
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('demoTokensUpdated', handleTokensUpdated)
+      window.removeEventListener('demoTokenLimitReached', handleTokenLimitReached)
+    }
+  }, [isDemoMode, isDemoRequested])
 
   // Listen for switch requests from other tabs
   useEffect(() => {
@@ -51,6 +104,12 @@ export default function VegaContent() {
   useEffect(() => {
     // Wait for auth loading to complete (unless in demo mode)
     if (authLoading && !isDemoRequested) return
+
+    // If user is signed in and demo is requested, redirect to dashboard
+    if (user && isDemoRequested) {
+      router.replace('/dashboard')
+      return
+    }
 
     const loadAnalytics = async () => {
       try {
@@ -298,7 +357,7 @@ export default function VegaContent() {
     <div className="min-h-screen bg-black text-white flex flex-col">
       <Header
         exchangeConfig={null}
-        currencyMetadata={currencyMetadata}
+        currencyMetadata={null}
         currency={currency}
         setCurrency={setCurrency}
         onNavigateDashboard={() => {
@@ -317,9 +376,16 @@ export default function VegaContent() {
         }}
         onNavigateAll={() => router.push('/vega')}
         onNavigateVega={() => router.push('/vega')}
-        onSignOut={async () => {
-          await fetch('/api/auth/signout', { method: 'POST' })
-          router.push('/')
+        onSignOut={() => {
+          if (!user && isDemoMode) {
+            // Show auth modal for unauthenticated users
+            setShowAuthModal(true)
+          } else {
+            // Sign out authenticated users
+            fetch('/api/auth/signout', { method: 'POST' }).then(() => {
+              router.push('/')
+            })
+          }
         }}
         hasDataSources={!!tradesStats && tradesStats.totalTrades > 0}
         isDemoMode={isDemoMode}
@@ -339,7 +405,7 @@ export default function VegaContent() {
               </div>
             </div>
             <button
-              onClick={() => router.push('/login')}
+              onClick={() => setShowAuthModal(true)}
               className="px-4 py-2 bg-emerald-400/10 hover:bg-emerald-400/15 border border-emerald-400/30 rounded-lg text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-2 text-sm font-medium"
             >
               <LogIn className="w-4 h-4" />
@@ -358,6 +424,24 @@ export default function VegaContent() {
           <p className="text-white/60 text-xs">
             Your AI trading assistant powered by Claude
           </p>
+          {/* Demo Token Limit Display */}
+          {isDemoMode && !user && (
+            <div className="mt-3 flex items-center justify-center">
+              <div className={`px-3 py-1.5 border rounded-lg text-xs ${
+                demoTokensUsed >= 2700 
+                  ? 'bg-red-500/10 border-red-500/30 text-red-400' 
+                  : demoTokensUsed >= 2100
+                  ? 'bg-orange-500/10 border-orange-500/30 text-orange-400'
+                  : 'bg-slate-800/50 border-slate-700/50'
+              }`}>
+                <span className={demoTokensUsed >= 2100 ? 'text-current' : 'text-slate-400'}>Demo tokens: </span>
+                <span className={`font-medium ${demoTokensUsed >= 2100 ? 'text-current' : 'text-white'}`}>
+                  {demoTokensUsed.toLocaleString()}
+                </span>
+                <span className={demoTokensUsed >= 2100 ? 'text-current opacity-80' : 'text-slate-500'}> / 3,000</span>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex-1 min-h-0 overflow-hidden">
@@ -388,6 +472,70 @@ export default function VegaContent() {
       </main>
 
       <Footer />
+
+      {/* Auth Modal */}
+      <AuthModal
+        open={showAuthModal}
+        onOpenChange={setShowAuthModal}
+        onAuthSuccess={(user) => {
+          // Auth success - page will reload to update state
+          setShowAuthModal(false)
+        }}
+      />
+
+      {/* Token Limit Reached Modal */}
+      <Dialog open={showTokenLimitModal} onOpenChange={setShowTokenLimitModal}>
+        <DialogContent className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-slate-700 max-w-md">
+          <DialogHeader>
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 mx-auto rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                <Sparkles className="w-6 h-6 text-emerald-400" />
+              </div>
+              <DialogTitle className="text-xl font-semibold text-white">
+                Demo limit reached
+              </DialogTitle>
+              <DialogDescription className="text-slate-400 text-sm">
+                You've used all {demoTokensUsed.toLocaleString()} demo tokens. Sign up to continue with your own trades.
+              </DialogDescription>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Benefits - minimal list */}
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-2.5 text-sm text-slate-300">
+                <TrendingUp className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                <span>Analyze your real trading data</span>
+              </div>
+              <div className="flex items-center gap-2.5 text-sm text-slate-300">
+                <Zap className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                <span>10,000 tokens/month on free plan</span>
+              </div>
+              <div className="flex items-center gap-2.5 text-sm text-slate-300">
+                <Shield className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                <span>Unlimited conversations</span>
+              </div>
+            </div>
+
+            {/* CTA */}
+            <div className="pt-2">
+              <button
+                onClick={() => {
+                  setShowTokenLimitModal(false)
+                  setShowAuthModal(true)
+                }}
+                className="w-full h-11 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 rounded-xl font-medium text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-[1.02] disabled:hover:scale-100"
+              >
+                Sign Up - It's Free
+                <ArrowRight className="w-4 h-4" />
+              </button>
+              <p className="text-xs text-center text-slate-500 mt-2">
+                No credit card required
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

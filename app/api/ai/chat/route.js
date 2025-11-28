@@ -28,16 +28,6 @@ export async function POST(request) {
       )
     }
 
-    const supabase = createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
     const body = await request.json()
     const { 
       message, 
@@ -45,8 +35,41 @@ export async function POST(request) {
       includeContext = true, 
       contextData: userContextData,
       sessionMessages = [], // In-memory messages from current session
-      previousSummaries = [] // Summaries from previous conversations
+      previousSummaries = [], // Summaries from previous conversations
+      isDemoMode = false, // Demo mode flag for unauthenticated users
+      demoTokensUsed = 0 // Current token usage for demo users (from sessionStorage)
     } = body
+
+    const supabase = createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    // Allow unauthenticated access only in demo mode
+    if (!isDemoMode && (authError || !user)) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    // Demo mode: Check token limit (3000 tokens)
+    if (isDemoMode) {
+      const DEMO_TOKEN_LIMIT = 3000
+      
+      // Allow 100% of tokens to be used - only block if limit is already reached
+      if (demoTokensUsed >= DEMO_TOKEN_LIMIT) {
+        return NextResponse.json(
+          { 
+            error: 'TOKEN_LIMIT_REACHED',
+            message: `You've reached the demo token limit (${demoTokensUsed.toLocaleString()}/${DEMO_TOKEN_LIMIT.toLocaleString()} tokens). Sign in to get higher limits.`,
+            current: demoTokensUsed,
+            limit: DEMO_TOKEN_LIMIT,
+            tier: 'demo',
+            upgradeTier: 'free'
+          },
+          { status: 403 }
+        )
+      }
+    }
 
     if (!message || typeof message !== 'string' || message.trim().length === 0) {
       return NextResponse.json(
@@ -55,113 +78,137 @@ export async function POST(request) {
       )
     }
 
-    // Get user's subscription tier
-    const { data: subscription } = await supabase
-      .from('subscriptions')
-      .select('tier, status, cancel_at_period_end, current_period_end')
-      .eq('user_id', user.id)
-      .single()
-
-    const tier = subscription?.tier || 'free'
-    const model = tier === 'pro' ? AI_MODELS.SONNET.id : AI_MODELS.HAIKU.id
-
-    // Check token limit before processing
-    const now = new Date()
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    // For authenticated users, get subscription and check token limits
+    let subscription = null
+    let tier = 'free'
+    let tokensUsed = 0
+    let conversation = null
     
-    // Get current month's token usage
-    const { data: conversations } = await supabase
-      .from('ai_conversations')
-      .select('total_input_tokens, total_output_tokens')
-      .eq('user_id', user.id)
-      .gte('created_at', startOfMonth.toISOString())
-    
-    const tokensUsed = (conversations || []).reduce((sum, conv) => {
-      const inputTokens = conv.total_input_tokens || 0
-      const outputTokens = conv.total_output_tokens || 0
-      return sum + inputTokens + outputTokens
-    }, 0)
-
-    // Check if user can use tokens (estimate ~1000 tokens per request as a conservative check)
-    const estimatedTokensNeeded = 1000
-    if (!canUseTokens(subscription, tokensUsed, estimatedTokensNeeded)) {
-      const effectiveTier = getEffectiveTier(subscription)
-      const limit = TIER_LIMITS[effectiveTier]?.maxTokensPerMonth || TIER_LIMITS.free.maxTokensPerMonth
-      const nextTier = effectiveTier === 'free' ? 'trader' : effectiveTier === 'trader' ? 'pro' : null
-      
-      return NextResponse.json(
-        { 
-          error: 'TOKEN_LIMIT_REACHED',
-          message: `You've reached your AI token limit (${tokensUsed.toLocaleString()}/${limit.toLocaleString()} tokens this month). ${nextTier ? `Upgrade to ${nextTier} for higher limits.` : ''}`,
-          current: tokensUsed,
-          limit: limit,
-          tier: effectiveTier,
-          upgradeTier: nextTier
-        },
-        { status: 403 }
-      )
-    }
-
-    // Get or create conversation
-    let conversation
-    if (conversationId) {
-      const { data, error } = await supabase
-        .from('ai_conversations')
-        .select('*')
-        .eq('id', conversationId)
+    if (!isDemoMode && user) {
+      // Get user's subscription tier
+      const { data: subData } = await supabase
+        .from('subscriptions')
+        .select('tier, status, cancel_at_period_end, current_period_end')
         .eq('user_id', user.id)
         .single()
+      
+      subscription = subData
+      tier = subscription?.tier || 'free'
 
-      if (error || !data) {
-        return NextResponse.json(
-          { error: 'Conversation not found' },
-          { status: 404 }
-        )
-      }
-      conversation = data
-    } else {
-      // Create new conversation
-      const { data, error } = await supabase
+      // Check token limit before processing
+      const now = new Date()
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+      
+      // Get current month's token usage
+      const { data: conversations } = await supabase
         .from('ai_conversations')
-        .insert({
-          user_id: user.id,
-          title: message.substring(0, 50) // Use first 50 chars as title
-        })
-        .select()
-        .single()
+        .select('total_input_tokens, total_output_tokens')
+        .eq('user_id', user.id)
+        .gte('created_at', startOfMonth.toISOString())
+      
+      tokensUsed = (conversations || []).reduce((sum, conv) => {
+        const inputTokens = conv.total_input_tokens || 0
+        const outputTokens = conv.total_output_tokens || 0
+        return sum + inputTokens + outputTokens
+      }, 0)
 
-      if (error) {
-        console.error('Error creating conversation:', error)
+      // Check if user can use tokens (estimate ~1000 tokens per request as a conservative check)
+      const estimatedTokensNeeded = 1000
+      if (!canUseTokens(subscription, tokensUsed, estimatedTokensNeeded)) {
+        const effectiveTier = getEffectiveTier(subscription)
+        const limit = TIER_LIMITS[effectiveTier]?.maxTokensPerMonth || TIER_LIMITS.free.maxTokensPerMonth
+        const nextTier = effectiveTier === 'free' ? 'trader' : effectiveTier === 'trader' ? 'pro' : null
+        
         return NextResponse.json(
-          { error: 'Failed to create conversation' },
-          { status: 500 }
+          { 
+            error: 'TOKEN_LIMIT_REACHED',
+            message: `You've reached your AI token limit (${tokensUsed.toLocaleString()}/${limit.toLocaleString()} tokens this month). ${nextTier ? `Upgrade to ${nextTier} for higher limits.` : ''}`,
+            current: tokensUsed,
+            limit: limit,
+            tier: effectiveTier,
+            upgradeTier: nextTier
+          },
+          { status: 403 }
         )
       }
-      conversation = data
+
+      // Get or create conversation (only for authenticated users)
+      if (conversationId) {
+        const { data, error } = await supabase
+          .from('ai_conversations')
+          .select('*')
+          .eq('id', conversationId)
+          .eq('user_id', user.id)
+          .single()
+
+        if (error || !data) {
+          return NextResponse.json(
+            { error: 'Conversation not found' },
+            { status: 404 }
+          )
+        }
+        conversation = data
+      } else {
+        // Create new conversation
+        const { data, error } = await supabase
+          .from('ai_conversations')
+          .insert({
+            user_id: user.id,
+            title: message.substring(0, 50) // Use first 50 chars as title
+          })
+          .select()
+          .single()
+
+        if (error) {
+          console.error('Error creating conversation:', error)
+          return NextResponse.json(
+            { error: 'Failed to create conversation' },
+            { status: 500 }
+          )
+        }
+        conversation = data
+      }
     }
 
-    // Get conversation summary (we only store summaries, not individual messages)
-    const { data: convData } = await supabase
-      .from('ai_conversations')
-      .select('summary, message_count')
-      .eq('id', conversation.id)
-      .single()
+    const model = tier === 'pro' ? AI_MODELS.SONNET.id : AI_MODELS.HAIKU.id
 
-    const currentSummary = convData?.summary || null
-    const previousMessageCount = convData?.message_count || 0
+    // Get conversation summary (we only store summaries, not individual messages)
+    // Skip for demo mode - demo users don't have conversations in database
+    let currentSummary = null
+    let previousMessageCount = 0
+    
+    if (!isDemoMode && conversation) {
+      const { data: convData } = await supabase
+        .from('ai_conversations')
+        .select('summary, message_count')
+        .eq('id', conversation.id)
+        .single()
+
+      currentSummary = convData?.summary || null
+      previousMessageCount = convData?.message_count || 0
+    }
 
     // Fetch cached analytics for AI context (optimized path)
+    // For demo mode, use contextData passed from client
     let aiContext = null
     let analytics = null
     let tradesStats = null
     
-    try {
-      // Check cache directly from database
-      const { data: cached } = await supabase
-        .from('user_analytics_cache')
-        .select('ai_context, analytics_data, expires_at, total_trades')
-        .eq('user_id', user.id)
-        .single()
+    if (isDemoMode) {
+      // Demo mode: Use context data passed from client
+      if (userContextData) {
+        analytics = userContextData.analytics || null
+        tradesStats = userContextData.tradesStats || null
+      }
+    } else {
+      // Authenticated mode: Fetch from cache
+      try {
+        // Check cache directly from database
+        const { data: cached } = await supabase
+          .from('user_analytics_cache')
+          .select('ai_context, analytics_data, expires_at, total_trades')
+          .eq('user_id', user.id)
+          .single()
       
       // Only use cache if it exists, is not expired, and trades still exist
       if (cached && cached.ai_context && new Date(cached.expires_at) > new Date()) {
@@ -189,6 +236,7 @@ export async function POST(request) {
     } catch (error) {
       // Cache miss or error - will fall back to contextData
       console.warn('[Chat API] Cache miss or error, falling back to contextData:', error.message)
+    }
     }
     
     // Fallback to contextData if cache miss (backward compatibility)
@@ -367,7 +415,7 @@ export async function POST(request) {
           console.log('[Chat API] Request:', {
             model,
             messageCount: messagesForClaude.length,
-            conversationId: conversation.id,
+            conversationId: isDemoMode ? conversationId : (conversation?.id || null),
             tier,
             inputTokens,
             firstMessagePreview: messagesForClaude[0]?.content?.substring(0, 100)
@@ -968,21 +1016,24 @@ export async function POST(request) {
           }
 
           // Update conversation token counts (we don't save individual messages)
-          const currentInputTokens = (conversation.total_input_tokens || 0) + inputTokens
-          const currentOutputTokens = (conversation.total_output_tokens || 0) + outputTokens
-          
-          const { error: updateError } = await supabase
-            .from('ai_conversations')
-            .update({
-              total_input_tokens: currentInputTokens,
-              total_output_tokens: currentOutputTokens,
-              message_count: previousMessageCount + 2, // User message + assistant response
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', conversation.id)
+          // Skip for demo mode - demo users don't have conversations in database
+          if (!isDemoMode && conversation) {
+            const currentInputTokens = (conversation.total_input_tokens || 0) + inputTokens
+            const currentOutputTokens = (conversation.total_output_tokens || 0) + outputTokens
+            
+            const { error: updateError } = await supabase
+              .from('ai_conversations')
+              .update({
+                total_input_tokens: currentInputTokens,
+                total_output_tokens: currentOutputTokens,
+                message_count: previousMessageCount + 2, // User message + assistant response
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', conversation.id)
 
-          if (updateError) {
-            console.error('Error updating conversation:', updateError)
+            if (updateError) {
+              console.error('Error updating conversation:', updateError)
+            }
           }
 
           // Send final stats
@@ -990,7 +1041,7 @@ export async function POST(request) {
             new TextEncoder().encode(
               `data: ${JSON.stringify({ 
                 type: 'done', 
-                conversationId: conversation.id,
+                conversationId: isDemoMode ? conversationId : (conversation?.id || null),
                 tokens: {
                   input: inputTokens,
                   output: outputTokens

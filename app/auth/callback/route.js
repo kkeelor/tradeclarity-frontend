@@ -15,6 +15,11 @@ export async function GET(request) {
   console.log('🟢 Code value:', code?.substring(0, 20) + '...');
   console.log('🟢 Error param:', error);
 
+  // Get redirect path from query params (preserve through error flows)
+  const redirectPath = requestUrl.searchParams.get('redirect') || '/dashboard';
+  const isValidPath = redirectPath.startsWith('/') && !redirectPath.startsWith('//');
+  const safeRedirectPath = isValidPath ? redirectPath : '/dashboard';
+
   if (error) {
     console.error('❌ OAuth error from URL:', error);
     const errorDescription = requestUrl.searchParams.get('error_description') || '';
@@ -36,28 +41,28 @@ export async function GET(request) {
         
         if (session?.user) {
           console.log('✅ User is authenticated despite database error. User ID:', session.user.id);
-          // User is authenticated - redirect to dashboard
+          // User is authenticated - redirect back to original page
           // AuthContext will handle creating/updating the user record
-          return NextResponse.redirect(`${requestUrl.origin}/dashboard?warning=database_error`);
+          return NextResponse.redirect(`${requestUrl.origin}${safeRedirectPath}?warning=database_error`);
         } else {
           console.log('❌ User is not authenticated. Database error prevented auth.');
-          // User is not authenticated - show error
-          return NextResponse.redirect(`${requestUrl.origin}/login?error=${error}&error_code=${errorCode}&error_description=${encodeURIComponent(errorDescription)}`);
+          // User is not authenticated - show error, redirect back to original page
+          return NextResponse.redirect(`${requestUrl.origin}${safeRedirectPath}?error=${error}&error_code=${errorCode}&error_description=${encodeURIComponent(errorDescription)}`);
         }
       } catch (checkError) {
         console.error('❌ Error checking session:', checkError);
         // If we can't check, assume error and redirect with error info
-        return NextResponse.redirect(`${requestUrl.origin}/login?error=${error}&error_code=${errorCode}&error_description=${encodeURIComponent(errorDescription)}`);
+        return NextResponse.redirect(`${requestUrl.origin}${safeRedirectPath}?error=${error}&error_code=${errorCode}&error_description=${encodeURIComponent(errorDescription)}`);
       }
     }
     
-    // For other errors, redirect with error info
-    return NextResponse.redirect(`${requestUrl.origin}/login?error=${error}&error_code=${errorCode}&error_description=${encodeURIComponent(errorDescription)}`);
+    // For other errors, redirect with error info back to original page
+    return NextResponse.redirect(`${requestUrl.origin}${safeRedirectPath}?error=${error}&error_code=${errorCode}&error_description=${encodeURIComponent(errorDescription)}`);
   }
 
   if (!code) {
     console.error('❌ No code in callback');
-    return NextResponse.redirect(`${requestUrl.origin}/login?error=no_code`);
+    return NextResponse.redirect(`${requestUrl.origin}${safeRedirectPath}?error=no_code`);
   }
 
   try {
@@ -80,12 +85,12 @@ export async function GET(request) {
         status: exchangeError.status,
         name: exchangeError.name
       });
-      return NextResponse.redirect(`${requestUrl.origin}/dashboard?error=exchange_failed&details=${encodeURIComponent(exchangeError.message)}`);
+      return NextResponse.redirect(`${requestUrl.origin}${safeRedirectPath}?error=exchange_failed&details=${encodeURIComponent(exchangeError.message)}`);
     }
 
     if (!data.session || !data.user) {
       console.error('❌ No session or user in response');
-      return NextResponse.redirect(`${requestUrl.origin}/dashboard?error=no_session`);
+      return NextResponse.redirect(`${requestUrl.origin}${safeRedirectPath}?error=no_session`);
     }
 
     console.log('✅ Session created!', {
@@ -172,7 +177,8 @@ export async function GET(request) {
     const adminLogin = request.headers.get('referer')?.includes('/admin') || 
                        requestUrl.searchParams.get('state')?.includes('admin')
     
-    const redirectUrl = adminLogin ? `${requestUrl.origin}/admin` : `${requestUrl.origin}/dashboard`
+    // Use redirect path already extracted above (preserves original page)
+    const redirectUrl = adminLogin ? `${requestUrl.origin}/admin` : `${requestUrl.origin}${safeRedirectPath}`;
     console.log('🟢 Redirecting to:', redirectUrl);
     return NextResponse.redirect(redirectUrl);
 
@@ -181,7 +187,8 @@ export async function GET(request) {
     console.error('❌ Error stack:', err.stack);
     // Check if user was logging in from admin page
     const adminLogin = request.headers.get('referer')?.includes('/admin')
-    const redirectUrl = adminLogin ? `${requestUrl.origin}/admin` : `${requestUrl.origin}/dashboard`
+    // Use redirect path already extracted above
+    const redirectUrl = adminLogin ? `${requestUrl.origin}/admin` : `${requestUrl.origin}${safeRedirectPath}`
     return NextResponse.redirect(`${redirectUrl}?error=callback_exception&details=${encodeURIComponent(err.message)}`);
   }
 }

@@ -271,40 +271,49 @@ export default function LandingPage() {
 
           {/* CTA Buttons */}
           <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
-            {/* Primary CTA - Try Demo */}
-            <Button
-              variant="primary"
-              size="xl"
-              onClick={() => router.push('/analyze?demo=true')}
-              onMouseEnter={() => setIsPrimaryHovered(true)}
-              onMouseLeave={() => setIsPrimaryHovered(false)}
-              className="hover:scale-105"
-            >
-              <Sparkles className={`w-5 h-5 transition-transform duration-300 ${isPrimaryHovered ? 'rotate-12' : ''}`} />
-              Try Demo
-              <ArrowRight className={`w-5 h-5 transition-transform duration-300 ${isPrimaryHovered ? 'translate-x-1' : ''}`} />
-            </Button>
+            {user ? (
+              /* Signed in - Show single Dashboard button */
+              <Button
+                variant="primary"
+                size="xl"
+                onClick={handleDashboardClick}
+                onMouseEnter={() => setIsPrimaryHovered(true)}
+                onMouseLeave={() => setIsPrimaryHovered(false)}
+                className="hover:scale-105"
+              >
+                <LayoutDashboard className={`w-5 h-5 transition-transform duration-300 ${isPrimaryHovered ? 'rotate-12' : ''}`} />
+                Go to Dashboard
+                <ArrowRight className={`w-5 h-5 transition-transform duration-300 ${isPrimaryHovered ? 'translate-x-1' : ''}`} />
+              </Button>
+            ) : (
+              <>
+                {/* Primary CTA - Try Demo */}
+                <Button
+                  variant="primary"
+                  size="xl"
+                  onClick={() => router.push('/vega?demo=true')}
+                  onMouseEnter={() => setIsPrimaryHovered(true)}
+                  onMouseLeave={() => setIsPrimaryHovered(false)}
+                  className="hover:scale-105"
+                >
+                  <Sparkles className={`w-5 h-5 transition-transform duration-300 ${isPrimaryHovered ? 'rotate-12' : ''}`} />
+                  Try Demo
+                  <ArrowRight className={`w-5 h-5 transition-transform duration-300 ${isPrimaryHovered ? 'translate-x-1' : ''}`} />
+                </Button>
 
-            {/* Secondary CTA - Connect Exchange / Dashboard */}
-            <Button
-              variant="outline"
-              size="xl"
-              onClick={handleDashboardClick}
-              onMouseEnter={() => setIsSecondaryHovered(true)}
-              onMouseLeave={() => setIsSecondaryHovered(false)}
-            >
-              {user ? (
-                <>
-                  <LayoutDashboard className="w-5 h-5" />
-                  Go to Dashboard
-                </>
-              ) : (
-                <>
+                {/* Secondary CTA - Get Started */}
+                <Button
+                  variant="outline"
+                  size="xl"
+                  onClick={handleDashboardClick}
+                  onMouseEnter={() => setIsSecondaryHovered(true)}
+                  onMouseLeave={() => setIsSecondaryHovered(false)}
+                >
                   <Brain className="w-5 h-5" />
                   Get Started
-                </>
-              )}
-            </Button>
+                </Button>
+              </>
+            )}
           </div>
 
           {/* Trust Indicators */}
@@ -599,11 +608,17 @@ export default function LandingPage() {
       <Button
         variant="primary"
         size="lg"
-        onClick={() => router.push('/analyze?demo=true')}
+        onClick={() => {
+          if (user) {
+            router.push('/dashboard')
+          } else {
+            router.push('/vega?demo=true')
+          }
+        }}
         className="hover:scale-105"
       >
         <Eye className="w-5 h-5" />
-        See My Patterns Now
+        {user ? 'View My Dashboard' : 'See My Patterns Now'}
       </Button>
     </div>
   </div>
@@ -623,23 +638,37 @@ export default function LandingPage() {
             Connect your exchange in 30 seconds. Vega will analyze your trades and reveal insights that stick with you forever.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-            <Button
-              variant="primary"
-              size="lg"
-              onClick={() => router.push('/analyze?demo=true')}
-              className="hover:scale-105"
-            >
-              <Sparkles className="w-5 h-5" />
-              Try The Demo First
-            </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={handleDashboardClick}
-              className="hover:scale-105 hover:border-gold"
-            >
-              Connect My Exchange
-            </Button>
+            {user ? (
+              <Button
+                variant="primary"
+                size="lg"
+                onClick={handleDashboardClick}
+                className="hover:scale-105"
+              >
+                <LayoutDashboard className="w-5 h-5" />
+                Go to Dashboard
+              </Button>
+            ) : (
+              <>
+                <Button
+                  variant="primary"
+                  size="lg"
+                  onClick={() => router.push('/vega?demo=true')}
+                  className="hover:scale-105"
+                >
+                  <Sparkles className="w-5 h-5" />
+                  Try The Demo First
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={handleDashboardClick}
+                  className="hover:scale-105 hover:border-gold"
+                >
+                  Connect My Exchange
+                </Button>
+              </>
+            )}
           </div>
           <p className="text-sm text-slate-500 pt-4">
             No credit card. No signup. Just insights about your trading.

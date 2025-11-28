@@ -190,13 +190,15 @@ export default function AuthScreen({ onAuthSuccess }) {
             <TrendingUp className="w-10 h-10 text-emerald-400" />
             <h1 className="text-3xl font-bold">TradeClarity</h1>
           </div>
-          <h2 className="text-2xl font-bold">
-            {mode === 'signup' ? 'Create your account' : 'Welcome back'}
-          </h2>
+          {mode === 'signup' && (
+            <h2 className="text-2xl font-bold">
+              Create your account
+            </h2>
+          )}
           <p className="text-slate-400">
             {mode === 'signup' 
               ? 'Start analyzing your trades in minutes' 
-              : 'Sign in to continue your analysis'}
+              : 'Sign in to access your trading analytics'}
           </p>
         </div>
 
@@ -506,21 +508,36 @@ export default function AuthScreen({ onAuthSuccess }) {
           </Form>
 
           {/* Toggle Mode */}
-          <div className="text-center text-sm pt-2">
-            <span className="text-slate-400">
-              {mode === 'signup' ? 'Already have an account?' : "Don't have an account?"}
-            </span>
-            {' '}
-            <button
-              onClick={() => {
-                setMode(mode === 'signup' ? 'signin' : 'signup');
-                setError('');
-              }}
-              className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
-              disabled={loading}
-            >
-              {mode === 'signup' ? 'Sign in' : 'Sign up'}
-            </button>
+          <div className="text-center pt-2">
+            {mode === 'signin' ? (
+              <div className="space-y-2">
+                <p className="text-sm text-slate-400">Don't have an account?</p>
+                <button
+                  onClick={() => {
+                    setMode('signup');
+                    setError('');
+                  }}
+                  className="text-base font-semibold text-emerald-400 hover:text-emerald-300 transition-colors underline decoration-2 underline-offset-2"
+                  disabled={loading}
+                >
+                  Sign up
+                </button>
+              </div>
+            ) : (
+              <div className="text-sm">
+                <span className="text-slate-400">Already have an account? </span>
+                <button
+                  onClick={() => {
+                    setMode('signin');
+                    setError('');
+                  }}
+                  className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
+                  disabled={loading}
+                >
+                  Sign in
+                </button>
+              </div>
+            )}
           </div>
           </div>
         </div>

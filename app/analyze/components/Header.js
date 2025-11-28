@@ -331,22 +331,6 @@ export default function Header({
               />
             )}
 
-            {isDemoMode && (
-              <button
-                onClick={() => {
-                  if (onNavigateDashboard) {
-                    onNavigateDashboard()
-                  } else {
-                    window.location.href = '/dashboard'
-                  }
-                }}
-                className="hidden items-center gap-2 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 px-4 py-2 text-xs font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:from-emerald-300 hover:to-cyan-300 md:inline-flex"
-              >
-                <span className="hidden lg:inline">Discover yours</span>
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            )}
-
             <ThemeToggle />
 
             {user && (
@@ -364,7 +348,7 @@ export default function Header({
                 className="hidden items-center gap-2 rounded-full border border-white/5 px-3 py-1 text-xs font-medium text-slate-500 transition hover:border-white/10 hover:bg-white/10 hover:text-white md:inline-flex"
               >
                 <LogOut className="h-4 w-4" />
-                <span className="hidden lg:inline">Sign out</span>
+                <span className="hidden lg:inline">Sign in</span>
               </button>
             )}
           </div>
@@ -475,10 +459,14 @@ export default function Header({
                 <div className="p-4 border-t border-white/5">
                   <button
                     onClick={() => handleNavClick(onSignOut)}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all duration-300"
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-300 ${
+                      user 
+                        ? 'text-slate-400 hover:bg-red-500/10 hover:text-red-400' 
+                        : 'text-slate-400 hover:bg-emerald-500/10 hover:text-emerald-400'
+                    }`}
                   >
                     <LogOut className="h-5 w-5" />
-                    <span>Sign Out</span>
+                    <span>{user ? 'Sign Out' : 'Sign In'}</span>
                   </button>
                 </div>
               )}
