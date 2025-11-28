@@ -10,7 +10,7 @@ import AIChat from '../analyze/components/AIChat'
 import Header from '../analyze/components/Header'
 import { useMultipleTabs } from '@/lib/hooks/useMultipleTabs'
 import { EXCHANGES, getExchangeList } from '../analyze/utils/exchanges'
-import { Loader2, Brain, LogIn, Sparkles, Zap, TrendingUp, Shield, ArrowRight, HelpCircle } from 'lucide-react'
+import { Loader2, Brain, LogIn, Sparkles, Zap, TrendingUp, Shield, ArrowRight, HelpCircle, MessageCircle } from 'lucide-react'
 import Footer from '../components/Footer'
 import AuthModal from '../components/AuthModal'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
@@ -35,7 +35,22 @@ export default function VegaContent() {
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showTokenLimitModal, setShowTokenLimitModal] = useState(false)
   const [demoTokensUsed, setDemoTokensUsed] = useState(0)
+  const [coachMode, setCoachMode] = useState(() => {
+    // Load from localStorage on initial render
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vega_coach_mode')
+      return saved === 'true'
+    }
+    return false
+  })
   const chatInputRef = useRef(null)
+  
+  // Persist coach mode preference
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('vega_coach_mode', coachMode.toString())
+    }
+  }, [coachMode])
   
   // Check for demo mode from query params
   const isDemoRequested = searchParams?.get('demo') === 'true'
@@ -425,6 +440,38 @@ export default function VegaContent() {
           <p className="text-white/60 text-xs">
             Your AI trading assistant powered by Claude
           </p>
+          
+          {/* Coach Mode Toggle */}
+          <div className="flex items-center justify-center gap-2 pt-1">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setCoachMode(!coachMode)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      coachMode
+                        ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-400'
+                        : 'bg-slate-800/50 border border-slate-700/50 text-slate-400 hover:text-slate-300 hover:border-slate-600/50'
+                    }`}
+                  >
+                    <MessageCircle className={`w-3.5 h-3.5 ${coachMode ? 'text-emerald-400' : ''}`} />
+                    <span>Coach Mode</span>
+                    <div className={`w-8 h-4 rounded-full transition-colors relative ${coachMode ? 'bg-emerald-500/30' : 'bg-slate-700/50'}`}>
+                      <div className={`absolute top-0.5 w-3 h-3 rounded-full transition-all ${coachMode ? 'bg-emerald-400 left-4' : 'bg-slate-500 left-0.5'}`} />
+                    </div>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <p className="font-medium mb-1">Coach Mode</p>
+                  <p className="text-xs leading-relaxed">
+                    {coachMode 
+                      ? 'Interactive coaching with concise responses and guided follow-up options. Click to switch to standard mode.'
+                      : 'Enable for more interactive, concise responses with guided follow-up options. Great for focused improvement.'}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           {/* Demo Token Limit Display */}
           {isDemoMode && !user && (
             <div className="mt-3 flex items-center justify-center gap-2">
@@ -490,6 +537,7 @@ export default function VegaContent() {
             }}
             isVegaPage={true}
             isDemoMode={isDemoMode}
+            coachMode={coachMode}
           />
         </div>
       </main>

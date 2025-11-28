@@ -4,15 +4,28 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, useMemo, useImperativeHandle, forwardRef } from 'react'
-import { Send, Loader2, Bot, User, Sparkles, X, RotateCcw, Square, Minimize2, Maximize2, Database, Link as LinkIcon, Upload, TrendingUp, DollarSign, PieChart, Target, AlertCircle } from 'lucide-react'
+import { Send, Loader2, Bot, User, Sparkles, X, RotateCcw, Square, Minimize2, Maximize2, Database, Link as LinkIcon, Upload, TrendingUp, DollarSign, PieChart, Target, AlertCircle, MessageCircle } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { getDynamicSampleQuestions } from '@/lib/ai/prompts/sampleQuestions'
+import { ChatOptions, parseOptionsFromResponse, detectTopicFromMessage, isFollowUpOnTopic } from '@/components/ui/ChatOptions'
 
-const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConnectExchange, onUploadCSV, isVegaPage = false, isDemoMode = false }, ref) => {
+const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConnectExchange, onUploadCSV, isVegaPage = false, isDemoMode = false, coachMode = false }, ref) => {
   const { user } = useAuth()
   const [messages, setMessages] = useState([])
   const [sessionMessages, setSessionMessages] = useState([]) // In-memory messages for current session
+  
+  // Coach mode state - conversation depth and topic tracking
+  const [conversationDepth, setConversationDepth] = useState(0)
+  const [currentTopic, setCurrentTopic] = useState(null)
+  const [lastAssistantOptions, setLastAssistantOptions] = useState([]) // Options from last response
+  
+  // Reset coach mode state when mode is toggled
+  useEffect(() => {
+    setConversationDepth(0)
+    setCurrentTopic(null)
+    setLastAssistantOptions([])
+  }, [coachMode])
   const [previousSummaries, setPreviousSummaries] = useState([]) // Previous conversation summaries
   const [input, setInput] = useState('')
   
@@ -555,36 +568,19 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
     }
   }, [messages, scrollToBottom, isMaximized])
 
-  const handleStop = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
-      abortControllerRef.current = null
-    }
-    setIsLoading(false)
-    // Update any loading messages to show they were stopped
-    setMessages(prev => prev.map(msg => 
-      msg.isLoading 
-        ? { ...msg, isLoading: false, content: msg.content || 'Response stopped by user.' }
-        : msg
-    ))
-  }
-
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return
+  // Helper function to send a message (extracted from handleSend for reuse)
+  const sendMessage = useCallback(async (messageText) => {
+    if (!messageText || !messageText.trim() || isLoading) return false
 
     // Check demo token limit before sending
     if (isDemoMode) {
       const DEMO_TOKEN_LIMIT = 3000
       const currentTokens = getDemoTokensUsed()
-      const estimatedTokensNeeded = 1000 // Conservative estimate
       
-      // Allow 100% of tokens to be used - only block if we'd exceed the limit
       if (currentTokens >= DEMO_TOKEN_LIMIT) {
-        // Trigger token limit modal in VegaContent
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('demoTokenLimitReached'))
         }
-        // Show error message in chat
         const errorMessage = {
           id: Date.now(),
           role: 'assistant',
@@ -593,13 +589,15 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
           error: true
         }
         setMessages(prev => [...prev, errorMessage])
-        return
+        return false
       }
     }
 
-    const userMessage = input.trim()
-    setInput('')
+    const userMessage = messageText.trim()
     setIsLoading(true)
+    
+    // Clear last options when user sends new message
+    setLastAssistantOptions([])
 
     // Create abort controller for this request
     abortControllerRef.current = new AbortController()
@@ -612,7 +610,27 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
       inputRef.current.blur()
     }
     
-    // Focus will be restored after response completes (see handleStreamComplete)
+    // Coach mode: Track topic and depth
+    let newDepth = conversationDepth
+    let newTopic = currentTopic
+    
+    if (coachMode) {
+      const detectedTopic = detectTopicFromMessage(userMessage)
+      
+      // Check if this is a follow-up on the same topic
+      if (currentTopic && isFollowUpOnTopic(userMessage, currentTopic, sessionMessages[sessionMessages.length - 1]?.content)) {
+        // Same topic - increase depth
+        newDepth = Math.min(conversationDepth + 1, 3) // Max depth 3
+        // Keep current topic
+      } else {
+        // New topic - reset depth
+        newDepth = 0
+        newTopic = detectedTopic
+      }
+      
+      setConversationDepth(newDepth)
+      setCurrentTopic(newTopic)
+    }
     
     // Add user message to UI immediately
     const newUserMessage = {
@@ -640,33 +658,32 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
     }])
 
     try {
-      let response
-      try {
-        response = await fetch('/api/ai/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        signal: abortControllerRef.current.signal,
+        body: JSON.stringify({
+          message: userMessage,
+          conversationId: conversationId,
+          includeContext: true,
+          contextData: {
+            tradesStats: tradesStats,
+            analytics: effectiveAnalytics,
+            allTrades: effectiveAllTrades
           },
-          signal: abortControllerRef.current.signal,
-          body: JSON.stringify({
-            message: userMessage,
-            conversationId: conversationId,
-            includeContext: true,
-            contextData: {
-              tradesStats: tradesStats,
-              analytics: effectiveAnalytics,
-              allTrades: effectiveAllTrades
-            },
-            sessionMessages: sessionMessages,
-            previousSummaries: previousSummaries,
-            isDemoMode: isDemoMode,
-            demoTokensUsed: isDemoMode ? getDemoTokensUsed() : 0
-          })
+          sessionMessages: sessionMessages,
+          previousSummaries: previousSummaries,
+          isDemoMode: isDemoMode,
+          demoTokensUsed: isDemoMode ? getDemoTokensUsed() : 0,
+          coachMode: coachMode,
+          coachModeConfig: coachMode ? {
+            conversationDepth: newDepth,
+            currentTopic: newTopic
+          } : null
         })
-      } catch (fetchError) {
-        console.error('[AIChat] Fetch error:', fetchError)
-        throw new Error(fetchError.message || 'Network error. Please check your connection and try again.')
-      }
+      })
 
       if (!response.ok) {
         let errorData = {}
@@ -679,12 +696,6 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
           console.warn('[AIChat] Failed to parse error response:', e)
         }
         const errorMsg = errorData.error || errorData.message || `Request failed with status ${response.status}`
-        console.error('[AIChat] API error response:', {
-          status: response.status,
-          statusText: response.statusText,
-          errorData
-        })
-        // Create error with additional data for token limit handling
         const error = new Error(errorMsg)
         error.errorData = errorData
         error.status = response.status
@@ -719,7 +730,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
           const lines = chunk.split('\n')
 
           for (const line of lines) {
-            if (line.trim() === '') continue // Skip empty lines
+            if (line.trim() === '') continue
             
             if (line.startsWith('data: ')) {
               try {
@@ -727,12 +738,39 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                 
                 if (data.type === 'token' && data.chunk) {
                   assistantContent += data.chunk
+                  
+                  // Coach mode: Parse options during streaming to show clean content
+                  let displayContent = assistantContent
+                  let streamingOptions = []
+                  
+                  if (coachMode && assistantContent) {
+                    try {
+                      const parsed = parseOptionsFromResponse(assistantContent)
+                      displayContent = parsed.message || assistantContent
+                      streamingOptions = parsed.options || []
+                    } catch (parseError) {
+                      // If parsing fails, just use original content
+                      console.warn('[AIChat] Failed to parse options:', parseError)
+                      displayContent = assistantContent
+                      streamingOptions = []
+                    }
+                  }
+                  
                   // Update assistant message and clear loading state once we have content
-                  setMessages(prev => prev.map(msg => 
-                    msg.id === assistantMessageId
-                      ? { ...msg, content: assistantContent, isLoading: false }
-                      : msg
-                  ))
+                  setMessages(prev => prev.map(msg => {
+                    if (msg.id === assistantMessageId) {
+                      const updatedMsg = { ...msg, content: displayContent, isLoading: false }
+                      // Only add options if coach mode is enabled and we have options
+                      if (coachMode && streamingOptions.length > 0) {
+                        updatedMsg.options = streamingOptions
+                      } else if (coachMode) {
+                        // Clear options if coach mode is on but no options yet
+                        updatedMsg.options = []
+                      }
+                      return updatedMsg
+                    }
+                    return msg
+                  }))
                 } else if (data.type === 'log') {
                   // Handle browser-visible logs from server
                   const logLevel = data.level || 'info'
@@ -766,9 +804,31 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                     setConversationId(data.conversationId)
                   }
                   
-                  // Add assistant response to session messages
-                  if (assistantContent.trim()) {
-                    setSessionMessages(prev => [...prev, { role: 'assistant', content: assistantContent }])
+                  // Coach mode: Parse options from response
+                  let finalContent = assistantContent
+                  let parsedOptions = []
+                  
+                  if (coachMode && assistantContent) {
+                    try {
+                      const parsed = parseOptionsFromResponse(assistantContent)
+                      finalContent = parsed.message || assistantContent
+                      parsedOptions = parsed.options || []
+                      
+                      // Store options for rendering
+                      if (parsedOptions.length > 0) {
+                        setLastAssistantOptions(parsedOptions)
+                      }
+                    } catch (parseError) {
+                      // If parsing fails, just use original content
+                      console.warn('[AIChat] Failed to parse options on completion:', parseError)
+                      finalContent = assistantContent
+                      parsedOptions = []
+                    }
+                  }
+                  
+                  // Add assistant response to session messages (with options stripped)
+                  if (finalContent.trim()) {
+                    setSessionMessages(prev => [...prev, { role: 'assistant', content: finalContent }])
                   }
                   
                   if (data.tokens) {
@@ -788,11 +848,18 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                   }
                   
                   // Final update to ensure loading state is cleared
-                  setMessages(prev => prev.map(msg => 
-                    msg.id === assistantMessageId
-                      ? { ...msg, isLoading: false, content: assistantContent }
-                      : msg
-                  ))
+                  // Store options in message for rendering
+                  setMessages(prev => prev.map(msg => {
+                    if (msg.id === assistantMessageId) {
+                      const updatedMsg = { ...msg, isLoading: false, content: finalContent }
+                      // Only add options if coach mode is enabled
+                      if (coachMode) {
+                        updatedMsg.options = parsedOptions || []
+                      }
+                      return updatedMsg
+                    }
+                    return msg
+                  }))
                   break // Exit loop when done
                 } else if (data.type === 'error') {
                   streamComplete = true // Mark as complete to prevent further processing
@@ -824,7 +891,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
               : msg
           ))
           abortControllerRef.current = null
-          return
+          return false
         }
         // Log read error details for debugging
         console.error('[AIChat] Read error:', {
@@ -862,6 +929,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
         }, 100)
       }
 
+      return true
     } catch (error) {
       console.error('[AIChat] Chat error:', error)
       console.error('[AIChat] Error details:', {
@@ -887,7 +955,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
             inputRef.current.focus()
           }
         }, 100)
-        return
+        return false
       }
       
       // Show user-friendly error message
@@ -927,7 +995,30 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
           inputRef.current.focus()
         }
       }, 100)
+      
+      return false
     }
+  }, [isLoading, isDemoMode, getDemoTokensUsed, coachMode, conversationDepth, currentTopic, sessionMessages, conversationId, tradesStats, effectiveAnalytics, effectiveAllTrades, previousSummaries, hasNoData, hasSentMessagesWithoutData, updateDemoTokensUsed])
+
+  const handleStop = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
+    }
+    setIsLoading(false)
+    // Update any loading messages to show they were stopped
+    setMessages(prev => prev.map(msg => 
+      msg.isLoading 
+        ? { ...msg, isLoading: false, content: msg.content || 'Response stopped by user.' }
+        : msg
+    ))
+  }
+
+  const handleSend = async () => {
+    if (!input.trim() || isLoading) return
+    const messageToSend = input.trim()
+    setInput('') // Clear input immediately
+    await sendMessage(messageToSend)
   }
 
   // Open maximized dialog when Vega starts responding (isLoading becomes true)
@@ -995,6 +1086,11 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
       if (hasNoData) {
         setHasSentMessagesWithoutData(false)
       }
+      
+      // Reset coach mode state
+      setConversationDepth(0)
+      setCurrentTopic(null)
+      setLastAssistantOptions([])
       
       // Reset scroll state
       shouldAutoScrollRef.current = true
@@ -1246,34 +1342,50 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
             {messages.map((message, idx) => (
               <div
                 key={message.id}
-                className={`flex gap-2.5 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                className={`flex flex-col ${message.role === 'user' ? 'items-end' : 'items-start'}`}
               >
-                {message.role === 'assistant' && (
-                  <div className="w-6 h-6 rounded-md bg-white/5 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Bot className="w-3.5 h-3.5 text-white/60" />
-                  </div>
-                )}
-                <div
-                  className={`max-w-[80%] rounded-lg px-3 py-2 ${
-                    message.role === 'user'
-                      ? 'bg-white/10 text-white/90'
-                      : message.error
-                      ? 'bg-red-500/10 text-red-400 border border-red-500/20'
-                      : 'bg-white/5 text-white/80'
-                  }`}
-                >
-                  {message.isLoading ? (
-                    <div className="flex items-center gap-2">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-white/50" />
-                      <span className="text-xs text-white/50">Thinking...</span>
+                <div className={`flex gap-2.5 ${message.role === 'user' ? 'justify-end' : 'justify-start'} w-full`}>
+                  {message.role === 'assistant' && (
+                    <div className="w-6 h-6 rounded-md bg-white/5 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Bot className="w-3.5 h-3.5 text-white/60" />
                     </div>
-                  ) : (
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                  )}
+                  <div
+                    className={`max-w-[80%] rounded-lg px-3 py-2 ${
+                      message.role === 'user'
+                        ? 'bg-white/10 text-white/90'
+                        : message.error
+                        ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                        : 'bg-white/5 text-white/80'
+                    }`}
+                  >
+                    {message.isLoading ? (
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-white/50" />
+                        <span className="text-xs text-white/50">{coachMode ? 'Coaching...' : 'Thinking...'}</span>
+                      </div>
+                    ) : (
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                    )}
+                  </div>
+                  {message.role === 'user' && (
+                    <div className="w-6 h-6 rounded-md bg-white/5 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <User className="w-3.5 h-3.5 text-white/60" />
+                    </div>
                   )}
                 </div>
-                {message.role === 'user' && (
-                  <div className="w-6 h-6 rounded-md bg-white/5 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <User className="w-3.5 h-3.5 text-white/60" />
+                {/* Coach mode: Show options after assistant messages */}
+                {coachMode && message.role === 'assistant' && !message.isLoading && Array.isArray(message.options) && message.options.length > 0 && idx === messages.length - 1 && (
+                  <div className="ml-8 mt-1">
+                    <ChatOptions 
+                      options={message.options}
+                      onSelect={async (option) => {
+                        if (!option || typeof option !== 'string' || isLoading) return
+                        // Auto-send the option as a message
+                        await sendMessage(option.trim())
+                      }}
+                      disabled={isLoading}
+                    />
                   </div>
                 )}
               </div>
@@ -1368,7 +1480,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
       </div>
     </div>
     )
-  }, [messages, input, isInputFocused, displayedSample, isTypingSample, isDeletingSample, isLoading, tokenUsage, handleSend, handleStop, handleInputChange, handleInputFocus, handleInputBlur, handleInputClick, handleKeyPress, handleClear, hasNoData, hasSentMessagesWithoutData, onConnectExchange, onUploadCSV, isVegaPage, tradesStats, portfolioData, insights, sampleQuestions])
+  }, [messages, input, isInputFocused, displayedSample, isTypingSample, isDeletingSample, isLoading, tokenUsage, handleSend, handleStop, handleInputChange, handleInputFocus, handleInputBlur, handleInputClick, handleKeyPress, handleClear, hasNoData, hasSentMessagesWithoutData, onConnectExchange, onUploadCSV, isVegaPage, tradesStats, portfolioData, insights, sampleQuestions, coachMode])
 
   return (
     <>
@@ -1421,10 +1533,15 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                 <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
                   <Bot className="w-4 h-4 text-white/80" />
                 </div>
-                <div>
+                <div className="flex items-center gap-2">
                   <h3 className="text-sm font-semibold text-white/90">
                     Vega AI
                   </h3>
+                  {coachMode && (
+                    <span className="px-2 py-0.5 text-[10px] font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full">
+                      Coach
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2">

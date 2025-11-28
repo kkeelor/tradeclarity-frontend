@@ -37,7 +37,9 @@ export async function POST(request) {
       sessionMessages = [], // In-memory messages from current session
       previousSummaries = [], // Summaries from previous conversations
       isDemoMode = false, // Demo mode flag for unauthenticated users
-      demoTokensUsed = 0 // Current token usage for demo users (from sessionStorage)
+      demoTokensUsed = 0, // Current token usage for demo users (from sessionStorage)
+      coachMode = false, // Coach mode toggle
+      coachModeConfig = null // Coach mode configuration { conversationDepth, currentTopic }
     } = body
 
     const supabase = createClient()
@@ -277,7 +279,15 @@ export async function POST(request) {
     // Build cached system blocks with prompt caching
     // Include MCP tools guidance if tools are available
     const hasMCPTools = mcpTools.length > 0
-    const systemBlocks = buildCachedSystemBlocks(aiContext, currentSummary, previousSummaries, tier, experienceLevel, hasMCPTools)
+    
+    // Build coach mode config if enabled
+    const finalCoachModeConfig = coachMode ? {
+      enabled: true,
+      conversationDepth: coachModeConfig?.conversationDepth || 0,
+      currentTopic: coachModeConfig?.currentTopic || null
+    } : null
+    
+    const systemBlocks = buildCachedSystemBlocks(aiContext, currentSummary, previousSummaries, tier, experienceLevel, hasMCPTools, finalCoachModeConfig)
     
     // Build messages array for Claude (ONLY conversation messages, NO system prompt)
     const claudeMessages = []
