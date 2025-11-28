@@ -143,7 +143,7 @@ export default function LandingPage() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex flex-col">
+    <div className="min-h-screen bg-black text-white flex flex-col">
       {/* Header */}
       <header className="p-4 md:p-6 flex justify-between items-center border-b border-slate-800/50">
         <button
