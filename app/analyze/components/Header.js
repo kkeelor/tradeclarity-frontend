@@ -4,11 +4,12 @@ import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { TrendingUp, ArrowRight, LayoutDashboard, Database, BarChart3, LogOut, ChevronDown, Menu, X, Tag, CreditCard, Brain, Crown } from 'lucide-react'
+import { TrendingUp, ArrowRight, LayoutDashboard, Database, BarChart3, LogOut, ChevronDown, Menu, X, Tag, CreditCard, Brain, Crown, HelpCircle } from 'lucide-react'
 import ThemeToggle from '../../components/ThemeToggle'
 import { getCurrencySymbol } from '../utils/currencyFormatter'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Badge } from '@/components/ui/badge'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useAuth } from '@/lib/AuthContext'
 
 // User Menu Component with Portal to avoid overflow-hidden clipping
@@ -324,11 +325,26 @@ export default function Header({
             )}
 
             {currencyMetadata?.supportsCurrencySwitch && currencyMetadata.availableCurrencies.length > 1 && (
-              <CurrencyDropdown
-                currencies={currencyMetadata.availableCurrencies}
-                selectedCurrency={currency}
-                onSelectCurrency={setCurrency}
-              />
+              <div className="flex items-center gap-1.5">
+                <CurrencyDropdown
+                  currencies={currencyMetadata.availableCurrencies}
+                  selectedCurrency={currency}
+                  onSelectCurrency={setCurrency}
+                />
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="w-3.5 h-3.5 text-white/40 hover:text-white/60 transition-colors " />
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-xs">
+                      <p className="font-medium mb-1">Currency Display</p>
+                      <p className="text-xs leading-relaxed">
+                        Change the display currency for all metrics, charts, and values across the app. Your actual trades remain in their original currency - this only affects how they're displayed.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
             )}
 
             <ThemeToggle />

@@ -1,8 +1,9 @@
 // app/components/UsageLimits.jsx
 'use client'
 
-import { Database, BarChart3, FileText } from 'lucide-react'
+import { Database, BarChart3, FileText, HelpCircle } from 'lucide-react'
 import { getRemainingQuota, getEffectiveTier, TIER_LIMITS } from '@/lib/featureGates'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 export default function UsageLimits({ subscription, compact = false, actualUsage = null }) {
   if (!subscription) return null
@@ -104,11 +105,54 @@ function UsageItem({ icon: Icon, label, used, limit, percentage, color }) {
   const displayLimit = limit === Infinity ? '∞' : limit
   const displayUsed = used || 0
 
+  const getTooltipContent = () => {
+    if (label.includes('Connection')) {
+      return {
+        title: 'Exchange Connections',
+        description: 'Number of exchanges you can connect via API. Each exchange connection allows real-time data sync and automatic updates.',
+        whenReached: 'You won\'t be able to connect additional exchanges until you upgrade or disconnect an existing one.'
+      }
+    } else if (label.includes('Trade')) {
+      return {
+        title: 'Trades Analyzed',
+        description: 'Number of trades analyzed per month. This includes all trades from connected exchanges and uploaded CSV files.',
+        whenReached: 'New trades won\'t be analyzed until your limit resets next month or you upgrade your plan.'
+      }
+    } else if (label.includes('Report')) {
+      return {
+        title: 'Reports Generated',
+        description: 'Number of detailed analytics reports you can generate per month. Reports provide comprehensive trading insights.',
+        whenReached: 'You won\'t be able to generate new reports until your limit resets next month or you upgrade your plan.'
+      }
+    }
+    return null
+  }
+
+  const tooltipInfo = getTooltipContent()
+
   return (
     <div className="rounded-xl border border-white/10 bg-black p-4">
       <div className="flex items-center gap-2 mb-3">
         <Icon className="w-4 h-4 text-white/60" />
         <p className="text-xs text-white/60 font-medium">{label}</p>
+        {tooltipInfo && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <HelpCircle className="w-3.5 h-3.5 text-white/40 hover:text-white/60 transition-colors  ml-auto" />
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs">
+                <p className="font-medium mb-1">{tooltipInfo.title}</p>
+                <p className="text-xs leading-relaxed mb-2">{tooltipInfo.description}</p>
+                {limit !== Infinity && (
+                  <p className="text-xs leading-relaxed">
+                    <strong>When limit reached:</strong> {tooltipInfo.whenReached}
+                  </p>
+                )}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
       <div className="space-y-2">
         <div className="flex items-baseline justify-between">

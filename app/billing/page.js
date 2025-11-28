@@ -3,12 +3,13 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { CreditCard, Calendar, CheckCircle, XCircle, AlertCircle, ArrowLeft, Loader2, Download, FileText } from 'lucide-react'
+import { CreditCard, Calendar, CheckCircle, XCircle, AlertCircle, ArrowLeft, Loader2, Download, FileText, HelpCircle } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { getTierDisplayName } from '@/lib/featureGates'
 import { toast } from 'sonner'
 import Footer from '../components/Footer'
 import UsageLimits from '../components/UsageLimits'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -258,6 +259,29 @@ export default function BillingPage() {
                     Payment Failed
                   </span>
                 )}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="w-4 h-4 text-white/40 hover:text-white/60 transition-colors " />
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="max-w-xs">
+                      <p className="font-medium mb-1">{getTierDisplayName(subscription?.tier || 'free')} Plan</p>
+                      {subscription?.tier === 'pro' ? (
+                        <p className="text-xs leading-relaxed">
+                          Unlimited exchange connections, unlimited trades analyzed, and 100,000 AI tokens/month. Full access to all features.
+                        </p>
+                      ) : subscription?.tier === 'trader' ? (
+                        <p className="text-xs leading-relaxed">
+                          Up to 3 exchange connections, 10,000 trades/month, and 50,000 AI tokens/month. Perfect for active traders.
+                        </p>
+                      ) : (
+                        <p className="text-xs leading-relaxed">
+                          Up to 1 exchange connection, 500 trades/month, and 10,000 AI tokens/month. Great for getting started.
+                        </p>
+                      )}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </div>
             {subscription?.tier !== 'free' && (

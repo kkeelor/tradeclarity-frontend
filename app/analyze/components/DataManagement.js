@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Database, Upload, FileText, X, AlertCircle, CheckCircle, Trash2, Loader2, Check, ChevronDown, Link2, Plus, KeyRound, Clock, TrendingUp } from 'lucide-react'
+import { Database, Upload, FileText, X, AlertCircle, CheckCircle, Trash2, Loader2, Check, ChevronDown, Link2, Plus, KeyRound, Clock, TrendingUp, HelpCircle } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { ExchangeIcon, Separator } from '@/components/ui'
 import { toast } from 'sonner'
@@ -18,6 +18,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Form } from '@/components/ui/form'
 import { useForm } from 'react-hook-form'
 import {
@@ -975,6 +976,19 @@ export default function DataManagement() {
                               minute: '2-digit'
                             })}
                           </span>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className="w-3.5 h-3.5 text-white/40 hover:text-white/60 transition-colors  ml-auto" />
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs">
+                                <p className="font-medium mb-1">API Keys Last Updated</p>
+                                <p className="text-xs leading-relaxed">
+                                  This shows when you last saved or updated your API keys for this exchange. Your keys are encrypted and stored securely.
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </div>
                       )}
                       
@@ -1514,9 +1528,22 @@ function FileConfigCard({ config, connectedExchanges, otherExchanges, onUpdate, 
                       }}
                       className="w-4 h-4 text-white/60 bg-black border-white/20 focus:ring-white/20"
                     />
-                    <label htmlFor={`other-exchange-${config.id}`} className="text-xs font-medium text-white/70 cursor-pointer">
+                    <label htmlFor={`other-exchange-${config.id}`} className="text-xs font-medium text-white/70 cursor-pointer flex-1">
                       Other Exchange
                     </label>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="w-3.5 h-3.5 text-white/40 hover:text-white/60 transition-colors " />
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-xs">
+                          <p className="font-medium mb-1">Other Exchange</p>
+                          <p className="text-xs leading-relaxed">
+                            Use this option if your exchange isn't supported for API connections, or if you're uploading CSV files from an exchange that doesn't match your connected exchanges. This helps organize your CSV data.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                   
                   {config.useOtherExchange && (

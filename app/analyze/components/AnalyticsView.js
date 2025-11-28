@@ -29,6 +29,7 @@ import { Badge } from '@/components/ui/badge'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { getCurrencySymbol, formatCurrencyNumber } from '../utils/currencyFormatter'
 import {
   AreaChart, Area, BarChart, Bar, LineChart as RechartsLineChart,
@@ -255,6 +256,33 @@ function HeroSection({ analytics, currSymbol, currency, metadata }) {
 
 // QuickStat now uses the reusable MetricDisplay component
 function QuickStat({ label, value, subtitle, icon, good, currency }) {
+  const getTooltipContent = () => {
+    if (label === 'Win Rate') {
+      return {
+        title: 'Win Rate',
+        description: 'Percentage of trades that were profitable. Calculated as (Winning Trades / Total Trades) × 100. A win rate above 50% is generally considered good.'
+      }
+    } else if (label === 'Profit Factor') {
+      return {
+        title: 'Profit Factor',
+        description: 'Ratio of gross profit to gross loss. Calculated as Total Profits / Total Losses. A profit factor above 1.5 is healthy, above 2.0 is excellent.'
+      }
+    } else if (label === 'Avg Win') {
+      return {
+        title: 'Average Win',
+        description: 'Average profit per winning trade. This shows how much you typically make when you win.'
+      }
+    } else if (label === 'Avg Loss') {
+      return {
+        title: 'Average Loss',
+        description: 'Average loss per losing trade. This shows how much you typically lose when you lose.'
+      }
+    }
+    return null
+  }
+
+  const tooltipInfo = getTooltipContent()
+
   return (
     <Card variant="glass" className="hover:border-slate-600/50 transition-all">
       {(icon || label) && (
@@ -262,6 +290,19 @@ function QuickStat({ label, value, subtitle, icon, good, currency }) {
           {icon && <IconBadge icon={icon} color={good === true ? 'emerald' : good === false ? 'red' : 'slate'} size="sm" />}
           {label && (
             <span className="text-xs text-slate-400 uppercase tracking-wider">{label}</span>
+          )}
+          {tooltipInfo && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="w-3.5 h-3.5 text-slate-500 hover:text-slate-400 transition-colors  ml-auto" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs">
+                  <p className="font-medium mb-1">{tooltipInfo.title}</p>
+                  <p className="text-xs leading-relaxed">{tooltipInfo.description}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
         </div>
       )}
@@ -293,8 +334,21 @@ function AccountTypeCard({ type, trades, pnl, winRate, currSymbol, currency, ico
           {isProfitable ? '+' : ''}{currSymbol}{formatNumber(pnl, 2, currency || 'USD')} <span className="text-xs text-slate-400 font-normal">{displayCurrency}</span>
         </div>
       </div>
-      <div className="flex items-center gap-4 text-sm text-slate-400">
+      <div className="flex items-center gap-2 text-sm text-slate-400">
         <span>Win Rate: <span className="text-white font-semibold">{winRate.toFixed(1)}%</span></span>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <HelpCircle className="w-3.5 h-3.5 text-slate-500 hover:text-slate-400 transition-colors " />
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs">
+              <p className="font-medium mb-1">Win Rate</p>
+              <p className="text-xs leading-relaxed">
+                Percentage of {type.toLowerCase()} trades that were profitable. Calculated as (Winning Trades / Total Trades) × 100. A win rate above 50% is generally considered good.
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     </Card>
   )
@@ -5557,7 +5611,7 @@ function BehavioralTab({ analytics, currSymbol, currency }) {
                             return (
                               <div
                                 key={hourIdx}
-                                className={`${bgColor} ${borderColor} border rounded p-1 min-h-[32px] flex flex-col items-center justify-center cursor-help`}
+                                className={`${bgColor} ${borderColor} border rounded p-1 min-h-[32px] flex flex-col items-center justify-center `}
                                 title={`${day} ${hourIdx.toString().padStart(2, '0')}:00 - ${winRate !== null ? `${winRate.toFixed(0)}% WR, ${trades} trades` : 'No trades'}`}
                               >
                                 {winRate !== null && (

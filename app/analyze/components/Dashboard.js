@@ -32,6 +32,8 @@ import { ExchangeIcon, Separator } from '@/components/ui'
 import { Badge } from '@/components/ui/badge'
 import { DashboardStatsSkeleton, DataSourceSkeleton } from '@/app/components/LoadingSkeletons'
 import ConnectExchangeModal from './ConnectExchangeModal'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { HelpCircle } from 'lucide-react'
 import Sidebar from './Sidebar'
 import Header from './Header'
 import Footer from '../../components/Footer'
@@ -1294,17 +1296,42 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                 {getGreeting()}{user?.user_metadata?.name ? `, ${user.user_metadata.name.split(' ')[0]}` : ''}
               </h1>
               {subscription && (
-                <Badge 
-                  variant="outline" 
-                  className={`${
-                    subscription.tier === 'pro' || subscription.tier === 'trader'
-                      ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-400' 
-                      : 'border-blue-400/30 bg-blue-400/10 text-blue-400'
-                  } font-medium uppercase tracking-wider text-[10px] px-2 py-0.5 flex items-center gap-1.5`}
-                >
-                  {subscription.tier === 'pro' && <Crown className="w-3 h-3 text-emerald-400" />}
-                  {subscription.tier}
-                </Badge>
+                <div className="flex items-center gap-1.5">
+                  <Badge 
+                    variant="outline" 
+                    className={`${
+                      subscription.tier === 'pro' || subscription.tier === 'trader'
+                        ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-400' 
+                        : 'border-blue-400/30 bg-blue-400/10 text-blue-400'
+                    } font-medium uppercase tracking-wider text-[10px] px-2 py-0.5 flex items-center gap-1.5`}
+                  >
+                    {subscription.tier === 'pro' && <Crown className="w-3 h-3 text-emerald-400" />}
+                    {subscription.tier}
+                  </Badge>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="w-3.5 h-3.5 text-white/40 hover:text-white/60 transition-colors " />
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-xs">
+                        <p className="font-medium mb-1">{subscription.tier === 'pro' ? 'PRO Plan' : subscription.tier === 'trader' ? 'Trader Plan' : 'Free Plan'}</p>
+                        {subscription.tier === 'pro' ? (
+                          <p className="text-xs leading-relaxed">
+                            Unlimited exchange connections, unlimited trades analyzed, and 100,000 AI tokens/month. Full access to all features.
+                          </p>
+                        ) : subscription.tier === 'trader' ? (
+                          <p className="text-xs leading-relaxed">
+                            Up to 3 exchange connections, 10,000 trades/month, and 50,000 AI tokens/month. Perfect for active traders.
+                          </p>
+                        ) : (
+                          <p className="text-xs leading-relaxed">
+                            Up to 1 exchange connection, 500 trades/month, and 10,000 AI tokens/month. Great for getting started.
+                          </p>
+                        )}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
               )}
             </div>
             <p className="text-xs text-white/50 mt-2 flex items-center gap-2">
@@ -1340,7 +1367,22 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                           <div className="space-y-2.5">
                             <div className="flex items-center justify-between p-3 rounded-lg border border-white/5 bg-white/5">
                               <span className="text-xs text-white/60">Total Trades</span>
-                              <span className="text-sm font-semibold text-white/90">{tradesStats.totalTrades.toLocaleString()}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold text-white/90">{tradesStats.totalTrades.toLocaleString()}</span>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <HelpCircle className="w-3.5 h-3.5 text-white/40 hover:text-white/60 transition-colors " />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="max-w-xs">
+                                      <p className="font-medium mb-1">Total Trades</p>
+                                      <p className="text-xs leading-relaxed">
+                                        Total number of trades analyzed across all connected exchanges and uploaded CSV files. Includes both spot and futures trades.
+                                      </p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </div>
                             </div>
                             <div className="flex items-center justify-between p-3 rounded-lg border border-white/5 bg-white/5">
                               <span className="text-xs text-white/60">Exchanges Connected</span>
@@ -1363,9 +1405,24 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                             {tradesStats.oldestTrade && (
                               <div className="flex items-center justify-between p-3 rounded-lg border border-white/5 bg-white/5">
                                 <span className="text-xs text-white/60">Data Range</span>
-                                <span className="text-xs font-medium text-white/70">
-                                  {new Date(tradesStats.oldestTrade).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - Present
-                                </span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-medium text-white/70">
+                                    {new Date(tradesStats.oldestTrade).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - Present
+                                  </span>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <HelpCircle className="w-3.5 h-3.5 text-white/40 hover:text-white/60 transition-colors " />
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="max-w-xs">
+                                        <p className="font-medium mb-1">Data Range</p>
+                                        <p className="text-xs leading-relaxed">
+                                          The time period covered by your trading data, from your oldest trade to the most recent. This determines the historical analysis period.
+                                        </p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </div>
                               </div>
                             )}
                           </div>
@@ -1394,16 +1451,34 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                         
                         {/* Progress Bar */}
                         {subscription && subscription.tier !== 'pro' && (
-                          <div className="pt-3 border-t border-white/10 flex-shrink-0 mt-auto">
-                            <PlanProgressBar 
-                              currentTier={subscription.tier}
-                              actualUsage={{
-                                connections: connectedExchanges.length,
-                                trades: tradesStats?.totalTrades || 0,
-                                tokens: tokenUsage.used || 0
-                              }}
-                              onClick={() => setShowUsageModal(true)}
-                            />
+                          <div className="pt-3 border-t border-white/10 flex-shrink-0 mt-auto flex items-center gap-2">
+                            <div className="flex-1">
+                              <PlanProgressBar 
+                                currentTier={subscription.tier}
+                                actualUsage={{
+                                  connections: connectedExchanges.length,
+                                  trades: tradesStats?.totalTrades || 0,
+                                  tokens: tokenUsage.used || 0
+                                }}
+                                onClick={() => setShowUsageModal(true)}
+                              />
+                            </div>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <HelpCircle className="w-3.5 h-3.5 text-white/40 hover:text-white/60 transition-colors  flex-shrink-0" />
+                                </TooltipTrigger>
+                                <TooltipContent side="left" className="max-w-xs">
+                                  <p className="font-medium mb-1">Plan Usage Progress</p>
+                                  <p className="text-xs leading-relaxed mb-2">
+                                    This shows how close you are to your current plan limits. The bar fills as you approach any limit (connections, trades, or tokens).
+                                  </p>
+                                  <p className="text-xs leading-relaxed">
+                                    <strong>Reset:</strong> Limits reset monthly on your billing date. Click to view detailed usage.
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           </div>
                         )}
                         </div>
@@ -1479,22 +1554,48 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                         )}
                         
                         <div className="space-y-2 mt-auto">
-                          <button
-                            onClick={handleOpenConnectModal}
-                            className="w-full text-left text-xs text-white/80 hover:text-white font-medium transition-colors duration-200 flex items-center gap-2 p-3 rounded-lg hover:bg-white/5 border border-white/10 hover:border-white/20"
-                          >
-                            <LinkIcon className="w-4 h-4 text-white/60 flex-shrink-0" />
-                            <span>Connect Exchange via API</span>
-                            <ChevronRight className="w-3.5 h-3.5 ml-auto text-white/40" />
-                          </button>
-                          <button
-                            onClick={() => router.push('/data')}
-                            className="w-full text-left text-xs text-white/80 hover:text-white font-medium transition-colors duration-200 flex items-center gap-2 p-3 rounded-lg hover:bg-white/5 border border-white/10 hover:border-white/20"
-                          >
-                            <Upload className="w-4 h-4 text-white/60 flex-shrink-0" />
-                            <span>Upload CSV Files</span>
-                            <ChevronRight className="w-3.5 h-3.5 ml-auto text-white/40" />
-                          </button>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={handleOpenConnectModal}
+                                  className="w-full text-left text-xs text-white/80 hover:text-white font-medium transition-colors duration-200 flex items-center gap-2 p-3 rounded-lg hover:bg-white/5 border border-white/10 hover:border-white/20 group"
+                                >
+                                  <LinkIcon className="w-4 h-4 text-white/60 flex-shrink-0" />
+                                  <span className="flex-1">Connect Exchange via API</span>
+                                  <HelpCircle className="w-3.5 h-3.5 text-white/40 group-hover:text-white/60 transition-colors flex-shrink-0" />
+                                  <ChevronRight className="w-3.5 h-3.5 text-white/40 flex-shrink-0" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs">
+                                <p className="font-medium mb-1">Connect Exchange via API</p>
+                                <p className="text-xs leading-relaxed">
+                                  Connect your exchange using API keys for real-time data and automatic updates. Your API keys are encrypted and read-only - we can't execute trades or access your funds.
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={() => router.push('/data')}
+                                  className="w-full text-left text-xs text-white/80 hover:text-white font-medium transition-colors duration-200 flex items-center gap-2 p-3 rounded-lg hover:bg-white/5 border border-white/10 hover:border-white/20 group"
+                                >
+                                  <Upload className="w-4 h-4 text-white/60 flex-shrink-0" />
+                                  <span className="flex-1">Upload CSV Files</span>
+                                  <HelpCircle className="w-3.5 h-3.5 text-white/40 group-hover:text-white/60 transition-colors flex-shrink-0" />
+                                  <ChevronRight className="w-3.5 h-3.5 text-white/40 flex-shrink-0" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs">
+                                <p className="font-medium mb-1">Upload CSV Files</p>
+                                <p className="text-xs leading-relaxed">
+                                  Import your trade history manually by uploading CSV files exported from your exchange. Good for one-time analysis or when you prefer not to use API connections.
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </div>
                       </div>
                     </div>
@@ -1676,14 +1777,29 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                   </div>
 
                   {/* View Analytics button - Fixed on the right */}
-                  <button
-                    onClick={onViewAnalytics}
-                    className="group flex-shrink-0 px-4 py-2.5 bg-gradient-to-r from-emerald-500/10 to-emerald-600/10 hover:from-emerald-500/20 hover:to-emerald-600/20 border border-emerald-500/30 hover:border-emerald-500/50 rounded-xl text-xs font-semibold text-emerald-300 hover:text-emerald-200 transition-all duration-300 inline-flex items-center gap-2 hover:scale-[1.02] whitespace-nowrap"
-                  >
-                    <BarChart3 className="w-4 h-4" />
-                    <span>Explore All</span>
-                    <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={onViewAnalytics}
+                      className="group flex-shrink-0 px-4 py-2.5 bg-gradient-to-r from-emerald-500/10 to-emerald-600/10 hover:from-emerald-500/20 hover:to-emerald-600/20 border border-emerald-500/30 hover:border-emerald-500/50 rounded-xl text-xs font-semibold text-emerald-300 hover:text-emerald-200 transition-all duration-300 inline-flex items-center gap-2 hover:scale-[1.02] whitespace-nowrap"
+                    >
+                      <BarChart3 className="w-4 h-4" />
+                      <span>Explore All</span>
+                      <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                    </button>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="w-4 h-4 text-white/40 hover:text-white/60 transition-colors " />
+                        </TooltipTrigger>
+                        <TooltipContent side="left" className="max-w-xs">
+                          <p className="font-medium mb-1">Explore All Analytics</p>
+                          <p className="text-xs leading-relaxed">
+                            View comprehensive trading analytics including performance metrics, patterns, insights, and detailed breakdowns of your trading data.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                 </div>
 
                 {/* Clickable dots indicator */}
@@ -1721,39 +1837,89 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
             {tradesStats && tradesStats.totalTrades > 0 && (
               <section>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <button
-                  onClick={() => setShowConnectModal(true)}
-                  className="group relative overflow-hidden p-5 rounded-xl border border-white/10 bg-black hover:border-white/20 hover:bg-white/5 transition-all duration-300 text-left"
-                >
-                  <div className="relative">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-10 h-10 bg-white/5 group-hover:bg-white/10 border border-white/10 rounded-lg flex items-center justify-center transition-all duration-300">
-                        <LinkIcon className="w-5 h-5 text-white/70" />
-                      </div>
-                      <h3 className="text-sm font-medium text-white/90">Connect Exchange</h3>
-                    </div>
-                    <p className="text-xs text-white/60 leading-relaxed">
-                      Link via API or CSV
-                    </p>
-                  </div>
-                </button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => setShowConnectModal(true)}
+                        className="group relative overflow-hidden p-5 rounded-xl border border-white/10 bg-black hover:border-white/20 hover:bg-white/5 transition-all duration-300 text-left w-full"
+                      >
+                        <div className="relative">
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="w-10 h-10 bg-white/5 group-hover:bg-white/10 border border-white/10 rounded-lg flex items-center justify-center transition-all duration-300">
+                              <LinkIcon className="w-5 h-5 text-white/70" />
+                            </div>
+                            <h3 className="text-sm font-medium text-white/90 flex-1">Connect Exchange</h3>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <HelpCircle className="w-3.5 h-3.5 text-white/40 hover:text-white/60 transition-colors " onClick={(e) => e.stopPropagation()} />
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-xs">
+                                  <p className="font-medium mb-1">Connect Exchange via API</p>
+                                  <p className="text-xs leading-relaxed">
+                                    Connect your exchange using API keys for real-time data and automatic updates. Your API keys are encrypted and read-only - we can't execute trades or access your funds.
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                          <p className="text-xs text-white/60 leading-relaxed">
+                            Link via API or CSV
+                          </p>
+                        </div>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs">
+                      <p className="font-medium mb-1">Connect Your Exchange</p>
+                      <p className="text-xs leading-relaxed">
+                        Connect via API keys for real-time data and automatic updates, or upload CSV files for one-time analysis. Your API keys are encrypted and read-only - we can't execute trades or access your funds.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
 
-                <button
-                  onClick={() => router.push('/data')}
-                  className="group relative overflow-hidden p-5 rounded-xl border border-white/10 bg-black hover:border-white/20 hover:bg-white/5 transition-all duration-300 text-left"
-                >
-                  <div className="relative">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-10 h-10 bg-white/5 group-hover:bg-white/10 border border-white/10 rounded-lg flex items-center justify-center transition-all duration-300">
-                        <Upload className="w-5 h-5 text-white/70" />
-                      </div>
-                      <h3 className="text-sm font-medium text-white/90">Upload CSV</h3>
-                    </div>
-                    <p className="text-xs text-white/60 leading-relaxed">
-                      Import trade history
-                    </p>
-                  </div>
-                </button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => router.push('/data')}
+                        className="group relative overflow-hidden p-5 rounded-xl border border-white/10 bg-black hover:border-white/20 hover:bg-white/5 transition-all duration-300 text-left w-full"
+                      >
+                        <div className="relative">
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="w-10 h-10 bg-white/5 group-hover:bg-white/10 border border-white/10 rounded-lg flex items-center justify-center transition-all duration-300">
+                              <Upload className="w-5 h-5 text-white/70" />
+                            </div>
+                            <h3 className="text-sm font-medium text-white/90 flex-1">Upload CSV</h3>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <HelpCircle className="w-3.5 h-3.5 text-white/40 hover:text-white/60 transition-colors " onClick={(e) => e.stopPropagation()} />
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-xs">
+                                  <p className="font-medium mb-1">Upload CSV Files</p>
+                                  <p className="text-xs leading-relaxed">
+                                    Import your trade history manually by uploading CSV files exported from your exchange. Good for one-time analysis or when you prefer not to use API connections.
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                          <p className="text-xs text-white/60 leading-relaxed">
+                            Import trade history
+                          </p>
+                        </div>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs">
+                      <p className="font-medium mb-1">Upload CSV Files</p>
+                      <p className="text-xs leading-relaxed">
+                        Import your trade history manually by uploading CSV files exported from your exchange. Good for one-time analysis or when you prefer not to use API connections.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
 
                 <button
                   onClick={onTryDemo}
@@ -1829,20 +1995,50 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                       Connect an exchange or upload CSV files to get started with powerful trading insights
                     </p>
                     <div className="flex items-center justify-center gap-3">
-                      <button
-                        onClick={() => setShowConnectModal(true)}
-                        className="group px-5 py-2.5 bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 rounded-lg text-sm font-medium transition-all duration-300 inline-flex items-center gap-2"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Connect Exchange
-                      </button>
-                      <button
-                        onClick={() => router.push('/data')}
-                        className="group px-5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg text-sm font-medium transition-all duration-300 inline-flex items-center gap-2"
-                      >
-                        <Upload className="w-4 h-4" />
-                        Upload CSV
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setShowConnectModal(true)}
+                          className="group px-5 py-2.5 bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 rounded-lg text-sm font-medium transition-all duration-300 inline-flex items-center gap-2"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Connect Exchange
+                        </button>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle className="w-4 h-4 text-white/40 hover:text-white/60 transition-colors " />
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              <p className="font-medium mb-1">Connect Exchange via API</p>
+                              <p className="text-xs leading-relaxed">
+                                Connect your exchange using API keys for real-time data and automatic updates. Your API keys are encrypted and read-only - we can't execute trades or access your funds.
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => router.push('/data')}
+                          className="group px-5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg text-sm font-medium transition-all duration-300 inline-flex items-center gap-2"
+                        >
+                          <Upload className="w-4 h-4" />
+                          Upload CSV
+                        </button>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle className="w-4 h-4 text-white/40 hover:text-white/60 transition-colors " />
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              <p className="font-medium mb-1">Upload CSV Files</p>
+                              <p className="text-xs leading-relaxed">
+                                Import your trade history manually by uploading CSV files exported from your exchange. Good for one-time analysis or when you prefer not to use API connections.
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
                     </div>
                   </div>
                 </div>

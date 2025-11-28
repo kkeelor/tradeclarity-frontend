@@ -10,10 +10,11 @@ import AIChat from '../analyze/components/AIChat'
 import Header from '../analyze/components/Header'
 import { useMultipleTabs } from '@/lib/hooks/useMultipleTabs'
 import { EXCHANGES, getExchangeList } from '../analyze/utils/exchanges'
-import { Loader2, Brain, LogIn, Sparkles, Zap, TrendingUp, Shield, ArrowRight } from 'lucide-react'
+import { Loader2, Brain, LogIn, Sparkles, Zap, TrendingUp, Shield, ArrowRight, HelpCircle } from 'lucide-react'
 import Footer from '../components/Footer'
 import AuthModal from '../components/AuthModal'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import demoFuturesData from '../analyze/demo-data/demo-futures-data.json'
 import demoSpotData from '../analyze/demo-data/demo-spot-data.json'
 
@@ -426,8 +427,8 @@ export default function VegaContent() {
           </p>
           {/* Demo Token Limit Display */}
           {isDemoMode && !user && (
-            <div className="mt-3 flex items-center justify-center">
-              <div className={`px-3 py-1.5 border rounded-lg text-xs ${
+            <div className="mt-3 flex items-center justify-center gap-2">
+              <div className={`px-3 py-1.5 border rounded-lg text-xs flex items-center gap-2 ${
                 demoTokensUsed >= 2700 
                   ? 'bg-red-500/10 border-red-500/30 text-red-400' 
                   : demoTokensUsed >= 2100
@@ -440,6 +441,28 @@ export default function VegaContent() {
                 </span>
                 <span className={demoTokensUsed >= 2100 ? 'text-current opacity-80' : 'text-slate-500'}> / 3,000</span>
               </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className={`w-3.5 h-3.5 transition-colors  ${
+                      demoTokensUsed >= 2700 
+                        ? 'text-red-400 hover:text-red-300' 
+                        : demoTokensUsed >= 2100
+                        ? 'text-orange-400 hover:text-orange-300'
+                        : 'text-white/40 hover:text-white/60'
+                    }`} />
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs">
+                    <p className="font-medium mb-1">AI Token Usage</p>
+                    <p className="text-xs leading-relaxed mb-2">
+                      Tokens are consumed each time you ask Vega AI a question. Each conversation uses tokens based on the complexity and length of your question and the response.
+                    </p>
+                    <p className="text-xs leading-relaxed">
+                      <strong>Demo limit:</strong> 3,000 tokens. Sign up for a free account to get 10,000 tokens/month.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           )}
         </div>

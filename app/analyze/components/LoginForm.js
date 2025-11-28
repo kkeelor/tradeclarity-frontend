@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import UpgradeRequiredModal from '@/app/components/UpgradeRequiredModal'
 
 // Step Progress Indicator Component
@@ -560,6 +561,22 @@ export default function LoginForm({
                 <span>Read-only access</span>
                 <Separator className="mx-1 text-white/10" />
                 <span>Encrypted storage</span>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/40 hover:text-white/60 transition-colors " />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs">
+                      <p className="font-medium mb-1">Your Data is Safe</p>
+                      <p className="text-xs leading-relaxed mb-2">
+                        <strong>Read-only access:</strong> TradeClarity can only read your trading data. We cannot execute trades, withdraw funds, or access your account balance.
+                      </p>
+                      <p className="text-xs leading-relaxed">
+                        <strong>Encrypted storage:</strong> Your API keys are encrypted using industry-standard encryption before being stored. We never store them in plain text.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </div>
           </div>
@@ -632,13 +649,28 @@ export default function LoginForm({
                   <Label htmlFor="api-key" className="text-white/80">
                     API Key
                   </Label>
-                  <button
-                    onClick={() => setShowHelpModal(true)}
-                    className="flex items-center gap-1 text-xs text-white/60 hover:text-white/90 transition-colors"
-                  >
-                    <HelpCircle className="w-4 h-4" />
-                    How to get this?
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="w-4 h-4 text-white/40 hover:text-white/60 transition-colors " />
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-xs">
+                          <p className="font-medium mb-1">What is an API Key?</p>
+                          <p className="text-xs leading-relaxed">
+                            An API key allows TradeClarity to read your trading data. You'll find it in your exchange's API Management section. Make sure to set it as "Read-only" - we can't execute trades or access your funds.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <button
+                      onClick={() => setShowHelpModal(true)}
+                      className="flex items-center gap-1 text-xs text-white/60 hover:text-white/90 transition-colors"
+                    >
+                      <HelpCircle className="w-4 h-4" />
+                      How to get this?
+                    </button>
+                  </div>
                 </div>
                 <div className="relative">
                   <Input 
@@ -681,14 +713,31 @@ export default function LoginForm({
               {/* API Secret Field */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="api-secret" className="text-white/80">API Secret</Label>
-                  <button
-                    onClick={() => setShowHelpModal(true)}
-                    className="flex items-center gap-1 text-xs text-white/60 hover:text-white/90 transition-colors"
-                  >
-                    <HelpCircle className="w-4 h-4" />
-                    How to get this?
-                  </button>
+                  <Label htmlFor="api-secret" className="text-white/80">
+                    API Secret
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="w-4 h-4 text-white/40 hover:text-white/60 transition-colors " />
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-xs">
+                          <p className="font-medium mb-1">What is an API Secret?</p>
+                          <p className="text-xs leading-relaxed">
+                            The API Secret is shown only once when you create your API key. It's used together with your API Key to securely authenticate. Keep it private - it's encrypted and stored securely.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <button
+                      onClick={() => setShowHelpModal(true)}
+                      className="flex items-center gap-1 text-xs text-white/60 hover:text-white/90 transition-colors"
+                    >
+                      <HelpCircle className="w-4 h-4" />
+                      How to get this?
+                    </button>
+                  </div>
                 </div>
                 <div className="relative">
                   <Input 
