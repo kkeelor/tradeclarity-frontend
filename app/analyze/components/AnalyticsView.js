@@ -6059,7 +6059,7 @@ export default function AnalyticsView({
     if (onViewAllExchanges) {
       onViewAllExchanges()
     } else {
-      router.push('/analyze')
+      router.push('/vega')
     }
   }
 

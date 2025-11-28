@@ -99,7 +99,7 @@ export function generateWhatsNextActions(analytics, psychology, allTrades, trade
           potentialSavings: Math.abs(worstDrawdown.drawdownAmount) * 0.2,
           impact: 4,
           actionType: 'navigation',
-          action: { route: '/analyze?tab=overview', label: 'View Drawdown Analysis' },
+          action: { route: '/vega', label: 'View Drawdown Analysis' },
           category: 'risk_management',
           icon: 'TrendingDown',
           color: 'red',
@@ -123,7 +123,7 @@ export function generateWhatsNextActions(analytics, psychology, allTrades, trade
       potentialSavings: feeSavings,
       impact: 2,
       actionType: 'navigation',
-      action: { route: '/analyze?tab=behavioral', label: 'View Fee Analysis' },
+      action: { route: '/vega', label: 'View Fee Analysis' },
       category: 'optimization',
       icon: 'DollarSign',
       color: 'emerald',
@@ -147,7 +147,7 @@ export function generateWhatsNextActions(analytics, psychology, allTrades, trade
           potentialSavings,
           impact: 3,
           actionType: 'navigation',
-          action: { route: '/analyze?tab=overview', label: 'View Time Analysis' },
+          action: { route: '/vega', label: 'View Time Analysis' },
           category: 'timing',
           icon: 'Clock',
           color: 'cyan',
@@ -174,7 +174,7 @@ export function generateWhatsNextActions(analytics, psychology, allTrades, trade
             potentialSavings: bestSymbol.totalPnL * 0.3,
             impact: 3,
             actionType: 'navigation',
-            action: { route: '/analyze?tab=spot', label: 'View Symbol Analysis' },
+            action: { route: '/vega', label: 'View Symbol Analysis' },
             category: 'opportunity',
             icon: 'TrendingUp',
             color: 'emerald',
@@ -200,7 +200,7 @@ export function generateWhatsNextActions(analytics, psychology, allTrades, trade
       description: `${tradesStats.spotTrades} trades • ${spotWinRate.toFixed(1)}% win rate`,
       value: spotPnL,
       actionType: 'navigation',
-      action: { route: '/analyze?tab=spot', label: 'Analyze Spot Trades' },
+      action: { route: '/vega', label: 'Analyze Spot Trades' },
       category: 'explore',
       icon: 'PieChart',
       color: 'emerald'
@@ -218,7 +218,7 @@ export function generateWhatsNextActions(analytics, psychology, allTrades, trade
       description: `${tradesStats.futuresIncome || 0} trades • ${futuresWinRate.toFixed(1)}% win rate`,
       value: futuresPnL,
       actionType: 'navigation',
-      action: { route: '/analyze?tab=futures', label: 'Review Futures Performance' },
+      action: { route: '/vega', label: 'Review Futures Performance' },
       category: 'explore',
       icon: 'Zap',
       color: 'cyan'
@@ -236,7 +236,7 @@ export function generateWhatsNextActions(analytics, psychology, allTrades, trade
       description: `Health Score: ${healthScore}/100${criticalPatterns > 0 ? ` • ${criticalPatterns} critical patterns` : ''}`,
       value: healthScore,
       actionType: 'navigation',
-      action: { route: '/analyze?tab=behavioral', label: 'Discover Trading Psychology Score' },
+      action: { route: '/vega', label: 'Discover Trading Psychology Score' },
       category: 'explore',
       icon: 'Brain',
       color: 'purple'
@@ -250,7 +250,7 @@ export function generateWhatsNextActions(analytics, psychology, allTrades, trade
     title: 'Complete Trading Overview',
     description: 'View all analytics and insights',
     actionType: 'navigation',
-    action: { route: '/analyze?tab=overview', label: 'View Complete Overview' },
+    action: { route: '/vega', label: 'View Complete Overview' },
     category: 'explore',
     icon: 'BarChart3',
     color: 'slate'
@@ -306,11 +306,8 @@ export function generateWhatsNextActions(analytics, psychology, allTrades, trade
 function getActionFromInsight(insight, analytics) {
   if (insight.action && insight.action.steps) {
     // Determine route based on category
-    let route = '/analyze?tab=overview'
-    if (insight.category === 'timing') route = '/analyze?tab=overview'
-    else if (insight.category === 'opportunity' && insight.bestSymbol) route = '/analyze?tab=spot'
-    else if (insight.category === 'behavioral') route = '/analyze?tab=behavioral'
-    else if (insight.category === 'risk_management') route = '/analyze?tab=overview'
+    let route = '/vega'
+    // All routes now go to Vega AI - tab-specific navigation removed
     
     return {
       route,
@@ -319,12 +316,12 @@ function getActionFromInsight(insight, analytics) {
     }
   }
   
-  // Default navigation based on category
-  if (insight.category === 'timing') return { route: '/analyze?tab=overview', label: 'View Time Analysis' }
-  if (insight.category === 'opportunity') return { route: '/analyze?tab=spot', label: 'View Symbol Analysis' }
-  if (insight.category === 'behavioral') return { route: '/analyze?tab=behavioral', label: 'View Psychology Analysis' }
+  // Default navigation - all routes go to Vega AI
+  if (insight.category === 'timing') return { route: '/vega', label: 'View Time Analysis' }
+  if (insight.category === 'opportunity') return { route: '/vega', label: 'View Symbol Analysis' }
+  if (insight.category === 'behavioral') return { route: '/vega', label: 'View Psychology Analysis' }
   
-  return { route: '/analyze?tab=overview', label: 'View Details' }
+  return { route: '/vega', label: 'View Details' }
 }
 
 /**

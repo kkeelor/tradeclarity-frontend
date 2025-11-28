@@ -2,7 +2,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/AuthContext'
 import AuthScreen from '../analyze/components/AuthScreen'
 import { analyzeData } from '../analyze/utils/masterAnalyzer'
@@ -10,11 +10,14 @@ import AIChat from '../analyze/components/AIChat'
 import Header from '../analyze/components/Header'
 import { useMultipleTabs } from '@/lib/hooks/useMultipleTabs'
 import { EXCHANGES, getExchangeList } from '../analyze/utils/exchanges'
-import { Loader2, Brain } from 'lucide-react'
+import { Loader2, Brain, LogIn, Sparkles } from 'lucide-react'
 import Footer from '../components/Footer'
+import demoFuturesData from '../analyze/demo-data/demo-futures-data.json'
+import demoSpotData from '../analyze/demo-data/demo-spot-data.json'
 
 export default function VegaContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user, loading: authLoading } = useAuth()
   useMultipleTabs() // Register this tab for multi-tab detection
   const [analytics, setAnalytics] = useState(null)
@@ -25,7 +28,11 @@ export default function VegaContent() {
   const [currency, setCurrency] = useState('USD')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [isDemoMode, setIsDemoMode] = useState(false)
   const chatInputRef = useRef(null)
+  
+  // Check for demo mode from query params
+  const isDemoRequested = searchParams?.get('demo') === 'true'
 
   // Listen for switch requests from other tabs
   useEffect(() => {
@@ -42,11 +49,101 @@ export default function VegaContent() {
 
   // Load analytics data on mount
   useEffect(() => {
-    if (authLoading) return
+    // Wait for auth loading to complete (unless in demo mode)
+    if (authLoading && !isDemoRequested) return
 
     const loadAnalytics = async () => {
       try {
         setLoading(true)
+        
+        // Demo mode - load demo data
+        if (isDemoRequested) {
+          setIsDemoMode(true)
+          try {
+            const normalizedSpotTrades = demoSpotData.map(trade => ({
+              symbol: trade.symbol,
+              qty: String(trade.qty),
+              price: String(trade.price),
+              quoteQty: String(parseFloat(trade.qty) * parseFloat(trade.price)),
+              commission: String(trade.commission || 0),
+              commissionAsset: trade.commissionAsset || 'USDT',
+              isBuyer: trade.isBuyer,
+              isMaker: false,
+              time: trade.time,
+              orderId: trade.orderId,
+              id: trade.id,
+              accountType: 'SPOT'
+            }))
+
+            const demoData = {
+              spotTrades: normalizedSpotTrades,
+              futuresIncome: demoFuturesData.income,
+              futuresPositions: demoFuturesData.positions,
+              metadata: {
+                primaryCurrency: 'USD',
+                availableCurrencies: ['USD', 'INR', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CNY', 'SGD', 'CHF'],
+                supportsCurrencySwitch: true,
+                accountType: 'MIXED',
+                hasFutures: true,
+                futuresPositions: demoFuturesData.positions.length,
+                spotTrades: normalizedSpotTrades.length,
+                futuresIncome: demoFuturesData.income.length,
+                spotHoldings: [
+                  { asset: 'BTC', quantity: 0.3971906, usdValue: 18296.45, exchange: 'binance' },
+                  { asset: 'USDT', quantity: 3872.19, usdValue: 3872.19, exchange: 'binance' },
+                  { asset: 'DOT', quantity: 275.43, usdValue: 1960.30, exchange: 'binance' },
+                  { asset: 'AVAX', quantity: 27.00, usdValue: 1003.91, exchange: 'binance' },
+                  { asset: 'ARB', quantity: 620.54, usdValue: 813.91, exchange: 'binance' },
+                  { asset: 'ETH', quantity: 0.185, usdValue: 444.00, exchange: 'binance' },
+                  { asset: 'SOL', quantity: 2.85, usdValue: 370.50, exchange: 'binance' },
+                  { asset: 'LINK', quantity: 18.75, usdValue: 300.00, exchange: 'binance' },
+                  { asset: 'ADA', quantity: 2850.0, usdValue: 1710.00, exchange: 'binance' },
+                  { asset: 'BNB', quantity: 0.85, usdValue: 280.50, exchange: 'binance' },
+                  { asset: 'XRP', quantity: 1200.0, usdValue: 660.00, exchange: 'binance' },
+                  { asset: 'MATIC', quantity: 450.0, usdValue: 382.50, exchange: 'binance' },
+                  { asset: 'DOGE', quantity: 8500.0, usdValue: 1275.00, exchange: 'binance' }
+                ],
+                totalPortfolioValue: 30468.27,
+                totalSpotValue: 30468.27,
+                totalFuturesValue: 0
+              }
+            }
+
+            const analysis = await analyzeData(demoData)
+            setAnalytics(analysis)
+            setAllTrades(analysis.allTrades || normalizedSpotTrades)
+            setCurrencyMetadata(demoData.metadata)
+            setMetadata(demoData.metadata)
+            // Load saved currency preference from localStorage
+            const savedCurrency = typeof window !== 'undefined' ? localStorage.getItem('tradeclarity_currency') : null
+            if (savedCurrency) {
+              setCurrency(savedCurrency)
+            } else {
+              setCurrency('USD')
+            }
+            // Set demo trades stats
+            setTradesStats({
+              totalTrades: normalizedSpotTrades.length,
+              spotTrades: normalizedSpotTrades.length,
+              futuresIncome: demoFuturesData.income.length,
+              futuresPositions: demoFuturesData.positions.length,
+              primaryCurrency: 'USD'
+            })
+            setLoading(false)
+            return
+          } catch (err) {
+            console.error('Demo loading error:', err)
+            setError('Failed to load demo data')
+            setLoading(false)
+            return
+          }
+        }
+        
+        // Real mode - require authentication
+        if (!user) {
+          setLoading(false)
+          return
+        }
         
         // Try to get from sessionStorage first (if redirected from exchange connection)
         const preAnalyzedData = sessionStorage.getItem('preAnalyzedData')
@@ -160,12 +257,8 @@ export default function VegaContent() {
       }
     }
 
-    if (user) {
-      loadAnalytics()
-    } else {
-      setLoading(false)
-    }
-  }, [user, authLoading])
+    loadAnalytics()
+  }, [user, authLoading, isDemoRequested])
 
   if (authLoading || loading) {
     return (
@@ -178,7 +271,8 @@ export default function VegaContent() {
     )
   }
 
-  if (!user) {
+  // Show auth screen only if not in demo mode and not authenticated
+  if (!user && !isDemoMode) {
     return <AuthScreen />
   }
 
@@ -207,18 +301,53 @@ export default function VegaContent() {
         currencyMetadata={currencyMetadata}
         currency={currency}
         setCurrency={setCurrency}
-        onNavigateDashboard={() => router.push('/dashboard')}
-        onNavigateUpload={() => router.push('/data')}
-        onNavigateAll={() => router.push('/analyze')}
+        onNavigateDashboard={() => {
+          if (!user && isDemoMode) {
+            router.push('/login')
+          } else {
+            router.push('/dashboard')
+          }
+        }}
+        onNavigateUpload={() => {
+          if (!user && isDemoMode) {
+            router.push('/login')
+          } else {
+            router.push('/data')
+          }
+        }}
+        onNavigateAll={() => router.push('/vega')}
         onNavigateVega={() => router.push('/vega')}
         onSignOut={async () => {
           await fetch('/api/auth/signout', { method: 'POST' })
           router.push('/')
         }}
         hasDataSources={!!tradesStats && tradesStats.totalTrades > 0}
+        isDemoMode={isDemoMode}
       />
       
       <main className="max-w-6xl mx-auto px-6 py-6 flex flex-col flex-1 min-h-0">
+        {/* Demo Mode Banner for unauthenticated users */}
+        {isDemoMode && !user && (
+          <div className="mb-4 p-4 bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-between gap-4 flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-white">Demo Mode</p>
+                <p className="text-xs text-white/60">You're viewing sample data. Sign in to analyze your own trades.</p>
+              </div>
+            </div>
+            <button
+              onClick={() => router.push('/login')}
+              className="px-4 py-2 bg-emerald-400/10 hover:bg-emerald-400/15 border border-emerald-400/30 rounded-lg text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-2 text-sm font-medium"
+            >
+              <LogIn className="w-4 h-4" />
+              Sign In
+            </button>
+          </div>
+        )}
+        
         <div className="mb-4 text-center space-y-2 flex-shrink-0">
           <div className="flex items-center justify-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-emerald-400/10 border border-emerald-400/30 flex items-center justify-center">
@@ -238,9 +367,22 @@ export default function VegaContent() {
             allTrades={allTrades}
             tradesStats={tradesStats}
             metadata={metadata}
-            onConnectExchange={() => router.push('/dashboard')}
-            onUploadCSV={() => router.push('/data')}
+            onConnectExchange={() => {
+              if (!user && isDemoMode) {
+                router.push('/login')
+              } else {
+                router.push('/dashboard')
+              }
+            }}
+            onUploadCSV={() => {
+              if (!user && isDemoMode) {
+                router.push('/login')
+              } else {
+                router.push('/data')
+              }
+            }}
             isVegaPage={true}
+            isDemoMode={isDemoMode}
           />
         </div>
       </main>

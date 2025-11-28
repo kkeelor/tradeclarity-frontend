@@ -167,7 +167,7 @@ export default function LandingPage() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => router.push('/analyze?demo=true')}
+                onClick={() => router.push('/vega?demo=true')}
                 className="text-xs md:text-sm"
               >
                 View Demo

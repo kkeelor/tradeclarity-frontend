@@ -504,10 +504,10 @@ export default function DashboardContent() {
                         }
                       }
 
-                      console.log('✅ [Snaptrade Flow] Flow complete, redirecting to analyze')
+                      console.log('✅ [Snaptrade Flow] Flow complete, redirecting to Vega AI')
                       setStatus('success')
                       setProgress('')
-                      router.push('/analyze')
+                      router.push('/vega')
                     } else {
                       console.warn('⚠️ [Snaptrade Flow] No transactions found')
                       setStatus('idle')
@@ -795,8 +795,8 @@ export default function DashboardContent() {
   }, [loadingComplete, status, router])
 
   const handleViewAnalytics = async (connectionIdOrSources = null, exchangeName = null) => {
-    // Navigate to analytics page - it will handle fetching data
-    // Store the selection in sessionStorage so AnalyticsContent can use it
+    // Navigate to Vega AI page - analytics redirects now go to Vega
+    // Store the selection in sessionStorage (Vega can use this if needed)
     if (Array.isArray(connectionIdOrSources)) {
       // New pattern: array of selected sources
       sessionStorage.setItem('selectedSources', JSON.stringify(connectionIdOrSources))
@@ -807,15 +807,15 @@ export default function DashboardContent() {
       // Legacy pattern: single exchange name
       sessionStorage.setItem('selectedExchange', exchangeName)
     }
-    // If no filters, analytics page will fetch all data
+    // If no filters, Vega will fetch all data
     
     // Navigate immediately
-    router.push('/analyze')
+    router.push('/vega')
   }
 
   const handleTryDemo = () => {
-    // Navigate to analytics page with demo flag
-    router.push('/analyze?demo=true')
+    // Navigate to Vega AI page with demo flag
+    router.push('/vega?demo=true')
   }
 
   // Check for API connection request from DataManagement page

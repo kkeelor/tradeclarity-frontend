@@ -219,7 +219,8 @@ export default function Header({
     { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', onClick: onNavigateDashboard, path: '/dashboard' },
     { label: 'Your Data', icon: Database, href: '/data', onClick: onNavigateUpload, path: '/data' },
     { label: 'VegaAI', icon: Brain, href: '/vega', onClick: onNavigateVega || (() => router.push('/vega')), path: '/vega' },
-    { label: 'Analytics', icon: BarChart3, href: '/analyze', onClick: onNavigateAll, path: '/analyze', disabled: !hasDataSources && !isDemoMode },
+    // Analytics removed from nav - redirects now go to VegaAI
+    // { label: 'Analytics', icon: BarChart3, href: '/analyze', onClick: onNavigateAll, path: '/analyze', disabled: !hasDataSources && !isDemoMode },
     { label: 'Pricing', icon: Tag, href: '/pricing', path: '/pricing' },
     { label: 'Billing', icon: CreditCard, href: '/billing', path: '/billing' }
   ].filter(item => Boolean(item.href || item.onClick))
@@ -296,7 +297,6 @@ export default function Header({
                 {navItems.map(item => {
                   const isActive = pathname === item.path || 
                     (item.path === '/dashboard' && pathname?.startsWith('/dashboard')) ||
-                    (item.path === '/analyze' && pathname?.startsWith('/analyze')) ||
                     (item.path === '/data' && pathname?.startsWith('/data')) ||
                     (item.path === '/vega' && pathname?.startsWith('/vega'))
                   return (
@@ -401,8 +401,8 @@ export default function Header({
                   const Icon = item.icon
                   const isActive = pathname === item.path || 
                     (item.path === '/dashboard' && pathname?.startsWith('/dashboard')) ||
-                    (item.path === '/analyze' && pathname?.startsWith('/analyze')) ||
-                    (item.path === '/data' && pathname?.startsWith('/data'))
+                    (item.path === '/data' && pathname?.startsWith('/data')) ||
+                    (item.path === '/vega' && pathname?.startsWith('/vega'))
                   const isDisabled = item.disabled
                   
                   if (isDisabled) {

@@ -879,7 +879,7 @@ export default function DataManagement() {
         onDisconnect={() => router.push('/dashboard')}
         onNavigateDashboard={() => router.push('/dashboard')}
         onNavigateUpload={() => {}}
-        onNavigateAll={() => router.push('/analyze')}
+        onNavigateAll={() => router.push('/vega')}
         onSignOut={handleSignOut}
         isDemoMode={false}
         hasDataSources={connectedExchanges.length > 0 || uploadedFiles.length > 0}

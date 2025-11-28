@@ -836,7 +836,7 @@ export default function AnalyticsContent() {
         exchangeConfig={EXCHANGES.binance}
         onDisconnect={() => router.push('/dashboard')}
         onUploadClick={() => router.push('/dashboard')}
-        onViewAllExchanges={() => router.push('/analyze')}
+        onViewAllExchanges={() => router.push('/vega')}
         onFilterExchanges={handleFilterExchanges}
         initialTab={currentTab}
         key={currentTab} // Force re-render when tab changes
