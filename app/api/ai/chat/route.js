@@ -385,6 +385,88 @@ export async function POST(request) {
             console.log(`[Chat API] [BROWSER] ${message}`, data)
           }
         }
+        
+        // Helper function to send chart data to frontend
+        const sendChartData = (toolName, symbol, rawData) => {
+          // Only process time series tools
+          const timeSeriesTools = ['TIME_SERIES_INTRADAY', 'TIME_SERIES_DAILY', 'TIME_SERIES_WEEKLY', 'DIGITAL_CURRENCY_DAILY']
+          if (!timeSeriesTools.includes(toolName)) {
+            console.log(`[Chart] Skipping non-time-series tool: ${toolName}`)
+            return
+          }
+          
+          console.log(`[Chart] Processing ${toolName} for symbol: ${symbol}`)
+          
+          try {
+            // Parse the raw data if it's a string
+            let parsed = typeof rawData === 'string' ? JSON.parse(rawData) : rawData
+            
+            console.log(`[Chart] Parsed data keys:`, Object.keys(parsed || {}))
+            
+            // Extract time series data from various formats
+            let timeSeriesKey = Object.keys(parsed).find(k => 
+              k.includes('Time Series') || 
+              k.includes('Technical Analysis') ||
+              k.includes('Time Series (Digital')
+            )
+            
+            if (!timeSeriesKey || !parsed[timeSeriesKey]) {
+              console.log('[Chart] No time series data found in response. Keys:', Object.keys(parsed || {}))
+              // Log the actual response for debugging
+              const responsePreview = JSON.stringify(parsed).substring(0, 500)
+              console.log('[Chart] Response preview:', responsePreview)
+              sendBrowserLog('warn', `No chart data in ${toolName} response`, { 
+                keys: Object.keys(parsed || {}).slice(0, 5),
+                preview: responsePreview.substring(0, 200)
+              })
+              return
+            }
+            
+            console.log(`[Chart] Found time series key: ${timeSeriesKey}`)
+            
+            const timeSeries = parsed[timeSeriesKey]
+            const entries = Object.entries(timeSeries)
+            
+            console.log(`[Chart] Time series has ${entries.length} entries`)
+            
+            // Convert to chart format - take last 50 points
+            const chartData = entries
+              .slice(0, 50)
+              .map(([timestamp, values]) => ({
+                time: timestamp,
+                open: parseFloat(values['1. open'] || values['open'] || 0),
+                high: parseFloat(values['2. high'] || values['high'] || 0),
+                low: parseFloat(values['3. low'] || values['low'] || 0),
+                close: parseFloat(values['4. close'] || values['close'] || 0),
+                volume: parseFloat(values['5. volume'] || values['volume'] || 0),
+              }))
+              .reverse() // Oldest first for chart
+            
+            if (chartData.length > 0) {
+              const chartPayload = {
+                type: 'chart_data',
+                toolName,
+                symbol: symbol || parsed['Meta Data']?.['2. Symbol'] || 'Unknown',
+                chartType: 'candlestick',
+                data: chartData,
+                timestamp: new Date().toISOString()
+              }
+              
+              console.log(`[Chart] ✅ Sending chart data for ${chartPayload.symbol}: ${chartData.length} points`)
+              sendBrowserLog('info', `Chart data ready: ${chartPayload.symbol}`, { points: chartData.length })
+              
+              safeEnqueue(
+                new TextEncoder().encode(`data: ${JSON.stringify(chartPayload)}\n\n`)
+              )
+            } else {
+              console.log('[Chart] No valid chart data points extracted')
+              sendBrowserLog('warn', 'No valid chart data points', {})
+            }
+          } catch (error) {
+            console.warn('[Chart] Failed to parse chart data:', error.message, error.stack)
+            sendBrowserLog('error', 'Chart parse error', { error: error.message })
+          }
+        }
 
         try {
           const client = getAnthropicClient()
@@ -648,6 +730,9 @@ export async function POST(request) {
                   duration: toolExecutionTime,
                   resultSize: typeof toolResult === 'string' ? toolResult.length : 0
                 })
+                
+                // Send chart data to frontend if this is a time series tool
+                sendChartData(toolUse.name, toolUse.input?.symbol, toolResult)
                 
                 // Add tool_result to messages for follow-up API call
                 claudeMessages.push({

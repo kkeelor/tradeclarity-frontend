@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
-import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, LogOut, BarChart3, Sparkles, Database, CheckSquare, Square, Loader2, ChevronRight, Zap, Brain, Clock, DollarSign, PieChart, TrendingDown, Target, Lightbulb, LayoutDashboard, Tag, CreditCard, Crown, Infinity } from 'lucide-react'
+import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, LogOut, BarChart3, Sparkles, Database, CheckSquare, Square, Loader2, ChevronRight, Zap, Brain, Clock, DollarSign, PieChart, TrendingDown, Target, Lightbulb, LayoutDashboard, Tag, CreditCard, Crown, Infinity, MessageCircle } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { toast } from 'sonner'
 import ThemeToggle from '@/app/components/ThemeToggle'
@@ -531,6 +531,23 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
   const [subscription, setSubscription] = useState(null)
   const [loadingSubscription, setLoadingSubscription] = useState(true)
   const [showUsageModal, setShowUsageModal] = useState(false)
+  
+  // Coach mode state - shared with Vega page via localStorage
+  const [coachMode, setCoachMode] = useState(() => {
+    // Load from localStorage on initial render (shared with Vega page)
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vega_coach_mode')
+      return saved === 'true'
+    }
+    return false
+  })
+  
+  // Persist coach mode preference
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('vega_coach_mode', coachMode.toString())
+    }
+  }, [coachMode])
   const [tokenUsage, setTokenUsage] = useState({ used: 0, limit: 10000 })
 
   // Get time-based greeting
@@ -1674,14 +1691,48 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                 ) : null}
 
               {/* AI Chat - Replaces Market Insights */}
-              <div className="h-[350px] rounded-xl border border-white/10 bg-black overflow-hidden">
-                <AIChat 
-                  analytics={cachedAnalyticsData.analytics}
-                  allTrades={cachedAnalyticsData.allTrades}
-                  tradesStats={tradesStats}
-                  onConnectExchange={onConnectExchange}
-                  onUploadCSV={onConnectWithCSV}
-                />
+              <div className="space-y-2">
+                {/* Coach Mode Toggle */}
+                <div className="flex items-center justify-end px-1">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => setCoachMode(!coachMode)}
+                          className={`flex items-center gap-2 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                            coachMode
+                              ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-400'
+                              : 'bg-slate-800/50 border border-slate-700/50 text-slate-400 hover:text-slate-300 hover:border-slate-600/50'
+                          }`}
+                        >
+                          <MessageCircle className={`w-3 h-3 ${coachMode ? 'text-emerald-400' : ''}`} />
+                          <span>Coach Mode</span>
+                          <div className={`w-7 h-3.5 rounded-full transition-colors relative ${coachMode ? 'bg-emerald-500/30' : 'bg-slate-700/50'}`}>
+                            <div className={`absolute top-0.5 w-2.5 h-2.5 rounded-full transition-all ${coachMode ? 'bg-emerald-400 left-3.5' : 'bg-slate-500 left-0.5'}`} />
+                          </div>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="left" className="max-w-xs">
+                        <p className="font-medium mb-1">Coach Mode</p>
+                        <p className="text-xs leading-relaxed">
+                          {coachMode 
+                            ? 'Interactive coaching with concise responses and guided follow-up options. Click to switch to standard mode.'
+                            : 'Enable for more interactive, concise responses with guided follow-up options. Great for focused improvement.'}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <div className="h-[350px] rounded-xl border border-white/10 bg-black overflow-hidden">
+                  <AIChat 
+                    analytics={cachedAnalyticsData.analytics}
+                    allTrades={cachedAnalyticsData.allTrades}
+                    tradesStats={tradesStats}
+                    onConnectExchange={onConnectExchange}
+                    onUploadCSV={onConnectWithCSV}
+                    coachMode={coachMode}
+                  />
+                </div>
               </div>
             </div>
           )}

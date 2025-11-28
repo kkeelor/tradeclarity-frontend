@@ -7,8 +7,16 @@ import { useState, useEffect, useRef, useCallback, useMemo, useImperativeHandle,
 import { Send, Loader2, Bot, User, Sparkles, X, RotateCcw, Square, Minimize2, Maximize2, Database, Link as LinkIcon, Upload, TrendingUp, DollarSign, PieChart, Target, AlertCircle, MessageCircle } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
-import { getDynamicSampleQuestions } from '@/lib/ai/prompts/sampleQuestions'
+import { getDynamicSampleQuestions, getCoachModeStarters } from '@/lib/ai/prompts/sampleQuestions'
 import { ChatOptions, parseOptionsFromResponse, detectTopicFromMessage, isFollowUpOnTopic } from '@/components/ui/ChatOptions'
+import dynamic from 'next/dynamic'
+
+// Dynamic import for chart renderer (canvas-based, no SSR)
+const VegaChartRenderer = dynamic(
+  () => import('@/components/charts/VegaChartRenderer').then(mod => ({ default: mod.default })),
+  { ssr: false }
+)
+import { parseChartRequest, removeChartBlock } from '@/components/charts/VegaChartRenderer'
 
 const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConnectExchange, onUploadCSV, isVegaPage = false, isDemoMode = false, coachMode = false }, ref) => {
   const { user } = useAuth()
@@ -174,6 +182,11 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
     // Always return questions, even if analytics are still loading
     // This ensures smooth UX - questions will update when analytics load
     return getDynamicSampleQuestions(tradesStats, effectiveAnalytics)
+  }, [tradesStats, effectiveAnalytics])
+  
+  // Coach mode starter prompts - shorter, more conversational
+  const coachModeStarters = useMemo(() => {
+    return getCoachModeStarters(tradesStats, effectiveAnalytics)
   }, [tradesStats, effectiveAnalytics])
 
   // Calculate portfolio data for Vega welcome (only when on Vega page)
@@ -796,6 +809,36 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                   } else {
                     console.log(logMessage, logData)
                   }
+                } else if (data.type === 'chart_data') {
+                  // Received chart data from MCP tool - store it for rendering
+                  console.log('[AIChat] 📊 Received chart data:', {
+                    symbol: data.symbol,
+                    points: data.data?.length,
+                    chartType: data.chartType,
+                    toolName: data.toolName,
+                    firstPoint: data.data?.[0],
+                    lastPoint: data.data?.[data.data?.length - 1]
+                  })
+                  
+                  // Update the current assistant message with chart data
+                  setMessages(prev => {
+                    const updated = prev.map(msg => {
+                      if (msg.id === assistantMessageId) {
+                        console.log('[AIChat] 📊 Attaching chart data to message:', assistantMessageId)
+                        return {
+                          ...msg,
+                          chartData: {
+                            symbol: data.symbol,
+                            chartType: data.chartType || 'candlestick',
+                            data: data.data || [],
+                            toolName: data.toolName
+                          }
+                        }
+                      }
+                      return msg
+                    })
+                    return updated
+                  })
                 } else if (data.type === 'done') {
                   streamComplete = true
                   setIsLoading(false) // Ensure loading is cleared
@@ -1289,21 +1332,21 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                   )}
                 </div>
 
-                {/* Context-Aware Prompt Buttons */}
-                {sampleQuestions.length > 0 && (
+                {/* Coach Mode: Interactive starter prompts */}
+                {coachMode && coachModeStarters.length > 0 && (
                   <div className="space-y-3 w-full max-w-3xl">
                     <p className="text-xs text-white/60 mb-3">
-                      Try asking me:
+                      Start a conversation:
                     </p>
                     <div className="flex flex-wrap items-center justify-center gap-2">
-                      {sampleQuestions.slice(0, 5).map((q, idx) => (
+                      {coachModeStarters.map((q, idx) => (
                         <button
                           key={idx}
-                          onClick={() => {
-                            setInput(q)
-                            inputRef.current?.focus()
+                          onClick={async () => {
+                            // Auto-send in coach mode
+                            await sendMessage(q)
                           }}
-                          className="px-4 py-2 text-sm text-white/80 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg transition-all duration-200 font-medium"
+                          className="group px-4 py-2 text-sm text-white/80 hover:text-white bg-white/5 hover:bg-emerald-500/10 border border-white/10 hover:border-emerald-500/30 rounded-full transition-all duration-200 font-medium"
                         >
                           {q}
                         </button>
@@ -1315,20 +1358,25 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center px-4 relative z-10">
                 <h4 className="text-sm font-medium text-white/90 mb-1.5">
-                  Ask me anything about your trading
+                  {coachMode ? 'Start coaching session' : 'Ask me anything about your trading'}
                 </h4>
                 <p className="text-xs text-white/50 max-w-sm mb-5">
-                  I can analyze your performance and provide personalized insights
+                  {coachMode ? 'Interactive guidance with follow-up options' : 'I can analyze your performance and provide personalized insights'}
                 </p>
                 <div className="flex flex-wrap gap-1.5 justify-center">
-                  {sampleQuestions.slice(0, 3).map((q, idx) => (
+                  {(coachMode ? coachModeStarters : sampleQuestions).slice(0, 3).map((q, idx) => (
                     <button
                       key={idx}
-                      className="px-2.5 py-1 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] text-white/70 hover:text-white/90 transition-all cursor-pointer"
-                      onClick={() => {
-                        setInput(q)
-                        setIsMaximized(true)
-                        inputRef.current?.focus()
+                      className={`px-2.5 py-1 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] text-white/70 hover:text-white/90 transition-all cursor-pointer ${coachMode ? 'hover:bg-emerald-500/10 hover:border-emerald-500/30 rounded-full' : ''}`}
+                      onClick={async () => {
+                        if (coachMode) {
+                          // Auto-send in coach mode
+                          await sendMessage(q)
+                        } else {
+                          setInput(q)
+                          setIsMaximized(true)
+                          inputRef.current?.focus()
+                        }
                       }}
                     >
                       {q}
@@ -1365,7 +1413,43 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                         <span className="text-xs text-white/50">{coachMode ? 'Coaching...' : 'Thinking...'}</span>
                       </div>
                     ) : (
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                      <>
+                        {/* Render message text (without chart block) */}
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                          {message.role === 'assistant' ? removeChartBlock(message.content) : message.content}
+                        </p>
+                        {/* Render chart from MCP tool data (auto-detected) */}
+                        {message.role === 'assistant' && message.chartData && message.chartData.data?.length > 0 && (
+                          <div className="mt-3 -mx-1">
+                            {console.log('[AIChat] 📊 Rendering chart for message:', message.id, message.chartData.symbol, message.chartData.data?.length, 'points')}
+                            <VegaChartRenderer
+                              chartConfig={{
+                                type: message.chartData.chartType || 'price',
+                                title: `${message.chartData.symbol} Price`,
+                                options: {
+                                  symbol: message.chartData.symbol,
+                                  data: message.chartData.data
+                                }
+                              }}
+                              analytics={effectiveAnalytics}
+                              allTrades={effectiveAllTrades}
+                              height={220}
+                            />
+                          </div>
+                        )}
+                        {/* Debug: Show if chart data exists but isn't rendering */}
+                        {message.role === 'assistant' && message.chartData && console.log('[AIChat] Message has chartData:', message.id, !!message.chartData, message.chartData?.data?.length)}
+                        {/* Render chart if present in assistant message (manual) */}
+                        {message.role === 'assistant' && message.content && parseChartRequest(message.content) && (
+                          <VegaChartRenderer
+                            chartConfig={parseChartRequest(message.content)}
+                            analytics={effectiveAnalytics}
+                            allTrades={effectiveAllTrades}
+                            height={200}
+                            className="mt-3 -mx-1"
+                          />
+                        )}
+                      </>
                     )}
                   </div>
                   {message.role === 'user' && (
@@ -1480,7 +1564,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
       </div>
     </div>
     )
-  }, [messages, input, isInputFocused, displayedSample, isTypingSample, isDeletingSample, isLoading, tokenUsage, handleSend, handleStop, handleInputChange, handleInputFocus, handleInputBlur, handleInputClick, handleKeyPress, handleClear, hasNoData, hasSentMessagesWithoutData, onConnectExchange, onUploadCSV, isVegaPage, tradesStats, portfolioData, insights, sampleQuestions, coachMode])
+  }, [messages, input, isInputFocused, displayedSample, isTypingSample, isDeletingSample, isLoading, tokenUsage, handleSend, handleStop, handleInputChange, handleInputFocus, handleInputBlur, handleInputClick, handleKeyPress, handleClear, hasNoData, hasSentMessagesWithoutData, onConnectExchange, onUploadCSV, isVegaPage, tradesStats, portfolioData, insights, sampleQuestions, coachMode, coachModeStarters, sendMessage])
 
   return (
     <>

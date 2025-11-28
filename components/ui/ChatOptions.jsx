@@ -47,43 +47,79 @@ export function ChatOptions({ options, onSelect, disabled = false, className = '
 /**
  * Parse options from AI response text
  * Looks for [OPTIONS] ... [/OPTIONS] block
+ * Also hides partial/incomplete OPTIONS and CHART blocks during streaming
  */
-export function parseOptionsFromResponse(responseText) {
+export function parseOptionsFromResponse(responseText, isStreaming = false) {
   if (!responseText || typeof responseText !== 'string') {
     return { message: responseText || '', options: [] }
   }
 
   try {
-    // Match the options block - only match if both opening and closing tags exist
-    const optionsMatch = responseText.match(/\[OPTIONS\]([\s\S]*?)\[\/OPTIONS\]/i)
+    // First, strip any [CHART] blocks (complete or partial)
+    let cleanedText = responseText
     
-    if (!optionsMatch) {
-      return { message: responseText.trim(), options: [] }
-    }
-
-    // Extract the message (everything before [OPTIONS])
-    const optionsIndex = responseText.indexOf('[OPTIONS]')
-    if (optionsIndex === -1) {
-      return { message: responseText.trim(), options: [] }
+    // Remove complete [CHART]...[/CHART] blocks
+    cleanedText = cleanedText.replace(/\[CHART\][\s\S]*?\[\/CHART\]/gi, '')
+    
+    // Remove partial [CHART] blocks (no closing tag yet - streaming)
+    const chartIndex = cleanedText.indexOf('[CHART]')
+    if (chartIndex !== -1 && !cleanedText.includes('[/CHART]')) {
+      cleanedText = cleanedText.substring(0, chartIndex)
     }
     
-    const message = responseText.substring(0, optionsIndex).trim()
-
-    // Parse options (lines starting with -)
-    const optionsBlock = optionsMatch[1]
-    if (!optionsBlock) {
+    // Remove partial [C, [CH, [CHA, [CHAR, [CHART at end (streaming)
+    const partialChartMatch = cleanedText.match(/\[C(?:H(?:A(?:R(?:T)?)?)?)?$/i)
+    if (partialChartMatch) {
+      cleanedText = cleanedText.substring(0, partialChartMatch.index)
+    }
+    
+    // Check if we have a complete options block (both opening and closing tags)
+    const optionsMatch = cleanedText.match(/\[OPTIONS\]([\s\S]*?)\[\/OPTIONS\]/i)
+    
+    // Find where [OPTIONS] starts (if it exists at all)
+    const optionsIndex = cleanedText.indexOf('[OPTIONS]')
+    
+    // Also check for partial opening tag at the end (e.g., "[O", "[OP", "[OPT", etc.)
+    // This handles the case where we're mid-stream and the tag is being typed
+    const partialTagMatch = cleanedText.match(/\[O(?:P(?:T(?:I(?:O(?:N(?:S)?)?)?)?)?)?$/i)
+    
+    // If no [OPTIONS] tag and no partial tag, return cleaned text
+    if (optionsIndex === -1 && !partialTagMatch) {
+      return { message: cleanedText.trim(), options: [] }
+    }
+    
+    // If we have a partial tag at the end (streaming), strip it
+    if (partialTagMatch && optionsIndex === -1) {
+      const message = cleanedText.substring(0, partialTagMatch.index).trim()
       return { message, options: [] }
     }
     
-    const options = optionsBlock
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => line.startsWith('-'))
-      .map(line => line.substring(1).trim())
-      .filter(option => option.length > 0)
-      .slice(0, 4) // Max 4 options
+    // Get the message content (everything BEFORE [OPTIONS])
+    const message = cleanedText.substring(0, optionsIndex).trim()
+    
+    // If we have a COMPLETE options block, parse the options
+    if (optionsMatch) {
+      const optionsBlock = optionsMatch[1]
+      if (!optionsBlock) {
+        return { message, options: [] }
+      }
+      
+      const options = optionsBlock
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.startsWith('-'))
+        .map(line => line.substring(1).trim())
+        .filter(option => option.length > 0)
+        .slice(0, 4) // Max 4 options
 
-    return { message, options }
+      return { message, options }
+    }
+    
+    // If we have [OPTIONS] but NO closing [/OPTIONS] yet (streaming),
+    // just return the message without the partial options block
+    // This hides the options text during streaming
+    return { message, options: [] }
+    
   } catch (error) {
     // If anything goes wrong, return the original text with no options
     console.warn('[ChatOptions] Error parsing options:', error)
