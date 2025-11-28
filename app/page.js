@@ -175,10 +175,14 @@ export default function LandingPage() {
             </>
           )}
           {user && (
-            <div className="relative">
+            <div className="relative flex items-center gap-2 md:gap-3">
+              <div className="hidden sm:flex flex-col items-end">
+                <p className="text-[10px] text-slate-500 leading-tight">Signed in as</p>
+                <p className="text-xs text-slate-300 font-medium truncate max-w-[200px]">{user?.email}</p>
+              </div>
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
-                className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-400 flex items-center justify-center text-slate-900 font-semibold text-sm hover:shadow-lg hover:shadow-emerald-500/20 transition-all"
+                className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-400 flex items-center justify-center text-slate-900 font-semibold text-sm hover:shadow-lg hover:shadow-emerald-500/20 transition-all flex-shrink-0"
               >
                 {user?.user_metadata?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
               </button>
