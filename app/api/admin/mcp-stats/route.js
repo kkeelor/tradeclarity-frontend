@@ -17,6 +17,8 @@ import {
   getCachePerformanceOverTime
 } from '@/lib/ai/mcpAnalytics'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request) {
   try {
     // Check authentication

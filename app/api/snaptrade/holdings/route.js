@@ -6,6 +6,8 @@ import { NextResponse } from 'next/server'
 import { getAccounts, getAccountHoldings } from '@/lib/snaptrade-client'
 import { decrypt } from '@/lib/encryption'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request) {
   try {
     console.log('📊 [Snaptrade Holdings] API called')

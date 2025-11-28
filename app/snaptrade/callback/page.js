@@ -2,11 +2,11 @@
 // Client-side callback handler for Snaptrade OAuth
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 
-export default function SnaptradeCallbackPage() {
+function CallbackContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [messageSent, setMessageSent] = useState(false)
@@ -133,5 +133,25 @@ export default function SnaptradeCallbackPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function SnaptradeCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center p-4">
+        <div className="max-w-md w-full text-center space-y-6">
+          <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto">
+            <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold mb-2">Loading...</h2>
+            <p className="text-white/60 text-sm">Processing your connection.</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <CallbackContent />
+    </Suspense>
   )
 }
