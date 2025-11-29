@@ -4,6 +4,7 @@ import { Plus_Jakarta_Sans } from 'next/font/google'
 import { AuthProvider } from '@/lib/AuthContext'
 import { Toaster } from 'sonner'
 import { Analytics } from '@vercel/analytics/react'
+import Script from 'next/script'
 import { OrganizationSchema, SoftwareApplicationSchema, WebSiteSchema } from './components/StructuredData'
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -90,6 +91,19 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning className={plusJakartaSans.variable}>
       <body className="font-sans">
+        {/* Google tag (gtag.js) */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=AW-11532080045"
+          strategy="afterInteractive"
+        />
+        <Script id="google-ads" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'AW-11532080045');
+          `}
+        </Script>
         <OrganizationSchema />
         <SoftwareApplicationSchema />
         <WebSiteSchema />
