@@ -1376,7 +1376,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                 {/* Trading Overview / Progress Bar Card / Connect Exchange Card */}
                 {subscription && subscription.tier !== 'pro' ? (
                   connectedExchanges.length > 0 ? (
-                    <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black p-5 transition-all duration-300 hover:border-white/20 flex flex-col h-[350px]">
+                    <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black p-5 transition-all duration-300 hover:border-white/20 flex flex-col h-[350px] self-start">
                       <div className="relative flex flex-col overflow-hidden h-full">
                         <h3 className="text-xs font-medium text-white/70 mb-4 uppercase tracking-wider flex-shrink-0">Your Trading Overview</h3>
                         <div className="flex flex-col gap-3 overflow-y-auto flex-1">
@@ -1502,7 +1502,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                       </div>
                     </div>
                   ) : (
-                    <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black p-5 transition-all duration-300 hover:border-white/20 group h-[350px] flex flex-col">
+                    <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black p-5 transition-all duration-300 hover:border-white/20 group h-[350px] flex flex-col self-start">
                       <div className="relative h-full flex flex-col">
                         <div className="flex items-center gap-2 mb-4">
                           <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
@@ -1618,7 +1618,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                     </div>
                   )
                 ) : subscription && subscription.tier === 'pro' ? (
-                  <div className="relative overflow-hidden rounded-xl bg-black p-5 transition-all duration-300 group h-[350px] flex flex-col">
+                  <div className="relative overflow-hidden rounded-xl bg-black p-5 transition-all duration-300 group h-[350px] flex flex-col self-start">
                     <div className="relative h-full flex flex-col">
                       <div className="flex items-center gap-3 mb-4 p-3 rounded-lg border border-white/20 bg-white/5">
                         <div className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
@@ -1691,9 +1691,9 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                 ) : null}
 
               {/* AI Chat - Replaces Market Insights */}
-              <div className="space-y-2">
+              <div className="flex flex-col h-[350px] self-start">
                 {/* Coach Mode Toggle */}
-                <div className="flex items-center justify-end px-1">
+                <div className="flex items-center justify-end px-1 mb-2 flex-shrink-0">
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -1723,7 +1723,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                     </Tooltip>
                   </TooltipProvider>
                 </div>
-                <div className="h-[350px] rounded-xl border border-white/10 bg-black overflow-hidden">
+                <div className="flex-1 rounded-xl border border-white/10 bg-black overflow-hidden min-h-0">
                   <AIChat 
                     analytics={cachedAnalyticsData.analytics}
                     allTrades={cachedAnalyticsData.allTrades}
