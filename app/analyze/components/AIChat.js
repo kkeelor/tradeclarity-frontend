@@ -1404,7 +1404,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                         ? 'bg-white/10 text-white/90'
                         : message.error
                         ? 'bg-red-500/10 text-red-400 border border-red-500/20'
-                        : 'bg-white/5 text-white/80'
+                        : 'bg-white/5 text-white/65'
                     }`}
                   >
                     {message.isLoading ? (
@@ -1590,10 +1590,10 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
         <DialogContent 
           className="bg-black border-white/10 p-0 gap-0 overflow-hidden rounded-xl [&>button]:hidden !max-w-none"
           style={{ 
-            width: 'min(70vw, 1000px)',
-            height: 'min(70vh, 700px)',
-            maxWidth: 'min(70vw, 1000px)',
-            maxHeight: 'min(70vh, 700px)',
+            width: 'min(90vw, 1200px)',
+            height: 'min(85vh, 800px)',
+            maxWidth: 'min(90vw, 1200px)',
+            maxHeight: 'min(85vh, 800px)',
             display: 'flex',
             flexDirection: 'column'
           }}

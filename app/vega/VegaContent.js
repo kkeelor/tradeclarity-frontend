@@ -408,7 +408,7 @@ export default function VegaContent() {
         isDemoMode={isDemoMode}
       />
       
-      <main className="max-w-6xl mx-auto px-6 py-6 flex flex-col flex-1 min-h-0">
+      <main className="max-w-7xl mx-auto px-6 py-6 flex flex-col flex-1 min-h-0">
         {/* Demo Mode Banner for unauthenticated users */}
         {isDemoMode && !user && (
           <div className="mb-4 p-4 bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-between gap-4 flex-shrink-0">

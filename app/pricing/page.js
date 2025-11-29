@@ -846,35 +846,186 @@ export default function PricingPage() {
                       
                       return (
                         <td key={key} className="px-2 py-3">
-                          <button
-                            onClick={() => handleUpgrade(key)}
-                            disabled={isDisabled}
-                            className={`w-full py-2 rounded-lg text-xs font-medium transition-all duration-300 ${
-                              shouldShowCheck
-                                ? 'bg-white/5 text-white/40 cursor-not-allowed border border-white/10'
-                                : loading
-                                ? 'bg-white/5 text-white/50 cursor-wait opacity-75 border border-white/10'
-                                : isPopular
-                                ? 'bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 text-white/90'
-                                : key === 'pro'
-                                ? 'bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 text-white/90'
-                                : 'bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white/80'
-                            }`}
-                          >
+                          <div className="flex flex-col gap-2">
                             {shouldShowCheck ? (
-                              <span className="flex items-center justify-center gap-1.5">
-                                <Check className="w-3.5 h-3.5" />
-                                {buttonText && <span>{buttonText}</span>}
-                              </span>
-                            ) : loading ? (
-                              'Processing...'
+                              <div className="flex items-center justify-center">
+                                <Check className="w-4 h-4 text-white/40" />
+                                {buttonText && <span className="text-xs text-white/40 ml-1">{buttonText}</span>}
+                              </div>
+                            ) : key === 'free' ? (
+                              <div className="flex items-center justify-center">
+                                <Check className="w-4 h-4 text-white/40" />
+                              </div>
                             ) : (
-                              <span className="flex items-center justify-center gap-1.5">
-                                {buttonText}
-                                <ArrowRight className="w-3.5 h-3.5" />
-                              </span>
+                              <>
+                                {/* Buttons Row */}
+                                <div className={`flex gap-2 w-full ${currency === 'INR' ? 'justify-center' : ''}`}>
+                                  <button
+                                    onClick={() => handleUpgrade(key)}
+                                    disabled={isDisabled}
+                                    className={`${currency === 'INR' ? 'w-full' : 'flex-1'} py-2 rounded-lg text-xs font-medium transition-all duration-300 ${
+                                      loading
+                                        ? 'bg-white/5 text-white/50 cursor-wait opacity-75 border border-white/10'
+                                        : isPopular
+                                        ? 'bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 text-white/90'
+                                        : key === 'pro'
+                                        ? 'bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 text-white/90'
+                                        : 'bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white/80'
+                                    }`}
+                                  >
+                                    {loading ? (
+                                      'Processing...'
+                                    ) : (
+                                      <span className="flex items-center justify-center">
+                                        Pay with Razorpay
+                                      </span>
+                                    )}
+                                  </button>
+                                  {/* PayPal Button - Inline (Disabled for INR) */}
+                                  {currency !== 'INR' && key === 'trader' && billingCycle === 'monthly' && (
+                                    <div 
+                                      id="paypal-trader-monthly-inline"
+                                      className="flex-1"
+                                      dangerouslySetInnerHTML={{
+                                        __html: `
+                                          <style>
+                                            .pp-QEZSUQ2W7286U-inline{
+                                              text-align:center;
+                                              border:none;
+                                              border-radius:0.5rem;
+                                              width:100%;
+                                              padding:0.5rem 1rem;
+                                              height:auto;
+                                              min-height:2rem;
+                                              font-weight:500;
+                                              background-color:#FFD140;
+                                              color:#000000;
+                                              font-family:"Helvetica Neue",Arial,sans-serif;
+                                              font-size:0.75rem;
+                                              line-height:1rem;
+                                              cursor:pointer;
+                                            }
+                                            #paypal-trader-monthly-inline form {
+                                              display:block;
+                                              width:100%;
+                                            }
+                                          </style>
+                                          <form action="https://www.paypal.com/ncp/payment/QEZSUQ2W7286U" method="post" target="_blank">
+                                            <input class="pp-QEZSUQ2W7286U-inline" type="submit" value="Use Paypal" />
+                                          </form>
+                                        `
+                                      }}
+                                    />
+                                  )}
+                                  {currency !== 'INR' && key === 'trader' && billingCycle === 'annual' && (
+                                    <div 
+                                      id="paypal-trader-annual-inline"
+                                      className="flex-1"
+                                      dangerouslySetInnerHTML={{
+                                        __html: `
+                                          <style>
+                                            .pp-DLNE2MH79RLEQ-inline{
+                                              text-align:center;
+                                              border:none;
+                                              border-radius:0.5rem;
+                                              width:100%;
+                                              padding:0.5rem 1rem;
+                                              height:auto;
+                                              min-height:2rem;
+                                              font-weight:500;
+                                              background-color:#FFD140;
+                                              color:#000000;
+                                              font-family:"Helvetica Neue",Arial,sans-serif;
+                                              font-size:0.75rem;
+                                              line-height:1rem;
+                                              cursor:pointer;
+                                            }
+                                            #paypal-trader-annual-inline form {
+                                              display:block;
+                                              width:100%;
+                                            }
+                                          </style>
+                                          <form action="https://www.paypal.com/ncp/payment/DLNE2MH79RLEQ" method="post" target="_blank">
+                                            <input class="pp-DLNE2MH79RLEQ-inline" type="submit" value="Use PayPal" />
+                                          </form>
+                                        `
+                                      }}
+                                    />
+                                  )}
+                                  {currency !== 'INR' && key === 'pro' && billingCycle === 'monthly' && (
+                                    <div 
+                                      id="paypal-pro-monthly-inline"
+                                      className="flex-1"
+                                      dangerouslySetInnerHTML={{
+                                        __html: `
+                                          <style>
+                                            .pp-MWGJ35NJMZ586-inline{
+                                              text-align:center;
+                                              border:none;
+                                              border-radius:0.5rem;
+                                              width:100%;
+                                              padding:0.5rem 1rem;
+                                              height:auto;
+                                              min-height:2rem;
+                                              font-weight:500;
+                                              background-color:#FFD140;
+                                              color:#000000;
+                                              font-family:"Helvetica Neue",Arial,sans-serif;
+                                              font-size:0.75rem;
+                                              line-height:1rem;
+                                              cursor:pointer;
+                                            }
+                                            #paypal-pro-monthly-inline form {
+                                              display:block;
+                                              width:100%;
+                                            }
+                                          </style>
+                                          <form action="https://www.paypal.com/ncp/payment/MWGJ35NJMZ586" method="post" target="_blank">
+                                            <input class="pp-MWGJ35NJMZ586-inline" type="submit" value="Use Paypal" />
+                                          </form>
+                                        `
+                                      }}
+                                    />
+                                  )}
+                                  {currency !== 'INR' && key === 'pro' && billingCycle === 'annual' && (
+                                    <div 
+                                      id="paypal-pro-annual-inline"
+                                      className="flex-1"
+                                      dangerouslySetInnerHTML={{
+                                        __html: `
+                                          <style>
+                                            .pp-PU2GB8AA5XA9E-inline{
+                                              text-align:center;
+                                              border:none;
+                                              border-radius:0.5rem;
+                                              width:100%;
+                                              padding:0.5rem 1rem;
+                                              height:auto;
+                                              min-height:2rem;
+                                              font-weight:500;
+                                              background-color:#FFD140;
+                                              color:#000000;
+                                              font-family:"Helvetica Neue",Arial,sans-serif;
+                                              font-size:0.75rem;
+                                              line-height:1rem;
+                                              cursor:pointer;
+                                            }
+                                            #paypal-pro-annual-inline form {
+                                              display:block;
+                                              width:100%;
+                                            }
+                                          </style>
+                                          <form action="https://www.paypal.com/ncp/payment/PU2GB8AA5XA9E" method="post" target="_blank">
+                                            <input class="pp-PU2GB8AA5XA9E-inline" type="submit" value="Use PayPal" />
+                                          </form>
+                                        `
+                                      }}
+                                    />
+                                  )}
+                                </div>
+                              </>
                             )}
-                          </button>
+                          </div>
                         </td>
                       )
                     })}
@@ -883,6 +1034,15 @@ export default function PricingPage() {
               </table>
             </div>
           </div>
+          
+          {/* Powered By Section - Below Pricing Table (Hidden for INR) */}
+          {currency !== 'INR' && (
+            <div className="flex items-center justify-center gap-2 text-[0.75rem] text-white/60 mt-6">
+              <span>Powered by</span>
+              <img src="https://www.paypalobjects.com/images/Debit_Credit_APM.svg" alt="cards" className="h-4" />
+              <img src="https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-wordmark-color.svg" alt="paypal" className="h-3" />
+            </div>
+          )}
         </div>
 
         {/* FAQ Section */}
