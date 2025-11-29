@@ -39,9 +39,10 @@ export default function VegaContent() {
     // Load from localStorage on initial render
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('vega_coach_mode')
-      return saved === 'true'
+      // Default to true if no saved preference exists
+      return saved === null ? true : saved === 'true'
     }
-    return false
+    return true
   })
   const chatInputRef = useRef(null)
   

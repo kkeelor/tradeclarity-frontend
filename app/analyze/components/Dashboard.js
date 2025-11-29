@@ -537,9 +537,10 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
     // Load from localStorage on initial render (shared with Vega page)
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('vega_coach_mode')
-      return saved === 'true'
+      // Default to true if no saved preference exists
+      return saved === null ? true : saved === 'true'
     }
-    return false
+    return true
   })
   
   // Persist coach mode preference
