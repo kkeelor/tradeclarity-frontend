@@ -1035,14 +1035,12 @@ export default function PricingPage() {
             </div>
           </div>
           
-          {/* Powered By Section - Below Pricing Table (Hidden for INR) */}
-          {currency !== 'INR' && (
-            <div className="flex items-center justify-center gap-2 text-[0.75rem] text-white/60 mt-6">
-              <span>Powered by</span>
-              <img src="https://www.paypalobjects.com/images/Debit_Credit_APM.svg" alt="cards" className="h-4" />
-              <img src="https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-wordmark-color.svg" alt="paypal" className="h-3" />
-            </div>
-          )}
+          {/* Powered By Section - Below Pricing Table */}
+          <div className="flex items-center justify-center gap-2 text-[0.75rem] text-white/60 mt-6">
+            <span>Powered by</span>
+            <img src="https://www.paypalobjects.com/images/Debit_Credit_APM.svg" alt="cards" className="h-4" />
+            <img src="https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-wordmark-color.svg" alt="paypal" className="h-3" />
+          </div>
         </div>
 
         {/* FAQ Section */}
