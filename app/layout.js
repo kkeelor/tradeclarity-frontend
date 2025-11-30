@@ -15,26 +15,28 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 })
 
 export const metadata = {
-  metadataBase: new URL('https://tradeclarity.xyz'),
+  metadataBase: new URL('https://www.tradeclarity.xyz'),
   title: {
-    default: 'TradeClarity - Crypto Trading Analytics & Psychology Analysis Tool',
+    default: 'TradeClarity - AI-Powered Trading Analytics & Coaching Platform',
     template: '%s | TradeClarity',
   },
-  description: 'Discover hidden patterns in your crypto trades. Analyze trading psychology, detect mistakes, and improve performance. Connect Binance, CoinDCX & more. Free trial.',
+  description: 'AI-powered trading analytics and coaching app. Discover hidden patterns in your trades, analyze trading psychology, detect mistakes, and improve performance with personalized AI coaching.',
   keywords: [
+    'AI trading analytics',
     'trading analytics',
-    'crypto trading analysis',
+    'trading coach app',
+    'AI trading coach',
     'trading psychology analysis',
     'trade performance analyzer',
     'trading pattern detection',
-    'crypto trade analyzer',
-    'binance trade analyzer',
+    'trade analyzer',
     'trading blind spots',
     'behavioral trading analysis',
     'trading mistakes detector',
+    'automated trading analysis',
   ],
-  authors: [{ name: 'TradeClarity' }],
-  creator: 'TradeClarity',
+  authors: [{ name: 'K Keelor' }],
+  creator: 'K Keelor',
   publisher: 'TradeClarity',
   robots: {
     index: true,
@@ -55,28 +57,28 @@ export const metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://tradeclarity.xyz',
+    url: 'https://www.tradeclarity.xyz',
     siteName: 'TradeClarity',
-    title: 'TradeClarity - Crypto Trading Analytics & Psychology Analysis Tool',
-    description: 'Discover hidden patterns in your crypto trades. Analyze trading psychology, detect mistakes, and improve performance. Connect Binance, CoinDCX & more.',
+    title: 'TradeClarity - AI-Powered Trading Analytics & Coaching Platform',
+    description: 'AI-powered trading analytics and coaching app. Discover hidden patterns in your trades, analyze trading psychology, detect mistakes, and improve performance with personalized AI coaching.',
     images: [
       {
-        url: '/og-image.png',
+        url: '/logo.png',
         width: 1200,
         height: 630,
-        alt: 'TradeClarity - Trading Analytics Dashboard',
+        alt: 'TradeClarity - AI Trading Analytics & Coaching',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'TradeClarity - Crypto Trading Analytics & Psychology Analysis Tool',
-    description: 'Discover hidden patterns in your crypto trades. Analyze trading psychology, detect mistakes, and improve performance.',
+    title: 'TradeClarity - AI-Powered Trading Analytics & Coaching Platform',
+    description: 'AI-powered trading analytics and coaching app. Discover hidden patterns in your trades, analyze trading psychology, detect mistakes, and improve performance with personalized AI coaching.',
     creator: '@trdclrty',
-    images: ['/og-image.png'],
+    images: ['/logo.png'],
   },
   alternates: {
-    canonical: 'https://tradeclarity.xyz',
+    canonical: 'https://www.tradeclarity.xyz',
   },
 }
 
