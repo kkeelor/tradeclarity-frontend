@@ -1110,24 +1110,68 @@ export async function POST(request) {
             }
           }
 
-          // Update conversation token counts (we don't save individual messages)
+          // Update conversation token counts and store individual messages
           // Skip for demo mode - demo users don't have conversations in database
           if (!isDemoMode && conversation) {
             const currentInputTokens = (conversation.total_input_tokens || 0) + inputTokens
             const currentOutputTokens = (conversation.total_output_tokens || 0) + outputTokens
+            const newMessageCount = previousMessageCount + 2 // User message + assistant response
             
+            // Update conversation token counts
             const { error: updateError } = await supabase
               .from('ai_conversations')
               .update({
                 total_input_tokens: currentInputTokens,
                 total_output_tokens: currentOutputTokens,
-                message_count: previousMessageCount + 2, // User message + assistant response
+                message_count: newMessageCount,
                 updated_at: new Date().toISOString()
               })
               .eq('id', conversation.id)
 
             if (updateError) {
               console.error('Error updating conversation:', updateError)
+            }
+
+            // Store individual messages for shareable conversations
+            // Get current max sequence number for this conversation
+            const { data: lastMessage } = await supabase
+              .from('ai_messages')
+              .select('sequence')
+              .eq('conversation_id', conversation.id)
+              .order('sequence', { ascending: false })
+              .limit(1)
+              .single()
+
+            const nextSequence = (lastMessage?.sequence || -1) + 1
+
+            // Store user message
+            const { error: userMsgError } = await supabase
+              .from('ai_messages')
+              .insert({
+                conversation_id: conversation.id,
+                role: 'user',
+                content: message,
+                sequence: nextSequence
+              })
+
+            if (userMsgError) {
+              console.error('Error storing user message:', userMsgError)
+            }
+
+            // Store assistant response (if there's actual content)
+            if (fullResponse && fullResponse.trim().length > 0) {
+              const { error: assistantMsgError } = await supabase
+                .from('ai_messages')
+                .insert({
+                  conversation_id: conversation.id,
+                  role: 'assistant',
+                  content: fullResponse,
+                  sequence: nextSequence + 1
+                })
+
+              if (assistantMsgError) {
+                console.error('Error storing assistant message:', assistantMsgError)
+              }
             }
           }
 

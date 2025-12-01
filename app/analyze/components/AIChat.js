@@ -4,7 +4,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, useMemo, useImperativeHandle, forwardRef } from 'react'
-import { Send, Loader2, Bot, User, Sparkles, X, RotateCcw, Square, Minimize2, Maximize2, Database, Link as LinkIcon, Upload, TrendingUp, DollarSign, PieChart, Target, AlertCircle, MessageCircle } from 'lucide-react'
+import { Send, Loader2, Bot, User, Sparkles, X, RotateCcw, Square, Minimize2, Maximize2, Database, Link as LinkIcon, Upload, TrendingUp, DollarSign, PieChart, Target, AlertCircle, MessageCircle, Share2, Check } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { getDynamicSampleQuestions, getCoachModeStarters } from '@/lib/ai/prompts/sampleQuestions'
@@ -75,6 +75,9 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
   const [isMaximized, setIsMaximized] = useState(false)
   const [tokenUsage, setTokenUsage] = useState({ input: 0, output: 0 })
   const [demoTokensUsed, setDemoTokensUsed] = useState(0)
+  const [shareUrl, setShareUrl] = useState(null)
+  const [isSharing, setIsSharing] = useState(false)
+  const [shareCopied, setShareCopied] = useState(false)
   
   // Demo mode token tracking (stored in sessionStorage)
   const getDemoTokensUsed = useCallback(() => {
@@ -844,7 +847,10 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                   setIsLoading(false) // Ensure loading is cleared
                   
                   if (data.conversationId) {
+                    console.log('[AIChat] Conversation ID received:', data.conversationId)
                     setConversationId(data.conversationId)
+                  } else {
+                    console.warn('[AIChat] No conversationId in response:', data)
                   }
                   
                   // Coach mode: Parse options from response
@@ -1110,6 +1116,53 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
     }
   }, [isLoading])
 
+  const handleShare = async () => {
+    if (isDemoMode || isSharing) {
+      console.log('[Share] Blocked:', { isDemoMode, isSharing })
+      return
+    }
+    
+    if (!conversationId) {
+      console.warn('[Share] No conversationId available yet')
+      alert('Please wait for the conversation to be saved before sharing.')
+      return
+    }
+    
+    console.log('[Share] Creating share link for conversation:', conversationId)
+    setIsSharing(true)
+    try {
+      const response = await fetch('/api/ai/chat/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId,
+          action: 'create'
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to create share link')
+      }
+
+      const data = await response.json()
+      console.log('[Share] Share link created:', data.shareUrl)
+      setShareUrl(data.shareUrl)
+      
+      // Copy to clipboard
+      if (typeof window !== 'undefined' && data.shareUrl) {
+        await navigator.clipboard.writeText(data.shareUrl)
+        setShareCopied(true)
+        setTimeout(() => setShareCopied(false), 2000)
+      }
+    } catch (error) {
+      console.error('[Share] Error sharing conversation:', error)
+      alert(`Failed to create share link: ${error.message}. Please try again.`)
+    } finally {
+      setIsSharing(false)
+    }
+  }
+
   const handleClear = async () => {
     if (isClearing || isLoading) return
     
@@ -1125,6 +1178,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
       setSessionMessages([])
       setConversationId(null)
       setTokenUsage({ input: 0, output: 0 })
+      setShareUrl(null) // Clear share URL when clearing conversation
       // Reset onboarding flag if user still has no data
       if (hasNoData) {
         setHasSentMessagesWithoutData(false)
@@ -1178,6 +1232,39 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {messages.length > 0 && !isDemoMode && (
+              <button
+                onClick={handleShare}
+                disabled={isSharing || isLoading || !conversationId}
+                className="px-2.5 py-1.5 rounded-md hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 text-xs text-white/60 hover:text-white/80"
+                title={
+                  !conversationId 
+                    ? "Waiting for conversation to be saved..." 
+                    : shareCopied 
+                    ? "Link copied!" 
+                    : shareUrl 
+                    ? "Share link copied" 
+                    : "Share conversation"
+                }
+              >
+                {isSharing ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Sharing...</span>
+                  </>
+                ) : shareCopied ? (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>Share</span>
+                  </>
+                )}
+              </button>
+            )}
             {messages.length > 0 && (
               <button
                 onClick={handleClear}
@@ -1629,6 +1716,39 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {messages.length > 0 && !isDemoMode && (
+                  <button
+                    onClick={handleShare}
+                    disabled={isSharing || isLoading || !conversationId}
+                    className="px-2.5 py-1.5 rounded-md hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 text-xs text-white/60 hover:text-white/80"
+                    title={
+                      !conversationId 
+                        ? "Waiting for conversation to be saved..." 
+                        : shareCopied 
+                        ? "Link copied!" 
+                        : shareUrl 
+                        ? "Share link copied" 
+                        : "Share conversation"
+                    }
+                  >
+                    {isSharing ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Sharing...</span>
+                      </>
+                    ) : shareCopied ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Share2 className="w-3.5 h-3.5" />
+                        <span>Share</span>
+                      </>
+                    )}
+                  </button>
+                )}
                 {messages.length > 0 && (
                   <button
                     onClick={handleClear}

@@ -431,47 +431,49 @@ export default function VegaContent() {
           </div>
         )}
         
-        <div className="mb-4 text-center space-y-2 flex-shrink-0">
-          <div className="flex items-center justify-center gap-3">
+        <div className="mb-4 flex-shrink-0">
+          <div className="flex items-center justify-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-xl bg-emerald-400/10 border border-emerald-400/30 flex items-center justify-center">
               <Brain className="w-5 h-5 text-emerald-400" />
             </div>
             <h1 className="text-2xl font-bold text-white/90">Vega AI</h1>
           </div>
-          <p className="text-white/60 text-xs">
-            Your AI trading assistant powered by Claude
-          </p>
-          
-          {/* Coach Mode Toggle */}
-          <div className="flex items-center justify-center gap-2 pt-1">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => setCoachMode(!coachMode)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      coachMode
-                        ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-400'
-                        : 'bg-slate-800/50 border border-slate-700/50 text-slate-400 hover:text-slate-300 hover:border-slate-600/50'
-                    }`}
-                  >
-                    <MessageCircle className={`w-3.5 h-3.5 ${coachMode ? 'text-emerald-400' : ''}`} />
-                    <span>Coach Mode</span>
-                    <div className={`w-8 h-4 rounded-full transition-colors relative ${coachMode ? 'bg-emerald-500/30' : 'bg-slate-700/50'}`}>
-                      <div className={`absolute top-0.5 w-3 h-3 rounded-full transition-all ${coachMode ? 'bg-emerald-400 left-4' : 'bg-slate-500 left-0.5'}`} />
-                    </div>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-xs">
-                  <p className="font-medium mb-1">Coach Mode</p>
-                  <p className="text-xs leading-relaxed">
-                    {coachMode 
-                      ? 'Interactive coaching with concise responses and guided follow-up options. Click to switch to standard mode.'
-                      : 'Enable for more interactive, concise responses with guided follow-up options. Great for focused improvement.'}
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+          <div className="flex items-center relative">
+            <p className="text-white/60 text-xs text-center flex-1">
+              Your AI trading assistant powered by Claude
+            </p>
+            
+            {/* Coach Mode Toggle */}
+            <div className="absolute right-0">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => setCoachMode(!coachMode)}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        coachMode
+                          ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-400'
+                          : 'bg-slate-800/50 border border-slate-700/50 text-slate-400 hover:text-slate-300 hover:border-slate-600/50'
+                      }`}
+                    >
+                      <MessageCircle className={`w-3.5 h-3.5 ${coachMode ? 'text-emerald-400' : ''}`} />
+                      <span>Coach Mode</span>
+                      <div className={`w-8 h-4 rounded-full transition-colors relative ${coachMode ? 'bg-emerald-500/30' : 'bg-slate-700/50'}`}>
+                        <div className={`absolute top-0.5 w-3 h-3 rounded-full transition-all ${coachMode ? 'bg-emerald-400 left-4' : 'bg-slate-500 left-0.5'}`} />
+                      </div>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs">
+                    <p className="font-medium mb-1">Coach Mode</p>
+                    <p className="text-xs leading-relaxed">
+                      {coachMode 
+                        ? 'Interactive coaching with concise responses and guided follow-up options. Click to switch to standard mode.'
+                        : 'Enable for more interactive, concise responses with guided follow-up options. Great for focused improvement.'}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </div>
           {/* Demo Token Limit Display */}
           {isDemoMode && !user && (
