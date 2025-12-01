@@ -7,7 +7,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, useImperativeHandle,
 import { Send, Loader2, Bot, User, Sparkles, X, RotateCcw, Square, Minimize2, Maximize2, Database, Link as LinkIcon, Upload, TrendingUp, DollarSign, PieChart, Target, AlertCircle, MessageCircle, Share2, Check } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
-import { getDynamicSampleQuestions, getCoachModeStarters } from '@/lib/ai/prompts/sampleQuestions'
+import { getDynamicSampleQuestions, getCoachModeStarters, getGreeting } from '@/lib/ai/prompts/sampleQuestions'
 import { ChatOptions, parseOptionsFromResponse, detectTopicFromMessage, isFollowUpOnTopic } from '@/components/ui/ChatOptions'
 import dynamic from 'next/dynamic'
 
@@ -183,16 +183,23 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
   const effectiveAllTrades = computedAllTrades || allTrades
   
   // Calculate dynamic sample questions based on user context
+  // Now includes conversation history for smarter, non-repetitive prompts
   const sampleQuestions = useMemo(() => {
     // Always return questions, even if analytics are still loading
     // This ensures smooth UX - questions will update when analytics load
-    return getDynamicSampleQuestions(tradesStats, effectiveAnalytics)
-  }, [tradesStats, effectiveAnalytics])
+    return getDynamicSampleQuestions(tradesStats, effectiveAnalytics, previousSummaries, { coachMode })
+  }, [tradesStats, effectiveAnalytics, previousSummaries, coachMode])
   
   // Coach mode starter prompts - shorter, more conversational
+  // Includes conversation history for context-aware starters
   const coachModeStarters = useMemo(() => {
-    return getCoachModeStarters(tradesStats, effectiveAnalytics)
-  }, [tradesStats, effectiveAnalytics])
+    return getCoachModeStarters(tradesStats, effectiveAnalytics, previousSummaries)
+  }, [tradesStats, effectiveAnalytics, previousSummaries])
+  
+  // Dynamic greeting based on time of day and user context
+  const greeting = useMemo(() => {
+    return getGreeting(tradesStats, effectiveAnalytics, previousSummaries)
+  }, [tradesStats, effectiveAnalytics, previousSummaries])
 
   // Calculate portfolio data for Vega welcome (only when on Vega page)
   const portfolioData = useMemo(() => {
@@ -1349,12 +1356,12 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
             // Welcome state - show rich content on Vega page, simple on other pages
             isVegaPage && tradesStats && tradesStats.totalTrades > 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center px-6 py-8 relative z-10 overflow-y-auto">
-                {/* Welcome Message */}
+                {/* Welcome Message - Dynamic greeting based on time and user context */}
                 <div className="mb-8 space-y-4 max-w-2xl">
                   <div className="flex items-center justify-center gap-2 mb-4">
                     <Sparkles className="w-5 h-5 text-emerald-400" />
                     <h3 className="text-lg font-semibold text-white/90">
-                      Welcome! I've analyzed your trading data
+                      {greeting || "Welcome! I've analyzed your trading data"}
                     </h3>
                   </div>
                   
@@ -1448,7 +1455,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center px-4 relative z-10">
                 <h4 className="text-sm font-medium text-white/90 mb-1.5">
-                  {coachMode ? 'Start coaching session' : 'Ask me anything about your trading'}
+                  {greeting ? greeting : (coachMode ? 'Start coaching session' : 'Ask me anything about your trading')}
                 </h4>
                 <p className="text-xs text-white/50 max-w-sm mb-5">
                   {coachMode ? 'Interactive guidance with follow-up options' : 'I can analyze your performance and provide personalized insights'}
