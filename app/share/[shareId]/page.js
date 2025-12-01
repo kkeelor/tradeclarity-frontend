@@ -17,6 +17,7 @@ const VegaChartRenderer = dynamic(
 )
 import { parseChartRequest, removeChartBlock } from '@/components/charts/VegaChartRenderer'
 import { MarkdownMessage } from '@/components/ui/MarkdownMessage'
+import { MessageActions } from '@/components/ui/MessageActions'
 
 export default function SharedConversationPage() {
   const params = useParams()
@@ -97,9 +98,26 @@ export default function SharedConversationPage() {
     return null
   }
 
-  // Get user name from the user object
-  const userName = conversation.user?.name || conversation.user?.email?.split('@')[0] || 'User'
-  const userEmail = conversation.user?.email
+  // Get user initials from name or email
+  const getUserInitials = (name, email) => {
+    if (name) {
+      const nameParts = name.trim().split(' ')
+      if (nameParts.length >= 2) {
+        // First letter of first name + first letter of last name
+        return (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase()
+      } else if (nameParts.length === 1) {
+        // Just first letter of name
+        return nameParts[0].charAt(0).toUpperCase()
+      }
+    }
+    if (email) {
+      // First letter of email
+      return email.charAt(0).toUpperCase()
+    }
+    return 'U'
+  }
+  
+  const userInitials = getUserInitials(conversation.user?.name, conversation.user?.email)
   
   // Get first user message for a better title if title is just the first message
   const firstUserMessage = conversation.messages?.find(m => m.role === 'user')?.content
@@ -169,11 +187,7 @@ export default function SharedConversationPage() {
               <div className="flex items-center gap-4 text-sm text-white/60">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-full bg-[#EAAF08]/20 flex items-center justify-center border border-[#EAAF08]/30">
-                    <User className="h-4 w-4 text-[#EAAF08]" />
-                  </div>
-                  <div>
-                    <p className="text-white/90 font-medium">{userName}</p>
-                    {userEmail && <p className="text-xs text-white/50">{userEmail}</p>}
+                    <span className="text-[#EAAF08] font-semibold text-xs">{userInitials}</span>
                   </div>
                 </div>
                 <div className="h-4 w-px bg-white/10" />
@@ -250,7 +264,7 @@ function MessageBubble({ message }) {
   const hasChart = !!chartConfig
 
   return (
-    <div className={`flex gap-4 ${isUser ? 'flex-row-reverse' : ''}`}>
+    <div className={`group flex gap-4 ${isUser ? 'flex-row-reverse' : ''}`}>
       {/* Avatar */}
       <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center border ${
         isUser 
@@ -266,34 +280,40 @@ function MessageBubble({ message }) {
 
       {/* Message Content */}
       <div className={`flex-1 ${isUser ? 'flex flex-col items-end' : ''}`}>
-        <div className={`rounded-xl p-4 ${
-          isUser 
-            ? 'bg-[#EAAF08]/10 border border-[#EAAF08]/20 max-w-[85%]' 
-            : 'bg-[#1e2329] border border-white/10'
-        }`}>
-          <div className="prose prose-sm max-w-none dark:prose-invert">
-            {hasChart ? (
-              <div>
-                {/* Render text without chart block with markdown support */}
-                {removeChartBlock(content).trim() && (
-                  <div className="mb-4">
-                    <MarkdownMessage content={removeChartBlock(content)} />
+        <div className={`group/message relative flex items-start gap-2 ${isUser ? 'flex-row-reverse' : ''}`}>
+          <div className={`rounded-xl p-4 flex-1 ${
+            isUser 
+              ? 'bg-[#EAAF08]/10 border border-[#EAAF08]/20 max-w-[85%]' 
+              : 'bg-[#1e2329] border border-white/10'
+          }`}>
+            <div className="prose prose-sm max-w-none dark:prose-invert">
+              {hasChart ? (
+                <div>
+                  {/* Render text without chart block with markdown support */}
+                  {removeChartBlock(content).trim() && (
+                    <div className="mb-4">
+                      <MarkdownMessage content={removeChartBlock(content)} />
+                    </div>
+                  )}
+                  
+                  {/* Render chart */}
+                  <div className="my-4">
+                    <VegaChartRenderer 
+                      chartConfig={chartConfig}
+                      analytics={null}
+                      allTrades={[]}
+                      height={200}
+                    />
                   </div>
-                )}
-                
-                {/* Render chart */}
-                <div className="my-4">
-                  <VegaChartRenderer 
-                    chartConfig={chartConfig}
-                    analytics={null}
-                    allTrades={[]}
-                    height={200}
-                  />
                 </div>
-              </div>
-            ) : (
-              <MarkdownMessage content={content} />
-            )}
+              ) : (
+                <MarkdownMessage content={content} />
+              )}
+            </div>
+          </div>
+          {/* Message Actions - Copy button */}
+          <div className={`flex-shrink-0 mt-1 transition-opacity duration-200 opacity-0 group-hover/message:opacity-100 ${isUser ? 'order-first' : ''}`}>
+            <MessageActions content={hasChart ? removeChartBlock(content) : content} />
           </div>
         </div>
         
