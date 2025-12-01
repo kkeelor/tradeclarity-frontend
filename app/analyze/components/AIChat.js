@@ -17,6 +17,7 @@ const VegaChartRenderer = dynamic(
   { ssr: false }
 )
 import { parseChartRequest, removeChartBlock } from '@/components/charts/VegaChartRenderer'
+import { MarkdownMessage } from '@/components/ui/MarkdownMessage'
 
 const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConnectExchange, onUploadCSV, isVegaPage = false, isDemoMode = false, coachMode = false }, ref) => {
   const { user } = useAuth()
@@ -1501,10 +1502,10 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                       </div>
                     ) : (
                       <>
-                        {/* Render message text (without chart block) */}
-                        <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                          {message.role === 'assistant' ? removeChartBlock(message.content) : message.content}
-                        </p>
+                        {/* Render message text (without chart block) with markdown support */}
+                        <MarkdownMessage 
+                          content={message.role === 'assistant' ? removeChartBlock(message.content) : message.content}
+                        />
                         {/* Render chart from MCP tool data (auto-detected) */}
                         {message.role === 'assistant' && message.chartData && message.chartData.data?.length > 0 && (
                           <div className="mt-3 -mx-1">

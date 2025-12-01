@@ -16,6 +16,7 @@ const VegaChartRenderer = dynamic(
   { ssr: false }
 )
 import { parseChartRequest, removeChartBlock } from '@/components/charts/VegaChartRenderer'
+import { MarkdownMessage } from '@/components/ui/MarkdownMessage'
 
 export default function SharedConversationPage() {
   const params = useParams()
@@ -273,10 +274,10 @@ function MessageBubble({ message }) {
           <div className="prose prose-sm max-w-none dark:prose-invert">
             {hasChart ? (
               <div>
-                {/* Render text without chart block */}
+                {/* Render text without chart block with markdown support */}
                 {removeChartBlock(content).trim() && (
-                  <div className="mb-4 whitespace-pre-wrap text-white/90 leading-relaxed">
-                    {removeChartBlock(content)}
+                  <div className="mb-4">
+                    <MarkdownMessage content={removeChartBlock(content)} />
                   </div>
                 )}
                 
@@ -291,7 +292,7 @@ function MessageBubble({ message }) {
                 </div>
               </div>
             ) : (
-              <div className="whitespace-pre-wrap text-white/90 leading-relaxed">{content}</div>
+              <MarkdownMessage content={content} />
             )}
           </div>
         </div>
