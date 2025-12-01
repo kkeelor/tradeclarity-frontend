@@ -5,6 +5,16 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
 /**
+ * Helper to check if a percentage is in a win rate context
+ */
+function isWinRateContext(text, matchIndex, matchLength) {
+  const beforeText = text.substring(Math.max(0, matchIndex - 50), matchIndex).toLowerCase()
+  const afterText = text.substring(matchIndex + matchLength, Math.min(text.length, matchIndex + matchLength + 50)).toLowerCase()
+  const context = beforeText + ' ' + afterText
+  return context.includes('win rate') || context.includes('winrate') || context.includes('winning rate')
+}
+
+/**
  * Colorize numbers and percentages in text
  * Green for positive/profit, red for negative/loss
  * Returns an array of React elements and strings
@@ -22,6 +32,16 @@ function colorizeText(text) {
   // First pass: find all explicit +/- patterns
   const matches = []
   while ((match = explicitPattern.exec(text)) !== null) {
+    const numValue = parseFloat(match[3])
+    const hasPercentSuffix = match[4] && (match[4] === '%' || match[4].toLowerCase() === 'percent')
+    
+    // Check if this is a win rate context - win rates use absolute value for coloring
+    let isPositive = match[1] === '+'
+    if (hasPercentSuffix && isWinRateContext(text, match.index, match[0].length)) {
+      // For win rates: >= 50% is good (green), < 50% is red
+      isPositive = numValue >= 50
+    }
+    
     matches.push({
       index: match.index,
       length: match[0].length,
@@ -29,7 +49,7 @@ function colorizeText(text) {
       currency: match[2] || '',
       number: match[3],
       suffix: match[4] || '',
-      isPositive: match[1] === '+'
+      isPositive: isPositive
     })
   }
 
@@ -145,7 +165,18 @@ function processStandalonePercentages(text) {
     }
 
     const numValue = parseFloat(match[1])
-    const colorClass = numValue > 0 ? 'text-emerald-400' : numValue < 0 ? 'text-red-400' : ''
+    const isWinRate = isWinRateContext(text, match.index, match[0].length)
+    
+    let colorClass = ''
+    if (isWinRate) {
+      // For win rates: above 50% is good (green), below 50% is bad (red)
+      // Handle negative signs (shouldn't happen but be safe)
+      const absValue = Math.abs(numValue)
+      colorClass = absValue >= 50 ? 'text-emerald-400' : absValue > 0 ? 'text-red-400' : ''
+    } else {
+      // For other percentages: positive is green, negative is red
+      colorClass = numValue > 0 ? 'text-emerald-400' : numValue < 0 ? 'text-red-400' : ''
+    }
     
     if (colorClass) {
       parts.push(

@@ -80,6 +80,8 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
   const [shareUrl, setShareUrl] = useState(null)
   const [isSharing, setIsSharing] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
+  const [activeTools, setActiveTools] = useState([]) // Track active tool executions
+  const [toolStatus, setToolStatus] = useState(null) // Current tool status message
   
   // Demo mode token tracking (stored in sessionStorage)
   const getDemoTokensUsed = useCallback(() => {
@@ -353,7 +355,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
     if (!conversationId || sessionMessages.length === 0) return
 
     try {
-      await fetch('/api/ai/chat/summarize', {
+      const response = await fetch('/api/ai/chat/summarize', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -368,6 +370,17 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
           }
         })
       })
+      
+      // Get the summary from the response and add it to previousSummaries
+      // This ensures the AI maintains context after summarization
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.summary) {
+          // Add new summary to the beginning of previousSummaries (most recent first)
+          setPreviousSummaries(prev => [data.summary, ...prev].slice(0, 10)) // Keep last 10
+          console.log('[AIChat] Conversation summarized and added to context')
+        }
+      }
       
       // Clear session messages after summarizing (summary is saved to DB)
       setSessionMessages([])
@@ -594,6 +607,22 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
     }
   }, [messages, scrollToBottom, isMaximized])
 
+  // Helper function to format tool names for display
+  const formatToolName = useCallback((toolName) => {
+    if (!toolName) return 'data'
+    // Convert tool names like TIME_SERIES_INTRADAY to "Market Data"
+    const toolNameMap = {
+      'TIME_SERIES_INTRADAY': 'Market Data',
+      'TIME_SERIES_DAILY': 'Daily Data',
+      'TIME_SERIES_WEEKLY': 'Weekly Data',
+      'TIME_SERIES_MONTHLY': 'Monthly Data',
+      'GLOBAL_QUOTE': 'Quote',
+      'SYMBOL_SEARCH': 'Symbol Search',
+      'OVERVIEW': 'Company Overview'
+    }
+    return toolNameMap[toolName] || toolName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+  }, [])
+
   // Helper function to send a message (extracted from handleSend for reuse)
   const sendMessage = useCallback(async (messageText) => {
     if (!messageText || !messageText.trim() || isLoading) return false
@@ -813,6 +842,37 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                     }
                   }
                   
+                  // Update UI based on tool execution logs
+                  // Check for "Executing tool: TOOL_NAME" pattern
+                  const executingToolMatch = logMessage.match(/Executing tool:\s*(\w+)/i)
+                  if (executingToolMatch) {
+                    const toolName = executingToolMatch[1]
+                    setActiveTools(prev => {
+                      const updated = [...prev.filter(t => t !== toolName), toolName]
+                      return updated
+                    })
+                    setToolStatus(`Querying ${formatToolName(toolName)}...`)
+                  } 
+                  // Check for "Tool executed: TOOL_NAME" pattern
+                  else if (logMessage.match(/Tool executed:\s*(\w+)/i)) {
+                    const executedToolMatch = logMessage.match(/Tool executed:\s*(\w+)/i)
+                    const toolName = executedToolMatch?.[1]
+                    if (toolName) {
+                      setActiveTools(prev => {
+                        const updated = prev.filter(t => t !== toolName)
+                        // Clear status if no more active tools
+                        if (updated.length === 0) {
+                          setToolStatus(null)
+                        }
+                        return updated
+                      })
+                    }
+                  } 
+                  // Check for "Executing N tool(s)" pattern (multiple tools)
+                  else if (logMessage.includes('Executing') && logData?.toolCount) {
+                    setToolStatus(`Executing ${logData.toolCount} tool${logData.toolCount > 1 ? 's' : ''}...`)
+                  }
+                  
                   if (logLevel === 'error') {
                     console.error(logMessage, logData)
                   } else if (logLevel === 'warn') {
@@ -855,6 +915,8 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                 } else if (data.type === 'done') {
                   streamComplete = true
                   setIsLoading(false) // Ensure loading is cleared
+                  setActiveTools([]) // Clear any active tools
+                  setToolStatus(null) // Clear tool status
                   
                   if (data.conversationId) {
                     console.log('[AIChat] Conversation ID received:', data.conversationId)
@@ -962,6 +1024,8 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
       } finally {
         // Ensure loading state is always cleared
         setIsLoading(false)
+        setActiveTools([]) // Clear active tools
+        setToolStatus(null) // Clear tool status
         
         if (!streamComplete && !abortControllerRef.current?.signal.aborted) {
           // Stream ended unexpectedly - ensure message is updated
@@ -1002,6 +1066,8 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
       // Don't show error if user aborted
       if (error.name === 'AbortError' || abortControllerRef.current?.signal.aborted) {
         setIsLoading(false)
+        setActiveTools([]) // Clear active tools
+        setToolStatus(null) // Clear tool status
         setMessages(prev => prev.map(msg => 
           msg.id === assistantMessageId && msg.isLoading
             ? { ...msg, isLoading: false, content: assistantContent || 'Response stopped.' }
@@ -1041,6 +1107,8 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
       }
       
       setIsLoading(false)
+      setActiveTools([]) // Clear active tools
+      setToolStatus(null) // Clear tool status
       setMessages(prev => prev.map(msg => 
         msg.id === assistantMessageId
           ? { ...msg, content: errorMessage, isLoading: false, error: true }
@@ -1057,7 +1125,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
       
       return false
     }
-  }, [isLoading, isDemoMode, getDemoTokensUsed, coachMode, conversationDepth, currentTopic, sessionMessages, conversationId, tradesStats, effectiveAnalytics, effectiveAllTrades, previousSummaries, hasNoData, hasSentMessagesWithoutData, updateDemoTokensUsed])
+  }, [isLoading, isDemoMode, getDemoTokensUsed, coachMode, conversationDepth, currentTopic, sessionMessages, conversationId, tradesStats, effectiveAnalytics, effectiveAllTrades, previousSummaries, hasNoData, hasSentMessagesWithoutData, updateDemoTokensUsed, formatToolName])
 
   const handleStop = () => {
     if (abortControllerRef.current) {
@@ -1065,6 +1133,8 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
       abortControllerRef.current = null
     }
     setIsLoading(false)
+    setActiveTools([]) // Clear active tools
+    setToolStatus(null) // Clear tool status
     // Update any loading messages to show they were stopped
     setMessages(prev => prev.map(msg => 
       msg.isLoading 
@@ -1510,14 +1580,27 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                       }`}
                     >
                     {message.isLoading ? (
-                      <div className="flex items-center gap-2 py-1">
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-white/50" />
-                        <span className="text-xs text-white/50 animate-pulse">{coachMode ? 'Coaching...' : 'Thinking...'}</span>
-                        <div className="flex gap-1 ml-2">
+                      <div className="flex flex-col gap-2 py-1">
+                        <div className="flex items-center gap-1">
                           <div className="w-1.5 h-1.5 bg-white/30 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                           <div className="w-1.5 h-1.5 bg-white/30 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                           <div className="w-1.5 h-1.5 bg-white/30 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                         </div>
+                        {activeTools.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {activeTools.map((tool, idx) => (
+                              <div 
+                                key={idx}
+                                className="flex items-center gap-1 px-2 py-0.5 bg-white/5 rounded border border-white/10"
+                              >
+                                <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse" />
+                                <span className="text-[10px] text-white/40 font-mono">
+                                  {formatToolName(tool)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <>
