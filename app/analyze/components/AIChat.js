@@ -20,7 +20,7 @@ import { parseChartRequest, removeChartBlock } from '@/components/charts/VegaCha
 import { MarkdownMessage } from '@/components/ui/MarkdownMessage'
 import { MessageActions } from '@/components/ui/MessageActions'
 
-const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConnectExchange, onUploadCSV, isVegaPage = false, isDemoMode = false, coachMode = false }, ref) => {
+const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConnectExchange, onUploadCSV, isVegaPage = false, isFullPage = false, isDemoMode = false, coachMode = false, conversationId: initialConversationId = null }, ref) => {
   const { user } = useAuth()
   const [messages, setMessages] = useState([])
   const [sessionMessages, setSessionMessages] = useState([]) // In-memory messages for current session
@@ -54,21 +54,17 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
   const previousQuestionsRef = useRef([])
   const animationStartDelayRef = useRef(null)
   
-  // Expose methods to parent via ref
-  useImperativeHandle(ref, () => ({
-    setPrompt: (prompt) => {
-      setInput(prompt)
-      // Focus input after setting
-      setTimeout(() => {
-        if (inputRef.current) {
-          inputRef.current.focus()
-        }
-      }, 100)
-    }
-  }))
-  
   const [isLoading, setIsLoading] = useState(false)
-  const [conversationId, setConversationId] = useState(null)
+  const [conversationId, setConversationId] = useState(initialConversationId)
+  
+  // Update conversationId when prop changes
+  useEffect(() => {
+    if (initialConversationId !== conversationId) {
+      setConversationId(initialConversationId)
+      // TODO: Load conversation messages when continuation is implemented
+    }
+  }, [initialConversationId])
+  
   const [currentSampleIndex, setCurrentSampleIndex] = useState(0)
   const [displayedSample, setDisplayedSample] = useState('')
   const [isTypingSample, setIsTypingSample] = useState(false)
@@ -221,13 +217,23 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
   // Generate insights for Vega welcome
   const insights = useMemo(() => {
     if (!isVegaPage || !effectiveAnalytics || !tradesStats) return []
+    
+    // If user has no trades, show potential insights instead of zero values
+    if (tradesStats.totalTrades === 0) {
+      return [
+        { type: 'info', text: 'Discover hidden profit leaks', icon: Target },
+        { type: 'info', text: 'Analyze trading psychology', icon: Brain },
+        { type: 'info', text: 'Identify optimal entry times', icon: TrendingUp }
+      ]
+    }
+    
     const insightsList = []
     if (effectiveAnalytics.winRate !== undefined) {
       // winRate is already a percentage (0-100), no need to multiply
       const winRate = effectiveAnalytics.winRate
       if (winRate >= 60) {
         insightsList.push({ type: 'strength', text: `Strong ${winRate.toFixed(1)}% win rate`, icon: TrendingUp })
-      } else if (winRate < 40) {
+      } else if (winRate < 40 && winRate > 0) {
         insightsList.push({ type: 'weakness', text: `Win rate of ${winRate.toFixed(1)}% needs improvement`, icon: AlertCircle })
       }
     }
@@ -235,7 +241,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
       const pf = effectiveAnalytics.profitFactor
       if (pf >= 2) {
         insightsList.push({ type: 'strength', text: `Excellent ${pf.toFixed(2)}x profit factor`, icon: TrendingUp })
-      } else if (pf < 1) {
+      } else if (pf < 1 && pf > 0) {
         insightsList.push({ type: 'weakness', text: `Profit factor of ${pf.toFixed(2)}x indicates losses`, icon: AlertCircle })
       }
     }
@@ -1152,10 +1158,10 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
 
   // Open maximized dialog when Vega starts responding (isLoading becomes true)
   useEffect(() => {
-    if (isLoading) {
+    if (isLoading && !isFullPage) {
       setIsMaximized(true)
     }
-  }, [isLoading])
+  }, [isLoading, isFullPage])
 
   const handleInputFocus = () => {
     setIsInputFocused(true)
@@ -1294,21 +1300,40 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
     }
   }
 
+  // Expose methods to parent via ref
+  useImperativeHandle(ref, () => ({
+    setPrompt: (prompt) => {
+      setInput(prompt)
+      // Focus input after setting
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus()
+        }
+      }, 100)
+    },
+    clearChat: handleClear
+  }))
+
   // Render chat content (reusable for both compact and maximized views)
   const renderChatContent = useCallback((isMaximizedView = false, showHeader = true) => {
     return (
-    <div className={`flex flex-col bg-black ${!isMaximizedView ? 'rounded-xl border border-white/10' : ''} overflow-hidden transition-all duration-300`} style={{ position: 'relative', isolation: 'isolate', display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, maxHeight: '100%' }}>
+    <div className={`flex flex-col bg-black ${!isMaximizedView && !isFullPage ? 'rounded-xl border border-white/10' : ''} overflow-hidden transition-all duration-300`} style={{ position: 'relative', isolation: 'isolate', display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, maxHeight: '100%' }}>
       {/* Header - only show in compact view or if explicitly requested */}
-      {showHeader && !isMaximizedView && (
+      {showHeader && (!isMaximizedView || isFullPage) && (
         <div className="relative flex items-center justify-between px-4 py-3 border-b border-white/5 flex-shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
               <Bot className="w-4 h-4 text-white/80" />
             </div>
-            <div>
+            <div className="flex items-center gap-2">
               <h3 className="text-sm font-semibold text-white/90">
                 Vega AI
               </h3>
+              {coachMode && (
+                <span className="px-2 py-0.5 text-[10px] font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full">
+                  Coach
+                </span>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -1365,13 +1390,15 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                 )}
               </button>
             )}
-            <button
-              onClick={() => setIsMaximized(true)}
-              className="p-1.5 rounded-md hover:bg-white/5 transition-colors text-white/50 hover:text-white/80"
-              title="Maximize chat"
-            >
-              <Maximize2 className="w-4 h-4" />
-            </button>
+            {!isFullPage && (
+              <button
+                onClick={() => setIsMaximized(true)}
+                className="p-1.5 rounded-md hover:bg-white/5 transition-colors text-white/50 hover:text-white/80"
+                title="Maximize chat"
+              >
+                <Maximize2 className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -1424,103 +1451,138 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
             </div>
           ) : (
             // Welcome state - show rich content on Vega page, simple on other pages
-            isVegaPage && tradesStats && tradesStats.totalTrades > 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center px-6 py-8 relative z-10 overflow-y-auto">
-                {/* Welcome Message - Dynamic greeting based on time and user context */}
-                <div className="mb-8 space-y-4 max-w-2xl">
-                  <div className="flex items-center justify-center gap-2 mb-4">
-                    <Sparkles className="w-5 h-5 text-emerald-400" />
-                    <h3 className="text-lg font-semibold text-white/90">
-                      {greeting || "Welcome! I've analyzed your trading data"}
-                    </h3>
-                  </div>
+            isVegaPage && tradesStats ? (
+              <div className="flex flex-col h-full relative z-10 overflow-y-auto">
+                {/* Content Container - Flex column with space between to separate stats (top) and prompts (bottom) */}
+                <div className="flex flex-col flex-1 items-center justify-between min-h-0 px-6 py-8">
                   
-                  {/* Portfolio Value & Asset Distribution */}
-                  {(portfolioData?.totalValue > 0 || tradesStats.totalTrades > 0) && (
-                    <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-white/70 mb-4">
-                      {portfolioData && portfolioData.totalValue > 0 && (
-                        <>
-                          <div className="flex items-center gap-2">
-                            <DollarSign className="w-4 h-4 text-emerald-400" />
-                            <span>
-                              Portfolio Value: <span className="text-white/90 font-semibold">
-                                ${portfolioData.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </span>
-                            </span>
-                          </div>
-                          {portfolioData.topHoldings.length > 0 && (
-                            <div className="flex items-center gap-2">
-                              <PieChart className="w-4 h-4 text-emerald-400" />
-                              <span>
-                                Top Holdings: {portfolioData.topHoldings.slice(0, 3).map((h, idx) => (
-                                  <span key={idx}>
-                                    {h.asset}
-                                    {idx < Math.min(2, portfolioData.topHoldings.length - 1) && ', '}
+                  {/* Top Section: Greeting & Stats */}
+                  <div className="w-full max-w-2xl text-center mt-8">
+                    {/* Welcome Message */}
+                    <div className="mb-6 space-y-4">
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <Sparkles className="w-5 h-5 text-emerald-400" />
+                        <h3 className="text-xl font-semibold text-white/90">
+                          {tradesStats.totalTrades > 0 
+                            ? (greeting || "Welcome! I've analyzed your trading data")
+                            : "Ready to analyze your trading"}
+                        </h3>
+                      </div>
+                      
+                      {/* Portfolio Value & Asset Distribution - Only show if user has trades */}
+                      {tradesStats.totalTrades > 0 && (portfolioData?.totalValue > 0 || tradesStats.totalTrades > 0) && (
+                        <div className="flex flex-wrap items-center justify-center gap-5 text-sm text-white/70 mb-4">
+                          {portfolioData && portfolioData.totalValue > 0 && (
+                            <>
+                              <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
+                                <DollarSign className="w-4 h-4 text-emerald-400" />
+                                <span>
+                                  Portfolio: <span className="text-white/90 font-semibold tabular-nums">
+                                    ${portfolioData.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </span>
-                                ))}
+                                </span>
+                              </div>
+                              {portfolioData.topHoldings.length > 0 && (
+                                <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
+                                  <PieChart className="w-4 h-4 text-emerald-400" />
+                                  <span>
+                                    Top: {portfolioData.topHoldings.slice(0, 3).map((h, idx) => (
+                                      <span key={idx} className="text-white/80">
+                                        {h.asset}
+                                        {idx < Math.min(2, portfolioData.topHoldings.length - 1) && ', '}
+                                      </span>
+                                    ))}
+                                  </span>
+                                </div>
+                              )}
+                            </>
+                          )}
+                          {tradesStats.totalTrades > 0 && (
+                            <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
+                              <Target className="w-4 h-4 text-emerald-400" />
+                              <span>
+                                {tradesStats.totalTrades.toLocaleString()} trades
                               </span>
                             </div>
                           )}
-                        </>
+                        </div>
                       )}
-                      {tradesStats.totalTrades > 0 && (
-                        <div className="flex items-center gap-2">
-                          <Target className="w-4 h-4 text-emerald-400" />
-                          <span>
-                            {tradesStats.totalTrades.toLocaleString()} trades analyzed
-                          </span>
+
+                      {/* Insights */}
+                      {insights.length > 0 && (
+                        <div className="flex flex-wrap items-center justify-center gap-3 text-xs">
+                          {insights.map((insight, idx) => {
+                            const Icon = insight.icon
+                            return (
+                              <div
+                                key={idx}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border ${
+                                  insight.type === 'strength'
+                                    ? 'bg-emerald-400/10 border-emerald-400/30 text-emerald-400'
+                                    : insight.type === 'weakness'
+                                    ? 'bg-red-400/10 border-red-400/30 text-red-400'
+                                    : 'bg-white/5 border-white/10 text-white/70'
+                                }`}
+                              >
+                                <Icon className="w-3.5 h-3.5" />
+                                <span>{insight.text}</span>
+                              </div>
+                            )
+                          })}
                         </div>
                       )}
                     </div>
-                  )}
-
-                  {/* Insights */}
-                  {insights.length > 0 && (
-                    <div className="flex flex-wrap items-center justify-center gap-3 text-xs mb-6">
-                      {insights.map((insight, idx) => {
-                        const Icon = insight.icon
-                        return (
-                          <div
-                            key={idx}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border ${
-                              insight.type === 'strength'
-                                ? 'bg-emerald-400/10 border-emerald-400/30 text-emerald-400'
-                                : insight.type === 'weakness'
-                                ? 'bg-red-400/10 border-red-400/30 text-red-400'
-                                : 'bg-white/5 border-white/10 text-white/70'
-                            }`}
-                          >
-                            <Icon className="w-3.5 h-3.5" />
-                            <span>{insight.text}</span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {/* Coach Mode: Interactive starter prompts */}
-                {coachMode && coachModeStarters.length > 0 && (
-                  <div className="space-y-3 w-full max-w-3xl">
-                    <p className="text-xs text-white/60 mb-3">
-                      Start a conversation:
-                    </p>
-                    <div className="flex flex-wrap items-center justify-center gap-2">
-                      {coachModeStarters.map((q, idx) => (
-                        <button
-                          key={idx}
-                          onClick={async () => {
-                            // Auto-send in coach mode
-                            await sendMessage(q)
-                          }}
-                          className="group px-4 py-2 text-sm text-white/80 hover:text-white bg-white/5 hover:bg-emerald-500/10 border border-white/10 hover:border-emerald-500/30 rounded-full transition-all duration-200 font-medium"
-                        >
-                          {q}
-                        </button>
-                      ))}
-                    </div>
                   </div>
-                )}
+
+                  {/* Bottom Section: Chat Prompts */}
+                  <div className="w-full max-w-3xl flex flex-col items-center justify-end pb-4">
+                    {/* Coach Mode: Interactive starter prompts */}
+                    {coachMode && coachModeStarters.length > 0 ? (
+                      <div className="space-y-3 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <p className="text-xs text-center text-white/40 mb-3 uppercase tracking-wider font-medium">
+                          Suggested Topics
+                        </p>
+                        <div className="flex flex-wrap items-center justify-center gap-2">
+                          {coachModeStarters.map((q, idx) => (
+                            <button
+                              key={idx}
+                              onClick={async () => {
+                                // Auto-send in coach mode
+                                await sendMessage(q)
+                              }}
+                              className="group px-4 py-2 text-sm text-white/70 hover:text-white bg-white/5 hover:bg-emerald-500/10 border border-white/10 hover:border-emerald-500/30 rounded-xl transition-all duration-200 font-medium text-center"
+                            >
+                              {q}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      // Standard Mode Prompts
+                      <div className="space-y-3 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+                         <p className="text-xs text-center text-white/40 mb-3 uppercase tracking-wider font-medium">
+                          Ask Vega
+                        </p>
+                        <div className="flex flex-wrap items-center justify-center gap-2">
+                          {sampleQuestions.slice(0, 4).map((q, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => {
+                                setInput(q)
+                                setIsMaximized(true)
+                                inputRef.current?.focus()
+                              }}
+                              className="group px-4 py-2 text-sm text-white/70 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl transition-all duration-200 text-center"
+                            >
+                              {q}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                </div>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center px-4 relative z-10">
@@ -1776,8 +1838,15 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
 
   return (
     <>
-      {/* Compact View - only render when not maximized */}
-      {!isMaximized && (
+      {/* Full Page View */}
+      {isFullPage && (
+        <div className="h-full w-full" style={{ minHeight: 0, maxHeight: '100%' }}>
+          {renderChatContent(true, true)}
+        </div>
+      )}
+
+      {/* Compact View - only render when not maximized and not full page */}
+      {!isMaximized && !isFullPage && (
         <div className="h-full w-full transition-all duration-300 animate-in fade-in" style={{ minHeight: 0, maxHeight: '100%' }}>
           {renderChatContent(false)}
         </div>

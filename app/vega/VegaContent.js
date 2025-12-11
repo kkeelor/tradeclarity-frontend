@@ -8,9 +8,9 @@ import AuthScreen from '../analyze/components/AuthScreen'
 import { analyzeData } from '../analyze/utils/masterAnalyzer'
 import AIChat from '../analyze/components/AIChat'
 import Header from '../analyze/components/Header'
+import VegaSidebar from './components/VegaSidebar'
 import { useMultipleTabs } from '@/lib/hooks/useMultipleTabs'
-import { EXCHANGES, getExchangeList } from '../analyze/utils/exchanges'
-import { Loader2, Brain, LogIn, Sparkles, Zap, TrendingUp, Shield, ArrowRight, HelpCircle, MessageCircle } from 'lucide-react'
+import { Loader2, Brain, LogIn, Sparkles, Zap, TrendingUp, Shield, ArrowRight, HelpCircle } from 'lucide-react'
 import Footer from '../components/Footer'
 import AuthModal from '../components/AuthModal'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
@@ -44,7 +44,8 @@ export default function VegaContent() {
     }
     return true
   })
-  const chatInputRef = useRef(null)
+  const chatRef = useRef(null)
+  const [currentConversationId, setCurrentConversationId] = useState(null)
   
   // Persist coach mode preference
   useEffect(() => {
@@ -225,13 +226,6 @@ export default function VegaContent() {
         const preAnalyzedData = sessionStorage.getItem('preAnalyzedData')
         if (preAnalyzedData) {
           const parsed = JSON.parse(preAnalyzedData)
-          console.log('[VegaContent] Loading from sessionStorage:', {
-            hasAnalytics: !!parsed.analytics,
-            hasData: !!parsed.data,
-            tradesStats: parsed.tradesStats || parsed.data?.tradesStats,
-            totalTrades: (parsed.tradesStats || parsed.data?.tradesStats)?.totalTrades,
-            tradesCount: parsed.data?.trades?.length || parsed.data?.spotTrades?.length
-          })
           setAnalytics(parsed.analytics)
           setAllTrades(parsed.data?.trades || parsed.analytics?.allTrades || [])
           setTradesStats(parsed.tradesStats || parsed.data?.tradesStats || null)
@@ -250,7 +244,6 @@ export default function VegaContent() {
           fetch('/api/trades/stats')
         ])
         
-        // Check if responses are OK before parsing JSON
         let cacheData = { success: false, analytics: null }
         let statsData = { success: false, metadata: null }
         
@@ -259,14 +252,10 @@ export default function VegaContent() {
             const contentType = cacheResponse.headers.get('content-type')
             if (contentType && contentType.includes('application/json')) {
               cacheData = await cacheResponse.json()
-            } else {
-              console.warn('[VegaContent] Cache API returned non-JSON response')
             }
           } catch (error) {
             console.error('[VegaContent] Error parsing cache response:', error)
           }
-        } else {
-          console.warn(`[VegaContent] Cache API returned ${cacheResponse.status}`)
         }
         
         if (statsResponse.ok) {
@@ -274,44 +263,28 @@ export default function VegaContent() {
             const contentType = statsResponse.headers.get('content-type')
             if (contentType && contentType.includes('application/json')) {
               statsData = await statsResponse.json()
-            } else {
-              console.warn('[VegaContent] Stats API returned non-JSON response')
             }
           } catch (error) {
             console.error('[VegaContent] Error parsing stats response:', error)
           }
-        } else {
-          console.warn(`[VegaContent] Stats API returned ${statsResponse.status}`)
         }
-
-        console.log('[VegaContent] Loading from API:', {
-          cacheSuccess: cacheData.success,
-          hasAnalytics: !!cacheData.analytics,
-          statsSuccess: statsData.success,
-          tradesStats: statsData.metadata,
-          totalTrades: statsData.metadata?.totalTrades
-        })
 
         if (cacheData.success && cacheData.analytics) {
           setAnalytics(cacheData.analytics)
           setAllTrades(cacheData.allTrades || [])
           
-          // Extract metadata from analytics if available
           const metadataFromAnalytics = cacheData.analytics.metadata || null
           setMetadata(metadataFromAnalytics)
           setCurrencyMetadata(metadataFromAnalytics)
           setCurrency(metadataFromAnalytics?.primaryCurrency || 'USD')
         } else {
-          // No analytics cache available
           setAnalytics(null)
           setAllTrades([])
           setMetadata(null)
         }
 
-        // Always set tradesStats from stats endpoint (works even without cache)
         if (statsData.success && statsData.metadata) {
           setTradesStats(statsData.metadata)
-          // Also update currency from stats if metadata wasn't available
           if (!cacheData.success || !cacheData.analytics) {
             setCurrency(statsData.metadata.primaryCurrency || 'USD')
             setCurrencyMetadata({
@@ -321,8 +294,6 @@ export default function VegaContent() {
             })
           }
         } else {
-          // No trades stats available
-          console.warn('[VegaContent] No tradesStats available:', statsData)
           setTradesStats(null)
         }
       } catch (err) {
@@ -371,7 +342,7 @@ export default function VegaContent() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
+    <div className="h-screen bg-black text-white flex flex-col overflow-hidden">
       <Header
         exchangeConfig={null}
         currencyMetadata={null}
@@ -395,10 +366,8 @@ export default function VegaContent() {
         onNavigateVega={() => router.push('/vega')}
         onSignOut={() => {
           if (!user && isDemoMode) {
-            // Show auth modal for unauthenticated users
             setShowAuthModal(true)
           } else {
-            // Sign out authenticated users
             fetch('/api/auth/signout', { method: 'POST' }).then(() => {
               router.push('/')
             })
@@ -408,151 +377,79 @@ export default function VegaContent() {
         isDemoMode={isDemoMode}
       />
       
-      <main className="max-w-7xl mx-auto px-6 py-6 flex flex-col flex-1 min-h-0">
-        {/* Demo Mode Banner for unauthenticated users */}
-        {isDemoMode && !user && (
-          <div className="mb-4 p-4 bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-between gap-4 flex-shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-emerald-400" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-white">Demo Mode</p>
-                <p className="text-xs text-white/60">You're viewing sample data. Sign in to analyze your own trades.</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowAuthModal(true)}
-              className="px-4 py-2 bg-emerald-400/10 hover:bg-emerald-400/15 border border-emerald-400/30 rounded-lg text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-2 text-sm font-medium"
-            >
-              <LogIn className="w-4 h-4" />
-              Sign In
-            </button>
-          </div>
-        )}
-        
-        <div className="mb-4 flex-shrink-0">
-          <div className="flex items-center justify-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-emerald-400/10 border border-emerald-400/30 flex items-center justify-center">
-              <Brain className="w-5 h-5 text-emerald-400" />
-            </div>
-            <h1 className="text-2xl font-bold text-white/90">Vega AI</h1>
-          </div>
-          <div className="flex items-center relative">
-            <p className="text-white/60 text-xs text-center flex-1">
-              Your AI trading assistant powered by Claude
-            </p>
-            
-            {/* Coach Mode Toggle */}
-            <div className="absolute right-0">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => setCoachMode(!coachMode)}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                        coachMode
-                          ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-400'
-                          : 'bg-slate-800/50 border border-slate-700/50 text-slate-400 hover:text-slate-300 hover:border-slate-600/50'
-                      }`}
-                    >
-                      <MessageCircle className={`w-3.5 h-3.5 ${coachMode ? 'text-emerald-400' : ''}`} />
-                      <span>Coach Mode</span>
-                      <div className={`w-8 h-4 rounded-full transition-colors relative ${coachMode ? 'bg-emerald-500/30' : 'bg-slate-700/50'}`}>
-                        <div className={`absolute top-0.5 w-3 h-3 rounded-full transition-all ${coachMode ? 'bg-emerald-400 left-4' : 'bg-slate-500 left-0.5'}`} />
-                      </div>
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="max-w-xs">
-                    <p className="font-medium mb-1">Coach Mode</p>
-                    <p className="text-xs leading-relaxed">
-                      {coachMode 
-                        ? 'Interactive coaching with concise responses and guided follow-up options. Click to switch to standard mode.'
-                        : 'Enable for more interactive, concise responses with guided follow-up options. Great for focused improvement.'}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-          </div>
-          {/* Demo Token Limit Display */}
+      {/* Main Content Area - Full width flex container */}
+      <main className="flex flex-row flex-1 min-h-0 bg-black overflow-hidden">
+        {/* Sidebar */}
+        <VegaSidebar 
+          onNewChat={() => {
+            setCurrentConversationId(null)
+            chatRef.current?.clearChat()
+          }}
+          onSelectChat={(conversationId) => {
+            setCurrentConversationId(conversationId)
+            // TODO: Load conversation messages into AIChat
+            // For now, just set the conversationId - full loading will be implemented later
+          }}
+          currentConversationId={currentConversationId}
+          coachMode={coachMode}
+          setCoachMode={setCoachMode}
+        />
+
+        {/* Chat Area */}
+        <div className="flex flex-col flex-1 h-full relative min-w-0">
+          {/* Demo Mode Banner (Overlay or Top Bar) */}
           {isDemoMode && !user && (
-            <div className="mt-3 flex items-center justify-center gap-2">
-              <div className={`px-3 py-1.5 border rounded-lg text-xs flex items-center gap-2 ${
-                demoTokensUsed >= 2700 
-                  ? 'bg-red-500/10 border-red-500/30 text-red-400' 
-                  : demoTokensUsed >= 2100
-                  ? 'bg-orange-500/10 border-orange-500/30 text-orange-400'
-                  : 'bg-slate-800/50 border-slate-700/50'
-              }`}>
-                <span className={demoTokensUsed >= 2100 ? 'text-current' : 'text-slate-400'}>Demo tokens: </span>
-                <span className={`font-medium ${demoTokensUsed >= 2100 ? 'text-current' : 'text-white'}`}>
-                  {demoTokensUsed.toLocaleString()}
-                </span>
-                <span className={demoTokensUsed >= 2100 ? 'text-current opacity-80' : 'text-slate-500'}> / 3,000</span>
+            <div className="absolute top-4 left-4 right-4 z-20 flex justify-center pointer-events-none">
+              <div className="bg-emerald-500/10 backdrop-blur-md border border-emerald-500/20 rounded-full px-4 py-2 flex items-center gap-3 shadow-lg pointer-events-auto">
+                 <Sparkles className="w-4 h-4 text-emerald-400" />
+                 <span className="text-xs text-white/90 font-medium">Demo Mode</span>
+                 <div className="w-px h-3 bg-white/10" />
+                 <button
+                    onClick={() => setShowAuthModal(true)}
+                    className="text-xs text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1"
+                  >
+                    Sign In <ArrowRight className="w-3 h-3" />
+                  </button>
               </div>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <HelpCircle className={`w-3.5 h-3.5 transition-colors  ${
-                      demoTokensUsed >= 2700 
-                        ? 'text-red-400 hover:text-red-300' 
-                        : demoTokensUsed >= 2100
-                        ? 'text-orange-400 hover:text-orange-300'
-                        : 'text-white/40 hover:text-white/60'
-                    }`} />
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="max-w-xs">
-                    <p className="font-medium mb-1">AI Token Usage</p>
-                    <p className="text-xs leading-relaxed mb-2">
-                      Tokens are consumed each time you ask Vega AI a question. Each conversation uses tokens based on the complexity and length of your question and the response.
-                    </p>
-                    <p className="text-xs leading-relaxed">
-                      <strong>Demo limit:</strong> 3,000 tokens. Sign up for a free account to get 10,000 tokens/month.
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
             </div>
           )}
-        </div>
 
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <AIChat
-            ref={chatInputRef}
-            analytics={analytics}
-            allTrades={allTrades}
-            tradesStats={tradesStats}
-            metadata={metadata}
-            onConnectExchange={() => {
-              if (!user && isDemoMode) {
-                router.push('/login')
-              } else {
-                router.push('/dashboard')
-              }
-            }}
-            onUploadCSV={() => {
-              if (!user && isDemoMode) {
-                router.push('/login')
-              } else {
-                router.push('/data')
-              }
-            }}
-            isVegaPage={true}
-            isDemoMode={isDemoMode}
-            coachMode={coachMode}
-          />
+          <div className="flex-1 min-h-0">
+            <AIChat
+              ref={chatRef}
+              analytics={analytics}
+              allTrades={allTrades}
+              tradesStats={tradesStats}
+              metadata={metadata}
+              conversationId={currentConversationId}
+              onConnectExchange={() => {
+                if (!user && isDemoMode) {
+                  router.push('/login')
+                } else {
+                  router.push('/dashboard')
+                }
+              }}
+              onUploadCSV={() => {
+                if (!user && isDemoMode) {
+                  router.push('/login')
+                } else {
+                  router.push('/data')
+                }
+              }}
+              isVegaPage={true}
+              isFullPage={true}
+              isDemoMode={isDemoMode}
+              coachMode={coachMode}
+            />
+          </div>
         </div>
       </main>
-
-      <Footer />
 
       {/* Auth Modal */}
       <AuthModal
         open={showAuthModal}
         onOpenChange={setShowAuthModal}
         onAuthSuccess={(user) => {
-          // Auth success - page will reload to update state
           setShowAuthModal(false)
         }}
       />
@@ -575,7 +472,6 @@ export default function VegaContent() {
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            {/* Benefits - minimal list */}
             <div className="space-y-2.5">
               <div className="flex items-center gap-2.5 text-sm text-slate-300">
                 <TrendingUp className="w-4 h-4 text-emerald-400 flex-shrink-0" />
@@ -591,7 +487,6 @@ export default function VegaContent() {
               </div>
             </div>
 
-            {/* CTA */}
             <div className="pt-2">
               <button
                 onClick={() => {

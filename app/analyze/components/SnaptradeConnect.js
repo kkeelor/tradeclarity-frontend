@@ -226,7 +226,7 @@ export default function SnaptradeConnect({ onBack, onConnect, onError }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center p-4">
+    <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
       <div className="max-w-2xl w-full space-y-6">
         {/* Header */}
         <div className="text-center space-y-3">

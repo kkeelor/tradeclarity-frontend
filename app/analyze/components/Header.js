@@ -256,7 +256,7 @@ export default function Header({
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-white/5 bg-slate-950/70 backdrop-blur-xl">
+      <header className="sticky top-0 z-30 border-b border-white/5 bg-black/70 backdrop-blur-xl">
         <div className={`mx-auto flex w-full max-w-[1400px] items-center justify-between gap-2 sm:gap-4 px-2 sm:px-4 py-3 sm:py-4 overflow-hidden ${mobilePaddingLeft ? 'pl-14 md:pl-4' : ''}`}>
           <div className="flex items-center gap-1 sm:gap-2 md:gap-4 lg:gap-8 min-w-0 flex-1">
             {/* Mobile Menu Button - Hidden when used in Dashboard (which has its own sidebar) */}

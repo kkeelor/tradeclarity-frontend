@@ -12,7 +12,7 @@ import { generateValueFirstInsights } from '../utils/insights/valueFirstInsights
 import { prioritizeInsights, enhanceInsightForDisplay } from '../utils/insights/insightsPrioritizationEngine'
 import { generateWhatsNextActions } from '../utils/insights/whatsNextActions'
 import NewsTicker from './NewsTicker'
-import AIChat from './AIChat'
+import VegaDashboardWidget from '../../dashboard/components/VegaDashboardWidget'
 import { analyzeDrawdowns } from '../utils/drawdownAnalysis'
 import { analyzeTimeBasedPerformance } from '../utils/timeBasedAnalysis'
 import { analyzeSymbols } from '../utils/symbolAnalysis'
@@ -1693,45 +1693,9 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
 
               {/* AI Chat - Replaces Market Insights */}
               <div className="flex flex-col h-[350px] self-start">
-                {/* Coach Mode Toggle */}
-                <div className="flex items-center justify-end px-1 mb-2 flex-shrink-0">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={() => setCoachMode(!coachMode)}
-                          className={`flex items-center gap-2 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
-                            coachMode
-                              ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-400'
-                              : 'bg-slate-800/50 border border-slate-700/50 text-slate-400 hover:text-slate-300 hover:border-slate-600/50'
-                          }`}
-                        >
-                          <MessageCircle className={`w-3 h-3 ${coachMode ? 'text-emerald-400' : ''}`} />
-                          <span>Coach Mode</span>
-                          <div className={`w-7 h-3.5 rounded-full transition-colors relative ${coachMode ? 'bg-emerald-500/30' : 'bg-slate-700/50'}`}>
-                            <div className={`absolute top-0.5 w-2.5 h-2.5 rounded-full transition-all ${coachMode ? 'bg-emerald-400 left-3.5' : 'bg-slate-500 left-0.5'}`} />
-                          </div>
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="left" className="max-w-xs">
-                        <p className="font-medium mb-1">Coach Mode</p>
-                        <p className="text-xs leading-relaxed">
-                          {coachMode 
-                            ? 'Interactive coaching with concise responses and guided follow-up options. Click to switch to standard mode.'
-                            : 'Enable for more interactive, concise responses with guided follow-up options. Great for focused improvement.'}
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <div className="flex-1 rounded-xl border border-white/10 bg-black overflow-hidden min-h-0">
-                  <AIChat 
-                    analytics={cachedAnalyticsData.analytics}
-                    allTrades={cachedAnalyticsData.allTrades}
-                    tradesStats={tradesStats}
-                    onConnectExchange={onConnectExchange}
-                    onUploadCSV={onConnectWithCSV}
-                    coachMode={coachMode}
+                <div className="flex-1 overflow-hidden min-h-0">
+                  <VegaDashboardWidget 
+                    onStartChat={() => router.push('/vega')}
                   />
                 </div>
               </div>

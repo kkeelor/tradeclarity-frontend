@@ -496,7 +496,7 @@ export default function CSVUploadFlow({ onBack }) {
   const allProcessed = fileConfigs.length > 0 && fileConfigs.every(c => c.status === 'success' || c.status === 'error')
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex">
+    <div className="min-h-screen bg-black text-white flex">
       {/* Mobile-only Sidebar */}
       <div className="md:hidden">
         <Sidebar

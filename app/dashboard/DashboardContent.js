@@ -109,7 +109,7 @@ function RealModeLoadingScreen({ progress, onComplete }) {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center p-6">
+    <div className="min-h-screen bg-black text-white flex items-center justify-center p-6">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center space-y-3">
           <div className="flex items-center justify-center gap-2 mb-6">
@@ -118,7 +118,7 @@ function RealModeLoadingScreen({ progress, onComplete }) {
           </div>
         </div>
 
-        <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-8 space-y-6">
+        <div className="bg-zinc-900/50 border border-white/10 rounded-xl p-8 space-y-6 backdrop-blur-sm">
           <div className="flex justify-center">
             <div className="relative">
               <div className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 flex items-center justify-center">

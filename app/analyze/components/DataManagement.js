@@ -1205,33 +1205,37 @@ export default function DataManagement() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Exchange Connection?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {deleteStats && (
-                <div className="space-y-2 mt-2">
-                  <p>This will delete:</p>
-                  <ul className="list-disc list-inside text-sm space-y-1">
-                    <li>{deleteStats.apiTradesCount || 0} API-imported trades</li>
+            <AlertDialogDescription asChild>
+              <div>
+                {deleteStats ? (
+                  <div className="space-y-2 mt-2">
+                    <div>This will delete:</div>
+                    <ul className="list-disc list-inside text-sm space-y-1">
+                      <li>{deleteStats.apiTradesCount || 0} API-imported trades</li>
+                      {deleteStats.linkedCSVsCount > 0 && (
+                        <li>
+                          {deleteLinkedCSVs
+                            ? `${deleteStats.linkedCSVsCount} linked CSV files and ${deleteStats.csvTradesCount || 0} CSV trades`
+                            : `${deleteStats.linkedCSVsCount} CSV files will be unlinked (trades kept)`}
+                        </li>
+                      )}
+                    </ul>
                     {deleteStats.linkedCSVsCount > 0 && (
-                      <li>
-                        {deleteLinkedCSVs
-                          ? `${deleteStats.linkedCSVsCount} linked CSV files and ${deleteStats.csvTradesCount || 0} CSV trades`
-                          : `${deleteStats.linkedCSVsCount} CSV files will be unlinked (trades kept)`}
-                      </li>
+                      <label className="flex items-center gap-2 mt-4 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={deleteLinkedCSVs}
+                          onChange={(e) => setDeleteLinkedCSVs(e.target.checked)}
+                          className="rounded"
+                        />
+                        <span className="text-sm">Also delete linked CSV files</span>
+                      </label>
                     )}
-                  </ul>
-                  {deleteStats.linkedCSVsCount > 0 && (
-                    <label className="flex items-center gap-2 mt-4 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={deleteLinkedCSVs}
-                        onChange={(e) => setDeleteLinkedCSVs(e.target.checked)}
-                        className="rounded"
-                      />
-                      <span className="text-sm">Also delete linked CSV files</span>
-                    </label>
-                  )}
-                </div>
-              )}
+                  </div>
+                ) : (
+                  <span>Are you sure you want to delete this exchange connection?</span>
+                )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
