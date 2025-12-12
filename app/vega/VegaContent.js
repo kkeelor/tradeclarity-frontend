@@ -1,22 +1,31 @@
 // app/vega/VegaContent.js
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/AuthContext'
 import AuthScreen from '../analyze/components/AuthScreen'
-import { analyzeData } from '../analyze/utils/masterAnalyzer'
 import AIChat from '../analyze/components/AIChat'
 import Header from '../analyze/components/Header'
-import VegaSidebar from './components/VegaSidebar'
 import { useMultipleTabs } from '@/lib/hooks/useMultipleTabs'
-import { Loader2, Brain, LogIn, Sparkles, Zap, TrendingUp, Shield, ArrowRight, HelpCircle } from 'lucide-react'
-import Footer from '../components/Footer'
+import { Loader2, Brain, Sparkles, Zap, TrendingUp, Shield, ArrowRight } from 'lucide-react'
 import AuthModal from '../components/AuthModal'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import demoFuturesData from '../analyze/demo-data/demo-futures-data.json'
-import demoSpotData from '../analyze/demo-data/demo-spot-data.json'
+
+// OPTIMIZATION: Lazy load VegaSidebar - it's not critical for initial render
+const VegaSidebar = lazy(() => import('./components/VegaSidebar'))
+
+// OPTIMIZATION: Lazy load heavy analysis function - only needed for demo mode
+const loadAnalyzeData = () => import('../analyze/utils/masterAnalyzer').then(m => m.analyzeData)
+
+// OPTIMIZATION: Demo data loaded dynamically only when needed (saves ~50-100KB from main bundle)
+const loadDemoData = async () => {
+  const [spotData, futuresData] = await Promise.all([
+    import('../analyze/demo-data/demo-spot-data.json').then(m => m.default),
+    import('../analyze/demo-data/demo-futures-data.json').then(m => m.default)
+  ])
+  return { spotData, futuresData }
+}
 
 export default function VegaContent() {
   const router = useRouter()
@@ -57,7 +66,7 @@ export default function VegaContent() {
   // Check for demo mode from query params
   const isDemoRequested = searchParams?.get('demo') === 'true'
   
-  // Track demo token usage from sessionStorage
+  // OPTIMIZATION: Track demo token usage via events only (removed 500ms polling)
   useEffect(() => {
     if (!isDemoMode || !isDemoRequested) return
     
@@ -79,7 +88,7 @@ export default function VegaContent() {
       }
     }
     
-    // Listen for custom event from AIChat
+    // Listen for custom event from AIChat (same-tab updates)
     const handleTokensUpdated = () => {
       updateTokenDisplay()
     }
@@ -90,15 +99,12 @@ export default function VegaContent() {
       setShowTokenLimitModal(true)
     }
     
-    // Poll for changes (since storage event only fires in other tabs)
-    const interval = setInterval(updateTokenDisplay, 500)
-    
+    // OPTIMIZATION: Removed setInterval polling - use only event-based updates
     window.addEventListener('storage', handleStorageChange)
     window.addEventListener('demoTokensUpdated', handleTokensUpdated)
     window.addEventListener('demoTokenLimitReached', handleTokenLimitReached)
     
     return () => {
-      clearInterval(interval)
       window.removeEventListener('storage', handleStorageChange)
       window.removeEventListener('demoTokensUpdated', handleTokensUpdated)
       window.removeEventListener('demoTokenLimitReached', handleTokenLimitReached)
@@ -118,6 +124,22 @@ export default function VegaContent() {
     return () => window.removeEventListener('storage', handleStorageChange)
   }, [])
 
+  // OPTIMIZATION: Store API fetch promises to start early
+  const apiFetchRef = useRef(null)
+  
+  // OPTIMIZATION: Start API fetch as early as possible (don't wait for auth to complete)
+  // This runs in parallel with auth checking
+  useEffect(() => {
+    // Only start fetch for authenticated flow (not demo mode)
+    if (isDemoRequested) return
+    
+    // Start fetching immediately - we'll use results when auth completes
+    apiFetchRef.current = Promise.all([
+      fetch('/api/analytics/cache').catch(() => ({ ok: false })),
+      fetch('/api/trades/stats').catch(() => ({ ok: false }))
+    ])
+  }, [isDemoRequested])
+
   // Load analytics data on mount
   useEffect(() => {
     // Wait for auth loading to complete (unless in demo mode)
@@ -133,10 +155,16 @@ export default function VegaContent() {
       try {
         setLoading(true)
         
-        // Demo mode - load demo data
+        // Demo mode - load demo data dynamically
         if (isDemoRequested) {
           setIsDemoMode(true)
           try {
+            // OPTIMIZATION: Dynamic imports for demo data and analyzer
+            const [{ spotData: demoSpotData, futuresData: demoFuturesData }, analyzeData] = await Promise.all([
+              loadDemoData(),
+              loadAnalyzeData()
+            ])
+            
             const normalizedSpotTrades = demoSpotData.map(trade => ({
               symbol: trade.symbol,
               qty: String(trade.qty),
@@ -238,11 +266,17 @@ export default function VegaContent() {
           return
         }
 
-        // Otherwise, fetch from cache and stats endpoint
-        const [cacheResponse, statsResponse] = await Promise.all([
-          fetch('/api/analytics/cache'),
-          fetch('/api/trades/stats')
-        ])
+        // OPTIMIZATION: Use pre-fetched API responses (started earlier in parallel with auth)
+        let cacheResponse, statsResponse
+        if (apiFetchRef.current) {
+          [cacheResponse, statsResponse] = await apiFetchRef.current
+        } else {
+          // Fallback if ref wasn't set
+          [cacheResponse, statsResponse] = await Promise.all([
+            fetch('/api/analytics/cache'),
+            fetch('/api/trades/stats')
+          ])
+        }
         
         let cacheData = { success: false, analytics: null }
         let statsData = { success: false, metadata: null }
@@ -305,7 +339,7 @@ export default function VegaContent() {
     }
 
     loadAnalytics()
-  }, [user, authLoading, isDemoRequested])
+  }, [user, authLoading, isDemoRequested, router])
 
   if (authLoading || loading) {
     return (
@@ -379,21 +413,29 @@ export default function VegaContent() {
       
       {/* Main Content Area - Full width flex container */}
       <main className="flex flex-row flex-1 min-h-0 bg-black overflow-hidden">
-        {/* Sidebar */}
-        <VegaSidebar 
-          onNewChat={() => {
-            setCurrentConversationId(null)
-            chatRef.current?.clearChat()
-          }}
-          onSelectChat={(conversationId) => {
-            setCurrentConversationId(conversationId)
-            // TODO: Load conversation messages into AIChat
-            // For now, just set the conversationId - full loading will be implemented later
-          }}
-          currentConversationId={currentConversationId}
-          coachMode={coachMode}
-          setCoachMode={setCoachMode}
-        />
+        {/* OPTIMIZATION: Lazy-loaded Sidebar with Suspense fallback */}
+        <Suspense fallback={
+          <div className="w-64 hidden md:flex flex-col border-r border-white/5 bg-zinc-950/30 flex-shrink-0 h-full">
+            <div className="p-4">
+              <div className="w-full h-12 bg-white/5 rounded-xl animate-pulse" />
+            </div>
+          </div>
+        }>
+          <VegaSidebar 
+            onNewChat={() => {
+              setCurrentConversationId(null)
+              chatRef.current?.clearChat()
+            }}
+            onSelectChat={(conversationId) => {
+              setCurrentConversationId(conversationId)
+              // TODO: Load conversation messages into AIChat
+              // For now, just set the conversationId - full loading will be implemented later
+            }}
+            currentConversationId={currentConversationId}
+            coachMode={coachMode}
+            setCoachMode={setCoachMode}
+          />
+        </Suspense>
 
         {/* Chat Area */}
         <div className="flex flex-col flex-1 h-full relative min-w-0">

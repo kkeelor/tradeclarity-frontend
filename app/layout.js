@@ -95,6 +95,18 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning className={plusJakartaSans.variable}>
+      <head>
+        {/* OPTIMIZATION: Preconnect hints for faster external resource loading */}
+        {/* Supabase API - critical for auth and data */}
+        <link rel="preconnect" href="https://supabase.co" />
+        <link rel="dns-prefetch" href="https://supabase.co" />
+        {/* Anthropic API - for AI chat */}
+        <link rel="preconnect" href="https://api.anthropic.com" />
+        <link rel="dns-prefetch" href="https://api.anthropic.com" />
+        {/* Google Fonts - already preconnected by Next.js, but add dns-prefetch */}
+        <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+        <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
+      </head>
       <body className="font-sans">
         {/* Google tag (gtag.js) */}
         <Script
