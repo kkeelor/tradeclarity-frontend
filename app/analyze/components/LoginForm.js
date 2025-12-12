@@ -213,6 +213,9 @@ export default function LoginForm({
     setSubmitError('')
     setLocalProgress('Connecting to exchange...')
 
+    // Track exchange connection initiated
+    trackDataConnection.exchangeConnectInitiated(exchange.toLowerCase())
+
     try {
       // Call the new API endpoint to save credentials and fetch data
       // Connection limit check happens silently on backend
@@ -264,6 +267,16 @@ export default function LoginForm({
       // Connection limit check passed - proceed with connection
       setLocalProgress('Preparing analytics...')
       
+      // Track exchange connection success
+      trackDataConnection.exchangeConnectSuccess(exchange.toLowerCase())
+      
+      // Check if this is user's first exchange connection
+      const isFirstConnection = !localStorage.getItem('has_connected_exchange')
+      if (isFirstConnection) {
+        trackDataConnection.firstExchangeConnected(exchange.toLowerCase())
+        localStorage.setItem('has_connected_exchange', 'true')
+      }
+      
       // Update the parent with the fetched data
       if (data.data) {
         // Call onConnect with the actual data - this will trigger analysis
@@ -274,6 +287,8 @@ export default function LoginForm({
       }
     } catch (err) {
       console.error('Connection error:', err)
+      // Track exchange connection failure
+      trackDataConnection.exchangeConnectFailure(exchange.toLowerCase(), err.message || 'unknown')
       setSubmitError(err.message || 'Failed to connect to exchange. Please check your API credentials.')
       setIsSubmitting(false)
       setLocalProgress('')

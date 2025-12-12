@@ -18,6 +18,7 @@ const VegaChartRenderer = dynamic(
 import { parseChartRequest, removeChartBlock } from '@/components/charts/VegaChartRenderer'
 import { MarkdownMessage } from '@/components/ui/MarkdownMessage'
 import { MessageActions } from '@/components/ui/MessageActions'
+import { trackFeatureUsage } from '@/lib/analytics'
 
 export default function SharedConversationPage() {
   const params = useParams()
@@ -42,6 +43,10 @@ export default function SharedConversationPage() {
 
         const data = await response.json()
         setConversation(data.conversation)
+        // Track shared conversation viewed
+        if (data.conversation && shareId) {
+          trackFeatureUsage.sharedConversationViewed(shareId)
+        }
       } catch (err) {
         console.error('Error fetching shared conversation:', err)
         setError(err.message || 'Failed to load conversation')

@@ -19,6 +19,7 @@ const VegaChartRenderer = dynamic(
 import { parseChartRequest, removeChartBlock } from '@/components/charts/VegaChartRenderer'
 import { MarkdownMessage } from '@/components/ui/MarkdownMessage'
 import { MessageActions } from '@/components/ui/MessageActions'
+import { trackFeatureUsage } from '@/lib/analytics'
 
 const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConnectExchange, onUploadCSV, isVegaPage = false, isFullPage = false, isDemoMode = false, coachMode = false, conversationId: initialConversationId = null }, ref) => {
   const { user } = useAuth()
@@ -693,6 +694,12 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
       setCurrentTopic(newTopic)
     }
     
+    // Track conversation started (first message)
+    const isFirstMessage = messages.length === 0
+    if (isFirstMessage) {
+      trackFeatureUsage.aiConversationStarted()
+    }
+    
     // Add user message to UI immediately
     const newUserMessage = {
       id: Date.now(),
@@ -702,6 +709,9 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
     }
     setMessages(prev => [...prev, newUserMessage])
     setSessionMessages(prev => [...prev, { role: 'user', content: userMessage }])
+    
+    // Track message sent
+    trackFeatureUsage.aiChatMessageSent(conversationId || 'new', isDemoMode)
     
     // Track if user has sent messages without data
     if (hasNoData && !hasSentMessagesWithoutData) {
@@ -955,7 +965,14 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                   
                   // Add assistant response to session messages (with options stripped)
                   if (finalContent.trim()) {
-                    setSessionMessages(prev => [...prev, { role: 'assistant', content: finalContent }])
+                    setSessionMessages(prev => {
+                      const updated = [...prev, { role: 'assistant', content: finalContent }]
+                      // Track first AI message (if this is the first assistant response - 1 user + 1 assistant)
+                      if (prev.length === 1 && updated.length === 2) {
+                        trackFeatureUsage.firstAiMessage()
+                      }
+                      return updated
+                    })
                   }
                   
                   if (data.tokens) {
@@ -1234,6 +1251,9 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
       const data = await response.json()
       console.log('[Share] Share link created:', data.shareUrl)
       setShareUrl(data.shareUrl)
+      
+      // Track conversation shared
+      trackFeatureUsage.conversationShared(conversationId)
       
       // Copy to clipboard
       if (typeof window !== 'undefined' && data.shareUrl) {

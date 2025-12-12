@@ -16,6 +16,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui'
 import Script from 'next/script'
+import { trackSubscription, trackPageView } from '@/lib/analytics'
 
 const PRICING_PLANS = {
   free: {
@@ -218,6 +219,9 @@ export default function PricingPage() {
   }
 
   useEffect(() => {
+    // Track pricing page view
+    trackPageView('pricing')
+    
     if (user) {
       fetchUserSubscription()
     }
@@ -254,6 +258,9 @@ export default function PricingPage() {
       toast.info('To downgrade to Free plan, please contact support')
       return
     }
+
+    // Track upgrade button click
+    trackSubscription.upgradeButtonClick(tier, billingCycle)
 
     // Reset any existing Razorpay instance
     if (razorpayInstanceRef.current) {
@@ -367,6 +374,9 @@ export default function PricingPage() {
         return
       }
 
+      // Track payment initiated
+      trackSubscription.paymentInitiated(tier, billingCycle, paymentCurrency, paymentAmount)
+
       // Create order
       const orderResponse = await fetch('/api/razorpay/create-order', {
         method: 'POST',
@@ -439,6 +449,10 @@ export default function PricingPage() {
               if (verifyData.success) {
                 cleanup()
                 toast.success('Payment successful! Your subscription is now active.')
+                
+                // Track payment completed and subscription activated
+                trackSubscription.paymentCompleted(tier, billingCycle, paymentCurrency, paymentAmount)
+                trackSubscription.subscriptionActivated(tier, billingCycle)
                 
                 // Clear subscription cache so dashboard will fetch fresh data
                 if (user?.id) {

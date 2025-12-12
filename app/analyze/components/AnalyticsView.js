@@ -31,6 +31,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { getCurrencySymbol, formatCurrencyNumber } from '../utils/currencyFormatter'
+import { trackFeatureUsage } from '@/lib/analytics'
 import {
   AreaChart, Area, BarChart, Bar, LineChart as RechartsLineChart,
   Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart,
@@ -6040,6 +6041,13 @@ export default function AnalyticsView({
       setActiveTab(initialTab)
     }
   }, [initialTab])
+
+  // Track tab switches
+  useEffect(() => {
+    if (activeTab && activeTab !== initialTab) {
+      trackFeatureUsage.analyticsTabSwitched(activeTab)
+    }
+  }, [activeTab, initialTab])
 
   // Filter state - Only data source filtering
   const [selectedExchanges, setSelectedExchanges] = useState([])

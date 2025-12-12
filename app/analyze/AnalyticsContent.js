@@ -13,6 +13,7 @@ import demoFuturesData from './demo-data/demo-futures-data.json'
 import demoSpotData from './demo-data/demo-spot-data.json'
 import { EXCHANGES } from './utils/exchanges'
 import { TrendingUp, BarChart3, Brain, Zap, Sparkles } from 'lucide-react'
+import { trackFeatureUsage, trackPageView } from '@/lib/analytics'
 
 // Loading screens (same as TradeClarityContent)
 function DemoLoadingScreen({ progress, onComplete }) {
@@ -823,6 +824,22 @@ export default function AnalyticsContent() {
   if (status === 'connected' && analytics) {
     // Use tab from URL state (updated via useEffect)
     const currentTab = activeTabFromUrl || 'overview'
+
+    // Track analytics viewed (only once per session)
+    useEffect(() => {
+      const hasTracked = sessionStorage.getItem('analytics_viewed_tracked')
+      if (!hasTracked) {
+        trackFeatureUsage.analyticsViewed()
+        trackPageView('analytics')
+        // Check if this is first analytics computation
+        const isFirstAnalytics = !localStorage.getItem('has_viewed_analytics')
+        if (isFirstAnalytics) {
+          trackFeatureUsage.firstAnalyticsComputed()
+          localStorage.setItem('has_viewed_analytics', 'true')
+        }
+        sessionStorage.setItem('analytics_viewed_tracked', 'true')
+      }
+    }, [])
 
     return (
       <AnalyticsView
