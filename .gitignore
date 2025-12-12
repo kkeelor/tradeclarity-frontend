@@ -26,3 +26,6 @@ mcp-test-results/
 
 # Supabase migrations (contains database queries and potentially sensitive data)
 supabase/migrations/
+
+# Database schema reference (contains table structures)
+table_structures.json
