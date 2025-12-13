@@ -15,7 +15,7 @@ export async function GET(request, { params }) {
       )
     }
 
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // Get conversation by share_id (public access, no auth required)
     const { data: conversation, error: convError } = await supabase

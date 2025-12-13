@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server'
 export async function POST() {
   try {
     console.log('🔴 [API] Sign out route called')
-    const supabase = createClient()
+    const supabase = await createClient()
 
     console.log('🔴 [API] Calling supabase.auth.signOut()')
     const { error } = await supabase.auth.signOut()

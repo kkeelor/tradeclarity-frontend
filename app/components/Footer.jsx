@@ -45,6 +45,11 @@ export default function Footer() {
         <Link href="/legal/shipping" className="hover:text-emerald-400 transition-colors">Shipping Policy</Link>
       </div>
       <p className="font-medium">Built for traders who are tired of guessing</p>
+      <p className="text-xs text-slate-500/70 max-w-2xl mx-auto">
+        <strong>Disclaimer:</strong> TradeClarity and Vega AI provide AI-powered trading insights and analysis tools. 
+        This is not financial advice. Always conduct your own research and consult with a qualified financial advisor before making trading decisions. 
+        Past performance does not guarantee future results.
+      </p>
       <p>&copy; 2025 TradeClarity. Your data stays yours. Always.</p>
     </footer>
   )

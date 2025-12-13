@@ -7,7 +7,7 @@ import { randomUUID } from 'crypto'
 
 export async function POST(request) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
@@ -129,7 +129,7 @@ export async function POST(request) {
 // GET endpoint to check share status
 export async function GET(request) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {

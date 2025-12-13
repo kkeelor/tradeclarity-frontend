@@ -8,7 +8,7 @@ import { transformActivitiesToTrades } from '@/lib/snaptrade-transform'
 
 export async function POST(request) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()

@@ -125,6 +125,7 @@ export default function VegaContent() {
   }, [])
 
   // OPTIMIZATION: Store API fetch promises to start early
+  // Store promises that resolve to parsed JSON data, not Response objects
   const apiFetchRef = useRef(null)
   
   // OPTIMIZATION: Start API fetch as early as possible (don't wait for auth to complete)
@@ -133,10 +134,38 @@ export default function VegaContent() {
     // Only start fetch for authenticated flow (not demo mode)
     if (isDemoRequested) return
     
-    // Start fetching immediately - we'll use results when auth completes
+    // Start fetching immediately and parse JSON - we'll use results when auth completes
     apiFetchRef.current = Promise.all([
-      fetch('/api/analytics/cache').catch(() => ({ ok: false })),
-      fetch('/api/trades/stats').catch(() => ({ ok: false }))
+      fetch('/api/analytics/cache')
+        .then(async (res) => {
+          if (!res.ok) return { success: false, analytics: null }
+          try {
+            const contentType = res.headers.get('content-type')
+            if (contentType && contentType.includes('application/json')) {
+              return await res.json()
+            }
+            return { success: false, analytics: null }
+          } catch (error) {
+            console.error('[VegaContent] Error parsing cache response:', error)
+            return { success: false, analytics: null }
+          }
+        })
+        .catch(() => ({ success: false, analytics: null })),
+      fetch('/api/trades/stats')
+        .then(async (res) => {
+          if (!res.ok) return { success: false, metadata: null }
+          try {
+            const contentType = res.headers.get('content-type')
+            if (contentType && contentType.includes('application/json')) {
+              return await res.json()
+            }
+            return { success: false, metadata: null }
+          } catch (error) {
+            console.error('[VegaContent] Error parsing stats response:', error)
+            return { success: false, metadata: null }
+          }
+        })
+        .catch(() => ({ success: false, metadata: null }))
     ])
   }, [isDemoRequested])
 
@@ -266,40 +295,40 @@ export default function VegaContent() {
           return
         }
 
-        // OPTIMIZATION: Use pre-fetched API responses (started earlier in parallel with auth)
-        let cacheResponse, statsResponse
-        if (apiFetchRef.current) {
-          [cacheResponse, statsResponse] = await apiFetchRef.current
-        } else {
-          // Fallback if ref wasn't set
-          [cacheResponse, statsResponse] = await Promise.all([
-            fetch('/api/analytics/cache'),
-            fetch('/api/trades/stats')
-          ])
-        }
-        
+        // OPTIMIZATION: Use pre-fetched API data (started earlier in parallel with auth)
+        // The promise now resolves to parsed JSON data, not Response objects
         let cacheData = { success: false, analytics: null }
         let statsData = { success: false, metadata: null }
         
-        if (cacheResponse.ok) {
-          try {
-            const contentType = cacheResponse.headers.get('content-type')
-            if (contentType && contentType.includes('application/json')) {
-              cacheData = await cacheResponse.json()
+        if (apiFetchRef.current) {
+          [cacheData, statsData] = await apiFetchRef.current
+        } else {
+          // Fallback if ref wasn't set - fetch and parse immediately
+          const [cacheResponse, statsResponse] = await Promise.all([
+            fetch('/api/analytics/cache'),
+            fetch('/api/trades/stats')
+          ])
+          
+          if (cacheResponse.ok) {
+            try {
+              const contentType = cacheResponse.headers.get('content-type')
+              if (contentType && contentType.includes('application/json')) {
+                cacheData = await cacheResponse.json()
+              }
+            } catch (error) {
+              console.error('[VegaContent] Error parsing cache response:', error)
             }
-          } catch (error) {
-            console.error('[VegaContent] Error parsing cache response:', error)
           }
-        }
-        
-        if (statsResponse.ok) {
-          try {
-            const contentType = statsResponse.headers.get('content-type')
-            if (contentType && contentType.includes('application/json')) {
-              statsData = await statsResponse.json()
+          
+          if (statsResponse.ok) {
+            try {
+              const contentType = statsResponse.headers.get('content-type')
+              if (contentType && contentType.includes('application/json')) {
+                statsData = await statsResponse.json()
+              }
+            } catch (error) {
+              console.error('[VegaContent] Error parsing stats response:', error)
             }
-          } catch (error) {
-            console.error('[VegaContent] Error parsing stats response:', error)
           }
         }
 
@@ -428,8 +457,10 @@ export default function VegaContent() {
             }}
             onSelectChat={(conversationId) => {
               setCurrentConversationId(conversationId)
-              // TODO: Load conversation messages into AIChat
-              // For now, just set the conversationId - full loading will be implemented later
+              // Load conversation messages into AIChat
+              if (chatRef.current && conversationId) {
+                chatRef.current.loadConversation(conversationId)
+              }
             }}
             currentConversationId={currentConversationId}
             coachMode={coachMode}
@@ -456,33 +487,43 @@ export default function VegaContent() {
             </div>
           )}
 
-          <div className="flex-1 min-h-0">
-            <AIChat
-              ref={chatRef}
-              analytics={analytics}
-              allTrades={allTrades}
-              tradesStats={tradesStats}
-              metadata={metadata}
-              conversationId={currentConversationId}
-              onConnectExchange={() => {
-                if (!user && isDemoMode) {
-                  router.push('/login')
-                } else {
-                  router.push('/dashboard')
-                }
-              }}
-              onUploadCSV={() => {
-                if (!user && isDemoMode) {
-                  router.push('/login')
-                } else {
-                  router.push('/data')
-                }
-              }}
-              isVegaPage={true}
-              isFullPage={true}
-              isDemoMode={isDemoMode}
-              coachMode={coachMode}
-            />
+          <div className="flex flex-col flex-1 min-h-0">
+            {/* Vega AI Disclaimer */}
+            <div className="px-4 py-2 bg-amber-500/10 border-b border-amber-500/20">
+              <p className="text-xs text-amber-400/80 text-center">
+                <strong>Disclaimer:</strong> Vega AI provides AI-powered trading insights and analysis. 
+                This is not financial advice. Always conduct your own research and consult with a qualified financial advisor before making trading decisions.
+              </p>
+            </div>
+            
+            <div className="flex-1 min-h-0">
+              <AIChat
+                ref={chatRef}
+                analytics={analytics}
+                allTrades={allTrades}
+                tradesStats={tradesStats}
+                metadata={metadata}
+                conversationId={currentConversationId}
+                onConnectExchange={() => {
+                  if (!user && isDemoMode) {
+                    router.push('/login')
+                  } else {
+                    router.push('/dashboard')
+                  }
+                }}
+                onUploadCSV={() => {
+                  if (!user && isDemoMode) {
+                    router.push('/login')
+                  } else {
+                    router.push('/data')
+                  }
+                }}
+                isVegaPage={true}
+                isFullPage={true}
+                isDemoMode={isDemoMode}
+                coachMode={coachMode}
+              />
+            </div>
           </div>
         </div>
       </main>

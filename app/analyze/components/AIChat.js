@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/AuthContext'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { getDynamicSampleQuestions, getCoachModeStarters, getGreeting } from '@/lib/ai/prompts/sampleQuestions'
 import { ChatOptions, parseOptionsFromResponse, detectTopicFromMessage, isFollowUpOnTopic } from '@/components/ui/ChatOptions'
+import { toast } from 'sonner'
 import dynamic from 'next/dynamic'
 
 // Dynamic import for chart renderer (canvas-based, no SSR)
@@ -58,13 +59,75 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
   const [isLoading, setIsLoading] = useState(false)
   const [conversationId, setConversationId] = useState(initialConversationId)
   
+  // Load conversation messages when conversationId changes
+  const loadConversation = useCallback(async (convId) => {
+    if (!convId || !user) return
+    
+    try {
+      setIsLoading(true)
+      const response = await fetch(`/api/ai/chat/${convId}`)
+      
+      if (!response.ok) {
+        throw new Error('Failed to load conversation')
+      }
+      
+      const data = await response.json()
+      
+      if (data.success && data.conversation) {
+        const loadedMessages = data.conversation.messages || []
+        
+        // Convert database messages to chat format and parse options
+        const formattedMessages = loadedMessages.map(msg => {
+          const baseMessage = {
+            role: msg.role,
+            content: msg.content,
+            id: msg.id
+          }
+          
+          // Parse options from assistant messages (for coach mode)
+          if (msg.role === 'assistant' && msg.content) {
+            const parsed = parseOptionsFromResponse(msg.content, false)
+            // Use parsed message (with options stripped) as content
+            baseMessage.content = parsed.message
+            // Store options array if they exist
+            if (parsed.options && parsed.options.length > 0) {
+              baseMessage.options = parsed.options
+            }
+          }
+          
+          return baseMessage
+        })
+        
+        setMessages(formattedMessages)
+        setSessionMessages(formattedMessages)
+        setConversationId(convId)
+        
+        // Scroll to bottom after loading
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+        }, 100)
+      }
+    } catch (error) {
+      console.error('Error loading conversation:', error)
+      toast.error('Failed to load conversation')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [user])
+  
   // Update conversationId when prop changes
   useEffect(() => {
     if (initialConversationId !== conversationId) {
       setConversationId(initialConversationId)
-      // TODO: Load conversation messages when continuation is implemented
+      if (initialConversationId) {
+        loadConversation(initialConversationId)
+      } else {
+        // Clear chat if conversationId is null
+        setMessages([])
+        setSessionMessages([])
+      }
     }
-  }, [initialConversationId])
+  }, [initialConversationId, conversationId, loadConversation])
   
   const [currentSampleIndex, setCurrentSampleIndex] = useState(0)
   const [displayedSample, setDisplayedSample] = useState('')
@@ -1331,7 +1394,8 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
         }
       }, 100)
     },
-    clearChat: handleClear
+    clearChat: handleClear,
+    loadConversation: loadConversation
   }))
 
   // Render chat content (reusable for both compact and maximized views)
@@ -1749,6 +1813,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                   </div>
                 )}
                 {/* Coach mode: Show options after assistant messages */}
+                {/* Show options on the last assistant message (same behavior as normal chats) */}
                 {coachMode && message.role === 'assistant' && !message.isLoading && Array.isArray(message.options) && message.options.length > 0 && idx === messages.length - 1 && (
                   <div className="ml-8 mt-1">
                     <ChatOptions 

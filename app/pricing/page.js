@@ -766,21 +766,41 @@ export default function PricingPage() {
                               
                               {/* Pricing */}
                               <div className="flex flex-col items-center gap-0.5">
-                                {(key === 'trader' || key === 'pro') && (
-                                  <span className="text-xs text-white/40 line-through">
-                                    {getCurrencySymbol(currency)}{formatPrice(convertedMonthlyPrice)}
-                                  </span>
-                                )}
-                                <div className="flex items-baseline gap-0.5">
-                                  <span className={`text-lg font-semibold tabular-nums text-white/90`}>
-                                    {getCurrencySymbol(currency)}{discountedPriceString}
-                                  </span>
-                                  <span className="text-xs text-white/50">/mo</span>
-                                </div>
-                                {billingCycle === 'annual' && (key === 'trader' || key === 'pro') && (
-                                  <span className="text-[10px] text-white/70">
-                                    {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? plan.priceAnnual * discountMultiplier : safeConvertForDisplay(plan.priceAnnual * discountMultiplier, currency))}/yr
-                                  </span>
+                                {billingCycle === 'monthly' ? (
+                                  // Monthly pricing display
+                                  <>
+                                    {(key === 'trader' || key === 'pro') && (
+                                      <span className="text-xs text-white/40 line-through">
+                                        {getCurrencySymbol(currency)}{formatPrice(convertedMonthlyPrice)}
+                                      </span>
+                                    )}
+                                    <div className="flex items-baseline gap-0.5">
+                                      <span className={`text-lg font-semibold tabular-nums text-white/90`}>
+                                        {getCurrencySymbol(currency)}{discountedPriceString}
+                                      </span>
+                                      <span className="text-xs text-white/50">/mo</span>
+                                    </div>
+                                  </>
+                                ) : (
+                                  // Annual pricing display
+                                  <>
+                                    {(key === 'trader' || key === 'pro') && (
+                                      <span className="text-xs text-white/40 line-through">
+                                        {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? plan.priceAnnual : safeConvertForDisplay(plan.priceAnnual, currency))}
+                                      </span>
+                                    )}
+                                    <div className="flex items-baseline gap-0.5">
+                                      <span className={`text-lg font-semibold tabular-nums text-white/90`}>
+                                        {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? plan.priceAnnual * discountMultiplier : safeConvertForDisplay(plan.priceAnnual * discountMultiplier, currency))}
+                                      </span>
+                                      <span className="text-xs text-white/50">/yr</span>
+                                    </div>
+                                    {(key === 'trader' || key === 'pro') && (
+                                      <span className="text-[10px] text-white/70">
+                                        {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? Math.round(plan.priceAnnual * discountMultiplier / 12) : safeConvertForDisplay(Math.round(plan.priceAnnual * discountMultiplier / 12), currency))}/mo
+                                      </span>
+                                    )}
+                                  </>
                                 )}
                               </div>
                             </div>

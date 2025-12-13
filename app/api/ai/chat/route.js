@@ -51,7 +51,7 @@ export async function POST(request) {
       coachModeConfig = null // Coach mode configuration { conversationDepth, currentTopic }
     } = body
 
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     // Allow unauthenticated access only in demo mode
@@ -1233,7 +1233,7 @@ function buildSystemPrompt(contextData, currentSummary, previousSummaries, tier)
  */
 export async function GET(request) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
