@@ -1155,15 +1155,18 @@ export async function POST(request) {
           }
 
           // Send final stats
+          const finalConversationId = isDemoMode ? conversationId : (conversation?.id || null)
           safeEnqueue(
             new TextEncoder().encode(
               `data: ${JSON.stringify({ 
                 type: 'done', 
-                conversationId: isDemoMode ? conversationId : (conversation?.id || null),
+                conversationId: finalConversationId,
                 tokens: {
                   input: inputTokens,
                   output: outputTokens
-                }
+                },
+                provider: selectedProvider,
+                model: selectedModel
               })}\n\n`
             )
           );

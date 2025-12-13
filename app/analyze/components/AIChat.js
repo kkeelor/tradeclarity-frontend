@@ -1046,6 +1046,17 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                   setActiveTools([]) // Clear any active tools
                   setToolStatus(null) // Clear tool status
                   
+                  // Track model usage
+                  if (data.tokens && data.provider && data.model) {
+                    trackFeatureUsage.aiModelUsed(
+                      data.provider,
+                      data.model,
+                      data.tokens.input || 0,
+                      data.tokens.output || 0,
+                      data.conversationId || 'new'
+                    )
+                  }
+                  
                   if (data.conversationId) {
                     setConversationId(data.conversationId)
                   }

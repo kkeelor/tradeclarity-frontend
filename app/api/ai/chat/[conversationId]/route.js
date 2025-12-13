@@ -28,12 +28,27 @@ export async function DELETE(request, { params }) {
     // Verify conversation belongs to user
     const { data: conversation, error: convError } = await supabase
       .from('ai_conversations')
-      .select('id')
+      .select('id, user_id')
       .eq('id', conversationId)
       .eq('user_id', user.id)
       .single()
 
-    if (convError || !conversation) {
+    if (convError) {
+      console.error('Error fetching conversation for deletion:', convError)
+      // Check if it's a not found error or something else
+      if (convError.code === 'PGRST116') {
+        return NextResponse.json(
+          { error: 'Conversation not found' },
+          { status: 404 }
+        )
+      }
+      return NextResponse.json(
+        { error: 'Failed to verify conversation ownership' },
+        { status: 500 }
+      )
+    }
+
+    if (!conversation) {
       return NextResponse.json(
         { error: 'Conversation not found' },
         { status: 404 }
@@ -49,20 +64,31 @@ export async function DELETE(request, { params }) {
     if (messagesError) {
       console.error('Error deleting messages:', messagesError)
       // Continue with conversation deletion even if messages deletion fails
+      // But log it for debugging
     }
 
     // Delete the conversation
-    const { error: deleteError } = await supabase
+    const { data: deletedData, error: deleteError } = await supabase
       .from('ai_conversations')
       .delete()
       .eq('id', conversationId)
       .eq('user_id', user.id)
+      .select()
 
     if (deleteError) {
       console.error('Error deleting conversation:', deleteError)
       return NextResponse.json(
-        { error: 'Failed to delete conversation' },
+        { error: 'Failed to delete conversation', details: deleteError.message },
         { status: 500 }
+      )
+    }
+
+    // Verify deletion succeeded
+    if (!deletedData || deletedData.length === 0) {
+      console.warn('No rows deleted - conversation may not exist or belong to user')
+      return NextResponse.json(
+        { error: 'Conversation not found or already deleted' },
+        { status: 404 }
       )
     }
 
