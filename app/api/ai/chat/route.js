@@ -8,6 +8,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { buildVegaSystemPrompt, buildCachedSystemBlocks, determineExperienceLevel } from '@/lib/ai/prompts/vega-system-prompt'
 import { TIER_LIMITS, canUseTokens, getEffectiveTier } from '@/lib/featureGates'
 import { getSelectedMCPTools, callMCPTool, isMCPAvailable } from '@/lib/ai/mcpClient'
+import { PROVIDERS, createStream, extractTextFromEvent, extractUsage, isProviderConfigured, normalizeMessages } from '@/lib/ai/providers'
 
 // Helper for conditional logging (only in development)
 const isDev = process.env.NODE_ENV === 'development'
@@ -48,7 +49,9 @@ export async function POST(request) {
       isDemoMode = false, // Demo mode flag for unauthenticated users
       demoTokensUsed = 0, // Current token usage for demo users (from sessionStorage)
       coachMode = false, // Coach mode toggle
-      coachModeConfig = null // Coach mode configuration { conversationDepth, currentTopic }
+      coachModeConfig = null, // Coach mode configuration { conversationDepth, currentTopic }
+      provider = null, // Provider: 'anthropic' or 'deepseek' (defaults to anthropic for backward compatibility)
+      model = null // Model ID (defaults based on tier/provider)
     } = body
 
     const supabase = await createClient()
@@ -181,7 +184,55 @@ export async function POST(request) {
       }
     }
 
-    const model = tier === 'pro' ? AI_MODELS.SONNET.id : AI_MODELS.HAIKU.id
+    // Determine provider and model
+    // Default to Anthropic for backward compatibility
+    let selectedProvider = provider || PROVIDERS.ANTHROPIC
+    
+    // Validate provider
+    if (selectedProvider !== PROVIDERS.ANTHROPIC && selectedProvider !== PROVIDERS.DEEPSEEK) {
+      selectedProvider = PROVIDERS.ANTHROPIC
+    }
+    
+    // Check if provider is configured
+    if (!isProviderConfigured(selectedProvider)) {
+      return NextResponse.json(
+        { error: `${selectedProvider} API is not configured` },
+        { status: 503 }
+      )
+    }
+    
+    // Determine model based on provider and tier
+    let selectedModel = model
+    if (!selectedModel) {
+      if (selectedProvider === PROVIDERS.ANTHROPIC) {
+        selectedModel = tier === 'pro' ? AI_MODELS.SONNET.id : AI_MODELS.HAIKU.id
+      } else if (selectedProvider === PROVIDERS.DEEPSEEK) {
+        // Default to deepseek-chat, can upgrade to reasoner for pro users
+        selectedModel = tier === 'pro' ? AI_MODELS.DEEPSEEK_REASONER.id : AI_MODELS.DEEPSEEK_CHAT.id
+      }
+    }
+    
+    // Log provider/model selection (only in dev)
+    debugLog('[Chat API] Provider/Model selection:', {
+      provider: selectedProvider,
+      model: selectedModel,
+      tier
+    })
+    
+    // Validate model belongs to selected provider
+    const modelConfig = Object.values(AI_MODELS).find(m => m.id === selectedModel)
+    if (!modelConfig) {
+      return NextResponse.json(
+        { error: `Invalid model: ${selectedModel}` },
+        { status: 400 }
+      )
+    }
+    if (modelConfig.provider !== selectedProvider) {
+      return NextResponse.json(
+        { error: `Model ${selectedModel} does not belong to provider ${selectedProvider}` },
+        { status: 400 }
+      )
+    }
 
     // Get conversation summary (we only store summaries, not individual messages)
     // Skip for demo mode - demo users don't have conversations in database
@@ -471,10 +522,8 @@ export async function POST(request) {
         }
 
         try {
-          const client = getAnthropicClient()
-          
-          // Validate and sanitize messages for Claude
-          const messagesForClaude = claudeMessages
+          // Validate and sanitize messages
+          const messagesForAI = claudeMessages
             .filter(msg => msg && msg.content && typeof msg.content === 'string' && msg.content.trim().length > 0)
             .map(msg => {
               const role = msg.role === 'assistant' ? 'assistant' : 'user'
@@ -491,153 +540,117 @@ export async function POST(request) {
             })
 
           // Validate messages array
-          if (!messagesForClaude || messagesForClaude.length === 0) {
+          if (!messagesForAI || messagesForAI.length === 0) {
             throw new Error('No valid messages to send to AI')
           }
 
+          // Normalize messages for provider (handle system prompt differences)
+          const normalized = normalizeMessages(messagesForAI, systemBlocks, selectedProvider)
+          
           // Calculate input tokens
-          const contentText = messagesForClaude.map(m => m.content).join('\n')
+          const contentText = normalized.messages.map(m => m.content).join('\n') + (normalized.system || '')
           inputTokens = estimateTokens(contentText)
           
-          // Validate token limits (Claude has context window limits)
-          const maxContextTokens = model === AI_MODELS.SONNET.id ? 200000 : 200000 // Both models support 200k context
+          // Validate token limits
+          const maxContextTokens = modelConfig.maxTokens || 4096
           if (inputTokens > maxContextTokens * 0.9) { // Use 90% as safety margin
             throw new Error('Message too long. Please shorten your message or start a new conversation.')
           }
           
           // Log request details for debugging (only in dev)
           debugLog('[Chat API] Request:', {
-            model,
-            messageCount: messagesForClaude.length,
+            provider: selectedProvider,
+            model: selectedModel,
+            messageCount: normalized.messages.length,
             conversationId: isDemoMode ? conversationId : (conversation?.id || null),
             tier,
             inputTokens
           })
           
-          let streamResponse
-          try {
-            // Prepare API call parameters
-            const apiParams = {
-              model,
-              max_tokens: tier === 'pro' ? 2000 : 1000,
-              temperature: 0.7,
-              stream: true,
-              // CRITICAL: Use system parameter with cache control (NOT in messages!)
-              system: systemBlocks,
-              // Only conversation messages (no system prompt here)
-              messages: messagesForClaude
-            }
-
-            // Add tools if MCP is available and tools were loaded
-            if (mcpTools.length > 0) {
-              apiParams.tools = mcpTools
-              debugLog(`[Chat API] Added ${mcpTools.length} tools to API call`)
-            }
-
-            streamResponse = await client.messages.create(apiParams)
-          } catch (apiError) {
-            console.error('[Chat API] Anthropic API call failed:', {
-              error: apiError.message,
-              status: apiError.status,
-              statusCode: apiError.statusCode,
-              name: apiError.name,
-              stack: apiError.stack?.split('\n').slice(0, 5).join('\n')
-            })
-            throw apiError
+          // Note: MCP tools may not be supported by DeepSeek
+          // For now, only add tools for Anthropic
+          const toolsToUse = (selectedProvider === PROVIDERS.ANTHROPIC && mcpTools.length > 0) ? mcpTools : null
+          if (toolsToUse) {
+            debugLog(`[Chat API] Added ${toolsToUse.length} tools to API call`)
+          } else if (mcpTools.length > 0 && selectedProvider === PROVIDERS.DEEPSEEK) {
+            debugWarn('[Chat API] MCP tools requested but DeepSeek may not support them')
+          }
+          
+          // Create stream using provider abstraction
+          const streamGenerator = createStream({
+            provider: selectedProvider,
+            model: selectedModel,
+            messages: normalized.messages,
+            system: normalized.system,
+            maxTokens: tier === 'pro' ? 2000 : 1000,
+            temperature: 0.7,
+            tools: toolsToUse
+          })
+          
+          // Convert async generator to stream-like interface
+          let streamResponse = {
+            [Symbol.asyncIterator]: () => streamGenerator
           }
 
-          // Track tool use requests
+          // Track tool use requests (only for Anthropic)
           const pendingToolUses = new Map() // tool_use_id -> { name, input, inputJson, id }
           let currentToolUseId = null
+          let finalUsage = null
 
+          let eventCount = 0
+          let textChunkCount = 0
           for await (const event of streamResponse) {
-            // Log event type for debugging (only in dev, first event only)
-            if (isDev && outputTokens === 0 && event.type) {
-              debugLog('[Chat API] First stream event:', event.type)
+            eventCount++
+            
+            // Extract text content from event (provider-agnostic)
+            const textChunk = extractTextFromEvent(event, selectedProvider)
+            if (textChunk) {
+              textChunkCount++
+              fullResponse += textChunk
+              outputTokens += estimateTokens(textChunk)
+              
+              // Send chunk to client
+              const chunkData = JSON.stringify({ chunk: textChunk, type: 'token' })
+              const enqueued = safeEnqueue(
+                new TextEncoder().encode(`data: ${chunkData}\n\n`)
+              )
+              
+              if (!enqueued && textChunkCount === 1) {
+                console.warn('[Chat API] ⚠️ Failed to enqueue first chunk - stream may be closed')
+              }
             }
             
-            // Handle tool_use events (when Claude wants to call a tool)
-            // Collect tool_use blocks during streaming - execute after stream completes
-            if (event.type === 'content_block_start' && event.content_block?.type === 'tool_use') {
-              const toolUse = event.content_block
-              currentToolUseId = toolUse.id
-              // Initialize with name and id, input will be accumulated from deltas
-              pendingToolUses.set(toolUse.id, {
-                name: toolUse.name,
-                input: toolUse.input || {},
-                inputJson: '', // Accumulate JSON string from deltas
-                id: toolUse.id
-              })
-              debugLog(`[Chat API] 🔧 Tool use requested: ${toolUse.name}`, { 
-                id: toolUse.id, 
-                initialInput: toolUse.input
-              })
-              sendBrowserLog('info', `Tool requested: ${toolUse.name}`, { 
-                toolId: toolUse.id,
-                input: toolUse.input 
-              })
-            } else if (event.type === 'content_block_delta') {
-              // Handle different types of deltas
-              if (event.delta?.type === 'input_json_delta') {
-                // Tool input comes in JSON delta chunks - accumulate them
+            // Handle Anthropic-specific tool_use events (DeepSeek may not support this)
+            if (selectedProvider === PROVIDERS.ANTHROPIC) {
+              if (event.type === 'content_block_start' && event.content_block?.type === 'tool_use') {
+                const toolUse = event.content_block
+                currentToolUseId = toolUse.id
+                pendingToolUses.set(toolUse.id, {
+                  name: toolUse.name,
+                  input: toolUse.input || {},
+                  inputJson: '',
+                  id: toolUse.id
+                })
+                debugLog(`[Chat API] 🔧 Tool use requested: ${toolUse.name}`, { 
+                  id: toolUse.id, 
+                  initialInput: toolUse.input
+                })
+                sendBrowserLog('info', `Tool requested: ${toolUse.name}`, { 
+                  toolId: toolUse.id,
+                  input: toolUse.input 
+                })
+              } else if (event.type === 'content_block_delta' && event.delta?.type === 'input_json_delta') {
                 const delta = event.delta.partial_json || ''
                 if (currentToolUseId && pendingToolUses.has(currentToolUseId)) {
                   const toolUse = pendingToolUses.get(currentToolUseId)
                   toolUse.inputJson += delta
-                  // Try to parse accumulated JSON to update input object
                   try {
                     toolUse.input = JSON.parse(toolUse.inputJson)
                   } catch (e) {
-                    // JSON not complete yet, keep accumulating
+                    // JSON not complete yet
                   }
                 }
-                // Don't log as unexpected, continue to next event
-              } else if (event.delta?.type === 'text_delta') {
-                const chunk = event.delta.text
-                if (chunk) {
-                  fullResponse += chunk
-                  outputTokens += estimateTokens(chunk)
-                  
-                  // Send chunk to client
-                  safeEnqueue(
-                    new TextEncoder().encode(`data: ${JSON.stringify({ chunk, type: 'token' })}\n\n`)
-                  )
-                }
-              }
-              // Continue to next event (don't fall through to "unexpected" handler)
-              continue
-            } else if (event.type === 'message_stop') {
-              // Message complete - get accurate token counts including cache metrics
-              if (event.message?.usage) {
-                inputTokens = event.message.usage.input_tokens
-                outputTokens = event.message.usage.output_tokens
-                
-                // Log cache metrics for monitoring
-                if (event.message.usage.cache_creation_input_tokens || event.message.usage.cache_read_input_tokens) {
-                  console.log('[Chat API] Cache metrics:', {
-                    cacheCreationTokens: event.message.usage.cache_creation_input_tokens,
-                    cacheReadTokens: event.message.usage.cache_read_input_tokens,
-                    totalInputTokens: inputTokens,
-                    cacheHitRate: event.message.usage.cache_read_input_tokens 
-                      ? ((event.message.usage.cache_read_input_tokens / inputTokens) * 100).toFixed(1) + '%'
-                      : '0%'
-                  })
-                }
-              }
-              debugLog('[Chat API] Stream complete:', { 
-                inputTokens, 
-                outputTokens, 
-                responseLength: fullResponse.length,
-                pendingToolUses: pendingToolUses.size
-              })
-              
-              break // Exit loop when message is complete
-            } else if (event.type === 'error') {
-              console.error('[Chat API] Stream error event:', event.error)
-              throw new Error(event.error?.message || 'Stream error occurred')
-            } else if (event.type === 'content_block_stop') {
-              // Tool use block complete - finalize input parsing if this was a tool_use block
-              if (currentToolUseId && pendingToolUses.has(currentToolUseId)) {
+              } else if (event.type === 'content_block_stop' && currentToolUseId && pendingToolUses.has(currentToolUseId)) {
                 const toolUse = pendingToolUses.get(currentToolUseId)
                 if (toolUse.inputJson) {
                   try {
@@ -650,27 +663,60 @@ export async function POST(request) {
                   }
                 }
                 currentToolUseId = null
-              }
-              // Continue processing (normal event)
-              continue
-            } else if (event.type === 'content_block_start' && event.content_block?.type === 'text') {
-              // Text content block start - normal, continue
-              continue
-            } else if (event.type === 'message_start') {
-              // Normal event, continue
-              continue
-            } else {
-              // Log unexpected event types for debugging (only in dev)
-              const knownEventTypes = ['ping', 'message_delta'] // message_delta is normal, contains usage stats
-              if (isDev && !knownEventTypes.includes(event.type)) {
-                debugWarn('[Chat API] Unexpected event type:', event.type)
+              } else if (event.type === 'message_stop') {
+                // Get accurate token counts
+                if (event.message?.usage) {
+                  finalUsage = event.message.usage
+                  inputTokens = event.message.usage.input_tokens
+                  outputTokens = event.message.usage.output_tokens
+                  
+                  // Log cache metrics for Anthropic
+                  if (event.message.usage.cache_creation_input_tokens || event.message.usage.cache_read_input_tokens) {
+                    console.log('[Chat API] Cache metrics:', {
+                      cacheCreationTokens: event.message.usage.cache_creation_input_tokens,
+                      cacheReadTokens: event.message.usage.cache_read_input_tokens,
+                      totalInputTokens: inputTokens,
+                      cacheHitRate: event.message.usage.cache_read_input_tokens 
+                        ? ((event.message.usage.cache_read_input_tokens / inputTokens) * 100).toFixed(1) + '%'
+                        : '0%'
+                    })
+                  }
+                }
+                break
+              } else if (event.type === 'error') {
+                console.error('[Chat API] Stream error event:', event.error)
+                const errorMsg = event.error?.message || 'Stream error occurred'
+                sendBrowserLog('error', 'Stream error', { error: errorMsg })
+                throw new Error(errorMsg)
               }
             }
+            // Note: DeepSeek events are normalized to Anthropic format in provider abstraction
+            // So they're handled by the same event types above
+            
+            // Handle DeepSeek message_stop (which should come after finish_reason)
+            if (event.type === 'message_stop' && selectedProvider === PROVIDERS.DEEPSEEK) {
+              // Get accurate token counts
+              if (event.message?.usage) {
+                finalUsage = event.message.usage
+                inputTokens = event.message.usage.input_tokens
+                outputTokens = event.message.usage.output_tokens
+              }
+              break
+            }
           }
+          
+          debugLog('[Chat API] Stream complete:', { 
+            provider: selectedProvider,
+            model: selectedModel,
+            inputTokens, 
+            outputTokens, 
+            responseLength: fullResponse.length,
+            pendingToolUses: pendingToolUses.size
+          })
 
           // After initial stream, check if tools were requested
-          // If tools were requested but not yet executed, handle them
-          if (pendingToolUses.size > 0 && mcpTools.length > 0) {
+          // Only execute tools for Anthropic (DeepSeek may not support them)
+          if (pendingToolUses.size > 0 && mcpTools.length > 0 && selectedProvider === PROVIDERS.ANTHROPIC) {
             debugLog(`[Chat API] 🔧 Processing ${pendingToolUses.size} pending tool uses`)
             sendBrowserLog('info', `Executing ${pendingToolUses.size} tool(s)`, { 
               toolCount: pendingToolUses.size,
@@ -853,7 +899,7 @@ export async function POST(request) {
               })
               
               const followUpResponse = await client.messages.create({
-                model,
+                model: selectedModel,
                 max_tokens: tier === 'pro' ? 2000 : 1000,
                 temperature: 0.7,
                 stream: true,
@@ -1126,26 +1172,52 @@ export async function POST(request) {
         } catch (error) {
           console.error('[Chat API] Streaming error:', error)
           console.error('[Chat API] Error details:', {
+            provider: selectedProvider,
+            model: selectedModel,
             message: error.message,
             status: error.status,
             statusCode: error.statusCode,
             name: error.name,
             type: error.type,
+            errorData: error.errorData,
             stack: error.stack?.split('\n').slice(0, 10).join('\n')
           })
           
-          // Handle specific Anthropic API errors
+          // Handle provider-specific API errors
           let errorMessage = 'Sorry, I encountered an error. Please try again.'
           let errorType = 'unknown'
           
-          if (error.status === 401 || error.status === 403 || error.statusCode === 401 || error.statusCode === 403) {
-            errorMessage = 'Authentication error. Please contact support.'
-            errorType = 'auth'
-            console.error('[Chat API] Anthropic API authentication failed')
-          } else if (error.status === 429 || error.statusCode === 429) {
-            errorMessage = 'Rate limit exceeded. Please wait a moment and try again.'
-            errorType = 'rate_limit'
-          } else if (error.status === 400 || error.statusCode === 400) {
+          // DeepSeek-specific errors
+          if (selectedProvider === PROVIDERS.DEEPSEEK) {
+            if (error.status === 401 || error.statusCode === 401) {
+              errorMessage = 'DeepSeek API authentication failed. Please check API key configuration.'
+              errorType = 'auth'
+              console.error('[Chat API] DeepSeek API authentication failed')
+            } else if (error.status === 402 || error.statusCode === 402) {
+              errorMessage = 'DeepSeek API quota exceeded or insufficient balance.'
+              errorType = 'quota'
+            } else if (error.status === 429 || error.statusCode === 429) {
+              errorMessage = 'DeepSeek API rate limit exceeded. Please wait a moment and try again.'
+              errorType = 'rate_limit'
+            } else if (error.message && error.message.includes('DeepSeek')) {
+              errorMessage = error.message
+            }
+          }
+          
+          // Anthropic-specific errors
+          if (selectedProvider === PROVIDERS.ANTHROPIC) {
+            if (error.status === 401 || error.status === 403 || error.statusCode === 401 || error.statusCode === 403) {
+              errorMessage = 'Authentication error. Please contact support.'
+              errorType = 'auth'
+              console.error('[Chat API] Anthropic API authentication failed')
+            } else if (error.status === 429 || error.statusCode === 429) {
+              errorMessage = 'Rate limit exceeded. Please wait a moment and try again.'
+              errorType = 'rate_limit'
+            }
+          }
+          
+          // Common errors for both providers
+          if (error.status === 400 || error.statusCode === 400) {
             errorMessage = error.message || 'Invalid request. Please check your message and try again.'
             errorType = 'bad_request'
           } else if (error.status === 500 || error.status === 502 || error.status === 503 || 

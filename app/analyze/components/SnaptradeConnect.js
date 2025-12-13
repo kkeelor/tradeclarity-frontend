@@ -125,8 +125,24 @@ export default function SnaptradeConnect({ onBack, onConnect, onError }) {
           window.removeEventListener('message', handleMessage)
           setConnecting(false)
           
-          // Wait a moment for Snaptrade to process, then check accounts
-          setTimeout(() => {
+          // Wait a moment for Snaptrade to process, then sync connections and check accounts
+          setTimeout(async () => {
+            try {
+              // Sync SnapTrade accounts to exchange_connections table
+              console.log('🔄 [Snaptrade] Syncing connections...')
+              const syncResponse = await fetch('/api/snaptrade/sync-connections', {
+                method: 'POST',
+              })
+              if (syncResponse.ok) {
+                const syncData = await syncResponse.json()
+                console.log('✅ [Snaptrade] Sync complete:', syncData)
+              } else {
+                console.warn('⚠️ [Snaptrade] Sync failed, but continuing')
+              }
+            } catch (syncError) {
+              console.error('❌ [Snaptrade] Sync error:', syncError)
+              // Don't block the flow if sync fails
+            }
             checkRegistration()
           }, 2000)
         } else if (event.data.type === 'snaptrade_error') {

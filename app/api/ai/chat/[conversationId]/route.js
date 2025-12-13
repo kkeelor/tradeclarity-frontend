@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase-server'
 
 export async function DELETE(request, { params }) {
   try {
-    const { conversationId } = params
+    const { conversationId } = await params
     
     if (!conversationId) {
       return NextResponse.json(
@@ -82,7 +82,7 @@ export async function DELETE(request, { params }) {
 
 export async function GET(request, { params }) {
   try {
-    const { conversationId } = params
+    const { conversationId } = await params
     
     if (!conversationId) {
       return NextResponse.json(

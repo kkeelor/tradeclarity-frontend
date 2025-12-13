@@ -322,12 +322,25 @@ export default function DashboardContent() {
         if (event.data.type === 'snaptrade_connected') {
           console.log('✅ [Snaptrade Flow] Connection successful, starting data fetch')
           window.removeEventListener('message', handleMessage)
-          setProgress('Brokerage connected! Fetching your data...')
+          setProgress('Brokerage connected! Syncing connections...')
 
-          // Wait a moment for Snaptrade to process, then fetch accounts and data
+          // Wait a moment for Snaptrade to process, then sync connections and fetch accounts
           setTimeout(async () => {
             try {
+              // Sync SnapTrade accounts to exchange_connections table
+              console.log('🔄 [Snaptrade Flow] Syncing connections...')
+              const syncResponse = await fetch('/api/snaptrade/sync-connections', {
+                method: 'POST',
+              })
+              if (syncResponse.ok) {
+                const syncData = await syncResponse.json()
+                console.log('✅ [Snaptrade Flow] Sync complete:', syncData)
+              } else {
+                console.warn('⚠️ [Snaptrade Flow] Sync failed, but continuing')
+              }
+              
               console.log('📊 [Snaptrade Flow] Fetching accounts...')
+              setProgress('Brokerage connected! Fetching your data...')
               // Fetch accounts
               const accountsResponse = await fetch('/api/snaptrade/accounts')
               console.log('📊 [Snaptrade Flow] Accounts response:', {

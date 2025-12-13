@@ -950,7 +950,9 @@ export default function DataManagement() {
                           <ExchangeIcon exchange={exchange.exchange} size={32} className="w-8 h-8" />
                           <div>
                             <p className="text-sm font-medium text-white/90">{exchange.name}</p>
-                            <p className="text-xs text-white/50">API Connection</p>
+                            <p className="text-xs text-white/50">
+                              {exchange.exchange === 'snaptrade' ? 'Brokerage Connection' : 'API Connection'}
+                            </p>
                           </div>
                         </div>
                         <button
@@ -963,8 +965,36 @@ export default function DataManagement() {
                         </button>
                       </div>
                       
-                      {/* Last Key Saved Info */}
-                      {exchange.updatedAt && (
+                      {/* Last Key Saved Info / Connection Info */}
+                      {exchange.exchange === 'snaptrade' ? (
+                        exchange.lastSynced && (
+                          <div className="flex items-center gap-2 text-xs text-white/50 pt-2 border-t border-white/5">
+                            <Clock className="w-3.5 h-3.5 text-white/40" />
+                            <span>
+                              Last synced: {new Date(exchange.lastSynced).toLocaleDateString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric', 
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <HelpCircle className="w-3.5 h-3.5 text-white/40 hover:text-white/60 transition-colors  ml-auto" />
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-xs">
+                                  <p className="font-medium mb-1">SnapTrade Connection</p>
+                                  <p className="text-xs leading-relaxed">
+                                    Your brokerage account is connected via SnapTrade. Data is synced automatically when you connect or refresh your account.
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                        )
+                      ) : exchange.updatedAt && (
                         <div className="flex items-center gap-2 text-xs text-white/50 pt-2 border-t border-white/5">
                           <Clock className="w-3.5 h-3.5 text-white/40" />
                           <span>
@@ -994,16 +1024,18 @@ export default function DataManagement() {
                       
                       {/* Action Buttons */}
                       <div className="flex gap-2">
-                        <button
-                          onClick={() => handleUpdateKeys(exchange)}
-                          className="flex-1 px-3 py-2 bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 rounded-lg text-xs font-medium text-white/80 hover:text-white transition-all inline-flex items-center justify-center gap-2"
-                        >
-                          <KeyRound className="w-3.5 h-3.5" />
-                          Update Keys
-                        </button>
+                        {exchange.exchange !== 'snaptrade' && (
+                          <button
+                            onClick={() => handleUpdateKeys(exchange)}
+                            className="flex-1 px-3 py-2 bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 rounded-lg text-xs font-medium text-white/80 hover:text-white transition-all inline-flex items-center justify-center gap-2"
+                          >
+                            <KeyRound className="w-3.5 h-3.5" />
+                            Update Keys
+                          </button>
+                        )}
                         <button
                           onClick={() => handleUploadTradeData(exchange)}
-                          className="flex-1 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg text-xs font-medium text-white/70 hover:text-white/90 transition-all inline-flex items-center justify-center gap-2"
+                          className={`${exchange.exchange === 'snaptrade' ? 'flex-1' : 'flex-1'} px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg text-xs font-medium text-white/70 hover:text-white/90 transition-all inline-flex items-center justify-center gap-2`}
                         >
                           <Upload className="w-3.5 h-3.5" />
                           Upload Data

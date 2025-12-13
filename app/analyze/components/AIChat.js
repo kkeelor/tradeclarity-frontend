@@ -4,7 +4,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, useMemo, useImperativeHandle, forwardRef } from 'react'
-import { Send, Loader2, Bot, User, Sparkles, X, RotateCcw, Square, Minimize2, Maximize2, Database, Link as LinkIcon, Upload, TrendingUp, DollarSign, PieChart, Target, AlertCircle, MessageCircle, Share2, Check } from 'lucide-react'
+import { Send, Loader2, Bot, User, Sparkles, X, RotateCcw, Square, Minimize2, Maximize2, Database, Link as LinkIcon, Upload, TrendingUp, DollarSign, PieChart, Target, AlertCircle, MessageCircle, Share2, Check, ChevronDown } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { getDynamicSampleQuestions, getCoachModeStarters, getGreeting } from '@/lib/ai/prompts/sampleQuestions'
@@ -21,6 +21,7 @@ import { parseChartRequest, removeChartBlock } from '@/components/charts/VegaCha
 import { MarkdownMessage } from '@/components/ui/MarkdownMessage'
 import { MessageActions } from '@/components/ui/MessageActions'
 import { trackFeatureUsage } from '@/lib/analytics'
+import { AI_MODELS } from '@/lib/ai/client'
 
 const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConnectExchange, onUploadCSV, isVegaPage = false, isFullPage = false, isDemoMode = false, coachMode = false, conversationId: initialConversationId = null }, ref) => {
   const { user } = useAuth()
@@ -115,19 +116,31 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
     }
   }, [user])
   
-  // Update conversationId when prop changes
+  // Track previous prop value to detect actual prop changes
+  const prevInitialConversationIdRef = useRef(initialConversationId)
+  
+  // Update conversationId when prop changes (not when internal state changes)
   useEffect(() => {
-    if (initialConversationId !== conversationId) {
-      setConversationId(initialConversationId)
-      if (initialConversationId) {
-        loadConversation(initialConversationId)
-      } else {
-        // Clear chat if conversationId is null
+    const prevProp = prevInitialConversationIdRef.current
+    const currentProp = initialConversationId
+    
+    // Only act if the prop actually changed (not if state changed)
+    if (prevProp !== currentProp) {
+      prevInitialConversationIdRef.current = currentProp
+      
+      if (currentProp !== null) {
+        // Prop was set to a conversation ID - load it
+        setConversationId(currentProp)
+        loadConversation(currentProp)
+      } else if (prevProp !== null && currentProp === null) {
+        // Prop was explicitly cleared (changed from non-null to null) - clear chat
+        setConversationId(null)
         setMessages([])
         setSessionMessages([])
       }
+      // If prop is null and stays null, don't clear (might have conversationId from server)
     }
-  }, [initialConversationId, conversationId, loadConversation])
+  }, [initialConversationId, loadConversation])
   
   const [currentSampleIndex, setCurrentSampleIndex] = useState(0)
   const [displayedSample, setDisplayedSample] = useState('')
@@ -142,6 +155,33 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
   const [shareCopied, setShareCopied] = useState(false)
   const [activeTools, setActiveTools] = useState([]) // Track active tool executions
   const [toolStatus, setToolStatus] = useState(null) // Current tool status message
+  
+  // Model selection state
+  const [selectedProvider, setSelectedProvider] = useState('anthropic') // 'anthropic' or 'deepseek'
+  const [selectedModel, setSelectedModel] = useState(null) // null = auto-select based on tier
+  const [showModelSelector, setShowModelSelector] = useState(false)
+  const modelSelectorRef = useRef(null)
+  
+  // Log provider/model state changes (dev only)
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[AIChat] Provider/Model changed:', { provider: selectedProvider, model: selectedModel })
+    }
+  }, [selectedProvider, selectedModel])
+  
+  // Close model selector when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (modelSelectorRef.current && !modelSelectorRef.current.contains(event.target)) {
+        setShowModelSelector(false)
+      }
+    }
+    
+    if (showModelSelector) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showModelSelector])
   
   // Demo mode token tracking (stored in sessionStorage)
   const getDemoTokensUsed = useCallback(() => {
@@ -792,31 +832,40 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
     }])
 
     try {
+      const requestPayload = {
+        message: userMessage,
+        conversationId: conversationId,
+        includeContext: true,
+        contextData: {
+          tradesStats: tradesStats,
+          analytics: effectiveAnalytics,
+          allTrades: effectiveAllTrades
+        },
+        sessionMessages: sessionMessages,
+        previousSummaries: previousSummaries,
+        isDemoMode: isDemoMode,
+        demoTokensUsed: isDemoMode ? getDemoTokensUsed() : 0,
+        coachMode: coachMode,
+        coachModeConfig: coachMode ? {
+          conversationDepth: newDepth,
+          currentTopic: newTopic
+        } : null,
+        provider: selectedProvider,
+        model: selectedModel // null = auto-select based on tier
+      }
+      
+      // Log request (dev only)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[AIChat] Sending request:', { provider: selectedProvider, model: selectedModel })
+      }
+      
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         signal: abortControllerRef.current.signal,
-        body: JSON.stringify({
-          message: userMessage,
-          conversationId: conversationId,
-          includeContext: true,
-          contextData: {
-            tradesStats: tradesStats,
-            analytics: effectiveAnalytics,
-            allTrades: effectiveAllTrades
-          },
-          sessionMessages: sessionMessages,
-          previousSummaries: previousSummaries,
-          isDemoMode: isDemoMode,
-          demoTokensUsed: isDemoMode ? getDemoTokensUsed() : 0,
-          coachMode: coachMode,
-          coachModeConfig: coachMode ? {
-            conversationDepth: newDepth,
-            currentTopic: newTopic
-          } : null
-        })
+        body: JSON.stringify(requestPayload)
       })
 
       if (!response.ok) {
@@ -998,10 +1047,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                   setToolStatus(null) // Clear tool status
                   
                   if (data.conversationId) {
-                    console.log('[AIChat] Conversation ID received:', data.conversationId)
                     setConversationId(data.conversationId)
-                  } else {
-                    console.warn('[AIChat] No conversationId in response:', data)
                   }
                   
                   // Coach mode: Parse options from response
@@ -1211,7 +1257,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
       
       return false
     }
-  }, [isLoading, isDemoMode, getDemoTokensUsed, coachMode, conversationDepth, currentTopic, sessionMessages, conversationId, tradesStats, effectiveAnalytics, effectiveAllTrades, previousSummaries, hasNoData, hasSentMessagesWithoutData, updateDemoTokensUsed, formatToolName])
+  }, [isLoading, isDemoMode, getDemoTokensUsed, coachMode, conversationDepth, currentTopic, sessionMessages, conversationId, tradesStats, effectiveAnalytics, effectiveAllTrades, previousSummaries, hasNoData, hasSentMessagesWithoutData, updateDemoTokensUsed, formatToolName, selectedProvider, selectedModel])
 
   const handleStop = () => {
     if (abortControllerRef.current) {
@@ -1836,6 +1882,152 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
 
       {/* Input */}
       <div className="relative px-4 py-3 border-t border-white/5 flex-shrink-0">
+        {/* Model Selector */}
+        <div className="mb-2 flex items-center justify-between">
+          <div className="relative" ref={modelSelectorRef}>
+            <button
+              onClick={() => setShowModelSelector(!showModelSelector)}
+              className="px-2.5 py-1 text-[10px] font-medium text-white/60 hover:text-white/80 bg-white/5 hover:bg-white/10 rounded-md border border-white/10 transition-colors flex items-center gap-1.5"
+              disabled={isLoading}
+            >
+              <span>
+                {selectedProvider === 'anthropic' ? 'Claude' : 'DeepSeek'}
+                {selectedModel && ` (${Object.values(AI_MODELS).find(m => m.id === selectedModel)?.name || selectedModel})`}
+              </span>
+              <ChevronDown className={`w-3 h-3 transition-transform ${showModelSelector ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {showModelSelector && (
+              <div className="absolute bottom-full left-0 mb-1 bg-black/95 border border-white/10 rounded-lg shadow-lg z-50 min-w-[200px] overflow-hidden">
+                <div className="p-1.5">
+                  <div className="text-[10px] font-semibold text-white/40 px-2 py-1 mb-1">Provider</div>
+                  <button
+                    onClick={() => {
+                      setSelectedProvider('anthropic')
+                      // Auto-select Claude model based on tier (default to haiku, can manually select sonnet)
+                      // For now, default to null (auto-select) - user can manually select if they want
+                      setSelectedModel(null)
+                      setShowModelSelector(false)
+                    }}
+                    className={`w-full text-left px-2 py-1.5 text-[11px] rounded-md transition-colors ${
+                      selectedProvider === 'anthropic' 
+                        ? 'bg-white/10 text-white/90' 
+                        : 'text-white/60 hover:bg-white/5'
+                    }`}
+                  >
+                    Claude (Anthropic)
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedProvider('deepseek')
+                      // Auto-select DeepSeek model based on tier (default to chat, can manually select reasoner)
+                      // For now, default to chat - user can manually select reasoner if they want
+                      setSelectedModel(AI_MODELS.DEEPSEEK_CHAT.id)
+                      setShowModelSelector(false)
+                    }}
+                    className={`w-full text-left px-2 py-1.5 text-[11px] rounded-md transition-colors ${
+                      selectedProvider === 'deepseek' 
+                        ? 'bg-white/10 text-white/90' 
+                        : 'text-white/60 hover:bg-white/5'
+                    }`}
+                  >
+                    DeepSeek
+                  </button>
+                  
+                  <div className="border-t border-white/10 my-1.5"></div>
+                  
+                  <div className="text-[10px] font-semibold text-white/40 px-2 py-1 mb-1">Model</div>
+                  {selectedProvider === 'anthropic' ? (
+                    <>
+                      <button
+                        onClick={() => {
+                          setSelectedModel(null)
+                          setShowModelSelector(false)
+                        }}
+                        className={`w-full text-left px-2 py-1.5 text-[11px] rounded-md transition-colors ${
+                          selectedModel === null 
+                            ? 'bg-white/10 text-white/90' 
+                            : 'text-white/60 hover:bg-white/5'
+                        }`}
+                      >
+                        Auto (based on tier)
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedModel(AI_MODELS.HAIKU.id)
+                          setShowModelSelector(false)
+                        }}
+                        className={`w-full text-left px-2 py-1.5 text-[11px] rounded-md transition-colors ${
+                          selectedModel === AI_MODELS.HAIKU.id 
+                            ? 'bg-white/10 text-white/90' 
+                            : 'text-white/60 hover:bg-white/5'
+                        }`}
+                      >
+                        {AI_MODELS.HAIKU.name}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedModel(AI_MODELS.SONNET.id)
+                          setShowModelSelector(false)
+                        }}
+                        className={`w-full text-left px-2 py-1.5 text-[11px] rounded-md transition-colors ${
+                          selectedModel === AI_MODELS.SONNET.id 
+                            ? 'bg-white/10 text-white/90' 
+                            : 'text-white/60 hover:bg-white/5'
+                        }`}
+                      >
+                        {AI_MODELS.SONNET.name}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => {
+                          setSelectedModel(null)
+                          setShowModelSelector(false)
+                        }}
+                        className={`w-full text-left px-2 py-1.5 text-[11px] rounded-md transition-colors ${
+                          selectedModel === null 
+                            ? 'bg-white/10 text-white/90' 
+                            : 'text-white/60 hover:bg-white/5'
+                        }`}
+                      >
+                        Auto (based on tier)
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedModel(AI_MODELS.DEEPSEEK_CHAT.id)
+                          setShowModelSelector(false)
+                        }}
+                        className={`w-full text-left px-2 py-1.5 text-[11px] rounded-md transition-colors ${
+                          selectedModel === AI_MODELS.DEEPSEEK_CHAT.id 
+                            ? 'bg-white/10 text-white/90' 
+                            : 'text-white/60 hover:bg-white/5'
+                        }`}
+                      >
+                        {AI_MODELS.DEEPSEEK_CHAT.name}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedModel(AI_MODELS.DEEPSEEK_REASONER.id)
+                          setShowModelSelector(false)
+                        }}
+                        className={`w-full text-left px-2 py-1.5 text-[11px] rounded-md transition-colors ${
+                          selectedModel === AI_MODELS.DEEPSEEK_REASONER.id 
+                            ? 'bg-white/10 text-white/90' 
+                            : 'text-white/60 hover:bg-white/5'
+                        }`}
+                      >
+                        {AI_MODELS.DEEPSEEK_REASONER.name}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        
         {/* Action buttons for users without data after first message - minimal inline */}
         {hasNoData && hasSentMessagesWithoutData && (
           <div className="mb-2 flex gap-2 justify-center">
@@ -1919,7 +2111,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
       </div>
     </div>
     )
-  }, [messages, input, isInputFocused, displayedSample, isTypingSample, isDeletingSample, isLoading, tokenUsage, handleSend, handleStop, handleInputChange, handleInputFocus, handleInputBlur, handleInputClick, handleKeyPress, handleClear, hasNoData, hasSentMessagesWithoutData, onConnectExchange, onUploadCSV, isVegaPage, tradesStats, portfolioData, insights, sampleQuestions, coachMode, coachModeStarters, sendMessage])
+  }, [messages, input, isInputFocused, displayedSample, isTypingSample, isDeletingSample, isLoading, tokenUsage, handleSend, handleStop, handleInputChange, handleInputFocus, handleInputBlur, handleInputClick, handleKeyPress, handleClear, hasNoData, hasSentMessagesWithoutData, onConnectExchange, onUploadCSV, isVegaPage, tradesStats, portfolioData, insights, sampleQuestions, coachMode, coachModeStarters, sendMessage, selectedProvider, selectedModel, showModelSelector])
 
   return (
     <>

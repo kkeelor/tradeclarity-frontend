@@ -33,6 +33,32 @@ export async function GET() {
       )
     }
 
+    // Check if user has SnapTrade account but no exchange_connection entry yet
+    // This handles backward compatibility for existing SnapTrade users
+    const hasSnaptradeConnection = connections?.some(conn => conn.exchange === 'snaptrade')
+    
+    if (!hasSnaptradeConnection) {
+      const { data: snaptradeUser } = await supabase
+        .from('snaptrade_users')
+        .select('id, created_at')
+        .eq('user_id', user.id)
+        .single()
+
+      if (snaptradeUser) {
+        // User has SnapTrade but no exchange_connection entry
+        // Add a placeholder connection entry (will be synced properly on next connection)
+        console.log('⚠️ [List Exchanges] Found SnapTrade user without exchange_connection, adding placeholder')
+        connections.push({
+          id: `snaptrade-${snaptradeUser.id}`, // Temporary ID
+          exchange: 'snaptrade',
+          is_active: true,
+          created_at: snaptradeUser.created_at || new Date().toISOString(),
+          updated_at: snaptradeUser.created_at || new Date().toISOString(),
+          last_synced: null,
+        })
+      }
+    }
+
     console.log(`✅ [List Exchanges] Found ${connections?.length || 0} connections`)
     console.log('📋 [List Exchanges] Connections:', JSON.stringify(connections, null, 2))
 

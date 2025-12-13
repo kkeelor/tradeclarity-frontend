@@ -2063,7 +2063,11 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                   {/* Connected Exchanges */}
                   {connectedExchanges.length > 0 && (
                     <div>
-                      <h3 className="text-xs font-medium text-white/60 mb-3 px-1 uppercase tracking-wider">API Connections</h3>
+                      <h3 className="text-xs font-medium text-white/60 mb-3 px-1 uppercase tracking-wider">
+                        {connectedExchanges.some(e => e.exchange === 'snaptrade') 
+                          ? 'Connections' 
+                          : 'API Connections'}
+                      </h3>
                       <div className="space-y-2">
                         {connectedExchanges.map(exchange => {
                           const selected = isSourceSelected('exchange', exchange.id)
@@ -2101,7 +2105,9 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                                             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
                                           </span>
-                                          <span className="text-emerald-400 font-medium">API</span>
+                                          <span className="text-emerald-400 font-medium">
+                                            {exchange.exchange === 'snaptrade' ? 'Brokerage' : 'API'}
+                                          </span>
                                         </div>
                                         {linkedCount > 0 && (
                                           <>
