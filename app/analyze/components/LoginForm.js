@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import UpgradeRequiredModal from '@/app/components/UpgradeRequiredModal'
+import { trackDataConnection } from '@/lib/analytics'
 
 // Step Progress Indicator Component
 function StepProgress({ currentStep, totalSteps }) {
