@@ -1441,6 +1441,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
   }
 
   // Expose methods to parent via ref
+  // Dependencies include messages.length and conversationId for isNewChat to work correctly
   useImperativeHandle(ref, () => ({
     setPrompt: (prompt) => {
       setInput(prompt)
@@ -1452,8 +1453,10 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
       }, 100)
     },
     clearChat: handleClear,
-    loadConversation: loadConversation
-  }))
+    loadConversation: loadConversation,
+    // Check if currently showing new chat screen (no messages and no conversation)
+    isNewChat: () => messages.length === 0 && !conversationId
+  }), [handleClear, loadConversation, messages.length, conversationId])
 
   // Render chat content (reusable for both compact and maximized views)
   const renderChatContent = useCallback((isMaximizedView = false, showHeader = true) => {

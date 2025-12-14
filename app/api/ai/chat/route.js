@@ -3,9 +3,11 @@
 
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
-import { generateCompletion, AI_MODELS, isAIConfigured } from '@/lib/ai/client'
+import { generateCompletion, AI_MODELS, isAIConfigured, getModel } from '@/lib/ai/client'
+import { getContextWindow } from '@/lib/ai/models/registry'
 import Anthropic from '@anthropic-ai/sdk'
 import { buildVegaSystemPrompt, buildCachedSystemBlocks, determineExperienceLevel } from '@/lib/ai/prompts/vega-system-prompt'
+import { compileSystemPrompt } from '@/lib/ai/prompts/compiler'
 import { TIER_LIMITS, canUseTokens, getEffectiveTier } from '@/lib/featureGates'
 import { getSelectedMCPTools, callMCPTool, isMCPAvailable } from '@/lib/ai/mcpClient'
 import { PROVIDERS, createStream, extractTextFromEvent, extractUsage, isProviderConfigured, normalizeMessages } from '@/lib/ai/providers'
@@ -234,10 +236,11 @@ export async function POST(request) {
       )
     }
 
-    // Get conversation summary (we only store summaries, not individual messages)
+    // Get conversation summary and message history
     // Skip for demo mode - demo users don't have conversations in database
     let currentSummary = null
     let previousMessageCount = 0
+    let conversationMessages = [] // Actual message history for DeepSeek
     
     if (!isDemoMode && conversation) {
       const { data: convData } = await supabase
@@ -248,6 +251,35 @@ export async function POST(request) {
 
       currentSummary = convData?.summary || null
       previousMessageCount = convData?.message_count || 0
+      
+      // For DeepSeek, load actual message history (not just summaries)
+      // This provides better context than summaries alone
+      // DeepSeek has 64K context window, so we can include recent messages
+      if (selectedProvider === PROVIDERS.DEEPSEEK && conversationId) {
+        try {
+          const { data: messages } = await supabase
+            .from('ai_messages')
+            .select('role, content, sequence')
+            .eq('conversation_id', conversationId)
+            .order('sequence', { ascending: true })
+            .limit(50) // Limit to recent 50 messages (roughly 25 exchanges)
+          
+          if (messages && messages.length > 0) {
+            conversationMessages = messages.map(msg => ({
+              role: msg.role === 'assistant' ? 'assistant' : 'user',
+              content: msg.content
+            }))
+            
+            debugLog('[Chat API] Loaded conversation history for DeepSeek:', {
+              messageCount: conversationMessages.length,
+              conversationId
+            })
+          }
+        } catch (error) {
+          console.warn('[Chat API] Failed to load conversation messages:', error.message)
+          // Fall back to summaries if message loading fails
+        }
+      }
     }
 
     // Fetch cached analytics for AI context (optimized path)
@@ -344,12 +376,53 @@ export async function POST(request) {
       currentTopic: coachModeConfig?.currentTopic || null
     } : null
     
-    const systemBlocks = buildCachedSystemBlocks(aiContext, currentSummary, previousSummaries, tier, experienceLevel, hasMCPTools, finalCoachModeConfig)
+    // Build system prompt using provider-aware compiler
+    // This returns cached blocks for Anthropic, plain string for DeepSeek
+    const systemBlocks = compileSystemPrompt({
+      modelId: selectedModel,
+      aiContext,
+      currentSummary,
+      previousSummaries,
+      tier,
+      experienceLevel,
+      hasMCPTools,
+      coachModeConfig: finalCoachModeConfig
+    })
     
-    // Build messages array for Claude (ONLY conversation messages, NO system prompt)
+    // Log system prompt type for debugging (only in dev)
+    debugLog('[Chat API] System prompt compiled:', {
+      provider: selectedProvider,
+      model: selectedModel,
+      isArray: Array.isArray(systemBlocks),
+      length: Array.isArray(systemBlocks) ? systemBlocks.length : (systemBlocks?.length || 0),
+      hasAiContext: !!aiContext,
+      systemPromptPreview: typeof systemBlocks === 'string' 
+        ? systemBlocks.substring(0, 200) + '...' 
+        : 'Array format'
+    })
+    
+    // Build messages array (ONLY conversation messages, NO system prompt)
     const claudeMessages = []
 
+    // For DeepSeek: Include conversation history from database (if available)
+    // This provides better context than summaries alone
+    // DeepSeek's automatic prefix caching will optimize repeated system prompts
+    // Note: DeepSeek is stateless, so we need to pass full conversation history
+    if (selectedProvider === PROVIDERS.DEEPSEEK && conversationMessages.length > 0) {
+      // Add historical messages from database
+      // We'll merge with sessionMessages below, so we include all historical messages
+      // Session messages will be added after, taking precedence for any overlaps
+      claudeMessages.push(...conversationMessages)
+      
+      debugLog('[Chat API] Added historical messages for DeepSeek:', {
+        count: conversationMessages.length,
+        preview: conversationMessages.slice(0, 2).map(m => ({ role: m.role, contentLength: m.content?.length }))
+      })
+    }
+
     // Add current session messages (in-memory only)
+    // These take precedence over historical messages to avoid duplication
+    // If sessionMessages exist, they represent the current state and should replace overlapping history
     if (Array.isArray(sessionMessages)) {
       sessionMessages.forEach(msg => {
         if (msg && msg.role && msg.content && typeof msg.content === 'string' && msg.content.trim().length > 0) {
@@ -548,12 +621,35 @@ export async function POST(request) {
           const normalized = normalizeMessages(messagesForAI, systemBlocks, selectedProvider)
           
           // Calculate input tokens
-          const contentText = normalized.messages.map(m => m.content).join('\n') + (normalized.system || '')
+          // Handle both string and array (cached blocks) for system prompt
+          let systemText = ''
+          if (normalized.system) {
+            if (Array.isArray(normalized.system)) {
+              // Cached blocks format - extract text from each block
+              systemText = normalized.system
+                .filter(b => b.type === 'text' && b.text)
+                .map(b => b.text)
+                .join('\n')
+            } else {
+              systemText = normalized.system
+            }
+          }
+          const contentText = normalized.messages.map(m => {
+            // Handle both string content and array content blocks
+            if (typeof m.content === 'string') return m.content
+            if (Array.isArray(m.content)) {
+              return m.content.map(c => c.text || c.content || '').join('')
+            }
+            return ''
+          }).join('\n') + systemText
           inputTokens = estimateTokens(contentText)
           
-          // Validate token limits
-          const maxContextTokens = modelConfig.maxTokens || 4096
-          if (inputTokens > maxContextTokens * 0.9) { // Use 90% as safety margin
+          // Validate token limits - use context window, not output tokens
+          // DeepSeek: 64K context, Claude: 200K context
+          const contextWindow = getContextWindow(selectedModel)
+          const maxInputTokens = contextWindow * 0.8 // Leave 20% for output
+          if (inputTokens > maxInputTokens) {
+            console.warn(`[Chat API] Input tokens (${inputTokens}) exceed limit (${maxInputTokens}) for ${selectedModel}`)
             throw new Error('Message too long. Please shorten your message or start a new conversation.')
           }
           
@@ -888,25 +984,35 @@ export async function POST(request) {
             let followUpRound = 0
             const maxFollowUpRounds = 3
             let currentMessages = claudeMessages
+            const initialMessageCount = messagesForAI.length // Track initial message count
             
-            while (currentMessages.length > messagesForClaude.length && followUpRound < maxFollowUpRounds) {
+            while (currentMessages.length > initialMessageCount && followUpRound < maxFollowUpRounds) {
               followUpRound++
               const followUpStart = Date.now()
               debugLog(`[Chat API] 🔄 Making follow-up API call #${followUpRound}`)
               sendBrowserLog('info', `Making follow-up API call #${followUpRound}`, {
                 round: followUpRound,
-                toolResultsCount: currentMessages.length - messagesForClaude.length
+                toolResultsCount: currentMessages.length - initialMessageCount
               })
               
-              const followUpResponse = await client.messages.create({
+              // Normalize messages for follow-up call
+              const followUpNormalized = normalizeMessages(currentMessages, systemBlocks, selectedProvider)
+              
+              // Use provider abstraction for follow-up calls
+              const followUpStreamGenerator = createStream({
+                provider: selectedProvider,
                 model: selectedModel,
-                max_tokens: tier === 'pro' ? 2000 : 1000,
+                messages: followUpNormalized.messages,
+                system: followUpNormalized.system,
+                maxTokens: tier === 'pro' ? 2000 : 1000,
                 temperature: 0.7,
-                stream: true,
-                system: systemBlocks,
-                tools: mcpTools,
-                messages: currentMessages
+                tools: toolsToUse // Use same tools as initial call
               })
+              
+              // Convert async generator to stream-like interface
+              const followUpResponse = {
+                [Symbol.asyncIterator]: () => followUpStreamGenerator
+              }
               
               // Stream follow-up response
               let followUpChunkCount = 0
@@ -920,8 +1026,30 @@ export async function POST(request) {
               for await (const followUpEvent of followUpResponse) {
                 followUpEventCount++
                 
+                // Extract text content from follow-up event
+                const followUpTextChunk = extractTextFromEvent(followUpEvent, selectedProvider)
+                if (followUpTextChunk) {
+                  followUpChunkCount++
+                  followUpFullResponse += followUpTextChunk
+                  fullResponse += followUpTextChunk
+                  outputTokens += estimateTokens(followUpTextChunk)
+                  
+                  if (followUpChunkCount <= 3) {
+                    console.log(`[Chat API] Follow-up chunk ${followUpChunkCount}:`, followUpTextChunk.substring(0, 50))
+                  }
+                  
+                  const enqueued = safeEnqueue(
+                    new TextEncoder().encode(`data: ${JSON.stringify({ chunk: followUpTextChunk, type: 'token' })}\n\n`)
+                  )
+                  if (!enqueued && followUpChunkCount === 1) {
+                    console.error('[Chat API] ⚠️ Failed to enqueue first follow-up chunk - stream may be closed')
+                  }
+                }
+                
                 // Check if Claude is requesting more tools in follow-up (handle recursive tool calls)
-                if (followUpEvent.type === 'content_block_start' && followUpEvent.content_block?.type === 'tool_use') {
+                // Only for Anthropic provider
+                if (selectedProvider === PROVIDERS.ANTHROPIC) {
+                  if (followUpEvent.type === 'content_block_start' && followUpEvent.content_block?.type === 'tool_use') {
                   const toolUse = followUpEvent.content_block
                   followUpCurrentToolUseId = toolUse.id
                   followUpPendingToolUses.set(toolUse.id, {
@@ -930,66 +1058,70 @@ export async function POST(request) {
                     inputJson: '',
                     id: toolUse.id
                   })
-                  debugLog(`[Chat API] 🔧 Follow-up round ${followUpRound} requested tool: ${toolUse.name}`)
-                  sendBrowserLog('info', `Tool requested in follow-up: ${toolUse.name}`, { round: followUpRound })
-                } else if (followUpEvent.type === 'content_block_delta' && followUpEvent.delta?.type === 'input_json_delta') {
-                  // Accumulate tool input JSON
-                  const delta = followUpEvent.delta.partial_json || ''
-                  if (followUpCurrentToolUseId && followUpPendingToolUses.has(followUpCurrentToolUseId)) {
+                    debugLog(`[Chat API] 🔧 Follow-up round ${followUpRound} requested tool: ${toolUse.name}`)
+                    sendBrowserLog('info', `Tool requested in follow-up: ${toolUse.name}`, { round: followUpRound })
+                  } else if (followUpEvent.type === 'content_block_delta' && followUpEvent.delta?.type === 'input_json_delta') {
+                    // Accumulate tool input JSON
+                    const delta = followUpEvent.delta.partial_json || ''
+                    if (followUpCurrentToolUseId && followUpPendingToolUses.has(followUpCurrentToolUseId)) {
+                      const toolUse = followUpPendingToolUses.get(followUpCurrentToolUseId)
+                      toolUse.inputJson += delta
+                      try {
+                        toolUse.input = JSON.parse(toolUse.inputJson)
+                      } catch (e) {
+                        // JSON not complete yet
+                      }
+                    }
+                  } else if (followUpEvent.type === 'content_block_stop' && followUpCurrentToolUseId && followUpPendingToolUses.has(followUpCurrentToolUseId)) {
                     const toolUse = followUpPendingToolUses.get(followUpCurrentToolUseId)
-                    toolUse.inputJson += delta
-                    try {
-                      toolUse.input = JSON.parse(toolUse.inputJson)
-                    } catch (e) {
-                      // JSON not complete yet
+                    if (toolUse.inputJson) {
+                      try {
+                        toolUse.input = JSON.parse(toolUse.inputJson)
+                        debugLog(`[Chat API] ✅ Follow-up tool ${toolUse.name} input finalized`)
+                      } catch (e) {
+                        debugWarn(`[Chat API] ⚠️ Failed to parse follow-up tool input JSON for ${toolUse.name}:`, e.message)
+                      }
                     }
-                  }
-                  continue
-                } else if (followUpEvent.type === 'content_block_delta' && followUpEvent.delta?.type === 'text_delta') {
-                  const chunk = followUpEvent.delta.text
-                  if (chunk) {
-                    followUpChunkCount++
-                    followUpFullResponse += chunk
-                    fullResponse += chunk
-                    outputTokens += estimateTokens(chunk)
-                    
-                    if (followUpChunkCount <= 3) {
-                      console.log(`[Chat API] Follow-up chunk ${followUpChunkCount}:`, chunk.substring(0, 50))
+                    followUpCurrentToolUseId = null
+                  } else if (followUpEvent.type === 'message_stop') {
+                    // Update token counts from final message
+                    if (followUpEvent.message?.usage) {
+                      inputTokens = followUpEvent.message.usage.input_tokens
+                      outputTokens = followUpEvent.message.usage.output_tokens
                     }
-                    
-                    const enqueued = safeEnqueue(
-                      new TextEncoder().encode(`data: ${JSON.stringify({ chunk, type: 'token' })}\n\n`)
-                    )
-                    if (!enqueued && followUpChunkCount === 1) {
-                      console.error('[Chat API] ⚠️ Failed to enqueue first follow-up chunk - stream may be closed')
-                    }
-                  }
-                } else if (followUpEvent.type === 'content_block_start') {
-                  // Normal event, continue
-                } else if (followUpEvent.type === 'content_block_stop') {
-                  // Normal event, continue
-                } else if (followUpEvent.type === 'message_start') {
-                  // Normal event, continue
-                } else if (followUpEvent.type === 'message_delta') {
-                  // Normal event, contains usage stats
-                } else if (followUpEvent.type === 'message_stop') {
-                  // Update token counts from final message
-                  if (followUpEvent.message?.usage) {
-                    inputTokens = followUpEvent.message.usage.input_tokens
-                    outputTokens = followUpEvent.message.usage.output_tokens
-                  }
                     const followUpTime = Date.now() - followUpStart
                     debugLog(`[Chat API] ✅ Follow-up API call complete (${followUpTime}ms)`)
                     sendBrowserLog('info', 'Follow-up API call complete', { 
                       duration: followUpTime,
                       chunksReceived: followUpChunkCount,
-                      responseLength: fullResponse.length
+                      responseLength: followUpFullResponse.length
                     })
                     break
-                } else if (followUpEvent.type === 'error') {
-                  console.error('[Chat API] ❌ Follow-up stream error:', followUpEvent.error)
-                  sendBrowserLog('error', 'Follow-up stream error', { error: followUpEvent.error?.message })
-                  break
+                  } else if (followUpEvent.type === 'error') {
+                    console.error('[Chat API] ❌ Follow-up stream error:', followUpEvent.error)
+                    sendBrowserLog('error', 'Follow-up stream error', { error: followUpEvent.error?.message })
+                    break
+                  }
+                } else {
+                  // For non-Anthropic providers, handle message_stop and error events
+                  if (followUpEvent.type === 'message_stop') {
+                    if (followUpEvent.message?.usage) {
+                      inputTokens = followUpEvent.message.usage.input_tokens
+                      outputTokens = followUpEvent.message.usage.output_tokens
+                    }
+                    const followUpTime = Date.now() - followUpStart
+                    debugLog(`[Chat API] ✅ Follow-up API call complete (${followUpTime}ms)`)
+                    sendBrowserLog('info', 'Follow-up API call complete', { 
+                      duration: followUpTime,
+                      chunksReceived: followUpChunkCount,
+                      responseLength: followUpFullResponse.length
+                    })
+                    break
+                  } else if (followUpEvent.type === 'error') {
+                    console.error('[Chat API] ❌ Follow-up stream error:', followUpEvent.error)
+                    sendBrowserLog('error', 'Follow-up stream error', { error: followUpEvent.error?.message })
+                    break
+                  }
                 }
               }
               

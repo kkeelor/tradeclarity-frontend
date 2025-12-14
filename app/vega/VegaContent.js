@@ -452,6 +452,10 @@ export default function VegaContent() {
         }>
           <VegaSidebar 
             onNewChat={() => {
+              // Don't do anything if already on new chat screen
+              if (chatRef.current?.isNewChat?.()) {
+                return
+              }
               setCurrentConversationId(null)
               chatRef.current?.clearChat()
             }}
