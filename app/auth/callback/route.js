@@ -36,7 +36,7 @@ export async function GET(request) {
       // Try to check if user is authenticated despite the error
       // The auth user might exist even if the users table record creation failed
       try {
-        const supabase = createClient();
+        const supabase = await createClient();
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session?.user) {
@@ -67,7 +67,7 @@ export async function GET(request) {
 
   try {
     console.log('🟢 Creating Supabase client...');
-    const supabase = createClient();
+    const supabase = await createClient();
     
     console.log('🟢 Calling exchangeCodeForSession...');
     const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
