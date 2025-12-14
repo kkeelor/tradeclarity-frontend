@@ -1389,7 +1389,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
     }
   }
 
-  const handleClear = async () => {
+  const handleClear = useCallback(async () => {
     if (isClearing || isLoading) return
     
     setIsClearing(true)
@@ -1431,7 +1431,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
     } finally {
       setIsClearing(false)
     }
-  }
+  }, [isClearing, isLoading, conversationId, sessionMessages.length, summarizeConversation, tradesStats])
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
