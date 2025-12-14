@@ -66,6 +66,7 @@ export default function DataManagement() {
 
   const fetchConnectedExchanges = async () => {
     const startTime = Date.now()
+    setLoadingExchanges(true)
     try {
       const response = await fetch('/api/exchange/list')
       const data = await response.json()
@@ -93,9 +94,13 @@ export default function DataManagement() {
           }
         })
         setConnectedExchanges(formatted)
+      } else {
+        // If API returns error, ensure we still update the list (might be empty)
+        setConnectedExchanges([])
       }
     } catch (error) {
       console.error('Error fetching exchanges:', error)
+      // On error, don't clear the list - keep existing state
     } finally {
       const elapsed = Date.now() - startTime
       const remaining = Math.max(0, 350 - elapsed)
@@ -182,7 +187,12 @@ export default function DataManagement() {
       const data = await response.json()
 
       if (response.ok && data.success) {
+        // Optimistically remove from UI immediately
+        setConnectedExchanges(prev => prev.filter(ex => ex.id !== deletingExchange.id))
+        
         toast.success(`Exchange deleted. ${data.totalTradesDeleted || 0} trades removed.`)
+        
+        // Refresh from server to ensure consistency
         await fetchConnectedExchanges()
         await fetchUploadedFiles()
       } else {

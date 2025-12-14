@@ -152,8 +152,9 @@ export default function LoginContent() {
           // Clear any errors on successful auth
           setError(null)
           setShowError(false)
-          // Redirect to dashboard after successful login
-          router.push('/dashboard')
+          // Redirect to the page specified in redirect param, or dashboard by default
+          const redirectPath = searchParams.get('redirect') || '/dashboard'
+          router.push(redirectPath)
         }}
       />
     </div>
