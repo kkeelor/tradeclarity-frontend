@@ -3,12 +3,13 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, X, Zap, TrendingUp, Crown, ArrowRight, Sparkles, Shield, Clock, CreditCard, ChevronDown, ArrowLeft, Star, Users, TrendingDown } from 'lucide-react'
+import { Check, X, Zap, TrendingUp, Crown, ArrowRight, Sparkles, Shield, Clock, CreditCard, ChevronDown, Star, Users, TrendingDown } from 'lucide-react'
 import Link from 'next/link'
 import { useAuth } from '@/lib/AuthContext'
 import { getTierDisplayName } from '@/lib/featureGates'
 import { toast } from 'sonner'
 import Footer from '../components/Footer'
+import Header from '../analyze/components/Header'
 import { getCurrencySymbol, formatCurrencyNumber } from '../analyze/utils/currencyFormatter'
 import { convertCurrencySync, getCurrencyRates } from '../analyze/utils/currencyConverter'
 import { Badge } from '@/components/ui/badge'
@@ -176,38 +177,34 @@ export default function PricingPage() {
   // Initialize currency from localStorage or detect India
   useEffect(() => {
     const initializeCurrency = async () => {
-      // First, detect if user is in India
-      const country = await detectUserLocation()
-      
-      // If user is in India, always use INR (override localStorage)
-      if (country === 'IN') {
-        setCurrency('INR')
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('tradeclarity_currency', 'INR')
-        }
-        return
-      }
-      
-      // For non-India users, check localStorage
+      // Check localStorage first (fastest)
       const savedCurrency = typeof window !== 'undefined' ? localStorage.getItem('tradeclarity_currency') : null
       if (savedCurrency && availableCurrencies.includes(savedCurrency)) {
         setCurrency(savedCurrency)
+        // Pre-fetch currency rates in background
+        getCurrencyRates().catch(() => {})
         return
       }
       
-      // Default to USD for all non-India users
-      setCurrency('USD')
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('tradeclarity_currency', 'USD')
-      }
+      // Detect if user is in India (async, non-blocking)
+      detectUserLocation().then(country => {
+        if (country === 'IN') {
+          setCurrency('INR')
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('tradeclarity_currency', 'INR')
+          }
+        } else {
+          setCurrency('USD')
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('tradeclarity_currency', 'USD')
+          }
+        }
+        // Pre-fetch currency rates after detection
+        getCurrencyRates().catch(() => {})
+      })
     }
     
     initializeCurrency()
-    
-    // Pre-fetch currency rates for conversion
-    getCurrencyRates().catch(err => {
-      console.warn('Could not fetch currency rates:', err.message)
-    })
   }, [])
 
   // Handle currency change with localStorage persistence
@@ -256,6 +253,13 @@ export default function PricingPage() {
     // If clicking on free tier (downgrade), show info toast
     if (tier === 'free') {
       toast.info('To downgrade to Free plan, please contact support')
+      return
+    }
+
+    // Razorpay is only for INR currency
+    if (currency !== 'INR') {
+      // For non-INR currencies, PayPal handles the payment flow
+      // The PayPal buttons are rendered separately, so this function shouldn't be called
       return
     }
 
@@ -629,24 +633,26 @@ export default function PricingPage() {
           setRazorpayLoaded(true)
         }}
       />
-      <div className="min-h-screen bg-black text-white">
-        {/* Header */}
-      <div className="border-b border-white/10 bg-black/80 backdrop-blur-xl">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => router.push(user ? '/dashboard' : '/')}
-              className="text-sm text-white/60 hover:text-white/90 transition-colors flex items-center gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back {user ? 'to Dashboard' : 'to Home'}
-            </button>
-          </div>
-        </div>
-      </div>
+      <div className="min-h-screen bg-black text-white flex flex-col">
+        <Header
+          exchangeConfig={null}
+          currencyMetadata={null}
+          currency={currency}
+          setCurrency={handleCurrencyChange}
+          onNavigateDashboard={() => router.push('/dashboard')}
+          onNavigateUpload={() => router.push('/data')}
+          onNavigateAll={() => router.push('/analyze')}
+          onNavigateVega={() => router.push('/vega')}
+          onSignOut={user ? async () => {
+            await fetch('/api/auth/signout', { method: 'POST' })
+            router.push('/')
+          } : undefined}
+          hasDataSources={false}
+          isDemoMode={false}
+        />
 
       {/* Hero Section */}
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
+      <div className="flex-1 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-semibold mb-4 text-white/90">
             Choose Your Plan
@@ -668,52 +674,61 @@ export default function PricingPage() {
             </div>
           </div>
 
-          {/* Billing Toggle and Currency Selector */}
-          <div className="mt-8 flex flex-row items-center justify-center gap-6 flex-wrap">
-            <div className="flex items-center justify-center gap-4">
-              <span className={`text-sm ${billingCycle === 'monthly' ? 'text-white/90' : 'text-white/50'}`}>
-                Monthly
-              </span>
-              <button
-                onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')}
-                className="relative inline-flex h-6 w-11 items-center rounded-full bg-white/10 border border-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-white/20"
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    billingCycle === 'annual' ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-              <span className={`text-sm ${billingCycle === 'annual' ? 'text-white/90' : 'text-white/50'}`}>
-                Annual
-                {savings > 0 && (
-                  <Badge variant="profit" className="ml-2">
-                    Save {savings}%
-                  </Badge>
-                )}
-              </span>
-            </div>
-            
-            {/* Currency Dropdown */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-white/60">Currency:</span>
-              <CurrencyDropdown
-                currencies={availableCurrencies}
-                selectedCurrency={currency}
-                onSelectCurrency={handleCurrencyChange}
-              />
-            </div>
-          </div>
         </div>
 
         {/* Unified Pricing & Feature Comparison Table */}
-        <div className="max-w-5xl mx-auto mb-16">
+        <div className="max-w-[83rem] mx-auto mb-16">
           <div className="rounded-xl border border-white/10 bg-black overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-white/10">
-                    <th className="text-left px-3 py-3 text-sm font-medium text-white/70 w-[180px]">Plan</th>
+                    <th className="text-left px-3 py-3 text-sm font-medium text-white/70 w-[200px]">
+                      <div className="flex flex-col items-center gap-1.5">
+                        {/* Spacer to match badge height (for trader/pro) - empty div for Free plan alignment */}
+                        <div className="h-[18px]"></div>
+                        {/* Spacer to match icon */}
+                        <div className="w-8 h-8"></div>
+                        {/* Plan label section - matches plan name + description structure */}
+                        <div className="text-center">
+                          <h3 className="text-base font-semibold mb-1 text-white/70">Plan</h3>
+                          <p className="text-[10px] text-white/50 mb-1.5 leading-tight">Select billing cycle</p>
+                          
+                          {/* Billing Toggle - aligns with pricing section */}
+                          <div className="flex flex-col items-center gap-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className={`text-xs ${billingCycle === 'monthly' ? 'text-white/90' : 'text-white/50'}`}>
+                                Monthly
+                              </span>
+                              <button
+                                onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')}
+                                className="relative inline-flex h-5 w-9 items-center rounded-full bg-white/10 border border-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-white/20"
+                              >
+                                <span
+                                  className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                                    billingCycle === 'annual' ? 'translate-x-5' : 'translate-x-0.5'
+                                  }`}
+                                />
+                              </button>
+                              <span className={`text-xs ${billingCycle === 'annual' ? 'text-white/90' : 'text-white/50'}`}>
+                                Annual
+                              </span>
+                            </div>
+                            {/* Currency Dropdown */}
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-xs text-white/60">Currency:</span>
+                              <div className="scale-90 origin-center">
+                                <CurrencyDropdown
+                                  currencies={availableCurrencies}
+                                  selectedCurrency={currency}
+                                  onSelectCurrency={handleCurrencyChange}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </th>
                     {Object.entries(PRICING_PLANS).map(([key, plan]) => {
                       const Icon = plan.icon
                       const isCurrentTier = currentTier === key
@@ -759,7 +774,7 @@ export default function PricingPage() {
                               <Icon className={`w-4 h-4 text-white/70`} />
                             </div>
                             <div>
-                              <h3 className={`text-base font-semibold mb-0.5 ${isPopular ? 'text-white/90' : key === 'pro' ? 'text-white/90' : 'text-white/80'}`}>
+                              <h3 className={`text-base font-semibold mb-1 ${isPopular ? 'text-white/90' : key === 'pro' ? 'text-white/90' : 'text-white/80'}`}>
                                 {plan.name}
                               </h3>
                               <p className="text-[10px] text-white/50 mb-1.5 leading-tight">{plan.description}</p>
@@ -848,7 +863,19 @@ export default function PricingPage() {
                   
                   {/* CTA Row */}
                   <tr className="border-t-2 border-white/10">
-                    <td className="px-3 py-3"></td>
+                    <td className="px-3 py-3">
+                      {/* Coupon-style savings badge for annual billing */}
+                      {billingCycle === 'annual' && savings > 0 && (
+                        <div className="flex items-center justify-center">
+                          <div className="relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 border-dashed border-emerald-500/40 bg-emerald-500/5">
+                            <Sparkles className="w-3 h-3 text-emerald-400" />
+                            <span className="text-xs font-semibold text-emerald-400">
+                              {savings}% savings applied
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </td>
                     {Object.entries(PRICING_PLANS).map(([key, plan]) => {
                       const isCurrentTier = currentTier === key
                       const isPopular = plan.popular
@@ -893,33 +920,36 @@ export default function PricingPage() {
                             ) : (
                               <>
                                 {/* Buttons Row */}
-                                <div className={`flex gap-2 w-full ${currency === 'INR' ? 'justify-center' : ''}`}>
-                                  <button
-                                    onClick={() => handleUpgrade(key)}
-                                    disabled={isDisabled}
-                                    className={`${currency === 'INR' ? 'w-full' : 'flex-1'} py-2 rounded-lg text-xs font-medium transition-all duration-300 ${
-                                      loading
-                                        ? 'bg-white/5 text-white/50 cursor-wait opacity-75 border border-white/10'
-                                        : isPopular
-                                        ? 'bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 text-white/90'
-                                        : key === 'pro'
-                                        ? 'bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 text-white/90'
-                                        : 'bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white/80'
-                                    }`}
-                                  >
-                                    {loading ? (
-                                      'Processing...'
-                                    ) : (
-                                      <span className="flex items-center justify-center">
-                                        Pay with Razorpay
-                                      </span>
-                                    )}
-                                  </button>
-                                  {/* PayPal Button - Inline (Disabled for INR) */}
+                                <div className="flex gap-2 w-full">
+                                  {/* Razorpay Button - Only for INR */}
+                                  {currency === 'INR' && (
+                                    <button
+                                      onClick={() => handleUpgrade(key)}
+                                      disabled={isDisabled}
+                                      className={`w-full py-2 rounded-lg text-xs font-medium transition-all duration-300 ${
+                                        loading
+                                          ? 'bg-white/5 text-white/50 cursor-wait opacity-75 border border-white/10'
+                                          : isPopular
+                                          ? 'bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 text-white/90'
+                                          : key === 'pro'
+                                          ? 'bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 text-white/90'
+                                          : 'bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white/80'
+                                      }`}
+                                    >
+                                      {loading ? (
+                                        'Processing...'
+                                      ) : (
+                                        <span className="flex items-center justify-center">
+                                          Pay with Razorpay
+                                        </span>
+                                      )}
+                                    </button>
+                                  )}
+                                  {/* PayPal Button - For all non-INR currencies */}
                                   {currency !== 'INR' && key === 'trader' && billingCycle === 'monthly' && (
                                     <div 
                                       id="paypal-trader-monthly-inline"
-                                      className="flex-1"
+                                      className="w-full"
                                       dangerouslySetInnerHTML={{
                                         __html: `
                                           <style>
@@ -954,7 +984,7 @@ export default function PricingPage() {
                                   {currency !== 'INR' && key === 'trader' && billingCycle === 'annual' && (
                                     <div 
                                       id="paypal-trader-annual-inline"
-                                      className="flex-1"
+                                      className="w-full"
                                       dangerouslySetInnerHTML={{
                                         __html: `
                                           <style>
@@ -989,7 +1019,7 @@ export default function PricingPage() {
                                   {currency !== 'INR' && key === 'pro' && billingCycle === 'monthly' && (
                                     <div 
                                       id="paypal-pro-monthly-inline"
-                                      className="flex-1"
+                                      className="w-full"
                                       dangerouslySetInnerHTML={{
                                         __html: `
                                           <style>
@@ -1024,7 +1054,7 @@ export default function PricingPage() {
                                   {currency !== 'INR' && key === 'pro' && billingCycle === 'annual' && (
                                     <div 
                                       id="paypal-pro-annual-inline"
-                                      className="flex-1"
+                                      className="w-full"
                                       dangerouslySetInnerHTML={{
                                         __html: `
                                           <style>

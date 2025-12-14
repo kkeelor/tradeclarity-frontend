@@ -9,6 +9,23 @@ const nextConfig = {
     // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
+  // Performance optimizations
+  compress: true,
+  poweredByHeader: false,
+  // Optimize images
+  images: {
+    formats: ['image/avif', 'image/webp'],
+  },
+  // Experimental features for better performance
+  experimental: {
+    optimizeCss: true,
+  },
+  // Compiler optimizations
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production' ? {
+      exclude: ['error', 'warn'],
+    } : false,
+  },
 }
 
 module.exports = nextConfig

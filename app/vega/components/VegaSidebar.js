@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Plus, MessageSquare, MessageCircle, Trash2, Loader2 } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { MessageSquarePlus, MessageSquare, MessageCircle, Trash2, Loader2, Pencil, Check, X } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { useAuth } from '@/lib/AuthContext'
@@ -12,6 +12,10 @@ export default function VegaSidebar({ onNewChat, coachMode, setCoachMode, onSele
   const [deletingId, setDeletingId] = useState(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [chatToDelete, setChatToDelete] = useState(null)
+  const [renamingId, setRenamingId] = useState(null)
+  const [renameValue, setRenameValue] = useState('')
+  const [renaming, setRenaming] = useState(false)
+  const renameInputRef = useRef(null)
 
   useEffect(() => {
     if (!user) {
@@ -73,6 +77,68 @@ export default function VegaSidebar({ onNewChat, coachMode, setCoachMode, onSele
     setShowDeleteConfirm(true)
   }
 
+  const handleRenameClick = (e, conversation) => {
+    e.stopPropagation()
+    // Use title if it exists (user-renamed), otherwise use summary for display
+    const displayName = conversation.title || cleanSummary(conversation.summary || conversation.title)
+    setRenamingId(conversation.id)
+    setRenameValue(displayName)
+    // Focus input after state update
+    setTimeout(() => {
+      renameInputRef.current?.focus()
+      renameInputRef.current?.select()
+    }, 0)
+  }
+
+  const handleRenameSave = async (conversationId) => {
+    if (!renameValue.trim()) {
+      // Cancel rename if empty
+      setRenamingId(null)
+      setRenameValue('')
+      return
+    }
+
+    setRenaming(true)
+    try {
+      const res = await fetch(`/api/ai/chat/${conversationId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ title: renameValue.trim() }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to rename conversation')
+      }
+
+      // Update local state - update title field, preserve summary for AI context
+      setConversations(prev => prev.map(c => 
+        c.id === conversationId 
+          ? { ...c, title: renameValue.trim() }
+          : c
+      ))
+
+      toast.success('Conversation renamed')
+      setRenamingId(null)
+      setRenameValue('')
+    } catch (error) {
+      console.error('Rename error:', error)
+      toast.error(error.message || 'Failed to rename conversation')
+      setRenamingId(null)
+      setRenameValue('')
+    } finally {
+      setRenaming(false)
+    }
+  }
+
+  const handleRenameCancel = () => {
+    setRenamingId(null)
+    setRenameValue('')
+  }
+
   const cleanSummary = (summary) => {
     if (!summary) return 'New Chat'
     return summary
@@ -96,9 +162,9 @@ export default function VegaSidebar({ onNewChat, coachMode, setCoachMode, onSele
       <div className="p-4 space-y-4">
         <button
           onClick={onNewChat}
-          className="w-full flex items-center gap-3 px-4 py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-xl transition-all shadow-[0_0_15px_-3px_rgba(16,185,129,0.3)] hover:shadow-[0_0_20px_-3px_rgba(16,185,129,0.4)]"
+          className="w-full flex items-center gap-3 px-4 py-3 bg-white/5 hover:bg-white/10 text-white/90 font-medium rounded-lg transition-all border border-emerald-500/20 hover:border-emerald-500/30"
         >
-          <Plus className="w-5 h-5" />
+          <MessageSquarePlus className="w-4 h-4" />
           <span>New Chat</span>
         </button>
 
@@ -108,28 +174,16 @@ export default function VegaSidebar({ onNewChat, coachMode, setCoachMode, onSele
             <TooltipTrigger asChild>
               <button
                 onClick={() => setCoachMode(!coachMode)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all border ${
+                className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg transition-all border ${
                   coachMode
-                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                    : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                    ? 'bg-white/5 border-emerald-500/20 text-white/90'
+                    : 'bg-white/5 border-emerald-500/10 text-white/50 hover:bg-white/10 hover:text-white/70 hover:border-emerald-500/15'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                    coachMode ? 'bg-emerald-500/20' : 'bg-white/5'
-                  }`}>
-                    <MessageCircle className="w-4 h-4" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-sm font-medium">Coach Mode</p>
-                    <p className="text-[10px] opacity-60">
-                      {coachMode ? 'On' : 'Off'}
-                    </p>
-                  </div>
-                </div>
+                <span className="text-sm font-medium">Coach Mode</span>
                 
-                <div className={`w-8 h-4 rounded-full transition-colors relative ${coachMode ? 'bg-emerald-500/30' : 'bg-white/10'}`}>
-                  <div className={`absolute top-0.5 w-3 h-3 rounded-full transition-all ${coachMode ? 'bg-emerald-400 left-4' : 'bg-white/40 left-0.5'}`} />
+                <div className={`w-8 h-4 rounded-full transition-colors relative ${coachMode ? 'bg-emerald-500/40' : 'bg-white/10'}`}>
+                  <div className={`absolute top-0.5 w-3 h-3 rounded-full transition-all ${coachMode ? 'bg-emerald-400 left-4' : 'bg-white/30 left-0.5'}`} />
                 </div>
               </button>
             </TooltipTrigger>
@@ -163,9 +217,12 @@ export default function VegaSidebar({ onNewChat, coachMode, setCoachMode, onSele
           ) : (
             <div className="px-2 space-y-1">
               {conversations.map((chat) => {
-                const summary = cleanSummary(chat.summary || chat.title)
-                const truncated = truncateText(summary)
+                // Prefer title (user-renamed) over summary (AI-generated) for display
+                // Summary is preserved for AI context, title is for user labeling
+                const displayName = chat.title || cleanSummary(chat.summary || chat.title)
+                const truncated = truncateText(displayName)
                 const isActive = chat.id === currentConversationId
+                const isRenaming = renamingId === chat.id
                 
                 return (
                   <div
@@ -174,34 +231,91 @@ export default function VegaSidebar({ onNewChat, coachMode, setCoachMode, onSele
                       isActive ? 'bg-white/10' : ''
                     }`}
                   >
-                    <button
-                      onClick={() => onSelectChat && onSelectChat(chat.id)}
-                      className="flex-1 min-w-0 text-left"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className={`text-xs font-medium truncate transition-colors ${
-                          isActive ? 'text-white' : 'text-white/70 group-hover:text-white'
-                        }`}>
-                          {truncated}
-                        </span>
-                        <span className="text-[10px] text-white/30 flex-shrink-0 whitespace-nowrap tabular-nums">
-                          {new Date(chat.updated_at || chat.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                        </span>
+                    {isRenaming ? (
+                      <div className="flex-1 min-w-0 flex items-center gap-2">
+                        <input
+                          ref={renamingId === chat.id ? renameInputRef : null}
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              handleRenameSave(chat.id)
+                            }
+                            if (e.key === 'Escape') {
+                              handleRenameCancel()
+                            }
+                          }}
+                          onBlur={() => handleRenameSave(chat.id)}
+                          maxLength={100}
+                          className="flex-1 min-w-0 px-2 py-1 text-xs font-medium bg-white/10 border border-emerald-500/30 rounded text-white placeholder:text-white/40 focus:outline-none focus:border-emerald-500/50"
+                          disabled={renaming}
+                          autoFocus
+                        />
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleRenameSave(chat.id)}
+                            disabled={renaming}
+                            className="p-1 hover:bg-white/10 rounded text-emerald-400 disabled:opacity-50"
+                            title="Save"
+                          >
+                            {renaming ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Check className="w-3 h-3" />
+                            )}
+                          </button>
+                          <button
+                            onClick={handleRenameCancel}
+                            disabled={renaming}
+                            className="p-1 hover:bg-white/10 rounded text-white/40 disabled:opacity-50"
+                            title="Cancel"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
-                    </button>
-                    
-                    <button
-                      onClick={(e) => handleDeleteClick(e, chat)}
-                      disabled={deletingId === chat.id}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-white/10 rounded text-white/40 hover:text-red-400 disabled:opacity-50"
-                      title="Delete conversation"
-                    >
-                      {deletingId === chat.id ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-3 h-3" />
-                      )}
-                    </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => onSelectChat && onSelectChat(chat.id)}
+                          className="flex-1 min-w-0 text-left"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className={`text-xs font-medium truncate transition-colors ${
+                              isActive ? 'text-white' : 'text-white/70 group-hover:text-white'
+                            }`}>
+                              {truncated}
+                            </span>
+                            <span className="text-[10px] text-white/30 flex-shrink-0 whitespace-nowrap tabular-nums">
+                              {new Date(chat.updated_at || chat.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                            </span>
+                          </div>
+                        </button>
+                        
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={(e) => handleRenameClick(e, chat)}
+                            className="p-1 hover:bg-white/10 rounded text-white/40 hover:text-emerald-400 transition-colors"
+                            title="Rename conversation"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={(e) => handleDeleteClick(e, chat)}
+                            disabled={deletingId === chat.id}
+                            className="p-1 hover:bg-white/10 rounded text-white/40 hover:text-red-400 disabled:opacity-50 transition-colors"
+                            title="Delete conversation"
+                          >
+                            {deletingId === chat.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-3 h-3" />
+                            )}
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )
               })}
@@ -238,6 +352,7 @@ export default function VegaSidebar({ onNewChat, coachMode, setCoachMode, onSele
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
 
       {/* Bottom Actions - Removed Coach Mode as it is now at top */}
       <div className="p-4 border-t border-white/5 space-y-2">

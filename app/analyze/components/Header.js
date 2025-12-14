@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { TrendingUp, ArrowRight, LayoutDashboard, Database, BarChart3, LogOut, ChevronDown, Menu, X, Tag, CreditCard, Brain, Crown, HelpCircle } from 'lucide-react'
-import ThemeToggle from '../../components/ThemeToggle'
+import FeedbackModal from '../../components/FeedbackModal'
 import { getCurrencySymbol } from '../utils/currencyFormatter'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Badge } from '@/components/ui/badge'
@@ -216,6 +216,7 @@ export default function Header({
   const { user } = useAuth()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false)
   const navItems = [
     { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', onClick: onNavigateDashboard, path: '/dashboard' },
     { label: 'Your Data', icon: Database, href: '/data', onClick: onNavigateUpload, path: '/data' },
@@ -299,7 +300,9 @@ export default function Header({
                   const isActive = pathname === item.path || 
                     (item.path === '/dashboard' && pathname?.startsWith('/dashboard')) ||
                     (item.path === '/data' && pathname?.startsWith('/data')) ||
-                    (item.path === '/vega' && pathname?.startsWith('/vega'))
+                    (item.path === '/vega' && pathname?.startsWith('/vega')) ||
+                    (item.path === '/pricing' && pathname === '/pricing') ||
+                    (item.path === '/billing' && pathname === '/billing')
                   return (
                     <NavButton 
                       key={item.label} 
@@ -347,7 +350,12 @@ export default function Header({
               </div>
             )}
 
-            <ThemeToggle />
+            <button
+              onClick={() => setShowFeedbackModal(true)}
+              className="text-xs text-white/50 hover:text-white/80 transition-colors"
+            >
+              Feedback
+            </button>
 
             {user && (
               <UserMenuButton 
@@ -402,7 +410,9 @@ export default function Header({
                   const isActive = pathname === item.path || 
                     (item.path === '/dashboard' && pathname?.startsWith('/dashboard')) ||
                     (item.path === '/data' && pathname?.startsWith('/data')) ||
-                    (item.path === '/vega' && pathname?.startsWith('/vega'))
+                    (item.path === '/vega' && pathname?.startsWith('/vega')) ||
+                    (item.path === '/pricing' && pathname === '/pricing') ||
+                    (item.path === '/billing' && pathname === '/billing')
                   const isDisabled = item.disabled
                   
                   if (isDisabled) {
@@ -490,6 +500,8 @@ export default function Header({
           </div>
         </>
       )}
+
+      <FeedbackModal open={showFeedbackModal} onOpenChange={setShowFeedbackModal} />
     </>
   )
 }

@@ -5,7 +5,6 @@ import { TrendingUp, Shield, Zap, ArrowRight, Sparkles, Lock, Eye, Brain, Trendi
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui'
-import ThemeToggle from './components/ThemeToggle'
 import { useAuth } from '@/lib/AuthContext'
 import Footer from './components/Footer'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'

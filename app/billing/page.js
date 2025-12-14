@@ -1,15 +1,18 @@
 // app/billing/page.js
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
-import { CreditCard, Calendar, CheckCircle, XCircle, AlertCircle, ArrowLeft, Loader2, Download, FileText, HelpCircle } from 'lucide-react'
+import { CreditCard, Calendar, CheckCircle, XCircle, AlertCircle, Loader2, Download, FileText, HelpCircle } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { getTierDisplayName } from '@/lib/featureGates'
 import { toast } from 'sonner'
 import Footer from '../components/Footer'
-import UsageLimits from '../components/UsageLimits'
+import Header from '../analyze/components/Header'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+
+// Lazy load UsageLimits - not critical for initial render
+const UsageLimits = lazy(() => import('../components/UsageLimits'))
 import {
   AlertDialog,
   AlertDialogAction,
@@ -211,21 +214,25 @@ export default function BillingPage() {
   const isPastDue = subscription?.status === 'past_due'
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      {/* Header */}
-      <div className="border-b border-white/10 bg-black/80 backdrop-blur-xl">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="text-sm text-white/60 hover:text-white/90 transition-colors flex items-center gap-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
-          </button>
-        </div>
-      </div>
+    <div className="min-h-screen bg-black text-white flex flex-col">
+      <Header
+        exchangeConfig={null}
+        currencyMetadata={null}
+        currency="USD"
+        setCurrency={() => {}}
+        onNavigateDashboard={() => router.push('/dashboard')}
+        onNavigateUpload={() => router.push('/data')}
+        onNavigateAll={() => router.push('/analyze')}
+        onNavigateVega={() => router.push('/vega')}
+        onSignOut={async () => {
+          await fetch('/api/auth/signout', { method: 'POST' })
+          router.push('/')
+        }}
+        hasDataSources={false}
+        isDemoMode={false}
+      />
 
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-12">
+      <div className="flex-1 mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-12">
         <h1 className="text-3xl font-semibold mb-8 text-white/90">Billing & Subscription</h1>
 
         {/* Current Plan */}
@@ -350,7 +357,9 @@ export default function BillingPage() {
         {/* Usage */}
         {subscription?.tier !== 'free' && (
           <div className="rounded-xl border border-white/10 bg-black p-6 mb-6">
-            <UsageLimits subscription={subscription} />
+            <Suspense fallback={<div className="flex items-center justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-white/70" /></div>}>
+              <UsageLimits subscription={subscription} />
+            </Suspense>
           </div>
         )}
 
