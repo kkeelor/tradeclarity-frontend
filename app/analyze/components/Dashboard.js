@@ -890,13 +890,26 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
       const data = await response.json()
 
       if (data.success) {
-        const formatted = data.connections.map(conn => ({
-          id: conn.id,
-          name: conn.exchange.charAt(0).toUpperCase() + conn.exchange.slice(1),
-          exchange: conn.exchange,
-          connectedAt: conn.created_at,
-          lastSynced: conn.last_synced || conn.updated_at || conn.created_at
-        }))
+        const formatted = data.connections.map(conn => {
+          // For Snaptrade, use brokerage name if available, otherwise use "Snaptrade"
+          let displayName = conn.exchange.charAt(0).toUpperCase() + conn.exchange.slice(1)
+          if (conn.exchange === 'snaptrade' && conn.primary_brokerage) {
+            displayName = `Snaptrade - ${conn.primary_brokerage}`
+          } else if (conn.exchange === 'snaptrade' && conn.brokerage_names && conn.brokerage_names.length > 0) {
+            // Fallback to first brokerage if primary_brokerage not set
+            displayName = `Snaptrade - ${conn.brokerage_names[0]}`
+          }
+          
+          return {
+            id: conn.id,
+            name: displayName,
+            exchange: conn.exchange,
+            connectedAt: conn.created_at,
+            lastSynced: conn.last_synced || conn.updated_at || conn.created_at,
+            primaryBrokerage: conn.primary_brokerage,
+            brokerageNames: conn.brokerage_names
+          }
+        })
         setConnectedExchanges(formatted)
       } else {
       }
@@ -2106,7 +2119,11 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                                             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
                                           </span>
                                           <span className="text-emerald-400 font-medium">
-                                            {exchange.exchange === 'snaptrade' ? 'Brokerage' : 'API'}
+                                            {exchange.exchange === 'snaptrade' 
+                                              ? (exchange.primaryBrokerage || exchange.brokerageNames?.[0] 
+                                                  ? exchange.primaryBrokerage || exchange.brokerageNames[0]
+                                                  : 'Brokerage')
+                                              : 'API'}
                                           </span>
                                         </div>
                                         {linkedCount > 0 && (

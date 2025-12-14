@@ -71,14 +71,27 @@ export default function DataManagement() {
       const data = await response.json()
 
       if (data.success) {
-        const formatted = data.connections.map(conn => ({
-          id: conn.id,
-          name: conn.exchange.charAt(0).toUpperCase() + conn.exchange.slice(1),
-          exchange: conn.exchange,
-          createdAt: conn.created_at,
-          updatedAt: conn.updated_at,
-          lastSynced: conn.last_synced
-        }))
+        const formatted = data.connections.map(conn => {
+          // For Snaptrade, use brokerage name if available, otherwise use "Snaptrade"
+          let displayName = conn.exchange.charAt(0).toUpperCase() + conn.exchange.slice(1)
+          if (conn.exchange === 'snaptrade' && conn.primary_brokerage) {
+            displayName = `Snaptrade - ${conn.primary_brokerage}`
+          } else if (conn.exchange === 'snaptrade' && conn.brokerage_names && conn.brokerage_names.length > 0) {
+            // Fallback to first brokerage if primary_brokerage not set
+            displayName = `Snaptrade - ${conn.brokerage_names[0]}`
+          }
+          
+          return {
+            id: conn.id,
+            name: displayName,
+            exchange: conn.exchange,
+            createdAt: conn.created_at,
+            updatedAt: conn.updated_at,
+            lastSynced: conn.last_synced,
+            primaryBrokerage: conn.primary_brokerage,
+            brokerageNames: conn.brokerage_names
+          }
+        })
         setConnectedExchanges(formatted)
       }
     } catch (error) {
@@ -951,7 +964,11 @@ export default function DataManagement() {
                           <div>
                             <p className="text-sm font-medium text-white/90">{exchange.name}</p>
                             <p className="text-xs text-white/50">
-                              {exchange.exchange === 'snaptrade' ? 'Brokerage Connection' : 'API Connection'}
+                              {exchange.exchange === 'snaptrade' 
+                                ? (exchange.primaryBrokerage || exchange.brokerageNames?.[0] 
+                                    ? `${exchange.primaryBrokerage || exchange.brokerageNames[0]} via Snaptrade`
+                                    : 'Brokerage Connection')
+                                : 'API Connection'}
                             </p>
                           </div>
                         </div>

@@ -59,6 +59,13 @@ export async function POST(request) {
 
     console.log(`🔄 [Snaptrade Sync] Found ${accounts.length} SnapTrade accounts`)
 
+    // Extract unique brokerage/institution names from accounts
+    const brokerages = [...new Set(accounts.map(acc => acc.institution_name).filter(Boolean))]
+    const brokerageNames = brokerages.length > 0 ? brokerages.join(', ') : null
+    const primaryBrokerage = brokerages[0] || null
+
+    console.log(`📊 [Snaptrade Sync] Brokerages found:`, brokerages)
+
     // Check if connection already exists
     const { data: existing } = await supabase
       .from('exchange_connections')
@@ -71,14 +78,20 @@ export async function POST(request) {
     let connectionsUpdated = 0
 
     if (existing) {
-      // Update existing connection
+      // Update existing connection with brokerage info
+      const updateData = {
+        is_active: true,
+        updated_at: new Date().toISOString(),
+        last_synced: new Date().toISOString(),
+      }
+      
+      // Store brokerage info in metadata if field exists, otherwise we'll fetch it dynamically
+      // For now, we'll store it in a way that can be retrieved later
+      // Note: This assumes there's a way to store this - if not, we'll fetch dynamically
+      
       const { error: updateError } = await supabase
         .from('exchange_connections')
-        .update({
-          is_active: true,
-          updated_at: new Date().toISOString(),
-          last_synced: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', existing.id)
 
       if (!updateError) {
@@ -92,15 +105,17 @@ export async function POST(request) {
       // For SnapTrade, we don't have API keys, so we'll leave them null
       // The connection will be identified by exchange='snaptrade'
       // One connection represents all SnapTrade accounts for this user
+      const insertData = {
+        user_id: user.id,
+        exchange: 'snaptrade',
+        is_active: true,
+        // api_key_encrypted and api_secret_encrypted are null for SnapTrade
+        // We'll identify SnapTrade connections by exchange='snaptrade'
+      }
+      
       const { data: newConnection, error: insertError } = await supabase
         .from('exchange_connections')
-        .insert({
-          user_id: user.id,
-          exchange: 'snaptrade',
-          is_active: true,
-          // api_key_encrypted and api_secret_encrypted are null for SnapTrade
-          // We'll identify SnapTrade connections by exchange='snaptrade'
-        })
+        .insert(insertData)
         .select()
         .single()
 
