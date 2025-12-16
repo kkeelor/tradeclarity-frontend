@@ -2,6 +2,8 @@
 import { createClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * Delete an exchange connection and handle associated data
  *
@@ -12,10 +14,23 @@ import { NextResponse } from 'next/server'
  *    - If deleteLinkedCSVs = true: Delete CSV files (cascade deletes their trades)
  *    - If deleteLinkedCSVs = false: Unlink CSVs (set exchange_connection_id = null)
  * 4. Delete the exchange connection
+ *
+ * Special handling for Snaptrade:
+ * - When deleting a Snaptrade connection (exchange === 'snaptrade'), we delete the
+ *   exchange_connection record but PRESERVE the snaptrade_users record.
+ * - The same Snaptrade user ID is used for all brokerages, so it must not be deleted.
  */
 export async function POST(request) {
   try {
     const supabase = await createClient()
+    
+    if (!supabase) {
+      console.error('❌ Failed to create Supabase client')
+      return NextResponse.json(
+        { error: 'Failed to initialize database connection' },
+        { status: 500 }
+      )
+    }
 
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -35,11 +50,84 @@ export async function POST(request) {
     console.log(`🗑️  Deleting exchange connection ${connectionId}...`)
     console.log(`   - Delete linked CSVs: ${deleteLinkedCSVs}`)
 
+    // Handle Snaptrade placeholder IDs (format: "snaptrade-{uuid}")
+    // These are temporary IDs created by the list endpoint when no exchange_connection exists
+    let actualConnectionId = connectionId
+    
+    if (connectionId.startsWith('snaptrade-')) {
+      console.log('⚠️ Detected Snaptrade placeholder ID, looking up actual connection')
+      // Look up the actual connection by user_id and exchange='snaptrade'
+      const { data: actualConnections, error: lookupError } = await supabase
+        .from('exchange_connections')
+        .select('id, exchange, user_id')
+        .eq('user_id', user.id)
+        .eq('exchange', 'snaptrade')
+        .limit(1)
+      
+      if (lookupError) {
+        console.error('❌ Error looking up Snaptrade connection:', lookupError)
+        return NextResponse.json(
+          { error: 'Failed to find Snaptrade connection', details: lookupError.message },
+          { status: 500 }
+        )
+      }
+      
+      if (!actualConnections || actualConnections.length === 0) {
+        // No actual connection exists - this is just a placeholder
+        // Return success since there's nothing to delete
+        console.log('ℹ️ No actual Snaptrade connection found (placeholder only)')
+        return NextResponse.json({
+          success: true,
+          message: 'No connection to delete (placeholder only)',
+          apiTradesDeleted: 0,
+          csvFilesDeleted: 0,
+          csvFilesUnlinked: 0,
+          csvTradesDeleted: 0,
+          totalTradesDeleted: 0
+        })
+      }
+      
+      actualConnectionId = actualConnections[0].id
+      console.log(`✅ Found actual connection ID: ${actualConnectionId}`)
+    }
+
+    // First, fetch the connection to check if it's a Snaptrade connection
+    const { data: connections, error: fetchConnectionError } = await supabase
+      .from('exchange_connections')
+      .select('id, exchange, user_id')
+      .eq('id', actualConnectionId)
+      .eq('user_id', user.id)
+      .limit(1)
+
+    if (fetchConnectionError) {
+      console.error('Error fetching connection:', fetchConnectionError)
+      return NextResponse.json(
+        { error: 'Failed to fetch exchange connection', details: fetchConnectionError.message },
+        { status: 500 }
+      )
+    }
+
+    const connection = connections && connections.length > 0 ? connections[0] : null
+
+    if (!connection) {
+      console.error('Connection not found:', connectionId)
+      return NextResponse.json(
+        { error: 'Exchange connection not found' },
+        { status: 404 }
+      )
+    }
+
+    const isSnaptradeConnection = connection.exchange === 'snaptrade'
+    
+    if (isSnaptradeConnection) {
+      console.log('📌 [Snaptrade Delete] Detected Snaptrade connection - will preserve snaptrade_users record')
+    }
+
     // Step 1: Delete all API-imported trades for this connection
     const { data: deletedApiTrades, error: apiTradesError } = await supabase
       .from('trades')
       .delete()
-      .eq('exchange_connection_id', connectionId)
+      .eq('exchange_connection_id', actualConnectionId)
       .eq('user_id', user.id)
       .select('id')
 
@@ -58,7 +146,7 @@ export async function POST(request) {
     const { data: deletedSnapshots, error: snapshotsError } = await supabase
       .from('portfolio_snapshots')
       .delete()
-      .eq('connection_id', connectionId)
+      .eq('connection_id', actualConnectionId)
       .eq('user_id', user.id)
       .select('id')
 
@@ -81,7 +169,7 @@ export async function POST(request) {
       const { data: deletedCSVs, error: csvDeleteError } = await supabase
         .from('csv_uploads')
         .delete()
-        .eq('exchange_connection_id', connectionId)
+        .eq('exchange_connection_id', actualConnectionId)
         .eq('user_id', user.id)
         .select('id, trades_count')
 
@@ -101,7 +189,7 @@ export async function POST(request) {
       const { data: unlinkedCSVs, error: csvUnlinkError } = await supabase
         .from('csv_uploads')
         .update({ exchange_connection_id: null })
-        .eq('exchange_connection_id', connectionId)
+        .eq('exchange_connection_id', actualConnectionId)
         .eq('user_id', user.id)
         .select('id')
 
@@ -117,11 +205,11 @@ export async function POST(request) {
       console.log(`✅ Unlinked ${csvFilesUnlinked} CSV files (kept trades)`)
     }
 
-    // Step 3: Delete the exchange connection itself
+    // Step 4: Delete the exchange connection itself
     const { error: deleteError } = await supabase
       .from('exchange_connections')
       .delete()
-      .eq('id', connectionId)
+      .eq('id', actualConnectionId)
       .eq('user_id', user.id)
 
     if (deleteError) {
@@ -133,6 +221,12 @@ export async function POST(request) {
     }
 
     console.log(`✅ Exchange connection deleted successfully`)
+    
+    // IMPORTANT: For Snaptrade connections, we do NOT delete the snaptrade_users record
+    // The same Snaptrade user ID is used for all brokerages, so it must be preserved
+    if (isSnaptradeConnection) {
+      console.log('✅ [Snaptrade Delete] Exchange connection deleted - snaptrade_users record preserved (same ID used for all brokerages)')
+    }
 
     const totalTradesDeleted = apiTradesDeleted + csvTradesDeleted
 

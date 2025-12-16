@@ -90,14 +90,17 @@ export default function VegaDashboardWidget({ onStartChat, className = '' }) {
   // Case 1: Pre-existing chats
   return (
     <div className={`flex flex-col h-full overflow-hidden ${className}`}>
-      <div className="flex items-center justify-between px-5 py-4">
-        <div className="flex items-center gap-2.5">
-          <Brain className="w-5 h-5 text-emerald-400" />
-          <h3 className="font-semibold text-white/90">Vega AI</h3>
+      <div className="flex items-start justify-between px-5 py-4">
+        <div className="flex items-start gap-2.5 flex-1 min-w-0">
+          <Brain className="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-white/90">Vega AI</h3>
+            <p className="text-xs text-white/50 mt-0.5">Pick up where you left off</p>
+          </div>
         </div>
         <button
           onClick={handleNewChat}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-lg transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-lg transition-colors flex-shrink-0 ml-3"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>New Chat</span>
@@ -110,28 +113,32 @@ export default function VegaDashboardWidget({ onStartChat, className = '' }) {
         </div>
         
         {recentChats.map((chat) => {
-          // Clean and truncate summary text intelligently
-          let summaryText = chat.summary || 'Trading Analysis'
+          // Prefer title (user-renamed) over summary (AI-generated) for display
+          // Summary is preserved for AI context, title is for user labeling
+          let displayText = chat.title || chat.summary || 'Trading Analysis'
           
-          // Remove common prefixes and suffixes
-          summaryText = summaryText
-            .replace(/^Trading performance[:\s-]+/i, '')
-            .replace(/^Trading analysis[:\s-]+/i, '')
-            .replace(/\s+summary$/i, '')
-            .trim()
-          
-          // Remove trailing punctuation (colons, periods, etc.)
-          summaryText = summaryText.replace(/[:;.,!?]+$/, '').trim()
+          // Only clean summary text if we're using summary (not user-renamed title)
+          if (!chat.title) {
+            // Remove common prefixes and suffixes
+            displayText = displayText
+              .replace(/^Trading performance[:\s-]+/i, '')
+              .replace(/^Trading analysis[:\s-]+/i, '')
+              .replace(/\s+summary$/i, '')
+              .trim()
+            
+            // Remove trailing punctuation (colons, periods, etc.)
+            displayText = displayText.replace(/[:;.,!?]+$/, '').trim()
+          }
           
           // Truncate to max 40 characters, but don't cut words
           const maxLength = 40
-          if (summaryText.length <= maxLength) {
-            summaryText = summaryText
+          if (displayText.length <= maxLength) {
+            displayText = displayText
           } else {
             // Find the last space before the max length to avoid cutting words
-            const truncated = summaryText.substring(0, maxLength)
+            const truncated = displayText.substring(0, maxLength)
             const lastSpace = truncated.lastIndexOf(' ')
-            summaryText = lastSpace > 20 
+            displayText = lastSpace > 20 
               ? truncated.substring(0, lastSpace) 
               : truncated
           }
@@ -143,7 +150,7 @@ export default function VegaDashboardWidget({ onStartChat, className = '' }) {
               className="w-full flex items-center justify-between gap-3 px-2 py-1.5 rounded-lg hover:bg-white/5 text-left group transition-colors"
             >
               <span className="text-xs font-medium text-white/70 group-hover:text-white truncate transition-colors flex-1 min-w-0">
-                {summaryText}
+                {displayText}
               </span>
               <span className="text-[10px] text-white/30 flex-shrink-0 whitespace-nowrap tabular-nums">
                 {new Date(chat.updated_at || chat.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}

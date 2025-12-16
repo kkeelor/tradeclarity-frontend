@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { TrendingUp, Lock, Loader2, AlertCircle, Eye, EyeOff, Mail, Shield, Sparkles, X, User, ChevronRight, Plus } from 'lucide-react';
-import { signUpWithEmail, signInWithEmail, signInWithGoogle } from '@/lib/auth';
+import { signUpWithEmail, signInWithEmail, signInWithGoogle, resetPasswordForEmail } from '@/lib/auth';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,7 +13,7 @@ import { Form } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
 
 export default function AuthScreen({ onAuthSuccess }) {
-  const [mode, setMode] = useState('signin'); // 'signin' or 'signup'
+  const [mode, setMode] = useState('signin'); // 'signin', 'signup', or 'forgot-password'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -24,6 +24,7 @@ export default function AuthScreen({ onAuthSuccess }) {
   const [cachedEmail, setCachedEmail] = useState(null);
   const [previousGoogleAccounts, setPreviousGoogleAccounts] = useState([]);
   const [showAccountPicker, setShowAccountPicker] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
   
   const form = useForm({
     defaultValues: {
@@ -52,6 +53,33 @@ export default function AuthScreen({ onAuthSuccess }) {
       }
     }
   }, []);
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    if (!email) {
+      setError('Please enter your email address');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await resetPasswordForEmail(email);
+      if (error) throw error;
+
+      setResetEmailSent(true);
+      toast.success('Reset email sent', {
+        description: 'Check your inbox for password reset instructions',
+        duration: 5000
+      });
+    } catch (err) {
+      setError(err.message || 'Failed to send reset email');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleEmailAuth = async (e) => {
     e.preventDefault();
@@ -197,12 +225,14 @@ export default function AuthScreen({ onAuthSuccess }) {
           </div>
           <div className="space-y-2">
             <h1 className="text-3xl font-bold tracking-tight text-white/90">
-              {mode === 'signup' ? 'Create an account' : 'Welcome back'}
+              {mode === 'forgot-password' ? 'Reset Password' : 'Welcome'}
             </h1>
             <p className="text-white/50 text-sm">
-              {mode === 'signup' 
-                ? 'Start analyzing your trades in minutes' 
-                : 'Enter your details to access your dashboard'}
+              {mode === 'forgot-password' 
+                ? 'Enter your email address and we\'ll send you reset instructions'
+                : mode === 'signup'
+                ? 'Start analyzing your trades in minutes'
+                : 'Please enter your credentials or sign up for a new account'}
             </p>
           </div>
         </div>
@@ -376,7 +406,7 @@ export default function AuthScreen({ onAuthSuccess }) {
 
             {/* Email/Password Form */}
             <Form {...form}>
-              <form onSubmit={handleEmailAuth} className="space-y-4">
+              <form onSubmit={mode === 'forgot-password' ? handleForgotPassword : handleEmailAuth} className="space-y-4">
               {mode === 'signup' && (
                 <div className="space-y-2">
                   <Label htmlFor="name" className="text-xs font-medium text-white/70">
@@ -393,6 +423,15 @@ export default function AuthScreen({ onAuthSuccess }) {
                     disabled={loading}
                   />
                 </div>
+              )}
+
+              {mode === 'forgot-password' && resetEmailSent && (
+                <Alert className="bg-emerald-500/10 border-emerald-500/20 text-emerald-400">
+                  <AlertCircle className="w-4 h-4" />
+                  <AlertDescription className="text-xs">
+                    Password reset email sent! Check your inbox and click the link to reset your password.
+                  </AlertDescription>
+                </Alert>
               )}
 
               <div className="space-y-2">
@@ -414,42 +453,59 @@ export default function AuthScreen({ onAuthSuccess }) {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-xs font-medium text-white/70">
-                  Password
-                </Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter password"
-                    className="pl-10 pr-12 h-11 bg-black/50 border-white/10 text-white placeholder-white/20 focus:border-emerald-500/50 focus:ring-emerald-500/20"
-                    required
-                    disabled={loading}
-                    minLength={8}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70 transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                {mode === 'signup' && (
-                  <div className="pt-1 space-y-1">
-                    <p className="text-[10px] font-medium text-white/40 mb-1.5">Password strength:</p>
-                    <div className="grid grid-cols-3 gap-1">
-                      <div className={`h-1 rounded-full transition-all ${password.length >= 8 ? 'bg-emerald-500' : 'bg-white/10'}`} />
-                      <div className={`h-1 rounded-full transition-all ${/[a-zA-Z]/.test(password) && password.length >= 4 ? 'bg-emerald-500' : 'bg-white/10'}`} />
-                      <div className={`h-1 rounded-full transition-all ${/\d/.test(password) && password.length >= 6 ? 'bg-emerald-500' : 'bg-white/10'}`} />
-                    </div>
+              {mode !== 'forgot-password' && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password" className="text-xs font-medium text-white/70">
+                      Password
+                    </Label>
+                    {mode === 'signin' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMode('forgot-password');
+                          setError('');
+                        }}
+                        className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors hover:underline"
+                        disabled={loading}
+                      >
+                        Forgot password?
+                      </button>
+                    )}
                   </div>
-                )}
-              </div>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter password"
+                      className="pl-10 pr-12 h-11 bg-black/50 border-white/10 text-white placeholder-white/20 focus:border-emerald-500/50 focus:ring-emerald-500/20"
+                      required={mode !== 'forgot-password'}
+                      disabled={loading}
+                      minLength={8}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70 transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {mode === 'signup' && (
+                    <div className="pt-1 space-y-1">
+                      <p className="text-[10px] font-medium text-white/40 mb-1.5">Password strength:</p>
+                      <div className="grid grid-cols-3 gap-1">
+                        <div className={`h-1 rounded-full transition-all ${password.length >= 8 ? 'bg-emerald-500' : 'bg-white/10'}`} />
+                        <div className={`h-1 rounded-full transition-all ${/[a-zA-Z]/.test(password) && password.length >= 4 ? 'bg-emerald-500' : 'bg-white/10'}`} />
+                        <div className={`h-1 rounded-full transition-all ${/\d/.test(password) && password.length >= 6 ? 'bg-emerald-500' : 'bg-white/10'}`} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {error && (
                 <Alert variant="destructive" className="bg-red-500/10 border-red-500/20 text-red-400">
@@ -466,11 +522,19 @@ export default function AuthScreen({ onAuthSuccess }) {
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    {mode === 'signup' ? 'Creating account...' : 'Signing in...'}
+                    {mode === 'forgot-password' 
+                      ? 'Sending...' 
+                      : mode === 'signup' 
+                      ? 'Creating account...' 
+                      : 'Signing in...'}
                   </>
                 ) : (
                   <>
-                    {mode === 'signup' ? 'Create Account' : 'Sign In'}
+                    {mode === 'forgot-password' 
+                      ? 'Send Reset Link' 
+                      : mode === 'signup' 
+                      ? 'Create Account' 
+                      : 'Sign In'}
                   </>
                 )}
               </button>
@@ -479,7 +543,22 @@ export default function AuthScreen({ onAuthSuccess }) {
 
             {/* Toggle Mode */}
             <div className="text-center">
-              {mode === 'signin' ? (
+              {mode === 'forgot-password' ? (
+                <p className="text-sm text-white/40">
+                  Remember your password?{' '}
+                  <button
+                    onClick={() => {
+                      setMode('signin');
+                      setError('');
+                      setResetEmailSent(false);
+                    }}
+                    className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors hover:underline underline-offset-4"
+                    disabled={loading}
+                  >
+                    Sign in
+                  </button>
+                </p>
+              ) : mode === 'signin' ? (
                 <p className="text-sm text-white/40">
                   Don't have an account?{' '}
                   <button

@@ -1143,9 +1143,6 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
       const data = await response.json()
 
       if (response.ok) {
-        // Remove from list
-        setConnectedExchanges(prev => prev.filter(ex => ex.id !== deletingExchange.id))
-
         // Show success message
         const message = deleteLinkedCSVs
           ? `Exchange disconnected. ${data.totalTradesDeleted} trades and ${data.csvFilesDeleted} CSV files deleted.`
@@ -1155,6 +1152,9 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
           description: message,
           duration: 8000
         })
+
+        // Refresh exchange list from server to ensure UI is up to date
+        await fetchConnectedExchanges()
 
         // Refresh files list if CSVs were affected
         if (deleteLinkedCSVs || data.csvFilesUnlinked > 0) {

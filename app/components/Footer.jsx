@@ -32,6 +32,8 @@ export default function Footer() {
       <div className="flex flex-wrap items-center justify-center gap-4 text-xs">
         <Link href="/pricing" className="hover:text-emerald-400 transition-colors font-medium">Pricing</Link>
         <Separator className="text-slate-700" />
+        <Link href="/billing" className="hover:text-emerald-400 transition-colors font-medium">Billing</Link>
+        <Separator className="text-slate-700" />
         <Link href="/faq" className="hover:text-emerald-400 transition-colors font-medium">FAQ</Link>
         <Separator className="text-slate-700" />
         <Link href="/contact" className="hover:text-emerald-400 transition-colors font-medium">Contact Us</Link>

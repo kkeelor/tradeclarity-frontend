@@ -7,7 +7,6 @@ import { useAuth } from '@/lib/AuthContext'
 import AuthScreen from '../analyze/components/AuthScreen'
 import AIChat from '../analyze/components/AIChat'
 import Header from '../analyze/components/Header'
-import { useMultipleTabs } from '@/lib/hooks/useMultipleTabs'
 import { Loader2, Brain, Sparkles, Zap, TrendingUp, Shield, ArrowRight } from 'lucide-react'
 import AuthModal from '../components/AuthModal'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
@@ -31,7 +30,6 @@ export default function VegaContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, loading: authLoading } = useAuth()
-  useMultipleTabs() // Register this tab for multi-tab detection
   const [analytics, setAnalytics] = useState(null)
   const [allTrades, setAllTrades] = useState([])
   const [tradesStats, setTradesStats] = useState(null)
@@ -111,18 +109,6 @@ export default function VegaContent() {
     }
   }, [isDemoMode, isDemoRequested])
 
-  // Listen for switch requests from other tabs
-  useEffect(() => {
-    const handleStorageChange = (e) => {
-      if (e.key === 'tradeclarity_switch_to_dashboard' && window.location.pathname === '/vega') {
-        // This tab is VegaAI - focus it
-        window.focus()
-        localStorage.removeItem('tradeclarity_switch_to_dashboard')
-      }
-    }
-    window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
-  }, [])
 
   // OPTIMIZATION: Store API fetch promises to start early
   // Store promises that resolve to parsed JSON data, not Response objects

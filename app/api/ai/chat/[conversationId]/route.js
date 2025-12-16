@@ -173,3 +173,82 @@ export async function GET(request, { params }) {
     )
   }
 }
+
+export async function PATCH(request, { params }) {
+  try {
+    const { conversationId } = await params
+    
+    if (!conversationId) {
+      return NextResponse.json(
+        { error: 'Conversation ID is required' },
+        { status: 400 }
+      )
+    }
+
+    const body = await request.json()
+    const { title } = body
+
+    if (!title || typeof title !== 'string' || title.trim().length === 0) {
+      return NextResponse.json(
+        { error: 'Title is required' },
+        { status: 400 }
+      )
+    }
+
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    // Verify conversation belongs to user and update title (NOT summary)
+    // Title is for display only - summary is preserved for AI context
+    const { data: updatedConversation, error: updateError } = await supabase
+      .from('ai_conversations')
+      .update({ 
+        title: title.trim(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', conversationId)
+      .eq('user_id', user.id)
+      .select()
+      .single()
+
+    if (updateError) {
+      console.error('Error updating conversation:', updateError)
+      if (updateError.code === 'PGRST116') {
+        return NextResponse.json(
+          { error: 'Conversation not found' },
+          { status: 404 }
+        )
+      }
+      return NextResponse.json(
+        { error: 'Failed to update conversation' },
+        { status: 500 }
+      )
+    }
+
+    if (!updatedConversation) {
+      return NextResponse.json(
+        { error: 'Conversation not found' },
+        { status: 404 }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      conversation: updatedConversation
+    })
+
+  } catch (error) {
+    console.error('Update conversation error:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
