@@ -66,6 +66,24 @@ export default function AuthScreen({ onAuthSuccess }) {
     }
 
     try {
+      // First, check if email exists in the database
+      const checkResponse = await fetch('/api/auth/check-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const checkData = await checkResponse.json();
+
+      if (!checkData.exists) {
+        setError('No account found with this email address. Please check your email and try again.');
+        setLoading(false);
+        return;
+      }
+
+      // Email exists, proceed with sending reset email
       const { data, error } = await resetPasswordForEmail(email);
       if (error) throw error;
 
