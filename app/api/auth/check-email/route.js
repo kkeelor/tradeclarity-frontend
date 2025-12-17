@@ -19,25 +19,59 @@ export async function POST(request) {
     // Use admin client to check if user exists
     const adminClient = createAdminClient()
     
-    // Check if user exists by email using admin API
-    const { data: userData, error } = await adminClient.auth.admin.getUserByEmail(normalizedEmail)
-
-    if (error) {
-      // If error is "User not found", email doesn't exist
-      if (error.message?.includes('not found') || error.status === 404) {
-        return NextResponse.json({ exists: false })
+    // Method 1: Try getUserByEmail (if it exists in the API)
+    try {
+      const { data: userData, error } = await adminClient.auth.admin.getUserByEmail(normalizedEmail)
+      
+      if (!error && userData?.user) {
+        console.log(`✅ Email found via getUserByEmail: ${normalizedEmail}`)
+        return NextResponse.json({ exists: true })
       }
-      // Other errors (permissions, etc.)
-      console.error('Error checking email:', error)
-      // For security, don't reveal if email exists on error
-      // Return false to prevent email enumeration
-      return NextResponse.json({ exists: false })
+      
+      // If getUserByEmail doesn't exist or returns error, fall through to Method 2
+      if (error && !error.message?.includes('not found') && error.status !== 404) {
+        console.warn('getUserByEmail error (trying alternative):', error.message)
+      }
+    } catch (methodError) {
+      // Method doesn't exist or failed, try alternative
+      console.log('getUserByEmail not available, trying listUsers...')
     }
 
-    // User exists if we got user data
-    const exists = !!userData?.user
+    // Method 2: Check the users table directly (more reliable)
+    const { data: dbUser, error: dbError } = await adminClient
+      .from('users')
+      .select('id, email')
+      .eq('email', normalizedEmail)
+      .maybeSingle()
 
-    return NextResponse.json({ exists })
+    if (!dbError && dbUser) {
+      console.log(`✅ Email found in users table: ${normalizedEmail}`)
+      return NextResponse.json({ exists: true })
+    }
+
+    // Method 3: Fallback to listing auth users (less efficient but works)
+    try {
+      const { data: authUsers, error: authError } = await adminClient.auth.admin.listUsers()
+      
+      if (!authError && authUsers?.users) {
+        const userExists = authUsers.users.some(u => 
+          u.email?.toLowerCase().trim() === normalizedEmail
+        )
+        
+        if (userExists) {
+          console.log(`✅ Email found via listUsers: ${normalizedEmail}`)
+          return NextResponse.json({ exists: true })
+        }
+      } else if (authError) {
+        console.error('Error listing users:', authError)
+      }
+    } catch (listError) {
+      console.error('Error in listUsers fallback:', listError)
+    }
+
+    // Email not found in any method
+    console.log(`❌ Email not found: ${normalizedEmail}`)
+    return NextResponse.json({ exists: false })
   } catch (error) {
     console.error('Error in check-email route:', error)
     // For security, don't reveal if email exists on error
