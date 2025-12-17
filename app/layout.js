@@ -80,9 +80,6 @@ export const metadata = {
   alternates: {
     canonical: 'https://www.tradeclarity.xyz',
   },
-  other: {
-    'google-adsense-account': 'ca-pub-2847661132506472',
-  },
 }
 
 export const viewport = {
@@ -121,13 +118,6 @@ export default function RootLayout({ children }) {
             gtag('config', 'AW-11532080045');
           `}
         </Script>
-        {/* Google AdSense */}
-        <Script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2847661132506472"
-          crossOrigin="anonymous"
-          strategy="afterInteractive"
-        />
         <OrganizationSchema />
         <SoftwareApplicationSchema />
         <WebSiteSchema />

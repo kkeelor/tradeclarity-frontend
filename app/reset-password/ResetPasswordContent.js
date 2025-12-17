@@ -22,61 +22,83 @@ export default function ResetPasswordContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [tokenValidated, setTokenValidated] = useState(false)
+  const [checkingToken, setCheckingToken] = useState(true)
 
   // Handle Supabase password reset token from URL hash
   useEffect(() => {
     if (authLoading || typeof window === 'undefined') return
 
-    const handleTokenExchange = async () => {
-      const hash = window.location.hash
-      
-      // Check if we have a reset token in the URL hash
+    let isMounted = true
+    const hash = window.location.hash
+    
+    const validateToken = async () => {
       if (hash && hash.includes('access_token')) {
-        try {
-          // Parse the hash to extract tokens
-          const hashParams = new URLSearchParams(hash.substring(1))
-          const accessToken = hashParams.get('access_token')
-          const refreshToken = hashParams.get('refresh_token')
-          const type = hashParams.get('type')
-
-          // Verify this is a password recovery token
-          if (type === 'recovery' && accessToken) {
-            // Set the session with the recovery tokens
+        // Parse hash to extract tokens
+        const hashParams = new URLSearchParams(hash.substring(1))
+        const accessToken = hashParams.get('access_token')
+        const refreshToken = hashParams.get('refresh_token')
+        
+        if (accessToken) {
+          console.log('🔄 Setting session from hash token...')
+          try {
             const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
               access_token: accessToken,
               refresh_token: refreshToken || '',
             })
-
+            
+            if (!isMounted) return
+            
             if (sessionError) {
-              console.error('Error setting session:', sessionError)
+              console.error('❌ Error setting session:', sessionError)
               setError('Invalid or expired reset link. Please request a new password reset.')
+              setCheckingToken(false)
               return
             }
 
-            if (sessionData.session) {
+            if (sessionData?.session?.user) {
+              console.log('✅ Session established successfully')
               setTokenValidated(true)
+              setError('')
+              setCheckingToken(false)
               // Clear the hash from URL for security
               window.history.replaceState(null, '', window.location.pathname)
+            } else {
+              console.error('❌ No session in response')
+              setError('Invalid or expired reset link. Please request a new password reset.')
+              setCheckingToken(false)
             }
-          } else {
-            setError('Invalid reset link. Please request a new password reset.')
+          } catch (err) {
+            if (!isMounted) return
+            console.error('❌ Exception setting session:', err)
+            setError('Invalid or expired reset link. Please request a new password reset.')
+            setCheckingToken(false)
           }
-        } catch (err) {
-          console.error('Error processing reset token:', err)
-          setError('Invalid or expired reset link. Please request a new password reset.')
+        } else {
+          setError('Invalid reset link. Please request a new password reset.')
+          setCheckingToken(false)
         }
       } else {
-        // No token in hash - check if user is already authenticated (might have valid session)
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session) {
-          setTokenValidated(true)
+        // No hash - check for existing session
+        const { data: { session }, error } = await supabase.auth.getSession()
+        
+        if (!isMounted) return
+        
+        setCheckingToken(false)
+        
+        if (session?.user) {
+          // User has a session but no hash - might be wrong page
+          setError('Please use the password reset link from your email.')
         } else {
           setError('Invalid or expired reset link. Please request a new password reset.')
         }
       }
     }
 
-    handleTokenExchange()
+    validateToken()
+
+    return () => {
+      isMounted = false
+    }
   }, [authLoading])
 
   // Redirect if already logged in (but not from reset flow)
@@ -115,8 +137,26 @@ export default function ResetPasswordContent() {
 
     setLoading(true)
     try {
-      const { data, error } = await updatePassword(password)
-      if (error) throw error
+      // Verify we still have a valid session before updating password
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      
+      if (sessionError || !session) {
+        throw new Error('Session expired. Please request a new password reset link.')
+      }
+
+      // Update password using Supabase client directly (must have active session)
+      const { data, error } = await supabase.auth.updateUser({
+        password: password
+      })
+
+      if (error) {
+        console.error('Password update error:', error)
+        // Provide more specific error messages
+        if (error.message?.includes('session') || error.message?.includes('auth')) {
+          throw new Error('Session expired. Please request a new password reset link.')
+        }
+        throw error
+      }
 
       toast.success('Password updated', {
         description: 'Your password has been successfully reset',
@@ -131,6 +171,7 @@ export default function ResetPasswordContent() {
         router.push('/login')
       }, 1500)
     } catch (err) {
+      console.error('Reset password error:', err)
       setError(err.message || 'Failed to reset password. The link may have expired.')
     } finally {
       setLoading(false)
@@ -193,7 +234,7 @@ export default function ResetPasswordContent() {
                   placeholder="Enter new password"
                   className="pl-10 pr-12 h-11 bg-black/50 border-white/10 text-white placeholder-white/20 focus:border-emerald-500/50 focus:ring-emerald-500/20"
                   required
-                  disabled={loading || !tokenValidated}
+                  disabled={loading || !tokenValidated || checkingToken}
                   minLength={8}
                 />
                 <button
@@ -228,7 +269,7 @@ export default function ResetPasswordContent() {
                   placeholder="Confirm new password"
                   className="pl-10 pr-12 h-11 bg-black/50 border-white/10 text-white placeholder-white/20 focus:border-emerald-500/50 focus:ring-emerald-500/20"
                   required
-                  disabled={loading || !tokenValidated}
+                  disabled={loading || !tokenValidated || checkingToken}
                   minLength={8}
                 />
                 <button
@@ -241,6 +282,13 @@ export default function ResetPasswordContent() {
               </div>
             </div>
 
+            {checkingToken && !error && (
+              <Alert className="bg-blue-500/10 border-blue-500/20 text-blue-400">
+                <AlertCircle className="w-4 h-4" />
+                <AlertDescription className="text-xs">Validating reset link...</AlertDescription>
+              </Alert>
+            )}
+
             {error && (
               <Alert variant="destructive" className="bg-red-500/10 border-red-500/20 text-red-400">
                 <AlertCircle className="w-4 h-4" />
@@ -250,7 +298,7 @@ export default function ResetPasswordContent() {
 
             <button
               type="submit"
-              disabled={loading || !tokenValidated}
+              disabled={loading || !tokenValidated || checkingToken}
               className="w-full h-12 bg-white/10 hover:bg-white/20 text-white rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
             >
               {loading ? (
