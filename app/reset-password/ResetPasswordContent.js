@@ -1,6 +1,9 @@
 // app/reset-password/ResetPasswordContent.js
 'use client'
 
+// CRITICAL: Log immediately when module loads
+console.log('🔴 [ResetPassword] MODULE LOADED - ResetPasswordContent.js file is being executed')
+
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/AuthContext'
@@ -13,8 +16,18 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AlertCircle, Lock, Eye, EyeOff, Loader2, TrendingUp } from 'lucide-react'
 
 export default function ResetPasswordContent() {
+  // CRITICAL: Log immediately when component function is called
+  console.log('🔴 [ResetPassword] COMPONENT FUNCTION CALLED - ResetPasswordContent component is rendering')
+  
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
+  
+  console.log('🔴 [ResetPassword] Hooks initialized', {
+    hasRouter: !!router,
+    hasUser: !!user,
+    userId: user?.id,
+    authLoading: authLoading
+  })
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -23,73 +36,256 @@ export default function ResetPasswordContent() {
   const [error, setError] = useState('')
   const [tokenValidated, setTokenValidated] = useState(false)
   const [checkingToken, setCheckingToken] = useState(true)
+  
+  // Wrapper for setError that logs
+  const setErrorWithLog = (errorMsg) => {
+    console.error('🔴 [ResetPassword] Setting error state:', errorMsg)
+    setError(errorMsg)
+  }
+  
+  // Wrapper for setTokenValidated that logs
+  const setTokenValidatedWithLog = (validated) => {
+    console.log('🔴 [ResetPassword] Setting tokenValidated:', validated)
+    setTokenValidated(validated)
+  }
+  
+  // Wrapper for setCheckingToken that logs
+  const setCheckingTokenWithLog = (checking) => {
+    console.log('🔴 [ResetPassword] Setting checkingToken:', checking)
+    setCheckingToken(checking)
+  }
+
+  // Log component mount and initial state
+  useEffect(() => {
+    console.log('🔵 [ResetPassword] Component mounted - useEffect #1', {
+      hasWindow: typeof window !== 'undefined',
+      pathname: typeof window !== 'undefined' ? window.location.pathname : 'N/A',
+      hash: typeof window !== 'undefined' ? window.location.hash : 'N/A',
+      hashLength: typeof window !== 'undefined' ? window.location.hash?.length || 0 : 0,
+      hasAccessToken: typeof window !== 'undefined' ? window.location.hash?.includes('access_token') : false,
+      search: typeof window !== 'undefined' ? window.location.search : 'N/A',
+      fullUrl: typeof window !== 'undefined' ? window.location.href : 'N/A',
+      timestamp: new Date().toISOString()
+    })
+    
+    // Also log to window for debugging
+    if (typeof window !== 'undefined') {
+      window.__resetPasswordDebug = {
+        mounted: true,
+        timestamp: new Date().toISOString(),
+        url: window.location.href,
+        hash: window.location.hash,
+        search: window.location.search
+      }
+      console.log('🔴 [ResetPassword] Debug info stored in window.__resetPasswordDebug')
+    }
+  }, [])
 
   // Handle Supabase password reset token from URL hash
   useEffect(() => {
-    if (authLoading || typeof window === 'undefined') return
+    console.log('🔵 [ResetPassword] useEffect #2 triggered - Token validation effect', {
+      authLoading,
+      hasWindow: typeof window !== 'undefined',
+      pathname: typeof window !== 'undefined' ? window.location.pathname : 'N/A',
+      fullUrl: typeof window !== 'undefined' ? window.location.href : 'N/A',
+      hash: typeof window !== 'undefined' ? window.location.hash : 'N/A',
+      hashLength: typeof window !== 'undefined' ? window.location.hash?.length || 0 : 0,
+      timestamp: new Date().toISOString()
+    })
+
+    if (authLoading || typeof window === 'undefined') {
+      console.log('🔵 [ResetPassword] Early return from useEffect #2:', { 
+        authLoading, 
+        hasWindow: typeof window !== 'undefined',
+        reason: authLoading ? 'authLoading is true' : 'window is undefined'
+      })
+      return
+    }
 
     let isMounted = true
     const hash = window.location.hash
+    const fullUrl = window.location.href
+    const searchParams = window.location.search
+    
+    console.log('🔵 [ResetPassword] Starting token validation', {
+      hash: hash ? `${hash.substring(0, 50)}...` : 'NO HASH',
+      hashLength: hash?.length || 0,
+      hashFull: hash, // Log full hash for debugging
+      searchParams: searchParams || 'NO SEARCH PARAMS',
+      fullUrl: fullUrl,
+      hasAccessToken: hash?.includes('access_token') || false,
+      hasTypeRecovery: hash?.includes('type=recovery') || false,
+      timestamp: new Date().toISOString()
+    })
+    
+    // Store hash in window for debugging
+    if (typeof window !== 'undefined') {
+      window.__resetPasswordHash = hash
+      console.log('🔴 [ResetPassword] Hash stored in window.__resetPasswordHash')
+    }
     
     const validateToken = async () => {
+      console.log('🔵 [ResetPassword] validateToken called', {
+        hasHash: !!hash,
+        hashIncludesAccessToken: hash?.includes('access_token'),
+        hashIncludesType: hash?.includes('type=recovery')
+      })
+
       if (hash && hash.includes('access_token')) {
         // Parse hash to extract tokens
         const hashParams = new URLSearchParams(hash.substring(1))
         const accessToken = hashParams.get('access_token')
         const refreshToken = hashParams.get('refresh_token')
+        const type = hashParams.get('type')
+        
+        console.log('🔵 [ResetPassword] Hash parsed', {
+          hasAccessToken: !!accessToken,
+          accessTokenLength: accessToken?.length || 0,
+          accessTokenPreview: accessToken ? `${accessToken.substring(0, 20)}...` : 'N/A',
+          hasRefreshToken: !!refreshToken,
+          refreshTokenLength: refreshToken?.length || 0,
+          type: type || 'N/A',
+          allHashParams: Array.from(hashParams.keys())
+        })
         
         if (accessToken) {
-          console.log('🔄 Setting session from hash token...')
+          console.log('🔄 [ResetPassword] Setting session from hash token...', {
+            accessTokenLength: accessToken.length,
+            accessTokenPreview: `${accessToken.substring(0, 30)}...`,
+            refreshTokenLength: refreshToken?.length || 0,
+            type: type || 'N/A'
+          })
           try {
+            const sessionStartTime = Date.now()
+            console.log('🔄 [ResetPassword] Calling supabase.auth.setSession...')
             const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
               access_token: accessToken,
               refresh_token: refreshToken || '',
             })
+            const sessionDuration = Date.now() - sessionStartTime
+            console.log('🔄 [ResetPassword] setSession completed in', sessionDuration, 'ms')
             
-            if (!isMounted) return
+            console.log('🔄 [ResetPassword] setSession response', {
+              duration: `${sessionDuration}ms`,
+              hasData: !!sessionData,
+              hasSession: !!sessionData?.session,
+              hasUser: !!sessionData?.session?.user,
+              userId: sessionData?.session?.user?.id,
+              userEmail: sessionData?.session?.user?.email,
+              hasError: !!sessionError,
+              errorMessage: sessionError?.message,
+              errorStatus: sessionError?.status,
+              errorName: sessionError?.name,
+              fullError: sessionError
+            })
+            
+            if (!isMounted) {
+              console.log('🔵 [ResetPassword] Component unmounted, aborting')
+              return
+            }
             
             if (sessionError) {
-              console.error('❌ Error setting session:', sessionError)
-              setError('Invalid or expired reset link. Please request a new password reset.')
-              setCheckingToken(false)
+              console.error('❌ [ResetPassword] Error setting session:', {
+                message: sessionError.message,
+                status: sessionError.status,
+                name: sessionError.name,
+                fullError: sessionError
+              })
+              setErrorWithLog('Invalid or expired reset link. Please request a new password reset.')
+              setCheckingTokenWithLog(false)
               return
             }
 
             if (sessionData?.session?.user) {
-              console.log('✅ Session established successfully')
-              setTokenValidated(true)
-              setError('')
-              setCheckingToken(false)
+              console.log('✅ [ResetPassword] Session established successfully', {
+                userId: sessionData.session.user.id,
+                email: sessionData.session.user.email,
+                expiresAt: sessionData.session.expires_at
+              })
+              setTokenValidatedWithLog(true)
+              setErrorWithLog('')
+              setCheckingTokenWithLog(false)
               // Clear the hash from URL for security
               window.history.replaceState(null, '', window.location.pathname)
+              console.log('🔵 [ResetPassword] Hash cleared from URL')
             } else {
-              console.error('❌ No session in response')
-              setError('Invalid or expired reset link. Please request a new password reset.')
-              setCheckingToken(false)
+              console.error('❌ [ResetPassword] No session in response', {
+                sessionData: sessionData,
+                sessionDataKeys: sessionData ? Object.keys(sessionData) : [],
+                sessionExists: !!sessionData?.session,
+                userExists: !!sessionData?.session?.user
+              })
+              setErrorWithLog('Invalid or expired reset link. Please request a new password reset.')
+              setCheckingTokenWithLog(false)
             }
           } catch (err) {
-            if (!isMounted) return
-            console.error('❌ Exception setting session:', err)
-            setError('Invalid or expired reset link. Please request a new password reset.')
-            setCheckingToken(false)
+            if (!isMounted) {
+              console.log('🔵 [ResetPassword] Component unmounted during catch, aborting')
+              return
+            }
+            console.error('❌ [ResetPassword] Exception setting session:', {
+              message: err.message,
+              stack: err.stack,
+              name: err.name,
+              fullError: err
+            })
+            setErrorWithLog('Invalid or expired reset link. Please request a new password reset.')
+            setCheckingTokenWithLog(false)
           }
         } else {
-          setError('Invalid reset link. Please request a new password reset.')
-          setCheckingToken(false)
+          console.error('❌ [ResetPassword] No access_token found in hash', {
+            hash: hash ? `${hash.substring(0, 100)}...` : 'NO HASH',
+            hashFull: hash, // Log full hash
+            hashParams: hash ? Array.from(new URLSearchParams(hash.substring(1)).keys()) : [],
+            hashParamsValues: hash ? {
+              access_token: new URLSearchParams(hash.substring(1)).get('access_token') ? 'EXISTS' : 'MISSING',
+              refresh_token: new URLSearchParams(hash.substring(1)).get('refresh_token') ? 'EXISTS' : 'MISSING',
+              type: new URLSearchParams(hash.substring(1)).get('type') || 'MISSING'
+            } : {}
+          })
+          setErrorWithLog('Invalid reset link. Please request a new password reset.')
+          setCheckingTokenWithLog(false)
         }
       } else {
         // No hash - check for existing session
+        console.log('🔵 [ResetPassword] No hash with access_token, checking existing session...', {
+          hash: hash || 'NO HASH',
+          hashLength: hash?.length || 0,
+          hashIncludesAccessToken: hash?.includes('access_token') || false
+        })
+        console.log('🔵 [ResetPassword] Calling supabase.auth.getSession...')
         const { data: { session }, error } = await supabase.auth.getSession()
         
-        if (!isMounted) return
+        console.log('🔵 [ResetPassword] getSession result', {
+          hasSession: !!session,
+          hasUser: !!session?.user,
+          userId: session?.user?.id,
+          userEmail: session?.user?.email,
+          sessionExpiresAt: session?.expires_at,
+          hasError: !!error,
+          errorMessage: error?.message,
+          errorStatus: error?.status,
+          fullError: error
+        })
         
-        setCheckingToken(false)
+        if (!isMounted) {
+          console.log('🔵 [ResetPassword] Component unmounted after getSession, aborting')
+          return
+        }
+        
+        setCheckingTokenWithLog(false)
         
         if (session?.user) {
           // User has a session but no hash - might be wrong page
-          setError('Please use the password reset link from your email.')
+          console.log('⚠️ [ResetPassword] User has session but no hash in URL')
+          setErrorWithLog('Please use the password reset link from your email.')
         } else {
-          setError('Invalid or expired reset link. Please request a new password reset.')
+          console.error('❌ [ResetPassword] No hash and no session', {
+            hash: hash || 'NO HASH',
+            searchParams: searchParams || 'NO SEARCH PARAMS',
+            fullUrl: fullUrl
+          })
+          setErrorWithLog('Invalid or expired reset link. Please request a new password reset.')
         }
       }
     }
@@ -97,6 +293,7 @@ export default function ResetPasswordContent() {
     validateToken()
 
     return () => {
+      console.log('🔵 [ResetPassword] Cleanup: unmounting')
       isMounted = false
     }
   }, [authLoading])
@@ -110,47 +307,93 @@ export default function ResetPasswordContent() {
 
   const handleResetPassword = async (e) => {
     e.preventDefault()
-    setError('')
+    console.log('🔵 [ResetPassword] handleResetPassword called', {
+      tokenValidated,
+      passwordLength: password.length,
+      confirmPasswordLength: confirmPassword.length
+    })
+    setErrorWithLog('')
 
     // Validation
     if (password.length < 8) {
-      setError('Password must be at least 8 characters long')
+      console.log('🔵 [ResetPassword] Validation failed: password too short')
+      setErrorWithLog('Password must be at least 8 characters long')
       return
     }
     if (!/[a-zA-Z]/.test(password)) {
-      setError('Password must contain at least one letter')
+      console.log('🔵 [ResetPassword] Validation failed: no letter')
+      setErrorWithLog('Password must contain at least one letter')
       return
     }
     if (!/\d/.test(password)) {
-      setError('Password must contain at least one digit')
+      console.log('🔵 [ResetPassword] Validation failed: no digit')
+      setErrorWithLog('Password must contain at least one digit')
       return
     }
     if (password !== confirmPassword) {
-      setError('Passwords do not match')
+      console.log('🔵 [ResetPassword] Validation failed: passwords do not match')
+      setErrorWithLog('Passwords do not match')
       return
     }
 
     if (!tokenValidated) {
-      setError('Please use a valid password reset link from your email.')
+      console.error('❌ [ResetPassword] Token not validated, cannot reset password')
+      setErrorWithLog('Please use a valid password reset link from your email.')
       return
     }
 
+    console.log('🔵 [ResetPassword] Starting password update process')
     setLoading(true)
     try {
       // Verify we still have a valid session before updating password
+      console.log('🔵 [ResetPassword] Checking session before password update...')
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       
+      console.log('🔵 [ResetPassword] Session check result', {
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        userId: session?.user?.id,
+        userEmail: session?.user?.email,
+        expiresAt: session?.expires_at,
+        hasError: !!sessionError,
+        errorMessage: sessionError?.message
+      })
+      
       if (sessionError || !session) {
+        console.error('❌ [ResetPassword] No valid session found', {
+          sessionError: sessionError,
+          hasSession: !!session
+        })
         throw new Error('Session expired. Please request a new password reset link.')
       }
 
       // Update password using Supabase client directly (must have active session)
+      console.log('🔵 [ResetPassword] Calling updateUser to change password...')
+      const updateStartTime = Date.now()
       const { data, error } = await supabase.auth.updateUser({
         password: password
       })
+      const updateDuration = Date.now() - updateStartTime
+
+      console.log('🔵 [ResetPassword] updateUser response', {
+        duration: `${updateDuration}ms`,
+        hasData: !!data,
+        hasUser: !!data?.user,
+        userId: data?.user?.id,
+        hasError: !!error,
+        errorMessage: error?.message,
+        errorStatus: error?.status,
+        errorName: error?.name,
+        fullError: error
+      })
 
       if (error) {
-        console.error('Password update error:', error)
+        console.error('❌ [ResetPassword] Password update error:', {
+          message: error.message,
+          status: error.status,
+          name: error.name,
+          fullError: error
+        })
         // Provide more specific error messages
         if (error.message?.includes('session') || error.message?.includes('auth')) {
           throw new Error('Session expired. Please request a new password reset link.')
@@ -158,27 +401,47 @@ export default function ResetPasswordContent() {
         throw error
       }
 
+      console.log('✅ [ResetPassword] Password updated successfully')
       toast.success('Password updated', {
         description: 'Your password has been successfully reset',
         duration: 3000
       })
 
       // Sign out the recovery session and redirect to login
+      console.log('🔵 [ResetPassword] Signing out recovery session...')
       await supabase.auth.signOut()
+      console.log('✅ [ResetPassword] Signed out, redirecting to login')
       
       // Redirect to login after a short delay
       setTimeout(() => {
         router.push('/login')
       }, 1500)
     } catch (err) {
-      console.error('Reset password error:', err)
-      setError(err.message || 'Failed to reset password. The link may have expired.')
+      console.error('❌ [ResetPassword] Reset password error:', {
+        message: err.message,
+        stack: err.stack,
+        name: err.name,
+        fullError: err
+      })
+      setErrorWithLog(err.message || 'Failed to reset password. The link may have expired.')
     } finally {
       setLoading(false)
     }
   }
 
+  // Log render state
+  console.log('🔴 [ResetPassword] Component rendering', {
+    authLoading,
+    hasUser: !!user,
+    tokenValidated,
+    checkingToken,
+    hasError: !!error,
+    errorMessage: error,
+    timestamp: new Date().toISOString()
+  })
+
   if (authLoading) {
+    console.log('🔴 [ResetPassword] Rendering loading state')
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="flex items-center gap-3">
@@ -190,8 +453,15 @@ export default function ResetPasswordContent() {
   }
 
   if (user && !tokenValidated) {
+    console.log('🔴 [ResetPassword] User exists but token not validated, redirecting')
     return null // Redirect is happening
   }
+
+  console.log('🔴 [ResetPassword] Rendering main form', {
+    checkingToken,
+    tokenValidated,
+    hasError: !!error
+  })
 
   return (
     <div className="min-h-screen bg-black text-white flex items-center justify-center p-4 selection:bg-emerald-500/30">
