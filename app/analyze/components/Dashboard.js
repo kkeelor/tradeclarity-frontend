@@ -1,9 +1,9 @@
 // app/analyze/components/Dashboard.js
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
-import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, LogOut, BarChart3, Sparkles, Database, CheckSquare, Square, Loader2, ChevronRight, Zap, Brain, Clock, DollarSign, PieChart, TrendingDown, Target, Lightbulb, LayoutDashboard, Tag, CreditCard, Crown, Infinity } from 'lucide-react'
+import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, LogOut, BarChart3, Sparkles, Database, CheckSquare, Square, Loader2, ChevronRight, Zap, Brain, Clock, DollarSign, PieChart, TrendingDown, Target, Lightbulb, LayoutDashboard, Tag, CreditCard, Crown, Infinity, MessageCircle } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { toast } from 'sonner'
 import ThemeToggle from '@/app/components/ThemeToggle'
@@ -11,8 +11,8 @@ import { getMostCriticalInsight, getAllInsights, generatePerformanceAnalogies } 
 import { generateValueFirstInsights } from '../utils/insights/valueFirstInsights'
 import { prioritizeInsights, enhanceInsightForDisplay } from '../utils/insights/insightsPrioritizationEngine'
 import { generateWhatsNextActions } from '../utils/insights/whatsNextActions'
-import MarketIndicators from './MarketIndicators'
-import TopHeadlines from './TopHeadlines'
+import NewsTicker from './NewsTicker'
+import VegaDashboardWidget from '../../dashboard/components/VegaDashboardWidget'
 import { analyzeDrawdowns } from '../utils/drawdownAnalysis'
 import { analyzeTimeBasedPerformance } from '../utils/timeBasedAnalysis'
 import { analyzeSymbols } from '../utils/symbolAnalysis'
@@ -32,10 +32,13 @@ import { ExchangeIcon, Separator } from '@/components/ui'
 import { Badge } from '@/components/ui/badge'
 import { DashboardStatsSkeleton, DataSourceSkeleton } from '@/app/components/LoadingSkeletons'
 import ConnectExchangeModal from './ConnectExchangeModal'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { HelpCircle } from 'lucide-react'
 import Sidebar from './Sidebar'
+import Header from './Header'
 import Footer from '../../components/Footer'
 import UsageLimits from '../../components/UsageLimits'
-import { TIER_LIMITS, canAddConnection, getTierDisplayName } from '@/lib/featureGates'
+import { TIER_LIMITS, canAddConnection, getTierDisplayName, getEffectiveTier } from '@/lib/featureGates'
 import { getUpgradeToastConfig } from '@/app/components/UpgradePrompt'
 
 /**
@@ -89,6 +92,21 @@ function PlanProgressBar({ currentTier, actualUsage, onClick }) {
       })
     }
 
+    // AI Tokens progress - fill based on how close to current limit
+    if (currentLimits.maxTokensPerMonth !== Infinity && actualUsage.tokens !== undefined) {
+      const currentLimit = currentLimits.maxTokensPerMonth
+      const used = actualUsage.tokens || 0
+      // Progress is based on how close to hitting the current limit (0-100%)
+      const progress = Math.min(100, (used / currentLimit) * 100)
+      progressMetrics.push({ 
+        type: 'tokens', 
+        progress, 
+        used, 
+        currentLimit, 
+        isAtLimit: used >= currentLimit 
+      })
+    }
+
     // Use the maximum progress across all metrics - if ANY limit is hit, bar is full
     const maxProgress = progressMetrics.length > 0 
       ? Math.max(...progressMetrics.map(m => m.progress))
@@ -126,21 +144,21 @@ function PlanProgressBar({ currentTier, actualUsage, onClick }) {
       >
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+            <span className="text-[10px] font-medium text-white/60 uppercase tracking-wider">
               {progress.label}
             </span>
-            <span className="text-[10px] text-slate-600">━━━━━━━━━━━━━━━━━━━━</span>
-            <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider group-hover:text-emerald-300 transition-colors">
+            <span className="text-[10px] text-white/20">━━━━━━━━━━━━━━━━━━━━</span>
+            <span className="text-[10px] font-medium text-emerald-400 uppercase tracking-wider group-hover:text-emerald-300 transition-colors">
               {progress.nextLabel}
             </span>
           </div>
-          <span className="text-[10px] text-slate-500 group-hover:text-slate-400 transition-colors">
+          <span className="text-[10px] text-white/60 group-hover:text-white/80 transition-colors">
             {Math.round(progress.percentage)}%
           </span>
         </div>
-        <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+        <div className="w-full bg-white/5 border border-white/10 rounded-full h-2 overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-emerald-500 to-cyan-500 transition-all duration-500"
+            className="h-full bg-emerald-400 transition-all duration-500"
             style={{ width: `${Math.min(100, progress.percentage)}%` }}
           />
         </div>
@@ -151,7 +169,7 @@ function PlanProgressBar({ currentTier, actualUsage, onClick }) {
         <div className="flex justify-end">
           <button
             onClick={handleUpgradeClick}
-            className="w-1/4 py-2 px-3 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white text-xs font-semibold transition-all duration-300 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 flex items-center justify-center gap-1.5"
+            className="w-1/4 py-2 px-3 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 text-white/90 hover:text-white text-xs font-medium transition-all duration-300 flex items-center justify-center gap-1.5"
           >
             <Sparkles className="w-3 h-3" />
             <span>Upgrade</span>
@@ -171,10 +189,10 @@ function UsageBreakdownModal({ open, onOpenChange, subscription, actualUsage }) 
   
   if (!subscription) return null
 
-  const currentTier = subscription.tier
+  const currentTier = (getEffectiveTier(subscription) || 'free').toLowerCase()
   const nextTier = currentTier === 'free' ? 'trader' : currentTier === 'trader' ? 'pro' : null
 
-  const currentLimits = TIER_LIMITS[currentTier]
+  const currentLimits = TIER_LIMITS[currentTier] || TIER_LIMITS.free
   const nextLimits = nextTier ? TIER_LIMITS[nextTier] : null
 
   const usageData = [
@@ -193,17 +211,25 @@ function UsageBreakdownModal({ open, onOpenChange, subscription, actualUsage }) 
       nextLimit: nextLimits?.maxTradesPerMonth,
       icon: BarChart3,
       color: 'text-emerald-400'
+    },
+    {
+      label: 'AI Tokens',
+      used: actualUsage.tokens || 0,
+      currentLimit: currentLimits.maxTokensPerMonth,
+      nextLimit: nextLimits?.maxTokensPerMonth,
+      icon: Brain,
+      color: 'text-emerald-400'
     }
   ]
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-900 border-slate-700 max-w-md">
+      <DialogContent className="bg-black border-white/10 max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-lg font-semibold text-slate-100">
+          <DialogTitle className="text-lg font-semibold text-white/90">
             Usage Breakdown
           </DialogTitle>
-          <DialogDescription className="text-sm text-slate-400">
+          <DialogDescription className="text-sm text-white/60">
             Your current usage and limits
           </DialogDescription>
         </DialogHeader>
@@ -221,40 +247,48 @@ function UsageBreakdownModal({ open, onOpenChange, subscription, actualUsage }) 
               : Math.min(100, Math.max(0, (used / item.currentLimit) * 100))  // Ensure percentage is between 0-100
             
             return (
-              <div key={item.label} className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
-                <div className="flex items-center gap-2 mb-2">
-                  <Icon className={`w-4 h-4 ${item.color}`} />
-                  <span className="text-sm font-medium text-slate-300">{item.label}</span>
+              <div key={item.label} className="p-4 rounded-lg bg-white/5 border border-white/10">
+                <div className="flex items-center gap-2 mb-3">
+                  <Icon className="w-4 h-4 text-white/60" />
+                  <span className="text-sm font-medium text-white/80">{item.label}</span>
                 </div>
-                <div className="flex items-baseline justify-between mb-2">
-                  <span className="text-2xl font-bold text-white">{used}</span>
-                  <span className="text-sm text-slate-400">
-                    / {currentLimitDisplay}
+                <div className="flex items-baseline justify-between mb-3">
+                  <span className="text-2xl font-semibold text-white/90">
+                    {item.label === 'AI Tokens' ? used.toLocaleString() : used}
+                  </span>
+                  <span className="text-sm text-white/60">
+                    / {typeof currentLimitDisplay === 'number' && item.label === 'AI Tokens' 
+                      ? currentLimitDisplay.toLocaleString() 
+                      : currentLimitDisplay}
                     {nextLimitDisplay && nextLimitDisplay !== currentLimitDisplay && (
-                      <span className="text-slate-600 ml-1">→ {nextLimitDisplay}</span>
+                      <span className="text-emerald-400 ml-1">
+                        → {typeof nextLimitDisplay === 'number' && item.label === 'AI Tokens'
+                          ? nextLimitDisplay.toLocaleString()
+                          : nextLimitDisplay}
+                      </span>
                     )}
                   </span>
                 </div>
                 {item.currentLimit !== Infinity && (
-                  <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+                  <div className="w-full bg-white/5 border border-white/10 rounded-full h-2 overflow-hidden">
                     <div
-                      className={`h-full ${percentage >= 90 ? 'bg-red-500' : percentage >= 75 ? 'bg-amber-500' : 'bg-emerald-500'} transition-all duration-300`}
+                      className="h-full bg-emerald-400 transition-all duration-300"
                       style={{ width: `${Math.min(100, percentage)}%` }}
                     />
                   </div>
                 )}
                 {item.currentLimit === Infinity && (
-                  <div className="w-full bg-slate-700 rounded-full h-2">
-                    <div className="h-full bg-emerald-500 w-full" />
+                  <div className="w-full bg-white/5 border border-white/10 rounded-full h-2">
+                    <div className="h-full bg-emerald-400 w-full" />
                   </div>
                 )}
               </div>
             )
           })}
           {nextTier && (
-            <div className="mt-4 pt-4 border-t border-slate-700">
+            <div className="mt-4 pt-4 border-t border-white/10">
               <div className="flex items-center justify-center gap-2">
-                <p className="text-xs text-slate-400 text-center">
+                <p className="text-xs text-white/60 text-center">
                   Upgrade to <span className="text-emerald-400 font-semibold">{nextTier.toUpperCase()}</span> for higher limits
                 </p>
                 <button
@@ -466,7 +500,7 @@ function getIconComponent(iconName) {
   return iconMap[iconName] || Lightbulb
 }
 
-export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithCSV, onViewAnalytics }) {
+export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithCSV, onConnectSnaptrade, onViewAnalytics }) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -474,7 +508,6 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
   const [uploadedFiles, setUploadedFiles] = useState([])
   const [connectedExchanges, setConnectedExchanges] = useState([])
   const [showConnectModal, setShowConnectModal] = useState(false)
-  const [showUserMenu, setShowUserMenu] = useState(false)
   const [loadingExchanges, setLoadingExchanges] = useState(true)
   const [loadingFiles, setLoadingFiles] = useState(true)
   const [loadingStats, setLoadingStats] = useState(true)
@@ -484,6 +517,10 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
   const [currentInsightIndex, setCurrentInsightIndex] = useState(0)
   const [selectedSources, setSelectedSources] = useState([]) // Array of {type: 'exchange'|'csv', id: string}
   const [whatsNextActions, setWhatsNextActions] = useState(null)
+  
+  // Analytics cache state
+  const [cachedAnalyticsData, setCachedAnalyticsData] = useState({ analytics: null, allTrades: null, psychology: null })
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false)
 
   // Exchange deletion state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -494,6 +531,25 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
   const [subscription, setSubscription] = useState(null)
   const [loadingSubscription, setLoadingSubscription] = useState(true)
   const [showUsageModal, setShowUsageModal] = useState(false)
+  
+  // Coach mode state - shared with Vega page via localStorage
+  const [coachMode, setCoachMode] = useState(() => {
+    // Load from localStorage on initial render (shared with Vega page)
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vega_coach_mode')
+      // Default to true if no saved preference exists
+      return saved === null ? true : saved === 'true'
+    }
+    return true
+  })
+  
+  // Persist coach mode preference
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('vega_coach_mode', coachMode.toString())
+    }
+  }, [coachMode])
+  const [tokenUsage, setTokenUsage] = useState({ used: 0, limit: 10000 })
 
   // Get time-based greeting
   const getGreeting = () => {
@@ -502,6 +558,53 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
     if (hour < 18) return 'Good afternoon'
     return 'Good evening'
   }
+
+  // Fetch cached analytics from server
+  const loadAnalytics = useCallback(async () => {
+    if (!user || !tradesStats || tradesStats.totalTrades === 0) {
+      // No trades - analytics not needed
+      setCachedAnalyticsData({ analytics: null, allTrades: null, psychology: null })
+      return
+    }
+
+    setLoadingAnalytics(true)
+    try {
+      // Fetch cached analytics from server
+      const response = await fetch('/api/analytics/cache')
+      const data = await response.json()
+
+      if (data.success && data.analytics) {
+        // Cache hit - use cached analytics
+        setCachedAnalyticsData({
+          analytics: data.analytics,
+          allTrades: data.allTrades || [],
+          psychology: data.psychology || null
+        })
+      } else {
+        // Cache miss - trigger background computation
+        // Don't await - fire and forget
+        fetch('/api/analytics/compute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            userId: user.id, 
+            trigger: 'dashboard_load' 
+          })
+        }).catch(err => {
+          console.error('Background analytics computation failed:', err)
+          // Non-critical - will be computed on next load
+        })
+
+        // Set empty for now (will be available on next load)
+        setCachedAnalyticsData({ analytics: null, allTrades: null, psychology: null })
+      }
+    } catch (error) {
+      console.error('Error loading analytics:', error)
+      setCachedAnalyticsData({ analytics: null, allTrades: null, psychology: null })
+    } finally {
+      setLoadingAnalytics(false)
+    }
+  }, [user, tradesStats])
 
   // Fetch connected exchanges and uploaded files on mount
   useEffect(() => {
@@ -514,8 +617,83 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
     ]).catch(error => {
       console.error('Error loading dashboard data:', error)
     })
+  }, [])
 
-    // Check if we should show connect modal (from DataManagement page)
+  // Load analytics when tradesStats is available
+  useEffect(() => {
+    if (tradesStats && user) {
+      loadAnalytics()
+    }
+  }, [tradesStats, user, loadAnalytics])
+
+  // Check for analytics readiness and show toast notification
+  useEffect(() => {
+    const checkAnalyticsReady = async () => {
+      if (!user || !tradesStats || tradesStats.totalTrades === 0) {
+        return
+      }
+
+      // Check if user just added trades (flag exists)
+      const justAddedData = sessionStorage.getItem('justAddedTrades')
+      const tradesAddedAt = sessionStorage.getItem('tradesAddedAt')
+
+      if (justAddedData !== 'true' || !tradesAddedAt) {
+        return // No flag - don't show notification
+      }
+
+      // Check if notification is stale (older than 5 minutes)
+      const timeSinceAdded = Date.now() - parseInt(tradesAddedAt)
+      const fiveMinutes = 5 * 60 * 1000
+
+      if (timeSinceAdded > fiveMinutes) {
+        // Too old - clear flag and don't show
+        sessionStorage.removeItem('justAddedTrades')
+        sessionStorage.removeItem('tradesAddedAt')
+        return
+      }
+
+      // Check if analytics are cached and ready
+      try {
+        const response = await fetch('/api/analytics/cache')
+        const data = await response.json()
+
+        if (data.success && data.analytics) {
+          // Analytics are ready - show toast notification
+          toast.success('Analytics Ready', {
+            description: 'Your trading data has been analyzed. Vega AI now has access to your anonymous trading data and is ready to provide insights.',
+            duration: 8000,
+            action: {
+              label: 'Ask Vega',
+              onClick: () => {
+                // Focus AI Chat input
+                const chatInput = document.querySelector('[data-ai-chat-input]')
+                if (chatInput) {
+                  chatInput.focus()
+                  // Optional: Scroll to chat
+                  chatInput.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                }
+              }
+            }
+          })
+
+          // Clear flag (only show once)
+          sessionStorage.removeItem('justAddedTrades')
+          sessionStorage.removeItem('tradesAddedAt')
+        }
+      } catch (error) {
+        console.error('Error checking analytics readiness:', error)
+        // Don't clear flag - will retry on next load
+      }
+    }
+
+    // Check after analytics are loaded
+    if (cachedAnalyticsData.analytics && tradesStats && tradesStats.totalTrades > 0) {
+      checkAnalyticsReady()
+    }
+  }, [cachedAnalyticsData.analytics, tradesStats, user])
+
+  // Check if we should show connect modal (from DataManagement page)
+  useEffect(() => {
     const shouldShowModal = sessionStorage.getItem('showConnectModal')
     if (shouldShowModal === 'true') {
       sessionStorage.removeItem('showConnectModal')
@@ -570,6 +748,11 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
               if (response.ok && data.success) {
                 // API says success - connection created
                 sessionStorage.removeItem('pendingExchangeConnection')
+                
+                // Set flag to show analytics ready toast when analytics are computed
+                sessionStorage.setItem('justAddedTrades', 'true')
+                sessionStorage.setItem('tradesAddedAt', Date.now().toString())
+                
                 router.replace('/dashboard', { scroll: false })
                 
                 toast.success(
@@ -582,6 +765,11 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
               } else if (isActuallyConnected) {
                 // Exchange is connected despite API error - treat as success
                 sessionStorage.removeItem('pendingExchangeConnection')
+                
+                // Set flag to show analytics ready toast when analytics are computed
+                sessionStorage.setItem('justAddedTrades', 'true')
+                sessionStorage.setItem('tradesAddedAt', Date.now().toString())
+                
                 router.replace('/dashboard', { scroll: false })
                 
                 // Check if it's a duplicate connection error
@@ -688,25 +876,12 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
     }
 
     // Try to get cached analytics data if available
-    const cachedAnalytics = sessionStorage.getItem('lastAnalytics')
-    let analyticsData = null
-    let psychologyData = null
-    let allTradesData = null
-
-    if (cachedAnalytics) {
-      try {
-        const parsed = JSON.parse(cachedAnalytics)
-        analyticsData = parsed.analytics || null
-        psychologyData = parsed.psychology || null
-        allTradesData = parsed.allTrades || null
-      } catch (e) {
-      }
-    }
+    const { analytics: analyticsData, psychology: psychologyData, allTrades: allTradesData } = cachedAnalyticsData
 
     // Generate actions (works with minimal data too)
     const actions = generateWhatsNextActions(analyticsData, psychologyData, allTradesData, tradesStats)
     setWhatsNextActions(actions)
-  }, [tradesStats])
+  }, [tradesStats, cachedAnalyticsData])
 
   const fetchConnectedExchanges = async () => {
     const startTime = Date.now()
@@ -714,16 +889,43 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
       const response = await fetch('/api/exchange/list')
       const data = await response.json()
 
-      if (data.success) {
-        const formatted = data.connections.map(conn => ({
-          id: conn.id,
-          name: conn.exchange.charAt(0).toUpperCase() + conn.exchange.slice(1),
-          exchange: conn.exchange,
-          connectedAt: conn.created_at,
-          lastSynced: conn.last_synced || conn.updated_at || conn.created_at
-        }))
+      console.log('📊 [Dashboard] Exchange list response:', {
+        success: data.success,
+        connectionsCount: data.connections?.length || 0,
+        connections: data.connections?.map(c => ({ id: c.id, exchange: c.exchange })) || [],
+        error: data.error,
+      })
+
+      if (data.success && Array.isArray(data.connections)) {
+        const formatted = data.connections.filter(conn => conn != null).map(conn => {
+          // For Snaptrade, use brokerage name from metadata or brokerage_name field
+          let displayName = conn.exchange.charAt(0).toUpperCase() + conn.exchange.slice(1)
+          if (conn.exchange === 'snaptrade') {
+            const brokerageName = conn.brokerage_name || conn.metadata?.brokerage_name || conn.primary_brokerage
+            if (brokerageName) {
+              displayName = `Snaptrade - ${brokerageName}`
+            } else if (conn.brokerage_names && conn.brokerage_names.length > 0) {
+              // Fallback to first brokerage if brokerage_name not set
+              displayName = `Snaptrade - ${conn.brokerage_names[0]}`
+            }
+          }
+          
+          return {
+            id: conn.id,
+            name: displayName,
+            exchange: conn.exchange,
+            connectedAt: conn.created_at,
+            lastSynced: conn.last_synced || conn.updated_at || conn.created_at,
+            primaryBrokerage: conn.brokerage_name || conn.metadata?.brokerage_name || conn.primary_brokerage,
+            brokerageNames: conn.brokerage_names || (conn.brokerage_name ? [conn.brokerage_name] : null),
+            brokerageName: conn.brokerage_name || conn.metadata?.brokerage_name, // Store for delete operations
+          }
+        })
         setConnectedExchanges(formatted)
       } else {
+        // If API returns error or no success, clear the list
+        console.warn('⚠️ [Dashboard] Exchange list API returned no success or empty connections')
+        setConnectedExchanges([])
       }
     } catch (error) {
       console.error('? [Dashboard] Error fetching exchanges:', error)
@@ -785,6 +987,44 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
       setTimeout(() => setLoadingStats(false), remaining)
     }
   }
+
+  const fetchTokenUsage = async () => {
+    if (!user || !subscription) return
+    
+    try {
+      const response = await fetch('/api/ai/chat/tokens')
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          const tier = subscription.tier || 'free'
+          const limit = TIER_LIMITS[tier]?.maxTokensPerMonth || TIER_LIMITS.free.maxTokensPerMonth
+          setTokenUsage({
+            used: data.totalTokens || 0,
+            limit: limit
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching token usage:', error)
+      // Set default based on tier
+      const tier = subscription?.tier || 'free'
+      const limit = TIER_LIMITS[tier]?.maxTokensPerMonth || TIER_LIMITS.free.maxTokensPerMonth
+      setTokenUsage({ used: 0, limit })
+    }
+  }
+
+  // Fetch token usage when subscription is loaded and update limit
+  useEffect(() => {
+    if (subscription) {
+      const tier = subscription.tier || 'free'
+      const limit = TIER_LIMITS[tier]?.maxTokensPerMonth || TIER_LIMITS.free.maxTokensPerMonth
+      setTokenUsage(prev => ({ ...prev, limit }))
+      fetchTokenUsage()
+    } else {
+      // Set default for free tier
+      setTokenUsage({ used: 0, limit: TIER_LIMITS.free.maxTokensPerMonth })
+    }
+  }, [subscription])
 
   const fetchSubscription = async () => {
     try {
@@ -916,19 +1156,20 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
 
       const data = await response.json()
 
-      if (response.ok) {
-        // Remove from list
-        setConnectedExchanges(prev => prev.filter(ex => ex.id !== deletingExchange.id))
-
+      if (response.ok && data.success !== false) {
         // Show success message
+        const totalTrades = data.totalTradesDeleted || data.apiTradesDeleted || 0
         const message = deleteLinkedCSVs
-          ? `Exchange disconnected. ${data.totalTradesDeleted} trades and ${data.csvFilesDeleted} CSV files deleted.`
-          : `Exchange disconnected. ${data.apiTradesDeleted} API trades deleted. ${data.csvFilesUnlinked} CSV files kept.`
+          ? `Exchange disconnected. ${totalTrades} trades and ${data.csvFilesDeleted || 0} CSV files deleted.`
+          : `Exchange disconnected. ${totalTrades} API trades deleted. ${data.csvFilesUnlinked || 0} CSV files kept.`
 
         toast.success('Exchange Disconnected', {
           description: message,
           duration: 8000
         })
+
+        // Refresh exchange list from server to ensure UI is up to date
+        await fetchConnectedExchanges()
 
         // Refresh files list if CSVs were affected
         if (deleteLinkedCSVs || data.csvFilesUnlinked > 0) {
@@ -938,7 +1179,9 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
         // Refresh stats to update the Trading Overview section
         await fetchTradesStats()
       } else {
-        toast.error(data.error || 'Failed to delete exchange connection')
+        const errorMsg = data.error || data.message || 'Failed to delete exchange connection'
+        toast.error(errorMsg)
+        console.error('Delete exchange failed:', { response: response.status, data })
       }
     } catch (error) {
       console.error('Error deleting exchange:', error)
@@ -992,12 +1235,13 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
     })
 
     if (!canAdd) {
-      const limit = TIER_LIMITS[subscription.tier || 'free'].maxConnections
+      const effectiveTier = (getEffectiveTier(subscription) || 'free').toLowerCase()
+      const limit = TIER_LIMITS[effectiveTier]?.maxConnections || 1
       const toastConfig = getUpgradeToastConfig({
         type: 'connection',
         current: connectedExchanges.length,
         limit,
-        tier: subscription.tier || 'free'
+        tier: effectiveTier
       })
       
       if (toastConfig) {
@@ -1019,6 +1263,11 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
       // Go to CSV upload flow
       if (onConnectWithCSV) {
         onConnectWithCSV()
+      }
+    } else if (method === 'snaptrade') {
+      // Go to Snaptrade OAuth flow
+      if (onConnectSnaptrade) {
+        onConnectSnaptrade()
       }
     }
   }
@@ -1048,13 +1297,14 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex">
+    <div className="min-h-screen bg-black text-white flex">
       {/* Mobile-only Sidebar */}
       <div className="md:hidden">
         <Sidebar
           activePage="dashboard"
           onDashboardClick={() => {}}
           onUploadClick={() => router.push('/data')}
+          onVegaClick={() => router.push('/vega')}
           onMyPatternsClick={() => {
             if (connectedExchanges.length > 0 || !loadingExchanges) {
               onViewAnalytics()
@@ -1068,227 +1318,126 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <header className="sticky top-0 z-30 border-b border-white/5 bg-slate-950/70 backdrop-blur-xl">
-          <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-2 sm:gap-4 px-2 sm:px-4 py-3 sm:py-4 pl-14 md:pl-4">
-            <div className="flex items-center gap-1 sm:gap-2 md:gap-4 lg:gap-8 min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-                <button
-                  onClick={() => window.location.href = '/'}
-                  className="flex items-center gap-1 sm:gap-2 rounded-full border border-white/5 bg-white/[0.03] px-2 sm:px-3 py-1 text-sm font-semibold text-white/90 transition-all duration-300 hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white flex-shrink-0"
-                >
-                  <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-300" />
-                  <span className="hidden sm:inline">TradeClarity</span>
-                </button>
-                {subscription && (
-                  <Badge 
-                    variant="outline" 
-                    className={`${
-                      subscription.tier === 'pro' 
-                        ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400' 
-                        : subscription.tier === 'trader'
-                        ? 'border-blue-500/50 bg-blue-500/10 text-blue-400'
-                        : 'border-slate-500/50 bg-slate-500/10 text-slate-400'
-                    } font-semibold uppercase tracking-wider text-[9px] px-1.5 py-0.5 flex items-center gap-1 hidden sm:flex`}
-                  >
-                    {subscription.tier === 'pro' && <Crown className="w-2.5 h-2.5" />}
-                    {subscription.tier}
-                  </Badge>
-                )}
-              </div>
-
-              <nav className="hidden md:flex items-center gap-1 md:gap-2 overflow-x-auto scrollbar-hide min-w-0">
-                <button
-                  onClick={() => router.push('/dashboard')}
-                  className={`group inline-flex items-center justify-center gap-1 md:gap-2 rounded-full px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium transition-all duration-300 flex-shrink-0 whitespace-nowrap ${
-                    pathname === '/dashboard' || pathname?.startsWith('/dashboard')
-                      ? 'text-white'
-                      : 'text-slate-300 hover:text-white'
-                  }`}
-                  style={{ minHeight: '32px', minWidth: '32px' }}
-                >
-                  <LayoutDashboard className={`h-3 w-3 md:h-4 md:w-4 transition-colors flex-shrink-0 ${
-                    pathname === '/dashboard' || pathname?.startsWith('/dashboard')
-                      ? 'text-emerald-300'
-                      : 'text-slate-500 group-hover:text-emerald-300'
-                  }`} />
-                  <span className="hidden sm:inline">Dashboard</span>
-                </button>
-                <button
-                  onClick={() => router.push('/data')}
-                  className={`group inline-flex items-center justify-center gap-1 md:gap-2 rounded-full px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium transition-all duration-300 flex-shrink-0 whitespace-nowrap ${
-                    pathname === '/data'
-                      ? 'text-white'
-                      : 'text-slate-300 hover:text-white'
-                  }`}
-                  style={{ minHeight: '32px', minWidth: '32px' }}
-                >
-                  <Database className={`h-3 w-3 md:h-4 md:w-4 transition-colors flex-shrink-0 ${
-                    pathname === '/data'
-                      ? 'text-emerald-300'
-                      : 'text-slate-500 group-hover:text-emerald-300'
-                  }`} />
-                  <span className="hidden sm:inline">Your Data</span>
-                </button>
-                <button
-                  onClick={() => onViewAnalytics()}
-                  disabled={connectedExchanges.length === 0 && !loadingExchanges}
-                  className={`group inline-flex items-center justify-center gap-1 md:gap-2 rounded-full px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium transition-all duration-300 flex-shrink-0 whitespace-nowrap ${
-                    connectedExchanges.length === 0 && !loadingExchanges
-                      ? 'text-slate-500 cursor-not-allowed'
-                      : pathname === '/analyze' || pathname?.startsWith('/analyze')
-                      ? 'text-white'
-                      : 'text-slate-300 hover:text-white'
-                  }`}
-                  style={{ minHeight: '32px', minWidth: '32px' }}
-                >
-                  <BarChart3 className={`h-3 w-3 md:h-4 md:w-4 transition-colors flex-shrink-0 ${
-                    connectedExchanges.length === 0 && !loadingExchanges
-                      ? 'text-slate-600'
-                      : pathname === '/analyze' || pathname?.startsWith('/analyze')
-                      ? 'text-emerald-300'
-                      : 'text-slate-500 group-hover:text-emerald-300'
-                  }`} />
-                  <span className="hidden sm:inline">Analytics</span>
-                </button>
-                <button
-                  onClick={() => router.push('/pricing')}
-                  className={`group inline-flex items-center justify-center gap-1 md:gap-2 rounded-full px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium transition-all duration-300 flex-shrink-0 whitespace-nowrap ${
-                    pathname === '/pricing'
-                      ? 'text-white'
-                      : 'text-slate-300 hover:text-white'
-                  }`}
-                  style={{ minHeight: '32px', minWidth: '32px' }}
-                >
-                  <Tag className={`h-3 w-3 md:h-4 md:w-4 transition-colors flex-shrink-0 ${
-                    pathname === '/pricing'
-                      ? 'text-emerald-300'
-                      : 'text-slate-500 group-hover:text-emerald-300'
-                  }`} />
-                  <span className="hidden sm:inline">Pricing</span>
-                </button>
-                <button
-                  onClick={() => router.push('/billing')}
-                  className={`group inline-flex items-center justify-center gap-1 md:gap-2 rounded-full px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium transition-all duration-300 flex-shrink-0 whitespace-nowrap ${
-                    pathname === '/billing'
-                      ? 'text-white'
-                      : 'text-slate-300 hover:text-white'
-                  }`}
-                  style={{ minHeight: '32px', minWidth: '32px' }}
-                >
-                  <CreditCard className={`h-3 w-3 md:h-4 md:w-4 transition-colors flex-shrink-0 ${
-                    pathname === '/billing'
-                      ? 'text-emerald-300'
-                      : 'text-slate-500 group-hover:text-emerald-300'
-                  }`} />
-                  <span className="hidden sm:inline">Billing</span>
-                </button>
-              </nav>
-            </div>
-
-            <div className="flex items-center gap-1 sm:gap-2 md:gap-3 flex-shrink-0">
-              <ThemeToggle />
-              
-              <div className="relative">
-                <button
-                  onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-400 flex items-center justify-center text-slate-900 font-semibold text-sm hover:shadow-lg hover:shadow-emerald-500/20 transition-all duration-300"
-                >
-                  {user?.user_metadata?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
-                </button>
-
-                {showUserMenu && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-10"
-                      onClick={() => setShowUserMenu(false)}
-                    />
-                    <div className="absolute right-0 mt-2 w-48 bg-slate-800/95 backdrop-blur-xl border border-slate-700/50 rounded-lg shadow-2xl z-20 overflow-hidden">
-                      <div className="p-2.5 border-b border-slate-700/50">
-                        <p className="text-[10px] text-slate-500 mb-0.5">Signed in as</p>
-                        <p className="text-xs text-slate-300 truncate">{user?.email}</p>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setShowUserMenu(false)
-                          handleSignOut()
-                        }}
-                        className="w-full px-3 py-2 text-left text-xs text-slate-400 hover:text-red-400 hover:bg-slate-700/50 transition-colors flex items-center gap-2"
-                      >
-                        <LogOut className="w-3.5 h-3.5" />
-                        Sign Out
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </header>
+        <Header
+          exchangeConfig={null}
+          currencyMetadata={null}
+          currency="USD"
+          setCurrency={() => {}}
+          onNavigateDashboard={() => router.push('/dashboard')}
+          onNavigateUpload={() => router.push('/data')}
+          onNavigateAll={() => onViewAnalytics()}
+          onNavigateVega={() => router.push('/vega')}
+          onSignOut={handleSignOut}
+          subscription={subscription}
+          showSubscriptionBadge={true}
+          mobilePaddingLeft={true}
+          hasDataSources={connectedExchanges.length > 0 || !loadingExchanges}
+        />
 
         {/* Main Content */}
-        <main className="relative mx-auto w-full max-w-[1400px] px-4 sm:px-6 pb-16 pt-10 space-y-10">
-        {/* Greeting Section */}
-        <div className="flex items-center justify-between">
-          <div>
+        <main className="relative mx-auto w-full max-w-[1400px] px-4 sm:px-6 pb-16 pt-8 space-y-8">
+        {/* Greeting Section with News Ticker */}
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl md:text-3xl font-bold text-slate-100 tracking-tight">
+              <h1 className="text-2xl md:text-3xl font-semibold text-white/90 tracking-tight">
                 {getGreeting()}{user?.user_metadata?.name ? `, ${user.user_metadata.name.split(' ')[0]}` : ''}
               </h1>
               {subscription && (
-                <Badge 
-                  variant="outline" 
-                  className={`${
-                    subscription.tier === 'pro' 
-                      ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400' 
-                      : subscription.tier === 'trader'
-                      ? 'border-blue-500/50 bg-blue-500/10 text-blue-400'
-                      : 'border-slate-500/50 bg-slate-500/10 text-slate-400'
-                  } font-semibold uppercase tracking-wider flex items-center gap-1.5`}
-                >
-                  {subscription.tier === 'pro' && <Crown className="w-3 h-3" />}
-                  {subscription.tier}
-                </Badge>
+                <div className="flex items-center gap-1.5">
+                  <Badge 
+                    variant="outline" 
+                    className={`${
+                      subscription.tier === 'pro' || subscription.tier === 'trader'
+                        ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-400' 
+                        : 'border-blue-400/30 bg-blue-400/10 text-blue-400'
+                    } font-medium uppercase tracking-wider text-[10px] px-2 py-0.5 flex items-center gap-1.5`}
+                  >
+                    {subscription.tier === 'pro' && <Crown className="w-3 h-3 text-emerald-400" />}
+                    {subscription.tier}
+                  </Badge>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="w-3.5 h-3.5 text-white/40 hover:text-white/60 transition-colors " />
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-xs">
+                        <p className="font-medium mb-1">{subscription.tier === 'pro' ? 'PRO Plan' : subscription.tier === 'trader' ? 'Trader Plan' : 'Free Plan'}</p>
+                        {subscription.tier === 'pro' ? (
+                          <p className="text-xs leading-relaxed">
+                            Unlimited exchange connections, unlimited trades analyzed, and 100,000 AI tokens/month. Full access to all features.
+                          </p>
+                        ) : subscription.tier === 'trader' ? (
+                          <p className="text-xs leading-relaxed">
+                            Up to 3 exchange connections, 10,000 trades/month, and 50,000 AI tokens/month. Perfect for active traders.
+                          </p>
+                        ) : (
+                          <p className="text-xs leading-relaxed">
+                            Up to 1 exchange connection, 500 trades/month, and 10,000 AI tokens/month. Great for getting started.
+                          </p>
+                        )}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
               )}
             </div>
-            <p className="text-xs text-slate-400 mt-1 flex items-center gap-2">
+            <p className="text-xs text-white/50 mt-2 flex items-center gap-2">
               {user?.email}
               {tradesStats && tradesStats.totalTrades > 0 && (
                 <>
-                  <Separator className="text-slate-600" />
-                  <span className="text-slate-400 font-medium">{tradesStats.totalTrades} trades analyzed</span>
+                  <Separator className="text-white/10" />
+                  <span className="text-white/60 font-medium">{tradesStats.totalTrades} trades analyzed</span>
                 </>
               )}
             </p>
           </div>
+          
+          {/* News Ticker - Inline with greeting */}
+          <div className="flex-shrink-0 w-full md:w-[calc(50%-0.75rem)] lg:w-[calc(50%-1.5rem)]">
+            <NewsTicker />
+          </div>
         </div>
 
-
-            {/* Stats Overview & Smart Recommendations */}
-            {loadingStats ? (
-              <DashboardStatsSkeleton />
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 px-1">
+          {/* Stats Overview & Smart Recommendations */}
+          {loadingStats ? (
+            <DashboardStatsSkeleton />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                 {/* Trading Overview / Progress Bar Card / Connect Exchange Card */}
                 {subscription && subscription.tier !== 'pro' ? (
                   connectedExchanges.length > 0 ? (
-                    <div className="relative overflow-hidden rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-emerald-500/5 backdrop-blur p-5 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:border-white/10">
-                      <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10" />
-                      <div className="absolute -top-24 -right-20 w-72 h-72 bg-emerald-500/20 blur-3xl rounded-full opacity-50" />
-                      <div className="relative">
-                        <h3 className="text-xs font-semibold text-slate-300 mb-4 uppercase tracking-wider">Your Trading Overview</h3>
+                    <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black p-5 transition-all duration-300 hover:border-white/20 flex flex-col h-[350px] self-start">
+                      <div className="relative flex flex-col overflow-hidden h-full">
+                        <h3 className="text-xs font-medium text-white/70 mb-4 uppercase tracking-wider flex-shrink-0">Your Trading Overview</h3>
+                        <div className="flex flex-col gap-3 overflow-y-auto flex-1">
                         {tradesStats && tradesStats.totalTrades > 0 ? (
-                          <div className="space-y-3 mb-4">
-                            <div className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.05] backdrop-blur-sm">
-                              <span className="text-xs text-slate-400">Total Trades</span>
-                              <span className="text-sm font-bold text-slate-100">{tradesStats.totalTrades.toLocaleString()}</span>
+                          <div className="space-y-2.5">
+                            <div className="flex items-center justify-between p-3 rounded-lg border border-white/5 bg-white/5">
+                              <span className="text-xs text-white/60">Total Trades</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold text-white/90">{tradesStats.totalTrades.toLocaleString()}</span>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <HelpCircle className="w-3.5 h-3.5 text-white/40 hover:text-white/60 transition-colors " />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="max-w-xs">
+                                      <p className="font-medium mb-1">Total Trades</p>
+                                      <p className="text-xs leading-relaxed">
+                                        Total number of trades analyzed across all connected exchanges and uploaded CSV files. Includes both spot and futures trades.
+                                      </p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </div>
                             </div>
-                            <div className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.05] backdrop-blur-sm">
-                              <span className="text-xs text-slate-400">Exchanges Connected</span>
-                              <span className="text-sm font-bold text-emerald-400 flex items-center gap-1">
+                            <div className="flex items-center justify-between p-3 rounded-lg border border-white/5 bg-white/5">
+                              <span className="text-xs text-white/60">Exchanges Connected</span>
+                              <span className="text-sm font-semibold text-white/90 flex items-center gap-1">
                                 {connectedExchanges.length}
                                 {connectedExchanges.length > 0 && (
-                                  <span className="text-slate-500 font-normal ml-1 flex items-center">
+                                  <span className="text-white/40 font-normal ml-1 flex items-center">
                                     (
                                     {connectedExchanges.map((exchange, index) => (
                                       <span key={exchange.id} className="inline-flex items-center">
@@ -1302,22 +1451,37 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                               </span>
                             </div>
                             {tradesStats.oldestTrade && (
-                              <div className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.05] backdrop-blur-sm">
-                                <span className="text-xs text-slate-400">Data Range</span>
-                                <span className="text-xs font-medium text-slate-300">
-                                  {new Date(tradesStats.oldestTrade).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - Present
-                                </span>
+                              <div className="flex items-center justify-between p-3 rounded-lg border border-white/5 bg-white/5">
+                                <span className="text-xs text-white/60">Data Range</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-medium text-white/70">
+                                    {new Date(tradesStats.oldestTrade).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - Present
+                                  </span>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <HelpCircle className="w-3.5 h-3.5 text-white/40 hover:text-white/60 transition-colors " />
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="max-w-xs">
+                                        <p className="font-medium mb-1">Data Range</p>
+                                        <p className="text-xs leading-relaxed">
+                                          The time period covered by your trading data, from your oldest trade to the most recent. This determines the historical analysis period.
+                                        </p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </div>
                               </div>
                             )}
                           </div>
                         ) : (
-                          <div className="space-y-3 mb-4">
-                            <div className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.05] backdrop-blur-sm">
-                              <span className="text-xs text-slate-400">Exchanges Connected</span>
-                              <span className="text-sm font-bold text-emerald-400 flex items-center gap-1">
+                          <div className="space-y-2.5">
+                            <div className="flex items-center justify-between p-3 rounded-lg border border-white/5 bg-white/5">
+                              <span className="text-xs text-white/60">Exchanges Connected</span>
+                              <span className="text-sm font-semibold text-white/90 flex items-center gap-1">
                                 {connectedExchanges.length}
                                 {connectedExchanges.length > 0 && (
-                                  <span className="text-slate-500 font-normal ml-1 flex items-center">
+                                  <span className="text-white/40 font-normal ml-1 flex items-center">
                                     (
                                     {connectedExchanges.map((exchange, index) => (
                                       <span key={exchange.id} className="inline-flex items-center">
@@ -1334,130 +1498,212 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                         )}
                         
                         {/* Progress Bar */}
-                        <div className="pt-4 border-t border-white/5">
-                          <PlanProgressBar 
-                            currentTier={subscription.tier}
-                            actualUsage={{
-                              connections: connectedExchanges.length,
-                              trades: tradesStats?.totalTrades || 0
-                            }}
-                            onClick={() => setShowUsageModal(true)}
-                          />
-                        </div>
-                        
-                        {/* Connected Exchanges Summary */}
-                        {connectedExchanges.length > 0 && (
-                          <div className="mt-4 pt-4 border-t border-white/5">
-                            <div className="flex items-center justify-between p-2 rounded-lg bg-white/5">
-                              <span className="text-xs text-slate-400">Exchanges Connected</span>
-                              <span className="text-sm font-bold text-emerald-400 flex items-center gap-1">
-                                {connectedExchanges.length}
-                                <span className="text-slate-500 font-normal ml-1 flex items-center">
-                                  (
-                                  {connectedExchanges.map((exchange, index) => (
-                                    <span key={exchange.id} className="inline-flex items-center">
-                                      <ExchangeIcon exchange={exchange.exchange} size={12} className="w-3 h-3" />
-                                      {index < connectedExchanges.length - 1 && <span className="mx-0.5">,</span>}
-                                    </span>
-                                  ))}
-                                  )
-                                </span>
-                              </span>
+                        {subscription && subscription.tier !== 'pro' && (
+                          <div className="pt-3 border-t border-white/10 flex-shrink-0 mt-auto flex items-center gap-2">
+                            <div className="flex-1">
+                              <PlanProgressBar 
+                                currentTier={subscription.tier}
+                                actualUsage={{
+                                  connections: connectedExchanges.length,
+                                  trades: tradesStats?.totalTrades || 0,
+                                  tokens: tokenUsage.used || 0
+                                }}
+                                onClick={() => setShowUsageModal(true)}
+                              />
                             </div>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <HelpCircle className="w-3.5 h-3.5 text-white/40 hover:text-white/60 transition-colors  flex-shrink-0" />
+                                </TooltipTrigger>
+                                <TooltipContent side="left" className="max-w-xs">
+                                  <p className="font-medium mb-1">Plan Usage Progress</p>
+                                  <p className="text-xs leading-relaxed mb-2">
+                                    This shows how close you are to your current plan limits. The bar fills as you approach any limit (connections, trades, or tokens).
+                                  </p>
+                                  <p className="text-xs leading-relaxed">
+                                    <strong>Reset:</strong> Limits reset monthly on your billing date. Click to view detailed usage.
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           </div>
                         )}
+                        </div>
                       </div>
                     </div>
                   ) : (
-                    <div className="relative overflow-hidden rounded-3xl border border-emerald-500/20 bg-emerald-500/5 shadow-lg shadow-emerald-500/10 backdrop-blur p-5 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:border-emerald-500/40 hover:bg-emerald-500/10 group">
-                      <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10" />
-                      <div className="absolute -top-12 -right-12 w-32 h-32 bg-emerald-500/20 blur-2xl rounded-full opacity-50 group-hover:opacity-75 transition-opacity duration-300" />
-                      <div className="relative">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Database className="w-4 h-4 text-emerald-400" />
-                          <h3 className="text-xs font-semibold text-emerald-300 uppercase tracking-wider">Get Started</h3>
+                    <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black p-5 transition-all duration-300 hover:border-white/20 group h-[350px] flex flex-col self-start">
+                      <div className="relative h-full flex flex-col">
+                        <div className="flex items-center gap-2 mb-4">
+                          <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                            <Database className="w-4 h-4 text-white/70" />
+                          </div>
+                          <h3 className="text-xs font-medium text-white/80 uppercase tracking-wider">Get Started</h3>
                         </div>
-                        <p className="text-xs text-slate-300 leading-relaxed mb-4">
+                        <p className="text-xs text-white/60 leading-relaxed mb-4">
                           Connect your exchange or upload CSV files to start analyzing your trading performance
                         </p>
-                        <div className="space-y-2">
-                          <button
-                            onClick={handleOpenConnectModal}
-                            className="w-full text-left text-xs text-slate-300 hover:text-emerald-300 font-medium transition-colors duration-200 flex items-center gap-2 p-2.5 rounded-lg hover:bg-white/5 border border-white/5 hover:border-emerald-500/30"
-                          >
-                            <LinkIcon className="w-4 h-4 text-emerald-400/70 flex-shrink-0" />
-                            <span>Connect Exchange via API</span>
-                            <ChevronRight className="w-3.5 h-3.5 ml-auto text-slate-500" />
-                          </button>
-                          <button
-                            onClick={() => router.push('/data')}
-                            className="w-full text-left text-xs text-slate-300 hover:text-emerald-300 font-medium transition-colors duration-200 flex items-center gap-2 p-2.5 rounded-lg hover:bg-white/5 border border-white/5 hover:border-emerald-500/30"
-                          >
-                            <Upload className="w-4 h-4 text-emerald-400/70 flex-shrink-0" />
-                            <span>Upload CSV Files</span>
-                            <ChevronRight className="w-3.5 h-3.5 ml-auto text-slate-500" />
-                          </button>
+                        
+                        {/* Plan Limits */}
+                        {(() => {
+                          const userTier = subscription?.tier || 'free'
+                          const tierLimits = TIER_LIMITS[userTier] || TIER_LIMITS.free
+                          return (
+                            <div className="space-y-2.5 mb-4">
+                              <div className="flex items-center gap-2 text-xs text-white/70">
+                                <div className="w-1.5 h-1.5 rounded-full bg-white/60" />
+                                <span>Exchange Connections</span>
+                                {tierLimits.maxConnections === Infinity ? (
+                                  <Infinity className="w-3.5 h-3.5 text-white/50 ml-auto" />
+                                ) : (
+                                  <span className="text-white/80 font-semibold ml-auto">
+                                    {connectedExchanges.length} / {tierLimits.maxConnections}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 text-xs text-white/70">
+                                <div className="w-1.5 h-1.5 rounded-full bg-white/60" />
+                                <span>Trades Analyzed</span>
+                                {tierLimits.maxTradesPerMonth === Infinity ? (
+                                  <Infinity className="w-3.5 h-3.5 text-white/50 ml-auto" />
+                                ) : (
+                                  <span className="text-white/80 font-semibold ml-auto">
+                                    {tradesStats?.totalTrades || 0} / {tierLimits.maxTradesPerMonth}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 text-xs text-white/70">
+                                <div className="w-1.5 h-1.5 rounded-full bg-white/60" />
+                                <span className="flex-1">AI Tokens</span>
+                                <span className="text-white/80 font-semibold">
+                                  {tokenUsage.used.toLocaleString()} / {tierLimits.maxTokensPerMonth === Infinity ? (
+                                    <Infinity className="w-3.5 h-3.5 text-white/50 inline" />
+                                  ) : tierLimits.maxTokensPerMonth.toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+                          )
+                        })()}
+                        
+                        {/* Progress Bar - Show for free and trader plans */}
+                        {subscription && subscription.tier !== 'pro' && (
+                          <div className="pt-3 border-t border-white/10 mb-4">
+                            <PlanProgressBar 
+                              currentTier={subscription.tier}
+                              actualUsage={{
+                                connections: connectedExchanges.length,
+                                trades: tradesStats?.totalTrades || 0,
+                                tokens: tokenUsage.used || 0
+                              }}
+                              onClick={() => setShowUsageModal(true)}
+                            />
+                          </div>
+                        )}
+                        
+                        <div className="space-y-2 mt-auto">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={handleOpenConnectModal}
+                                  className="w-full text-left text-xs text-white/80 hover:text-white font-medium transition-colors duration-200 flex items-center gap-2 p-3 rounded-lg hover:bg-white/5 border border-white/10 hover:border-white/20 group"
+                                >
+                                  <LinkIcon className="w-4 h-4 text-white/60 flex-shrink-0" />
+                                  <span className="flex-1">Connect Exchange via API</span>
+                                  <HelpCircle className="w-3.5 h-3.5 text-white/40 group-hover:text-white/60 transition-colors flex-shrink-0" />
+                                  <ChevronRight className="w-3.5 h-3.5 text-white/40 flex-shrink-0" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs">
+                                <p className="font-medium mb-1">Connect Exchange via API</p>
+                                <p className="text-xs leading-relaxed">
+                                  Connect your exchange using API keys for real-time data and automatic updates. Your API keys are encrypted and read-only - we can't execute trades or access your funds.
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={() => router.push('/data')}
+                                  className="w-full text-left text-xs text-white/80 hover:text-white font-medium transition-colors duration-200 flex items-center gap-2 p-3 rounded-lg hover:bg-white/5 border border-white/10 hover:border-white/20 group"
+                                >
+                                  <Upload className="w-4 h-4 text-white/60 flex-shrink-0" />
+                                  <span className="flex-1">Upload CSV Files</span>
+                                  <HelpCircle className="w-3.5 h-3.5 text-white/40 group-hover:text-white/60 transition-colors flex-shrink-0" />
+                                  <ChevronRight className="w-3.5 h-3.5 text-white/40 flex-shrink-0" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs">
+                                <p className="font-medium mb-1">Upload CSV Files</p>
+                                <p className="text-xs leading-relaxed">
+                                  Import your trade history manually by uploading CSV files exported from your exchange. Good for one-time analysis or when you prefer not to use API connections.
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </div>
                       </div>
                     </div>
                   )
                 ) : subscription && subscription.tier === 'pro' ? (
-                  <div className="relative overflow-hidden rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-cyan-500/10 shadow-lg shadow-emerald-500/20 backdrop-blur p-5 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:border-emerald-500/50 group">
-                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 via-transparent to-cyan-500/20 opacity-50" />
-                    <div className="absolute -top-24 -right-20 w-72 h-72 bg-emerald-500/30 blur-3xl rounded-full opacity-60 group-hover:opacity-80 transition-opacity" />
-                    <div className="absolute -bottom-24 -left-20 w-64 h-64 bg-cyan-500/20 blur-3xl rounded-full opacity-40" />
-                    <div className="relative">
-                      <div className="flex items-center gap-2 mb-4">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
-                          <Crown className="w-5 h-5 text-emerald-400" />
+                  <div className="relative overflow-hidden rounded-xl bg-black p-5 transition-all duration-300 group h-[350px] flex flex-col self-start">
+                    <div className="relative h-full flex flex-col">
+                      <div className="flex items-center gap-3 mb-4 p-3 rounded-lg border border-white/20 bg-white/5">
+                        <div className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                          <Crown className="w-5 h-5 text-white/80" />
                         </div>
                         <div className="flex-1">
-                          <h3 className="text-xs font-semibold text-emerald-300 mb-1 uppercase tracking-wider flex items-center gap-2">
+                          <h3 className="text-xs font-medium text-white/80 mb-1 uppercase tracking-wider flex items-center gap-2">
                             PRO Plan
-                            <Badge className="bg-emerald-500/20 border-emerald-500/40 text-emerald-300 text-[10px] px-1.5 py-0">
+                            <Badge className="bg-white/5 border-white/10 text-white/70 text-[10px] px-1.5 py-0">
                               Active
                             </Badge>
                           </h3>
-                          <p className="text-xs text-slate-300 leading-relaxed">
+                          <p className="text-xs text-white/60 leading-relaxed">
                             You have unlimited access to all features
                           </p>
                         </div>
                       </div>
                       
-                      <div className="space-y-2.5 mt-4">
-                        <div className="flex items-center gap-2 text-xs text-slate-300">
-                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      <div className="space-y-2.5 mt-auto">
+                        <div className="flex items-center gap-2 text-xs text-white/70">
+                          <div className="w-1.5 h-1.5 rounded-full bg-white/60" />
                           <span>Unlimited exchange connections</span>
-                          <Infinity className="w-3.5 h-3.5 text-emerald-400 ml-auto" />
+                          <Infinity className="w-3.5 h-3.5 text-white/50 ml-auto" />
                         </div>
-                        <div className="flex items-center gap-2 text-xs text-slate-300">
-                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                        <div className="flex items-center gap-2 text-xs text-white/70">
+                          <div className="w-1.5 h-1.5 rounded-full bg-white/60" />
                           <span>Unlimited trades analyzed</span>
-                          <Infinity className="w-3.5 h-3.5 text-emerald-400 ml-auto" />
+                          <Infinity className="w-3.5 h-3.5 text-white/50 ml-auto" />
                         </div>
-                        <div className="flex items-center gap-2 text-xs text-slate-300">
-                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                          <span>Unlimited reports generated</span>
-                          <Infinity className="w-3.5 h-3.5 text-emerald-400 ml-auto" />
+                        <div className="flex items-center gap-2 text-xs text-white/70">
+                          <div className="w-1.5 h-1.5 rounded-full bg-white/60" />
+                          <span className="flex-1">AI Tokens</span>
+                          <span className="text-white/80 font-semibold">
+                            {tokenUsage.used.toLocaleString()} / {tokenUsage.limit.toLocaleString()}
+                          </span>
                         </div>
                       </div>
 
                       {tradesStats && tradesStats.totalTrades > 0 && (
-                        <div className="mt-4 pt-4 border-t border-emerald-500/20">
+                        <div className="mt-4 pt-4 border-t border-white/5">
                           <div className="flex items-center justify-between p-2 rounded-lg bg-white/5">
-                            <span className="text-xs text-slate-400">Total Trades Analyzed</span>
-                            <span className="text-sm font-bold text-emerald-400">{tradesStats.totalTrades.toLocaleString()}</span>
+                            <span className="text-xs text-white/60">Total Trades Analyzed</span>
+                            <span className="text-sm font-semibold text-white/90">{tradesStats.totalTrades.toLocaleString()}</span>
                           </div>
                         </div>
                       )}
                       
-                      <div className="mt-4 pt-4 border-t border-emerald-500/20">
+                      <div className="mt-4 pt-4 border-t border-white/5">
                         <div className="flex items-center justify-between p-2 rounded-lg bg-white/5">
-                          <span className="text-xs text-slate-400">Exchanges Connected</span>
-                          <span className="text-sm font-bold text-emerald-400 flex items-center gap-1">
+                          <span className="text-xs text-white/60">Exchanges Connected</span>
+                          <span className="text-sm font-semibold text-white/90 flex items-center gap-1">
                             {connectedExchanges.length}
                             {connectedExchanges.length > 0 && (
-                              <span className="text-slate-500 font-normal ml-1 flex items-center">
+                              <span className="text-white/40 font-normal ml-1 flex items-center">
                                 (
                                 {connectedExchanges.map((exchange, index) => (
                                   <span key={exchange.id} className="inline-flex items-center">
@@ -1475,220 +1721,21 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                   </div>
                 ) : null}
 
-                {/* Smart Recommendations */}
-                <div className="relative overflow-hidden rounded-3xl border border-emerald-500/20 bg-emerald-500/5 shadow-lg shadow-emerald-500/10 backdrop-blur p-5 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:border-emerald-500/40 hover:bg-emerald-500/10 group">
-                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10" />
-                  <div className="absolute -top-12 -right-12 w-32 h-32 bg-emerald-500/20 blur-2xl rounded-full opacity-50 group-hover:opacity-75 transition-opacity duration-300" />
-                  <div className="relative">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Sparkles className="w-4 h-4 text-emerald-400" />
-                      <h3 className="text-xs font-semibold text-emerald-300 uppercase tracking-wider">
-                        {connectedExchanges.length === 0 ? 'How does this work?' : 'Market Insights'}
-                      </h3>
-                    </div>
-                    
-                    {tradesStats && tradesStats.totalTrades > 0 && whatsNextActions ? (
-                      <div className="space-y-4">
-                        {/* High Impact Actions */}
-                        {whatsNextActions.highImpact && whatsNextActions.highImpact.length > 0 && (
-                          <div className="space-y-2">
-                            <p className="text-[10px] font-semibold text-emerald-400/80 uppercase tracking-wider">High Impact</p>
-                            <div className="space-y-2">
-                              {whatsNextActions.highImpact.map((action) => {
-                                const IconComponent = getIconComponent(action.icon)
-                                const isAmber = action.color === 'amber'
-                                const isRed = action.color === 'red'
-                                const isEmerald = action.color === 'emerald'
-                                const isCyan = action.color === 'cyan'
-                                const isPurple = action.color === 'purple'
-                                const isCritical = action.urgency === 'critical'
-                                
-                                const borderClass = isAmber ? 'border-amber-500/20 hover:border-amber-500/40' :
-                                                   isRed ? 'border-red-500/20 hover:border-red-500/40' :
-                                                   isEmerald ? 'border-emerald-500/20 hover:border-emerald-500/40' :
-                                                   isCyan ? 'border-cyan-500/20 hover:border-cyan-500/40' :
-                                                   isPurple ? 'border-purple-500/20 hover:border-purple-500/40' :
-                                                   'border-slate-500/20 hover:border-slate-500/40'
-                                
-                                const bgClass = isAmber ? 'bg-amber-500/5 hover:bg-amber-500/10' :
-                                                isRed ? 'bg-red-500/5 hover:bg-red-500/10' :
-                                                isEmerald ? 'bg-emerald-500/5 hover:bg-emerald-500/10' :
-                                                isCyan ? 'bg-cyan-500/5 hover:bg-cyan-500/10' :
-                                                isPurple ? 'bg-purple-500/5 hover:bg-purple-500/10' :
-                                                'bg-slate-500/5 hover:bg-slate-500/10'
-                                
-                                const iconClass = isAmber ? 'text-amber-400' :
-                                                 isRed ? 'text-red-400' :
-                                                 isEmerald ? 'text-emerald-400' :
-                                                 isCyan ? 'text-cyan-400' :
-                                                 isPurple ? 'text-purple-400' :
-                                                 'text-slate-400'
-                                
-                                const savingsClass = isCritical && isAmber ? 'text-amber-300' :
-                                                    isAmber ? 'text-amber-400' :
-                                                    isRed ? 'text-red-300' :
-                                                    isEmerald ? 'text-emerald-300' :
-                                                    isCyan ? 'text-cyan-300' :
-                                                    isPurple ? 'text-purple-300' :
-                                                    'text-slate-300'
-                                
-                                return (
-                                  <button
-                                    key={action.id}
-                                    onClick={() => {
-                                      if (action.actionType === 'navigation' && action.action?.route) {
-                                        router.push(action.action.route)
-                                      } else {
-                                        onViewAnalytics()
-                                      }
-                                    }}
-                                    className={`w-full text-left p-3 rounded-xl border transition-all duration-200 hover:scale-[1.02] ${borderClass} ${bgClass}`}
-                                  >
-                                    <div className="flex items-start justify-between gap-3">
-                                      <div className="flex items-start gap-2 flex-1 min-w-0">
-                                        <IconComponent className={`w-4 h-4 ${iconClass} flex-shrink-0 mt-0.5`} />
-                                        <div className="flex-1 min-w-0">
-                                          <div className="text-xs font-semibold text-slate-200 mb-0.5">{action.title}</div>
-                                          <div className="text-[10px] text-slate-400 leading-relaxed">{action.description}</div>
-                                          {action.potentialSavings > 0 && (
-                                            <div className={`text-[10px] font-medium mt-1 ${savingsClass}`}>
-                                              Potential savings: ${action.potentialSavings.toFixed(0)}
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-                                      <ChevronRight className={`w-3.5 h-3.5 ${iconClass} opacity-50 flex-shrink-0 mt-1`} />
-                                    </div>
-                                  </button>
-                                )
-                              })}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Quick Actions */}
-                        {whatsNextActions.quickActions && whatsNextActions.quickActions.length > 0 && (
-                          <div className="space-y-2">
-                            <p className="text-[10px] font-semibold text-slate-400/80 uppercase tracking-wider">Quick Wins</p>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              {whatsNextActions.quickActions.map((action) => {
-                                const IconComponent = getIconComponent(action.icon)
-                                const isAmber = action.color === 'amber'
-                                const isRed = action.color === 'red'
-                                const isEmerald = action.color === 'emerald'
-                                const isCyan = action.color === 'cyan'
-                                const isPurple = action.color === 'purple'
-                                
-                                const borderClass = isAmber ? 'border-amber-500/20 hover:border-amber-500/40' :
-                                                   isRed ? 'border-red-500/20 hover:border-red-500/40' :
-                                                   isEmerald ? 'border-emerald-500/20 hover:border-emerald-500/40' :
-                                                   isCyan ? 'border-cyan-500/20 hover:border-cyan-500/40' :
-                                                   isPurple ? 'border-purple-500/20 hover:border-purple-500/40' :
-                                                   'border-slate-500/20 hover:border-slate-500/40'
-                                
-                                const bgClass = isAmber ? 'bg-amber-500/5 hover:bg-amber-500/10' :
-                                                isRed ? 'bg-red-500/5 hover:bg-red-500/10' :
-                                                isEmerald ? 'bg-emerald-500/5 hover:bg-emerald-500/10' :
-                                                isCyan ? 'bg-cyan-500/5 hover:bg-cyan-500/10' :
-                                                isPurple ? 'bg-purple-500/5 hover:bg-purple-500/10' :
-                                                'bg-slate-500/5 hover:bg-slate-500/10'
-                                
-                                const iconClass = isAmber ? 'text-amber-400' :
-                                                 isRed ? 'text-red-400' :
-                                                 isEmerald ? 'text-emerald-400' :
-                                                 isCyan ? 'text-cyan-400' :
-                                                 isPurple ? 'text-purple-400' :
-                                                 'text-slate-400'
-                                
-                                return (
-                                  <button
-                                    key={action.id}
-                                    onClick={() => {
-                                      if (action.actionType === 'navigation' && action.action?.route) {
-                                        router.push(action.action.route)
-                                      } else {
-                                        onViewAnalytics()
-                                      }
-                                    }}
-                                    className={`text-left p-2.5 rounded-lg border transition-all duration-200 hover:scale-[1.02] ${borderClass} ${bgClass}`}
-                                  >
-                                    <div className="flex items-start gap-2">
-                                      <IconComponent className={`w-3.5 h-3.5 ${iconClass} flex-shrink-0 mt-0.5`} />
-                                      <div className="flex-1 min-w-0">
-                                        <div className="text-[11px] font-semibold text-slate-200 mb-0.5">{action.title}</div>
-                                        <div className="text-[10px] text-slate-400 leading-relaxed line-clamp-2">{action.description}</div>
-                                      </div>
-                                    </div>
-                                  </button>
-                                )
-                              })}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Market Indicators */}
-                        <MarketIndicators />
-
-                        {/* Top Headlines */}
-                        <TopHeadlines />
-                      </div>
-                    ) : tradesStats && tradesStats.totalTrades > 0 ? (
-                      <div className="space-y-4">
-                        {/* Market Indicators */}
-                        <MarketIndicators />
-
-                        {/* Top Headlines */}
-                        <TopHeadlines />
-                      </div>
-                    ) : connectedExchanges.length === 0 ? (
-                      <div className="space-y-3">
-                        <p className="text-xs text-slate-300 leading-relaxed mb-2">
-                          TradeClarity helps you analyze your trading performance, identify patterns, and make data-driven decisions. Get insights into your win rate, profit factors, best trading times, and more.
-                        </p>
-                        <button
-                          onClick={onTryDemo}
-                          className="group/btn w-full text-left text-xs text-emerald-400 hover:text-emerald-300 font-semibold transition-all duration-300 inline-flex items-center gap-2 p-2.5 rounded-lg hover:bg-white/5 border border-emerald-500/20 hover:border-emerald-500/40"
-                        >
-                          <Play className="w-3.5 h-3.5" />
-                          <span>Try Demo</span>
-                          <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover/btn:translate-x-1 ml-auto" />
-                        </button>
-                      </div>
-                    ) : connectedExchanges.length === 1 ? (
-                      <div className="space-y-3">
-                        <p className="text-xs text-slate-300 leading-relaxed mb-2">
-                          Add another exchange to compare performance across platforms and get deeper insights
-                        </p>
-                        <button
-                          onClick={() => setShowConnectModal(true)}
-                          className="group/btn text-xs text-emerald-400 hover:text-emerald-300 font-semibold transition-all duration-300 inline-flex items-center gap-1.5 hover:gap-2"
-                        >
-                          Add Exchange
-                          <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover/btn:translate-x-1" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <p className="text-xs text-slate-300 leading-relaxed mb-2">
-                          View your combined analytics to see patterns across all {connectedExchanges.length} exchanges and discover hidden opportunities
-                        </p>
-                        <button
-                          onClick={() => onViewAnalytics()}
-                          className="group/btn text-xs text-emerald-400 hover:text-emerald-300 font-semibold transition-all duration-300 inline-flex items-center gap-1.5 hover:gap-2"
-                        >
-                          View Analytics
-                          <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover/btn:translate-x-1" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
+              {/* AI Chat - Replaces Market Insights */}
+              <div className="flex flex-col h-[350px] self-start">
+                <div className="flex-1 overflow-hidden min-h-0">
+                  <VegaDashboardWidget 
+                    onStartChat={() => router.push('/vega')}
+                  />
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Trading Insights Section - Lazy loaded (only shown when analysis is performed) */}
-            {/* Analysis is now lazy loaded - insights will be empty on dashboard load for better performance */}
-            {false && !loadingStats && allInsights.length > 0 && tradesStats && tradesStats.totalTrades > 0 && (
+
+          {/* Trading Insights Section - Lazy loaded (only shown when analysis is performed) */}
+          {/* Analysis is now lazy loaded - insights will be empty on dashboard load for better performance */}
+          {false && !loadingStats && allInsights.length > 0 && tradesStats && tradesStats.totalTrades > 0 && (
               <section className="space-y-3">
                 <div className="flex items-center gap-2 mb-3 px-1">
                   <Sparkles className="w-4 h-4 text-emerald-400" />
@@ -1776,14 +1823,29 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                   </div>
 
                   {/* View Analytics button - Fixed on the right */}
-                  <button
-                    onClick={onViewAnalytics}
-                    className="group flex-shrink-0 px-4 py-2.5 bg-gradient-to-r from-emerald-500/10 to-emerald-600/10 hover:from-emerald-500/20 hover:to-emerald-600/20 border border-emerald-500/30 hover:border-emerald-500/50 rounded-xl text-xs font-semibold text-emerald-300 hover:text-emerald-200 transition-all duration-300 inline-flex items-center gap-2 hover:scale-[1.02] whitespace-nowrap"
-                  >
-                    <BarChart3 className="w-4 h-4" />
-                    <span>Explore All</span>
-                    <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={onViewAnalytics}
+                      className="group flex-shrink-0 px-4 py-2.5 bg-gradient-to-r from-emerald-500/10 to-emerald-600/10 hover:from-emerald-500/20 hover:to-emerald-600/20 border border-emerald-500/30 hover:border-emerald-500/50 rounded-xl text-xs font-semibold text-emerald-300 hover:text-emerald-200 transition-all duration-300 inline-flex items-center gap-2 hover:scale-[1.02] whitespace-nowrap"
+                    >
+                      <BarChart3 className="w-4 h-4" />
+                      <span>Explore All</span>
+                      <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                    </button>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="w-4 h-4 text-white/40 hover:text-white/60 transition-colors " />
+                        </TooltipTrigger>
+                        <TooltipContent side="left" className="max-w-xs">
+                          <p className="font-medium mb-1">Explore All Analytics</p>
+                          <p className="text-xs leading-relaxed">
+                            View comprehensive trading analytics including performance metrics, patterns, insights, and detailed breakdowns of your trading data.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                 </div>
 
                 {/* Clickable dots indicator */}
@@ -1820,59 +1882,103 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
             {/* Quick Actions - Only show for users with data */}
             {tradesStats && tradesStats.totalTrades > 0 && (
               <section>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 px-1">
-                <button
-                  onClick={() => setShowConnectModal(true)}
-                  className="group relative overflow-hidden p-5 md:p-6 rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-emerald-500/5 backdrop-blur hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all duration-300 hover:scale-[1.02] text-left"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <div className="absolute -top-8 -right-8 w-24 h-24 bg-emerald-500/10 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <div className="relative">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-10 h-10 bg-emerald-500/20 group-hover:bg-emerald-500/30 border border-emerald-500/30 rounded-xl flex items-center justify-center transition-all duration-300 group-hover:scale-110">
-                        <LinkIcon className="w-5 h-5 text-emerald-400" />
-                      </div>
-                      <h3 className="text-sm font-semibold text-slate-200">Connect Exchange</h3>
-                    </div>
-                    <p className="text-xs text-slate-400 leading-relaxed">
-                      Link via API or CSV
-                    </p>
-                  </div>
-                </button>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => setShowConnectModal(true)}
+                        className="group relative overflow-hidden p-5 rounded-xl border border-white/10 bg-black hover:border-white/20 hover:bg-white/5 transition-all duration-300 text-left w-full"
+                      >
+                        <div className="relative">
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="w-10 h-10 bg-white/5 group-hover:bg-white/10 border border-white/10 rounded-lg flex items-center justify-center transition-all duration-300">
+                              <LinkIcon className="w-5 h-5 text-white/70" />
+                            </div>
+                            <h3 className="text-sm font-medium text-white/90 flex-1">Connect Exchange</h3>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <HelpCircle className="w-3.5 h-3.5 text-white/40 hover:text-white/60 transition-colors " onClick={(e) => e.stopPropagation()} />
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-xs">
+                                  <p className="font-medium mb-1">Connect Exchange via API</p>
+                                  <p className="text-xs leading-relaxed">
+                                    Connect your exchange using API keys for real-time data and automatic updates. Your API keys are encrypted and read-only - we can't execute trades or access your funds.
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                          <p className="text-xs text-white/60 leading-relaxed">
+                            Link via API or CSV
+                          </p>
+                        </div>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs">
+                      <p className="font-medium mb-1">Connect Your Exchange</p>
+                      <p className="text-xs leading-relaxed">
+                        Connect via API keys for real-time data and automatic updates, or upload CSV files for one-time analysis. Your API keys are encrypted and read-only - we can't execute trades or access your funds.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
 
-                <button
-                  onClick={() => router.push('/data')}
-                  className="group relative overflow-hidden p-5 md:p-6 rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-blue-500/5 backdrop-blur hover:border-blue-500/40 hover:bg-blue-500/5 transition-all duration-300 hover:scale-[1.02] text-left"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <div className="absolute -top-8 -right-8 w-24 h-24 bg-blue-500/10 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <div className="relative">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-10 h-10 bg-blue-500/20 group-hover:bg-blue-500/30 border border-blue-500/30 rounded-xl flex items-center justify-center transition-all duration-300 group-hover:scale-110">
-                        <Upload className="w-5 h-5 text-blue-400" />
-                      </div>
-                      <h3 className="text-sm font-semibold text-slate-200">Upload CSV</h3>
-                    </div>
-                    <p className="text-xs text-slate-400 leading-relaxed">
-                      Import trade history
-                    </p>
-                  </div>
-                </button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => router.push('/data')}
+                        className="group relative overflow-hidden p-5 rounded-xl border border-white/10 bg-black hover:border-white/20 hover:bg-white/5 transition-all duration-300 text-left w-full"
+                      >
+                        <div className="relative">
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="w-10 h-10 bg-white/5 group-hover:bg-white/10 border border-white/10 rounded-lg flex items-center justify-center transition-all duration-300">
+                              <Upload className="w-5 h-5 text-white/70" />
+                            </div>
+                            <h3 className="text-sm font-medium text-white/90 flex-1">Upload CSV</h3>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <HelpCircle className="w-3.5 h-3.5 text-white/40 hover:text-white/60 transition-colors " onClick={(e) => e.stopPropagation()} />
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-xs">
+                                  <p className="font-medium mb-1">Upload CSV Files</p>
+                                  <p className="text-xs leading-relaxed">
+                                    Import your trade history manually by uploading CSV files exported from your exchange. Good for one-time analysis or when you prefer not to use API connections.
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                          <p className="text-xs text-white/60 leading-relaxed">
+                            Import trade history
+                          </p>
+                        </div>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs">
+                      <p className="font-medium mb-1">Upload CSV Files</p>
+                      <p className="text-xs leading-relaxed">
+                        Import your trade history manually by uploading CSV files exported from your exchange. Good for one-time analysis or when you prefer not to use API connections.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
 
                 <button
                   onClick={onTryDemo}
-                  className="group relative overflow-hidden p-5 md:p-6 rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-purple-500/5 backdrop-blur hover:border-purple-500/40 hover:bg-purple-500/5 transition-all duration-300 hover:scale-[1.02] text-left"
+                  className="group relative overflow-hidden p-5 rounded-xl border border-white/10 bg-black hover:border-white/20 hover:bg-white/5 transition-all duration-300 text-left"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <div className="absolute -top-8 -right-8 w-24 h-24 bg-purple-500/10 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <div className="relative">
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="w-10 h-10 bg-purple-500/20 group-hover:bg-purple-500/30 border border-purple-500/30 rounded-xl flex items-center justify-center transition-all duration-300 group-hover:scale-110">
-                        <Play className="w-5 h-5 text-purple-400" />
+                      <div className="w-10 h-10 bg-white/5 group-hover:bg-white/10 border border-white/10 rounded-lg flex items-center justify-center transition-all duration-300">
+                        <Play className="w-5 h-5 text-white/70" />
                       </div>
-                      <h3 className="text-sm font-semibold text-slate-200">Try Demo</h3>
+                      <h3 className="text-sm font-medium text-white/90">Try Demo</h3>
                     </div>
-                    <p className="text-xs text-slate-400 leading-relaxed">
+                    <p className="text-xs text-white/60 leading-relaxed">
                       Explore sample data
                     </p>
                   </div>
@@ -1886,10 +1992,10 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-slate-800/50 border border-slate-700/50 flex items-center justify-center">
-                      <Database className="w-4 h-4 text-slate-400" />
+                    <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                      <Database className="w-4 h-4 text-white/70" />
                     </div>
-                    <h2 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                    <h2 className="text-sm font-medium text-white/90 flex items-center gap-2">
                       Data Sources ({connectedExchanges.length + unlinkedFiles.length})
                     </h2>
                   </div>
@@ -1897,14 +2003,14 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                     <div className="flex items-center gap-2 text-xs">
                       <button
                         onClick={selectAll}
-                        className="text-emerald-400 hover:text-emerald-300 transition-colors font-medium"
+                        className="text-white/70 hover:text-white transition-colors font-medium"
                       >
                         Select All
                       </button>
-                      <Separator className="text-slate-600" />
+                      <Separator className="text-white/10" />
                       <button
                         onClick={deselectAll}
-                        className="text-slate-500 hover:text-slate-400 transition-colors"
+                        className="text-white/50 hover:text-white/70 transition-colors"
                       >
                         Clear
                       </button>
@@ -1913,7 +2019,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                 </div>
                 <button
                   onClick={() => setShowConnectModal(true)}
-                  className="group text-xs text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1.5 font-medium hover:gap-2"
+                  className="group text-xs text-white/70 hover:text-white transition-colors flex items-center gap-1.5 font-medium hover:gap-2"
                 >
                   <Plus className="w-3.5 h-3.5 transition-transform group-hover:rotate-90" />
                   Add
@@ -1923,34 +2029,62 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
               {loadingExchanges || loadingFiles ? (
                 <DataSourceSkeleton count={2} />
               ) : connectedExchanges.length === 0 && unlinkedFiles.length === 0 ? (
-                <div className="relative overflow-hidden rounded-3xl border border-white/5 bg-white/[0.03] shadow-lg shadow-emerald-500/5 backdrop-blur p-10 md:p-12 text-center">
-                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10" />
-                  <div className="absolute -top-20 -right-20 w-48 h-48 bg-emerald-500/10 blur-3xl rounded-full" />
+                <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black p-10 md:p-12 text-center">
                   <div className="relative">
-                    <div className="w-16 h-16 bg-white/[0.05] border border-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                      <Database className="w-8 h-8 text-slate-400" />
+                    <div className="w-16 h-16 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+                      <Database className="w-8 h-8 text-white/50" />
                     </div>
-                    <p className="text-sm font-semibold text-slate-300 mb-2">
+                    <p className="text-sm font-medium text-white/80 mb-2">
                       No data sources yet
                     </p>
-                    <p className="text-xs text-slate-400 mb-6 max-w-md mx-auto">
+                    <p className="text-xs text-white/60 mb-6 max-w-md mx-auto">
                       Connect an exchange or upload CSV files to get started with powerful trading insights
                     </p>
                     <div className="flex items-center justify-center gap-3">
-                      <button
-                        onClick={() => setShowConnectModal(true)}
-                        className="group px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 rounded-xl text-sm font-semibold transition-all duration-300 inline-flex items-center gap-2 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-105"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Connect Exchange
-                      </button>
-                      <button
-                        onClick={() => router.push('/data')}
-                        className="group px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 rounded-xl text-sm font-semibold transition-all duration-300 inline-flex items-center gap-2 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 hover:scale-105"
-                      >
-                        <Upload className="w-4 h-4" />
-                        Upload CSV
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setShowConnectModal(true)}
+                          className="group px-5 py-2.5 bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 rounded-lg text-sm font-medium transition-all duration-300 inline-flex items-center gap-2"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Connect Exchange
+                        </button>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle className="w-4 h-4 text-white/40 hover:text-white/60 transition-colors " />
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              <p className="font-medium mb-1">Connect Exchange via API</p>
+                              <p className="text-xs leading-relaxed">
+                                Connect your exchange using API keys for real-time data and automatic updates. Your API keys are encrypted and read-only - we can't execute trades or access your funds.
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => router.push('/data')}
+                          className="group px-5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg text-sm font-medium transition-all duration-300 inline-flex items-center gap-2"
+                        >
+                          <Upload className="w-4 h-4" />
+                          Upload CSV
+                        </button>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle className="w-4 h-4 text-white/40 hover:text-white/60 transition-colors " />
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              <p className="font-medium mb-1">Upload CSV Files</p>
+                              <p className="text-xs leading-relaxed">
+                                Import your trade history manually by uploading CSV files exported from your exchange. Good for one-time analysis or when you prefer not to use API connections.
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1959,7 +2093,11 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                   {/* Connected Exchanges */}
                   {connectedExchanges.length > 0 && (
                     <div>
-                      <h3 className="text-xs font-semibold text-slate-400 mb-3 px-1 uppercase tracking-wider">API Connections</h3>
+                      <h3 className="text-xs font-medium text-white/60 mb-3 px-1 uppercase tracking-wider">
+                        {connectedExchanges.some(e => e.exchange === 'snaptrade') 
+                          ? 'Connections' 
+                          : 'API Connections'}
+                      </h3>
                       <div className="space-y-2">
                         {connectedExchanges.map(exchange => {
                           const selected = isSourceSelected('exchange', exchange.id)
@@ -1968,47 +2106,50 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                             <div
                               key={exchange.id}
                               onClick={() => toggleSource('exchange', exchange.id)}
-                              className={`group relative overflow-hidden rounded-3xl border ${
+                              className={`group relative overflow-hidden rounded-xl border ${
                                 selected
-                                  ? 'border-emerald-500/40 bg-emerald-500/10 shadow-lg shadow-emerald-500/10'
-                                  : 'border-white/5 bg-white/[0.03] shadow-lg shadow-emerald-500/5'
-                              } backdrop-blur p-4 transition-all duration-300 cursor-pointer hover:scale-[1.02] hover:border-white/10`}
+                                  ? 'border-white/20 bg-white/5'
+                                  : 'border-white/10 bg-black'
+                              } p-4 transition-all duration-300 cursor-pointer hover:border-white/20 hover:bg-white/5`}
                             >
-                              {selected && (
-                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10" />
-                              )}
                               <div className="relative">
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-3 flex-1">
                                     <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
                                       selected
-                                        ? 'border-emerald-500 bg-emerald-500 shadow-lg shadow-emerald-500/30'
-                                        : 'border-slate-600 bg-transparent group-hover:border-slate-500'
+                                        ? 'border-white/40 bg-white/20'
+                                        : 'border-white/20 bg-transparent group-hover:border-white/30'
                                     }`}>
-                                      {selected && <CheckSquare className="w-3 h-3 text-white" />}
+                                      {selected && <CheckSquare className="w-3 h-3 text-white/90" />}
                                     </div>
-                                    <div className="w-12 h-12 rounded-xl bg-white/[0.05] border border-white/10 flex items-center justify-center p-2">
+                                    <div className="w-12 h-12 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center p-2">
                                       <ExchangeIcon exchange={exchange.exchange} size={20} className="w-full h-full" />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-2 mb-1.5">
-                                        <span className="text-sm font-semibold text-slate-200">{exchange.name}</span>
+                                        <span className="text-sm font-medium text-white/90">{exchange.name}</span>
                                       </div>
                                       <div className="flex items-center gap-2 text-xs">
-                                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20">
                                           <span className="relative flex h-2 w-2">
                                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
                                           </span>
-                                          <span className="text-emerald-400 font-medium">API</span>
+                                          <span className="text-emerald-400 font-medium">
+                                            {exchange.exchange === 'snaptrade' 
+                                              ? (exchange.primaryBrokerage || exchange.brokerageNames?.[0] 
+                                                  ? exchange.primaryBrokerage || exchange.brokerageNames[0]
+                                                  : 'Brokerage')
+                                              : 'API'}
+                                          </span>
                                         </div>
                                         {linkedCount > 0 && (
                                           <>
-                                            <Separator className="text-slate-600" />
-                                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20">
+                                            <Separator className="text-white/10" />
+                                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/20">
                                               <span className="relative flex h-2 w-2">
                                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-400"></span>
                                               </span>
                                               <span className="text-cyan-400 font-medium">{linkedCount} CSV{linkedCount > 1 ? 's' : ''}</span>
                                             </div>
@@ -2020,13 +2161,13 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                                   <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                     <button
                                       onClick={() => onViewAnalytics([{ type: 'exchange', id: exchange.id }])}
-                                      className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 hover:border-emerald-500/50 rounded-xl text-xs font-semibold text-emerald-400 transition-all duration-300 hover:scale-105"
+                                      className="px-4 py-2 bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 rounded-lg text-xs font-medium text-white/80 transition-all duration-300"
                                     >
                                       View
                                     </button>
                                     <button
                                       onClick={() => handleDeleteClick(exchange)}
-                                      className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all duration-300 border border-transparent hover:border-red-500/30"
+                                      className="p-2 text-white/50 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all duration-300 border border-transparent hover:border-red-500/20"
                                       title="Disconnect exchange"
                                     >
                                       <Trash2 className="w-4 h-4" />
@@ -2044,7 +2185,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                   {/* Uploaded CSV Files (Unlinked Only) */}
                   {unlinkedFiles.length > 0 && (
                     <div>
-                      <h3 className="text-xs font-semibold text-slate-400 mb-3 px-1 uppercase tracking-wider">Uploaded Files (Not Linked)</h3>
+                      <h3 className="text-xs font-medium text-white/60 mb-3 px-1 uppercase tracking-wider">Uploaded Files (Not Linked)</h3>
                       <div className="space-y-2">
                         {unlinkedFiles.map(file => {
                           const selected = isSourceSelected('csv', file.id)
@@ -2052,41 +2193,42 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                             <div
                               key={file.id}
                               onClick={() => toggleSource('csv', file.id)}
-                              className={`group relative overflow-hidden rounded-3xl border ${
+                              className={`group relative overflow-hidden rounded-xl border ${
                                 selected
-                                  ? 'border-emerald-500/40 bg-emerald-500/10 shadow-lg shadow-emerald-500/10'
-                                  : 'border-white/5 bg-white/[0.03] shadow-lg shadow-blue-500/5'
-                              } backdrop-blur p-4 transition-all duration-300 cursor-pointer hover:scale-[1.02] hover:border-white/10`}
+                                  ? 'border-white/20 bg-white/5'
+                                  : 'border-white/10 bg-black'
+                              } p-4 transition-all duration-300 cursor-pointer hover:border-white/20 hover:bg-white/5`}
                             >
-                              {selected && (
-                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10" />
-                              )}
                               <div className="relative">
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-3 flex-1">
                                     <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all duration-300 ${
                                       selected
-                                        ? 'border-emerald-500 bg-emerald-500 shadow-lg shadow-emerald-500/30'
+                                        ? 'border-white/40 bg-white/20'
                                         : 'border-white/20 bg-transparent group-hover:border-white/30'
                                     }`}>
-                                      {selected && <CheckSquare className="w-3 h-3 text-white" />}
+                                      {selected && <CheckSquare className="w-3 h-3 text-white/90" />}
                                     </div>
-                                    <div className="w-12 h-12 bg-blue-500/20 border border-blue-500/30 rounded-xl flex items-center justify-center">
-                                      <FileText className="w-6 h-6 text-blue-400" />
+                                    <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center">
+                                      <FileText className="w-6 h-6 text-white/70" />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                                        <span className="text-sm font-semibold text-slate-200 truncate">
+                                        <span className="text-sm font-medium text-white/90 truncate">
                                           {file.label || file.filename}
                                         </span>
-                                        <span className="px-2 py-0.5 bg-white/[0.05] border border-white/10 text-slate-300 text-[10px] font-medium rounded-md">
+                                        <span className="px-2 py-0.5 bg-white/5 border border-white/10 text-white/60 text-[10px] font-medium rounded-md">
                                           {file.account_type}
                                         </span>
-                                        <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-medium rounded-md">
-                                          CSV
-                                        </span>
+                                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-cyan-500/10 border border-cyan-500/20 rounded-md">
+                                          <span className="relative flex h-2 w-2">
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-400"></span>
+                                          </span>
+                                          <span className="text-cyan-400 text-[10px] font-medium">CSV</span>
+                                        </div>
                                       </div>
-                                      <p className="text-xs text-slate-400">
+                                      <p className="text-xs text-white/50">
                                         {file.trades_count || 0} trades ? {(file.size / 1024).toFixed(1)} KB
                                       </p>
                                     </div>
@@ -2106,10 +2248,10 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                       <button
                         onClick={handleViewSelected}
                         disabled={selectedSources.length === 0}
-                        className={`group flex-1 py-3.5 rounded-3xl font-semibold text-sm transition-all duration-300 inline-flex items-center justify-center gap-2 ${
+                        className={`group flex-1 py-3.5 rounded-xl font-medium text-sm transition-all duration-300 inline-flex items-center justify-center gap-2 ${
                           selectedSources.length > 0
-                            ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-105'
-                            : 'bg-white/[0.03] text-slate-500 cursor-not-allowed border border-white/5'
+                            ? 'bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 text-white/90'
+                            : 'bg-white/5 text-white/40 cursor-not-allowed border border-white/10'
                         }`}
                       >
                         <Sparkles className="w-4 h-4" />
@@ -2117,7 +2259,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                       </button>
                       <button
                         onClick={() => onViewAnalytics()}
-                        className="group flex-1 py-3.5 bg-white/[0.03] hover:bg-white/[0.05] border border-white/5 hover:border-white/10 rounded-3xl font-semibold text-sm text-slate-200 hover:text-white transition-all duration-300 inline-flex items-center justify-center gap-2 hover:scale-105"
+                        className="group flex-1 py-3.5 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl font-medium text-sm text-white/80 hover:text-white/90 transition-all duration-300 inline-flex items-center justify-center gap-2"
                       >
                         <BarChart3 className="w-4 h-4" />
                         View Analytics
@@ -2128,6 +2270,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
               )}
             </section>
         </main>
+
 
         {/* Footer */}
         <Footer />
@@ -2146,7 +2289,8 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
         subscription={subscription}
         actualUsage={{
           connections: connectedExchanges.length,
-          trades: tradesStats?.totalTrades || 0
+          trades: tradesStats?.totalTrades || 0,
+          tokens: tokenUsage.used || 0
         }}
       />
 

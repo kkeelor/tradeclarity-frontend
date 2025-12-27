@@ -1,7 +1,7 @@
 // app/analyze/components/ConnectExchangeModal.js
 'use client'
 
-import { Upload, Link as LinkIcon, FileText, ArrowRight } from 'lucide-react'
+import { Upload, Link as LinkIcon, FileText, ArrowRight, Building2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 
@@ -16,6 +16,14 @@ export default function ConnectExchangeModal({ isOpen, onClose, onSelectMethod }
       recommended: true
     },
     {
+      id: 'snaptrade',
+      icon: Building2,
+      title: 'Connect via Snaptrade',
+      description: 'Connect 20+ brokerages securely through Snaptrade. No API keys needed - OAuth connection.',
+      benefits: ['20+ brokerages', 'No API keys', 'Secure OAuth', 'Robinhood, Coinbase, Fidelity'],
+      recommended: false
+    },
+    {
       id: 'csv',
       icon: Upload,
       title: 'Upload CSV File',
@@ -27,18 +35,18 @@ export default function ConnectExchangeModal({ isOpen, onClose, onSelectMethod }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-slate-900 border-slate-700/50 max-w-2xl max-h-[90vh] overflow-y-auto p-5 md:p-6">
+      <DialogContent className="bg-black border-white/10 max-w-2xl max-h-[90vh] overflow-y-auto p-5">
         <DialogHeader className="mb-4">
-          <DialogTitle className="text-xl md:text-2xl font-bold text-white">
+          <DialogTitle className="text-base font-medium text-white/80">
             Connect Your Exchange
           </DialogTitle>
-          <DialogDescription className="mt-1.5 text-sm text-slate-300">
+          <DialogDescription className="mt-1 text-xs text-white/40">
             Choose how you'd like to import your trading data
           </DialogDescription>
         </DialogHeader>
 
         {/* Content */}
-        <div className="space-y-3">
+        <div className="space-y-2">
           {methods.map((method) => {
             const Icon = method.icon
             return (
@@ -49,50 +57,43 @@ export default function ConnectExchangeModal({ isOpen, onClose, onSelectMethod }
                   e.stopPropagation()
                   onSelectMethod(method.id)
                 }}
-                className="group w-full text-left p-4 md:p-5 bg-slate-800/60 hover:bg-slate-800/80 border border-slate-700/50 hover:border-emerald-500/50 rounded-xl transition-all duration-200"
+                className="group w-full text-left p-3.5 bg-black hover:bg-white/5 border border-white/10 hover:border-white/20 rounded-lg transition-all duration-200"
               >
                 <div className="flex items-start gap-3">
                   {/* Icon */}
-                  <div className={`flex-shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center transition-all ${
-                    method.recommended
-                      ? 'bg-emerald-500/20 border border-emerald-500/30 group-hover:bg-emerald-500/30'
-                      : 'bg-slate-700/50 border border-slate-600/50 group-hover:bg-slate-700/70'
-                  }`}>
-                    <Icon className={`w-5 h-5 md:w-6 md:h-6 ${
-                      method.recommended ? 'text-emerald-400' : 'text-slate-300'
-                    }`} />
+                  <div className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center bg-white/5 border border-white/10 group-hover:bg-white/10 transition-all">
+                    <Icon className="w-4 h-4 text-white/60" />
                   </div>
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                      <h3 className="text-base md:text-lg font-semibold text-white">
+                    <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                      <h3 className="text-xs font-medium text-white/70">
                         {method.title}
                       </h3>
                       {method.recommended && (
-                        <Badge variant="profit" className="px-2 py-0.5 text-xs font-semibold !text-emerald-400">
+                        <span className="px-1 py-0.5 text-[9px] font-medium text-white/40 bg-white/5 rounded">
                           Recommended
-                        </Badge>
+                        </span>
                       )}
                     </div>
-                    <p className="text-slate-300 text-sm mb-3 leading-relaxed">
+                    <p className="text-white/40 text-[11px] mb-2 leading-relaxed">
                       {method.description}
                     </p>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-1">
                       {method.benefits.map((benefit, idx) => (
-                        <Badge 
+                        <span 
                           key={idx} 
-                          variant="secondary" 
-                          className="px-2 py-0.5 text-xs bg-slate-700/50 text-slate-200 border-slate-600/50"
+                          className="px-1 py-0.5 text-[9px] text-white/30 bg-white/5 rounded"
                         >
                           {benefit}
-                        </Badge>
+                        </span>
                       ))}
                     </div>
                   </div>
 
                   {/* Arrow */}
-                  <ArrowRight className="w-4 h-4 md:w-5 md:h-5 text-slate-400 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all flex-shrink-0 mt-1" />
+                  <ArrowRight className="w-3.5 h-3.5 text-white/20 group-hover:text-white/50 group-hover:translate-x-0.5 transition-all flex-shrink-0 mt-0.5" />
                 </div>
               </button>
             )
@@ -100,12 +101,12 @@ export default function ConnectExchangeModal({ isOpen, onClose, onSelectMethod }
         </div>
 
         {/* Footer Info */}
-        <div className="mt-5 pt-4 border-t border-slate-700/50">
-          <div className="flex items-start gap-2.5 text-xs md:text-sm text-slate-300">
-            <FileText className="w-4 h-4 md:w-5 md:h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
+        <div className="mt-4 pt-3 border-t border-white/5">
+          <div className="flex items-start gap-1.5 text-[10px] text-white/30">
+            <FileText className="w-3 h-3 text-white/20 flex-shrink-0 mt-0.5" />
             <p>
-              <span className="font-semibold text-white">Supported exchanges:</span>{' '}
-              Binance, CoinDCX (more coming soon)
+              <span className="font-medium text-white/40">Supported exchanges:</span>{' '}
+              Binance, CoinDCX, Snaptrade (20+ brokerages), CSV upload
             </p>
           </div>
         </div>

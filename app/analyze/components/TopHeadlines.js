@@ -18,18 +18,26 @@ export default function TopHeadlines() {
   const [headlines, setHeadlines] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [lastFetchTime, setLastFetchTime] = useState(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const intervalRef = useRef(null)
   const retryCountRef = useRef(0)
   const headlinesRef = useRef(headlines)
+  const lastFetchTimeRef = useRef(null) // Use ref instead of state to avoid re-renders
+  const isFetchingRef = useRef(false) // Track if fetch is in progress
 
-  // Keep ref in sync with state
+  // Keep refs in sync with state
   useEffect(() => {
     headlinesRef.current = headlines
   }, [headlines])
 
   const fetchHeadlines = useCallback(async (silent = false) => {
+    // Prevent concurrent fetches
+    if (isFetchingRef.current) {
+      return
+    }
+
+    isFetchingRef.current = true
+
     try {
       if (!silent) {
         setLoading(true)
@@ -67,10 +75,13 @@ export default function TopHeadlines() {
           .slice(0, 5) // Top 5 headlines
         
         setHeadlines(relevantHeadlines)
-        setLastFetchTime(Date.now())
+        lastFetchTimeRef.current = Date.now() // Update ref instead of state
         retryCountRef.current = 0 // Reset retry count on success
       } else {
-        setHeadlines([])
+        // Only set empty if we don't have existing headlines (preserve cache)
+        if (headlinesRef.current.length === 0) {
+          setHeadlines([])
+        }
       }
     } catch (err) {
       console.error('Error fetching headlines:', err)
@@ -87,18 +98,20 @@ export default function TopHeadlines() {
     } finally {
       setLoading(false)
       setIsRefreshing(false)
+      isFetchingRef.current = false
     }
-  }, [])
+  }, []) // Empty deps - function doesn't depend on any props/state
 
   useEffect(() => {
     // Initial fetch
     fetchHeadlines()
 
-    // Set up periodic refresh
+    // Set up periodic refresh - only set up once on mount
     intervalRef.current = setInterval(() => {
       // Only refresh if headlines are stale or empty
       const now = Date.now()
-      if (!lastFetchTime || (now - lastFetchTime) >= STALE_THRESHOLD || headlinesRef.current.length === 0) {
+      const lastFetch = lastFetchTimeRef.current
+      if (!lastFetch || (now - lastFetch) >= STALE_THRESHOLD || headlinesRef.current.length === 0) {
         fetchHeadlines(true) // Silent refresh
       }
     }, REFRESH_INTERVAL)
@@ -109,15 +122,16 @@ export default function TopHeadlines() {
         clearInterval(intervalRef.current)
       }
     }
-  }, [lastFetchTime, fetchHeadlines])
+  }, [fetchHeadlines]) // Only depend on fetchHeadlines, not lastFetchTime
 
   // Check if component becomes visible and headlines are stale
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         const now = Date.now()
+        const lastFetch = lastFetchTimeRef.current
         // Refresh if headlines are stale or haven't been fetched in a while
-        if (!lastFetchTime || (now - lastFetchTime) >= STALE_THRESHOLD) {
+        if (!lastFetch || (now - lastFetch) >= STALE_THRESHOLD) {
           fetchHeadlines(true) // Silent refresh when tab becomes visible
         }
       }
@@ -125,7 +139,7 @@ export default function TopHeadlines() {
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [lastFetchTime, fetchHeadlines])
+  }, [fetchHeadlines]) // Only depend on fetchHeadlines
 
   const handleManualRefresh = () => {
     retryCountRef.current = 0 // Reset retry count
@@ -133,8 +147,8 @@ export default function TopHeadlines() {
   }
 
   // Check if headlines are stale
-  const areHeadlinesStale = lastFetchTime 
-    ? (Date.now() - lastFetchTime) >= STALE_THRESHOLD 
+  const areHeadlinesStale = lastFetchTimeRef.current 
+    ? (Date.now() - lastFetchTimeRef.current) >= STALE_THRESHOLD 
     : true
 
   if (loading && !isRefreshing) {

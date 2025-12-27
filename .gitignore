@@ -18,13 +18,14 @@ pnpm-debug.log*
 
 # Documentation files
 *.md
+*.sql
 docs/
-<<<<<<< HEAD
-=======
 
 # MCP Test Results (contains API responses and potentially sensitive data)
 mcp-test-results/
 
 # Supabase migrations (contains database queries and potentially sensitive data)
 supabase/migrations/
->>>>>>> dd77a6a (Clean up root directory: move SQL files to supabase/migrations and remove from git tracking)
+
+# Database schema reference (contains table structures)
+table_structures.json

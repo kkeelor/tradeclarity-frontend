@@ -8,7 +8,7 @@ const MAX_FILES_PER_USER = 10
 
 export async function POST(request) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()

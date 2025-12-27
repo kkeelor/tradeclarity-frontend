@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 
 export async function POST(request) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -82,6 +82,21 @@ export async function POST(request) {
     }
 
     console.log(`✅ CSV file deleted successfully`)
+
+    // Invalidate analytics cache if trades were deleted
+    if (tradesDeleted > 0) {
+      const { error: cacheError } = await supabase
+        .from('user_analytics_cache')
+        .delete()
+        .eq('user_id', user.id)
+      
+      if (cacheError && cacheError.code !== 'PGRST116') { // PGRST116 = not found (ok)
+        console.warn('⚠️  Failed to invalidate analytics cache:', cacheError)
+        // Don't fail the request - cache will be invalidated on next analytics computation
+      } else {
+        console.log(`✅ Analytics cache invalidated (${tradesDeleted} trades deleted)`)
+      }
+    }
 
     return NextResponse.json({
       success: true,

@@ -1,6 +1,6 @@
 // app/api/cron/fetch-market-news/route.js
 // Vercel Cron Job: Fetches Alpha Vantage news and stores in database
-// Runs daily at 3 AM UTC (configured in vercel.json)
+// Runs every 2 hours (configured in vercel.json)
 // 
 // This frontend route calls the backend cron endpoint which handles:
 // - Alpha Vantage API calls
@@ -14,7 +14,7 @@ const CRON_SECRET = process.env.CRON_SECRET
 
 /**
  * Cron job handler: Triggers backend to fetch and store market context news
- * Runs daily at 3 AM UTC via Vercel Cron (configured in vercel.json)
+ * Runs every 2 hours via Vercel Cron (configured in vercel.json)
  * 
  * Vercel Cron Jobs:
  * - Automatically calls this endpoint on schedule

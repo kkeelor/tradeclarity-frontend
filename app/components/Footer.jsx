@@ -32,6 +32,8 @@ export default function Footer() {
       <div className="flex flex-wrap items-center justify-center gap-4 text-xs">
         <Link href="/pricing" className="hover:text-emerald-400 transition-colors font-medium">Pricing</Link>
         <Separator className="text-slate-700" />
+        <Link href="/billing" className="hover:text-emerald-400 transition-colors font-medium">Billing</Link>
+        <Separator className="text-slate-700" />
         <Link href="/faq" className="hover:text-emerald-400 transition-colors font-medium">FAQ</Link>
         <Separator className="text-slate-700" />
         <Link href="/contact" className="hover:text-emerald-400 transition-colors font-medium">Contact Us</Link>
@@ -45,7 +47,12 @@ export default function Footer() {
         <Link href="/legal/shipping" className="hover:text-emerald-400 transition-colors">Shipping Policy</Link>
       </div>
       <p className="font-medium">Built for traders who are tired of guessing</p>
-      <p>? 2025 TradeClarity. Your data stays yours. Always.</p>
+      <p className="text-xs text-slate-500/70 max-w-2xl mx-auto">
+        <strong>Disclaimer:</strong> TradeClarity and Vega AI provide AI-powered trading insights and analysis tools. 
+        This is not financial advice. Always conduct your own research and consult with a qualified financial advisor before making trading decisions. 
+        Past performance does not guarantee future results.
+      </p>
+      <p>&copy; 2025 TradeClarity. Your data stays yours. Always.</p>
     </footer>
   )
 }

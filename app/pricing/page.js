@@ -3,12 +3,13 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, X, Zap, TrendingUp, Crown, ArrowRight, Sparkles, Shield, Clock, CreditCard, ChevronDown, ArrowLeft, Star, Users, TrendingDown } from 'lucide-react'
+import { Check, X, Zap, TrendingUp, Crown, ArrowRight, Sparkles, Shield, Clock, CreditCard, ChevronDown, Star, Users, TrendingDown } from 'lucide-react'
 import Link from 'next/link'
 import { useAuth } from '@/lib/AuthContext'
 import { getTierDisplayName } from '@/lib/featureGates'
 import { toast } from 'sonner'
 import Footer from '../components/Footer'
+import Header from '../analyze/components/Header'
 import { getCurrencySymbol, formatCurrencyNumber } from '../analyze/utils/currencyFormatter'
 import { convertCurrencySync, getCurrencyRates } from '../analyze/utils/currencyConverter'
 import { Badge } from '@/components/ui/badge'
@@ -16,6 +17,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui'
 import Script from 'next/script'
+import { trackSubscription, trackPageView } from '@/lib/analytics'
 
 const PRICING_PLANS = {
   free: {
@@ -28,6 +30,7 @@ const PRICING_PLANS = {
     features: [
       '500 trades analyzed per month',
       '1 exchange connection',
+      'Claude 3.5 Haiku AI model',
       'Full analytics on those trades',
       'All insights, patterns, psychology scores',
       'CSV upload capability'
@@ -36,8 +39,8 @@ const PRICING_PLANS = {
   },
   trader: {
     name: 'Trader',
-    price: 29,
-    priceAnnual: 348, // 12 months (29 * 12)
+    price: 49,
+    priceAnnual: 588, // 12 months (49 * 12)
     description: 'Best for active traders',
     icon: TrendingUp,
     color: 'emerald',
@@ -45,20 +48,22 @@ const PRICING_PLANS = {
     features: [
       '1,000 trades analyzed per month',
       '3 exchange connections',
+      'Claude 3.5 Haiku AI model',
       'Everything else unlimited'
     ],
     limitations: []
   },
   pro: {
     name: 'Pro',
-    price: 79,
-    priceAnnual: 948, // 12 months (79 * 12)
+    price: 99,
+    priceAnnual: 1188, // 12 months (99 * 12)
     description: 'For professional traders',
     icon: Crown,
     color: 'cyan',
     features: [
       'Unlimited trades analyzed',
       'Unlimited exchange connections',
+      'Claude Sonnet 4.5 AI model',
       'Priority support',
       'Early access to new features'
     ]
@@ -83,26 +88,26 @@ function CurrencyDropdown({ currencies, selectedCurrency, onSelectCurrency }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-1.5 rounded-full border border-white/5 bg-white/[0.02] px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white">
+        <button className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/70 transition hover:border-white/20 hover:bg-white/10 hover:text-white/90">
           <span>{getCurrencySymbol(selectedCurrency)}</span>
           <span>{selectedCurrency}</span>
           <ChevronDown className="h-3 w-3 transition-transform" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48 bg-slate-800/95 backdrop-blur-xl border-slate-700/50">
+      <DropdownMenuContent align="end" className="w-48 bg-black border-white/10">
         {currencies.map((curr) => (
           <DropdownMenuItem
             key={curr}
             onClick={() => onSelectCurrency(curr)}
             className={`flex items-center gap-2 text-xs cursor-pointer ${
               selectedCurrency === curr
-                ? 'bg-emerald-400/20 text-emerald-300 font-medium'
-                : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+                ? 'bg-white/10 text-white/90 font-medium data-[highlighted]:bg-white/10 data-[highlighted]:text-white/90'
+                : 'text-white/70 data-[highlighted]:bg-white/10 data-[highlighted]:text-white/90'
             }`}
           >
             <span className="w-8 text-right">{getCurrencySymbol(curr)}</span>
             <span className="flex-1">{curr}</span>
-            <span className="text-[10px] text-slate-500">{currencyNames[curr] || ''}</span>
+            <span className="text-[10px] text-white/40">{currencyNames[curr] || ''}</span>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
@@ -172,38 +177,34 @@ export default function PricingPage() {
   // Initialize currency from localStorage or detect India
   useEffect(() => {
     const initializeCurrency = async () => {
-      // First, detect if user is in India
-      const country = await detectUserLocation()
-      
-      // If user is in India, always use INR (override localStorage)
-      if (country === 'IN') {
-        setCurrency('INR')
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('tradeclarity_currency', 'INR')
-        }
-        return
-      }
-      
-      // For non-India users, check localStorage
+      // Check localStorage first (fastest)
       const savedCurrency = typeof window !== 'undefined' ? localStorage.getItem('tradeclarity_currency') : null
       if (savedCurrency && availableCurrencies.includes(savedCurrency)) {
         setCurrency(savedCurrency)
+        // Pre-fetch currency rates in background
+        getCurrencyRates().catch(() => {})
         return
       }
       
-      // Default to USD for all non-India users
-      setCurrency('USD')
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('tradeclarity_currency', 'USD')
-      }
+      // Detect if user is in India (async, non-blocking)
+      detectUserLocation().then(country => {
+        if (country === 'IN') {
+          setCurrency('INR')
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('tradeclarity_currency', 'INR')
+          }
+        } else {
+          setCurrency('USD')
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('tradeclarity_currency', 'USD')
+          }
+        }
+        // Pre-fetch currency rates after detection
+        getCurrencyRates().catch(() => {})
+      })
     }
     
     initializeCurrency()
-    
-    // Pre-fetch currency rates for conversion
-    getCurrencyRates().catch(err => {
-      console.warn('Could not fetch currency rates:', err.message)
-    })
   }, [])
 
   // Handle currency change with localStorage persistence
@@ -215,6 +216,9 @@ export default function PricingPage() {
   }
 
   useEffect(() => {
+    // Track pricing page view
+    trackPageView('pricing')
+    
     if (user) {
       fetchUserSubscription()
     }
@@ -251,6 +255,16 @@ export default function PricingPage() {
       toast.info('To downgrade to Free plan, please contact support')
       return
     }
+
+    // Razorpay is only for INR currency
+    if (currency !== 'INR') {
+      // For non-INR currencies, PayPal handles the payment flow
+      // The PayPal buttons are rendered separately, so this function shouldn't be called
+      return
+    }
+
+    // Track upgrade button click
+    trackSubscription.upgradeButtonClick(tier, billingCycle)
 
     // Reset any existing Razorpay instance
     if (razorpayInstanceRef.current) {
@@ -364,6 +378,9 @@ export default function PricingPage() {
         return
       }
 
+      // Track payment initiated
+      trackSubscription.paymentInitiated(tier, billingCycle, paymentCurrency, paymentAmount)
+
       // Create order
       const orderResponse = await fetch('/api/razorpay/create-order', {
         method: 'POST',
@@ -436,6 +453,10 @@ export default function PricingPage() {
               if (verifyData.success) {
                 cleanup()
                 toast.success('Payment successful! Your subscription is now active.')
+                
+                // Track payment completed and subscription activated
+                trackSubscription.paymentCompleted(tier, billingCycle, paymentCurrency, paymentAmount)
+                trackSubscription.subscriptionActivated(tier, billingCycle)
                 
                 // Clear subscription cache so dashboard will fetch fresh data
                 if (user?.id) {
@@ -612,91 +633,102 @@ export default function PricingPage() {
           setRazorpayLoaded(true)
         }}
       />
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
-        {/* Header */}
-      <div className="border-b border-white/5 bg-slate-950/70 backdrop-blur-xl">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => router.push(user ? '/dashboard' : '/')}
-              className="text-sm text-slate-400 hover:text-white transition-colors flex items-center gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back {user ? 'to Dashboard' : 'to Home'}
-            </button>
-          </div>
-        </div>
-      </div>
+      <div className="min-h-screen bg-black text-white flex flex-col">
+        <Header
+          exchangeConfig={null}
+          currencyMetadata={null}
+          currency={currency}
+          setCurrency={handleCurrencyChange}
+          onNavigateDashboard={() => router.push('/dashboard')}
+          onNavigateUpload={() => router.push('/data')}
+          onNavigateAll={() => router.push('/analyze')}
+          onNavigateVega={() => router.push('/vega')}
+          onSignOut={user ? async () => {
+            await fetch('/api/auth/signout', { method: 'POST' })
+            router.push('/')
+          } : undefined}
+          hasDataSources={false}
+          isDemoMode={false}
+        />
 
       {/* Hero Section */}
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
+      <div className="flex-1 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+          <h1 className="text-4xl md:text-5xl font-semibold mb-4 text-white/90">
             Choose Your Plan
           </h1>
-          <p className="text-lg text-slate-400 max-w-2xl mx-auto mb-6">
+          <p className="text-lg text-white/60 max-w-2xl mx-auto mb-6">
             Transparent pricing for every trader. Start free, upgrade when you need more.
           </p>
           
           {/* Social Proof */}
           <div className="flex items-center justify-center gap-4 mb-8">
-            <div className="flex items-center gap-2 text-sm text-slate-400">
-              <Users className="w-4 h-4 text-emerald-400" />
-              <span>Join <span className="text-emerald-400 font-semibold">500+</span> active traders</span>
+            <div className="flex items-center gap-2 text-sm text-white/70">
+              <Users className="w-4 h-4 text-emerald-400/70" />
+              <span>Join <span className="text-emerald-400/90 font-medium">500+</span> active traders</span>
             </div>
             <div className="h-4 w-px bg-white/10"></div>
-            <div className="flex items-center gap-2 text-sm text-slate-400">
-              <TrendingUp className="w-4 h-4 text-emerald-400" />
-              <span><span className="text-emerald-400 font-semibold">1M+</span> trades analyzed</span>
+            <div className="flex items-center gap-2 text-sm text-white/70">
+              <TrendingUp className="w-4 h-4 text-cyan-400/70" />
+              <span><span className="text-cyan-400/90 font-medium">1M+</span> trades analyzed</span>
             </div>
           </div>
 
-          {/* Billing Toggle and Currency Selector */}
-          <div className="mt-8 flex flex-row items-center justify-center gap-6 flex-wrap">
-            <div className="flex items-center justify-center gap-4">
-              <span className={`text-sm ${billingCycle === 'monthly' ? 'text-white' : 'text-slate-400'}`}>
-                Monthly
-              </span>
-              <button
-                onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')}
-                className="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    billingCycle === 'annual' ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-              <span className={`text-sm ${billingCycle === 'annual' ? 'text-white' : 'text-slate-400'}`}>
-                Annual
-                {savings > 0 && (
-                  <Badge variant="profit" className="ml-2">
-                    Save {savings}%
-                  </Badge>
-                )}
-              </span>
-            </div>
-            
-            {/* Currency Dropdown */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-slate-400">Currency:</span>
-              <CurrencyDropdown
-                currencies={availableCurrencies}
-                selectedCurrency={currency}
-                onSelectCurrency={handleCurrencyChange}
-              />
-            </div>
-          </div>
         </div>
 
         {/* Unified Pricing & Feature Comparison Table */}
-        <div className="max-w-5xl mx-auto mb-16">
-          <div className="rounded-2xl border border-white/5 bg-white/[0.03] overflow-hidden">
+        <div className="max-w-[83rem] mx-auto mb-16">
+          <div className="rounded-xl border border-white/10 bg-black overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-white/5">
-                    <th className="text-left px-3 py-3 text-sm font-semibold text-slate-300 w-[180px]">Plan</th>
+                  <tr className="border-b border-white/10">
+                    <th className="text-left px-3 py-3 text-sm font-medium text-white/70 w-[200px]">
+                      <div className="flex flex-col items-center gap-1.5">
+                        {/* Spacer to match badge height (for trader/pro) - empty div for Free plan alignment */}
+                        <div className="h-[18px]"></div>
+                        {/* Spacer to match icon */}
+                        <div className="w-8 h-8"></div>
+                        {/* Plan label section - matches plan name + description structure */}
+                        <div className="text-center">
+                          <h3 className="text-base font-semibold mb-1 text-white/70">Plan</h3>
+                          <p className="text-[10px] text-white/50 mb-1.5 leading-tight">Select billing cycle</p>
+                          
+                          {/* Billing Toggle - aligns with pricing section */}
+                          <div className="flex flex-col items-center gap-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className={`text-xs ${billingCycle === 'monthly' ? 'text-white/90' : 'text-white/50'}`}>
+                                Monthly
+                              </span>
+                              <button
+                                onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')}
+                                className="relative inline-flex h-5 w-9 items-center rounded-full bg-white/10 border border-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-white/20"
+                              >
+                                <span
+                                  className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                                    billingCycle === 'annual' ? 'translate-x-5' : 'translate-x-0.5'
+                                  }`}
+                                />
+                              </button>
+                              <span className={`text-xs ${billingCycle === 'annual' ? 'text-white/90' : 'text-white/50'}`}>
+                                Annual
+                              </span>
+                            </div>
+                            {/* Currency Dropdown */}
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-xs text-white/60">Currency:</span>
+                              <div className="scale-90 origin-center">
+                                <CurrencyDropdown
+                                  currencies={availableCurrencies}
+                                  selectedCurrency={currency}
+                                  onSelectCurrency={handleCurrencyChange}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </th>
                     {Object.entries(PRICING_PLANS).map(([key, plan]) => {
                       const Icon = plan.icon
                       const isCurrentTier = currentTier === key
@@ -729,7 +761,7 @@ export default function PricingPage() {
                       return (
                         <th 
                           key={key}
-                          className={`text-center px-2 py-3 ${isPopular ? 'bg-emerald-500/5' : key === 'pro' ? 'bg-cyan-500/5' : ''}`}
+                          className={`text-center px-2 py-3 ${isPopular ? 'bg-white/5' : key === 'pro' ? 'bg-white/5' : ''}`}
                         >
                           <div className="flex flex-col items-center gap-1.5">
                             {(key === 'trader' || key === 'pro') && (
@@ -738,32 +770,52 @@ export default function PricingPage() {
                                 50% off till Dec 31, 2025
                               </Badge>
                             )}
-                            <div className={`w-8 h-8 rounded-lg bg-gradient-to-br from-${plan.color}-500/20 to-${plan.color}-600/20 border border-${plan.color}-500/30 flex items-center justify-center`}>
-                              <Icon className={`w-4 h-4 text-${plan.color}-400`} />
+                            <div className={`w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center`}>
+                              <Icon className={`w-4 h-4 text-white/70`} />
                             </div>
                             <div>
-                              <h3 className={`text-base font-bold mb-0.5 ${isPopular ? 'text-emerald-400' : key === 'pro' ? 'text-cyan-400' : 'text-white'}`}>
+                              <h3 className={`text-base font-semibold mb-1 ${isPopular ? 'text-white/90' : key === 'pro' ? 'text-white/90' : 'text-white/80'}`}>
                                 {plan.name}
                               </h3>
-                              <p className="text-[10px] text-slate-400 mb-1.5 leading-tight">{plan.description}</p>
+                              <p className="text-[10px] text-white/50 mb-1.5 leading-tight">{plan.description}</p>
                               
                               {/* Pricing */}
                               <div className="flex flex-col items-center gap-0.5">
-                                {(key === 'trader' || key === 'pro') && (
-                                  <span className="text-xs text-slate-500 line-through">
-                                    {getCurrencySymbol(currency)}{formatPrice(convertedMonthlyPrice)}
-                                  </span>
-                                )}
-                                <div className="flex items-baseline gap-0.5">
-                                  <span className={`text-lg font-bold tabular-nums text-white`}>
-                                    {getCurrencySymbol(currency)}{discountedPriceString}
-                                  </span>
-                                  <span className="text-xs text-slate-400">/mo</span>
-                                </div>
-                                {billingCycle === 'annual' && (key === 'trader' || key === 'pro') && (
-                                  <span className="text-[10px] text-emerald-400">
-                                    {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? plan.priceAnnual * discountMultiplier : safeConvertForDisplay(plan.priceAnnual * discountMultiplier, currency))}/yr
-                                  </span>
+                                {billingCycle === 'monthly' ? (
+                                  // Monthly pricing display
+                                  <>
+                                    {(key === 'trader' || key === 'pro') && (
+                                      <span className="text-xs text-white/40 line-through">
+                                        {getCurrencySymbol(currency)}{formatPrice(convertedMonthlyPrice)}
+                                      </span>
+                                    )}
+                                    <div className="flex items-baseline gap-0.5">
+                                      <span className={`text-lg font-semibold tabular-nums text-white/90`}>
+                                        {getCurrencySymbol(currency)}{discountedPriceString}
+                                      </span>
+                                      <span className="text-xs text-white/50">/mo</span>
+                                    </div>
+                                  </>
+                                ) : (
+                                  // Annual pricing display
+                                  <>
+                                    {(key === 'trader' || key === 'pro') && (
+                                      <span className="text-xs text-white/40 line-through">
+                                        {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? plan.priceAnnual : safeConvertForDisplay(plan.priceAnnual, currency))}
+                                      </span>
+                                    )}
+                                    <div className="flex items-baseline gap-0.5">
+                                      <span className={`text-lg font-semibold tabular-nums text-white/90`}>
+                                        {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? plan.priceAnnual * discountMultiplier : safeConvertForDisplay(plan.priceAnnual * discountMultiplier, currency))}
+                                      </span>
+                                      <span className="text-xs text-white/50">/yr</span>
+                                    </div>
+                                    {(key === 'trader' || key === 'pro') && (
+                                      <span className="text-[10px] text-white/70">
+                                        {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? Math.round(plan.priceAnnual * discountMultiplier / 12) : safeConvertForDisplay(Math.round(plan.priceAnnual * discountMultiplier / 12), currency))}/mo
+                                      </span>
+                                    )}
+                                  </>
                                 )}
                               </div>
                             </div>
@@ -778,6 +830,7 @@ export default function PricingPage() {
                   {[
                     { feature: 'Trades Analyzed/Month', free: '500', trader: '1,000', pro: 'Unlimited' },
                     { feature: 'Exchange Connections', free: '1', trader: '3', pro: 'Unlimited' },
+                    { feature: 'AI Model', free: 'Claude 3.5 Haiku', trader: 'Claude 3.5 Haiku', pro: 'Claude Sonnet 4.5' },
                     { feature: 'Full Analytics', free: true, trader: true, pro: true },
                     { feature: 'All Insights & Patterns', free: true, trader: true, pro: true },
                     { feature: 'Psychology Scores', free: true, trader: true, pro: true },
@@ -785,20 +838,20 @@ export default function PricingPage() {
                     { feature: 'Priority Support', free: false, trader: false, pro: true },
                     { feature: 'Early Access Features', free: false, trader: false, pro: true },
                   ].map((row, idx) => (
-                    <tr key={idx} className="border-b border-white/5 last:border-0">
-                      <td className="px-3 py-2 text-xs text-slate-300">{row.feature}</td>
+                    <tr key={idx} className="border-b border-white/10 last:border-0">
+                      <td className="px-3 py-2 text-xs text-white/70">{row.feature}</td>
                       {['free', 'trader', 'pro'].map((key) => {
                         const value = row[key]
                         return (
                           <td key={key} className="px-2 py-2 text-center">
                             {typeof value === 'boolean' ? (
                               value ? (
-                                <Check className="w-4 h-4 text-emerald-400 mx-auto" />
+                                <Check className="w-4 h-4 text-white/70 mx-auto" />
                               ) : (
-                                <X className="w-4 h-4 text-slate-600 mx-auto" />
+                                <X className="w-4 h-4 text-white/20 mx-auto" />
                               )
                             ) : (
-                              <span className={`text-xs ${key === 'free' ? 'text-slate-400' : key === 'trader' ? 'text-emerald-400' : 'text-cyan-400'}`}>
+                              <span className={`text-xs ${key === 'free' ? 'text-white/50' : key === 'trader' ? 'text-white/80' : 'text-white/80'}`}>
                                 {value}
                               </span>
                             )}
@@ -810,7 +863,19 @@ export default function PricingPage() {
                   
                   {/* CTA Row */}
                   <tr className="border-t-2 border-white/10">
-                    <td className="px-3 py-3"></td>
+                    <td className="px-3 py-3">
+                      {/* Coupon-style savings badge for annual billing */}
+                      {billingCycle === 'annual' && savings > 0 && (
+                        <div className="flex items-center justify-center">
+                          <div className="relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 border-dashed border-emerald-500/40 bg-emerald-500/5">
+                            <Sparkles className="w-3 h-3 text-emerald-400" />
+                            <span className="text-xs font-semibold text-emerald-400">
+                              {savings}% savings applied
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </td>
                     {Object.entries(PRICING_PLANS).map(([key, plan]) => {
                       const isCurrentTier = currentTier === key
                       const isPopular = plan.popular
@@ -842,35 +907,189 @@ export default function PricingPage() {
                       
                       return (
                         <td key={key} className="px-2 py-3">
-                          <button
-                            onClick={() => handleUpgrade(key)}
-                            disabled={isDisabled}
-                            className={`w-full py-2 rounded-lg text-xs font-semibold transition-all duration-300 ${
-                              shouldShowCheck
-                                ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
-                                : loading
-                                ? 'bg-slate-700 text-slate-300 cursor-wait opacity-75'
-                                : isPopular
-                                ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30'
-                                : key === 'pro'
-                                ? 'bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-400 hover:to-cyan-500 text-white shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/30'
-                                : 'bg-white/[0.05] hover:bg-white/[0.08] border border-white/10 hover:border-white/20 text-white'
-                            }`}
-                          >
+                          <div className="flex flex-col gap-2">
                             {shouldShowCheck ? (
-                              <span className="flex items-center justify-center gap-1.5">
-                                <Check className="w-3.5 h-3.5" />
-                                {buttonText && <span>{buttonText}</span>}
-                              </span>
-                            ) : loading ? (
-                              'Processing...'
+                              <div className="flex items-center justify-center">
+                                <Check className="w-4 h-4 text-white/40" />
+                                {buttonText && <span className="text-xs text-white/40 ml-1">{buttonText}</span>}
+                              </div>
+                            ) : key === 'free' ? (
+                              <div className="flex items-center justify-center">
+                                <Check className="w-4 h-4 text-white/40" />
+                              </div>
                             ) : (
-                              <span className="flex items-center justify-center gap-1.5">
-                                {buttonText}
-                                <ArrowRight className="w-3.5 h-3.5" />
-                              </span>
+                              <>
+                                {/* Buttons Row */}
+                                <div className="flex gap-2 w-full">
+                                  {/* Razorpay Button - Only for INR */}
+                                  {currency === 'INR' && (
+                                    <button
+                                      onClick={() => handleUpgrade(key)}
+                                      disabled={isDisabled}
+                                      className={`w-full py-2 rounded-lg text-xs font-medium transition-all duration-300 ${
+                                        loading
+                                          ? 'bg-white/5 text-white/50 cursor-wait opacity-75 border border-white/10'
+                                          : isPopular
+                                          ? 'bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 text-white/90'
+                                          : key === 'pro'
+                                          ? 'bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 text-white/90'
+                                          : 'bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white/80'
+                                      }`}
+                                    >
+                                      {loading ? (
+                                        'Processing...'
+                                      ) : (
+                                        <span className="flex items-center justify-center">
+                                          Pay with Razorpay
+                                        </span>
+                                      )}
+                                    </button>
+                                  )}
+                                  {/* PayPal Button - For all non-INR currencies */}
+                                  {currency !== 'INR' && key === 'trader' && billingCycle === 'monthly' && (
+                                    <div 
+                                      id="paypal-trader-monthly-inline"
+                                      className="w-full"
+                                      dangerouslySetInnerHTML={{
+                                        __html: `
+                                          <style>
+                                            .pp-QEZSUQ2W7286U-inline{
+                                              text-align:center;
+                                              border:none;
+                                              border-radius:0.5rem;
+                                              width:100%;
+                                              padding:0.5rem 1rem;
+                                              height:auto;
+                                              min-height:2rem;
+                                              font-weight:500;
+                                              background-color:#FFD140;
+                                              color:#000000;
+                                              font-family:"Helvetica Neue",Arial,sans-serif;
+                                              font-size:0.75rem;
+                                              line-height:1rem;
+                                              cursor:pointer;
+                                            }
+                                            #paypal-trader-monthly-inline form {
+                                              display:block;
+                                              width:100%;
+                                            }
+                                          </style>
+                                          <form action="https://www.paypal.com/ncp/payment/QEZSUQ2W7286U" method="post" target="_blank">
+                                            <input class="pp-QEZSUQ2W7286U-inline" type="submit" value="Use Paypal" />
+                                          </form>
+                                        `
+                                      }}
+                                    />
+                                  )}
+                                  {currency !== 'INR' && key === 'trader' && billingCycle === 'annual' && (
+                                    <div 
+                                      id="paypal-trader-annual-inline"
+                                      className="w-full"
+                                      dangerouslySetInnerHTML={{
+                                        __html: `
+                                          <style>
+                                            .pp-DLNE2MH79RLEQ-inline{
+                                              text-align:center;
+                                              border:none;
+                                              border-radius:0.5rem;
+                                              width:100%;
+                                              padding:0.5rem 1rem;
+                                              height:auto;
+                                              min-height:2rem;
+                                              font-weight:500;
+                                              background-color:#FFD140;
+                                              color:#000000;
+                                              font-family:"Helvetica Neue",Arial,sans-serif;
+                                              font-size:0.75rem;
+                                              line-height:1rem;
+                                              cursor:pointer;
+                                            }
+                                            #paypal-trader-annual-inline form {
+                                              display:block;
+                                              width:100%;
+                                            }
+                                          </style>
+                                          <form action="https://www.paypal.com/ncp/payment/DLNE2MH79RLEQ" method="post" target="_blank">
+                                            <input class="pp-DLNE2MH79RLEQ-inline" type="submit" value="Use PayPal" />
+                                          </form>
+                                        `
+                                      }}
+                                    />
+                                  )}
+                                  {currency !== 'INR' && key === 'pro' && billingCycle === 'monthly' && (
+                                    <div 
+                                      id="paypal-pro-monthly-inline"
+                                      className="w-full"
+                                      dangerouslySetInnerHTML={{
+                                        __html: `
+                                          <style>
+                                            .pp-MWGJ35NJMZ586-inline{
+                                              text-align:center;
+                                              border:none;
+                                              border-radius:0.5rem;
+                                              width:100%;
+                                              padding:0.5rem 1rem;
+                                              height:auto;
+                                              min-height:2rem;
+                                              font-weight:500;
+                                              background-color:#FFD140;
+                                              color:#000000;
+                                              font-family:"Helvetica Neue",Arial,sans-serif;
+                                              font-size:0.75rem;
+                                              line-height:1rem;
+                                              cursor:pointer;
+                                            }
+                                            #paypal-pro-monthly-inline form {
+                                              display:block;
+                                              width:100%;
+                                            }
+                                          </style>
+                                          <form action="https://www.paypal.com/ncp/payment/MWGJ35NJMZ586" method="post" target="_blank">
+                                            <input class="pp-MWGJ35NJMZ586-inline" type="submit" value="Use Paypal" />
+                                          </form>
+                                        `
+                                      }}
+                                    />
+                                  )}
+                                  {currency !== 'INR' && key === 'pro' && billingCycle === 'annual' && (
+                                    <div 
+                                      id="paypal-pro-annual-inline"
+                                      className="w-full"
+                                      dangerouslySetInnerHTML={{
+                                        __html: `
+                                          <style>
+                                            .pp-PU2GB8AA5XA9E-inline{
+                                              text-align:center;
+                                              border:none;
+                                              border-radius:0.5rem;
+                                              width:100%;
+                                              padding:0.5rem 1rem;
+                                              height:auto;
+                                              min-height:2rem;
+                                              font-weight:500;
+                                              background-color:#FFD140;
+                                              color:#000000;
+                                              font-family:"Helvetica Neue",Arial,sans-serif;
+                                              font-size:0.75rem;
+                                              line-height:1rem;
+                                              cursor:pointer;
+                                            }
+                                            #paypal-pro-annual-inline form {
+                                              display:block;
+                                              width:100%;
+                                            }
+                                          </style>
+                                          <form action="https://www.paypal.com/ncp/payment/PU2GB8AA5XA9E" method="post" target="_blank">
+                                            <input class="pp-PU2GB8AA5XA9E-inline" type="submit" value="Use PayPal" />
+                                          </form>
+                                        `
+                                      }}
+                                    />
+                                  )}
+                                </div>
+                              </>
                             )}
-                          </button>
+                          </div>
                         </td>
                       )
                     })}
@@ -879,11 +1098,18 @@ export default function PricingPage() {
               </table>
             </div>
           </div>
+          
+          {/* Powered By Section - Below Pricing Table */}
+          <div className="flex items-center justify-center gap-2 text-[0.75rem] text-white/60 mt-6">
+            <span>Powered by</span>
+            <img src="https://www.paypalobjects.com/images/Debit_Credit_APM.svg" alt="cards" className="h-4" />
+            <img src="https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-wordmark-color.svg" alt="paypal" className="h-3" />
+          </div>
         </div>
 
         {/* FAQ Section */}
         <div className="max-w-3xl mx-auto mb-16">
-          <h2 className="text-2xl font-bold mb-6 text-center">Frequently Asked Questions</h2>
+          <h2 className="text-2xl font-semibold mb-6 text-center text-white/90">Frequently Asked Questions</h2>
           <Accordion type="single" collapsible className="w-full">
             {[
               {
@@ -907,11 +1133,11 @@ export default function PricingPage() {
                 a: 'Yes, you can cancel your subscription at any time. You\'ll continue to have access until the end of your billing period.'
               }
             ].map((faq, idx) => (
-              <AccordionItem key={idx} value={`item-${idx}`} className="border-white/5 rounded-xl bg-white/[0.03] px-4 mb-4">
-                <AccordionTrigger className="text-left font-semibold text-emerald-400 hover:no-underline">
+              <AccordionItem key={idx} value={`item-${idx}`} className="border-white/10 rounded-xl bg-black px-4 mb-4">
+                <AccordionTrigger className="text-left font-medium text-white/80 hover:no-underline">
                   {faq.q}
                 </AccordionTrigger>
-                <AccordionContent className="text-sm text-slate-400 pb-4">
+                <AccordionContent className="text-sm text-white/60 pb-4">
                   {faq.a}
                 </AccordionContent>
               </AccordionItem>
@@ -921,7 +1147,7 @@ export default function PricingPage() {
           {/* View All FAQs Link */}
           <div className="text-center mt-8">
             <Link href="/faq">
-              <Button variant="outline" size="lg" className="hover:scale-105">
+              <Button variant="outline" size="lg" className="bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-white/80">
                 View All FAQs
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
@@ -931,21 +1157,21 @@ export default function PricingPage() {
 
         {/* Trust Signals */}
         <div className="max-w-4xl mx-auto text-center mb-12">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-slate-400">
-            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-emerald-500/20 transition-colors">
-              <Shield className="w-6 h-6 text-emerald-400" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-white/60">
+            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-black border border-white/10 hover:border-white/20 transition-colors">
+              <Shield className="w-6 h-6 text-white/70" />
               <span className="text-xs font-medium">Bank-Level Security</span>
             </div>
-            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-emerald-500/20 transition-colors">
-              <CreditCard className="w-6 h-6 text-emerald-400" />
+            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-black border border-white/10 hover:border-white/20 transition-colors">
+              <CreditCard className="w-6 h-6 text-white/70" />
               <span className="text-xs font-medium">Secure Payments</span>
             </div>
-            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-emerald-500/20 transition-colors">
-              <Clock className="w-6 h-6 text-emerald-400" />
+            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-black border border-white/10 hover:border-white/20 transition-colors">
+              <Clock className="w-6 h-6 text-white/70" />
               <span className="text-xs font-medium">Cancel Anytime</span>
             </div>
-            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-emerald-500/20 transition-colors">
-              <Star className="w-6 h-6 text-emerald-400 fill-emerald-400" />
+            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-black border border-white/10 hover:border-white/20 transition-colors">
+              <Star className="w-6 h-6 text-white/70 fill-white/70" />
               <span className="text-xs font-medium">7-Day Guarantee</span>
             </div>
           </div>

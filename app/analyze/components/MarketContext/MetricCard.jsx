@@ -157,7 +157,7 @@ export function MetricCard({
             {tooltip && (
               <HoverCard>
                 <HoverCardTrigger asChild>
-                  <HelpCircle className={`w-3 h-3 ${compact ? 'w-2.5 h-2.5' : ''} text-slate-500 cursor-help`} />
+                  <HelpCircle className={`w-3 h-3 ${compact ? 'w-2.5 h-2.5' : ''} text-slate-500 `} />
                 </HoverCardTrigger>
                 <HoverCardContent className="max-w-xs">
                   <p className="text-sm">{tooltip}</p>
@@ -233,7 +233,7 @@ export function ComparisonCard({
           {tooltip && (
             <HoverCard>
               <HoverCardTrigger asChild>
-                <HelpCircle className="w-3 h-3 text-slate-500 cursor-help" />
+                <HelpCircle className="w-3 h-3 text-slate-500 " />
               </HoverCardTrigger>
               <HoverCardContent className="max-w-xs">
                 <p className="text-sm">{tooltip}</p>
@@ -300,7 +300,7 @@ export function StatusCard({
           {tooltip && (
             <HoverCard>
               <HoverCardTrigger asChild>
-                <HelpCircle className="w-3 h-3 text-slate-500 cursor-help" />
+                <HelpCircle className="w-3 h-3 text-slate-500 " />
               </HoverCardTrigger>
               <HoverCardContent className="max-w-xs">
                 <p className="text-sm">{tooltip}</p>

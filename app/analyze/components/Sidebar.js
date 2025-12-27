@@ -1,13 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Home, Database, Sparkles, LogOut, TrendingUp, Twitter, Linkedin, Menu, X } from 'lucide-react'
+import { Home, Database, Sparkles, LogOut, TrendingUp, Twitter, Linkedin, Menu, X, Brain, HelpCircle } from 'lucide-react'
 import { toast } from 'sonner'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 export default function Sidebar({
   activePage = 'dashboard',
   onDashboardClick,
   onUploadClick,
+  onVegaClick,
   onMyPatternsClick,
   onSignOutClick,
   isMyPatternsDisabled = false,
@@ -125,20 +127,51 @@ export default function Sidebar({
           <span>Your Data</span>
         </button>
 
-        <button
-          onClick={() => handleNavClick(onMyPatternsClick)}
-          disabled={isMyPatternsDisabled}
-          className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
-            activePage === 'patterns'
-              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/10'
-              : 'text-slate-300 hover:bg-white/[0.05] border border-transparent'
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            <Sparkles className="w-5 h-5" />
-            <span>My Patterns</span>
-          </div>
-        </button>
+        {onVegaClick && (
+          <button
+            onClick={() => handleNavClick(onVegaClick)}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
+              activePage === 'vega'
+                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/10'
+                : 'text-slate-300 hover:bg-white/[0.05] border border-transparent'
+            }`}
+          >
+            <Brain className="w-5 h-5" />
+            <span>VegaAI</span>
+          </button>
+        )}
+
+        <div className="relative">
+          <button
+            onClick={() => handleNavClick(onMyPatternsClick)}
+            disabled={isMyPatternsDisabled}
+            className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
+              activePage === 'patterns'
+                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/10'
+                : 'text-slate-300 hover:bg-white/[0.05] border border-transparent'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Sparkles className="w-5 h-5" />
+              <span>My Patterns</span>
+            </div>
+          </button>
+          {!isMyPatternsDisabled && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 hover:text-slate-400 transition-colors  z-10" />
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-xs">
+                  <p className="font-medium mb-1">My Patterns</p>
+                  <p className="text-xs leading-relaxed">
+                    View comprehensive trading analytics including performance metrics, patterns, insights, and detailed breakdowns of your trading data.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
 
         <button
           onClick={() => handleNavClick(onSignOutClick || handleSignOut)}

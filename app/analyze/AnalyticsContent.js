@@ -13,6 +13,7 @@ import demoFuturesData from './demo-data/demo-futures-data.json'
 import demoSpotData from './demo-data/demo-spot-data.json'
 import { EXCHANGES } from './utils/exchanges'
 import { TrendingUp, BarChart3, Brain, Zap, Sparkles } from 'lucide-react'
+import { trackFeatureUsage, trackPageView } from '@/lib/analytics'
 
 // Loading screens (same as TradeClarityContent)
 function DemoLoadingScreen({ progress, onComplete }) {
@@ -526,8 +527,31 @@ export default function AnalyticsContent() {
             return
           }
           
-          // No pre-analyzed data - fetch from database (existing flow)
-          // Start with fetching message
+          // No pre-analyzed data - try cache first (fast path)
+          setProgress('Loading cached analytics...')
+          await new Promise(resolve => setTimeout(resolve, 100))
+          
+          // Try to get cached analytics first
+          const cacheResponse = await fetch('/api/analytics/cache')
+          const cacheData = await cacheResponse.json()
+          
+          if (cacheData.success && cacheData.analytics) {
+            // Cache hit - use cached analytics (fast path!)
+            setAnalytics(cacheData.analytics)
+            setCurrencyMetadata(cacheData.analytics.metadata || { primaryCurrency: 'USD' })
+            
+            // Use persisted currency or default to USD
+            const savedCurrency = typeof window !== 'undefined' ? localStorage.getItem('tradeclarity_currency') : null
+            if (savedCurrency) {
+              setCurrency(savedCurrency)
+            }
+            
+            setProgress('Preparing your dashboard...')
+            await new Promise(resolve => setTimeout(resolve, 50))
+            return // Fast path - skip fetching trades
+          }
+          
+          // Cache miss - fallback to fetching trades and computing client-side
           setProgress('Fetching your trading data...')
           await new Promise(resolve => setTimeout(resolve, 100))
           
@@ -607,6 +631,20 @@ export default function AnalyticsContent() {
             setCurrency(savedCurrency)
           }
           
+          // Trigger background cache update after client-side computation
+          // Don't await - fire and forget
+          fetch('/api/analytics/compute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              userId: user.id, 
+              trigger: 'analytics_page_load' 
+            })
+          }).catch(err => {
+            console.error('Background cache update failed:', err)
+            // Non-critical - cache will be updated on next load
+          })
+          
           // Always set progress to "Preparing" to trigger 100% animation
           // Use setTimeout to ensure state update propagates before component might unmount
           setProgress('Preparing your dashboard...')
@@ -669,6 +707,20 @@ export default function AnalyticsContent() {
           if (savedCurrency) {
             setCurrency(savedCurrency)
           }
+          
+          // Trigger background cache update after client-side computation
+          if (user?.id) {
+            fetch('/api/analytics/compute', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                userId: user.id, 
+                trigger: 'analytics_page_filter' 
+              })
+            }).catch(err => {
+              console.error('Background cache update failed:', err)
+            })
+          }
         }
       }
     } catch (error) {
@@ -694,11 +746,15 @@ export default function AnalyticsContent() {
     )
   }
 
+  // Redirect to login if not authenticated (unless in demo mode)
+  useEffect(() => {
+    if (!authLoading && !user && searchParams.get('demo') !== 'true') {
+      router.push('/login')
+    }
+  }, [user, authLoading, searchParams, router])
+
   if (!user && searchParams.get('demo') !== 'true') {
-    return <AuthScreen onAuthSuccess={(user) => {
-      // Refresh page to reload with authenticated user
-      window.location.href = '/dashboard';
-    }} />
+    return null // Redirect is happening
   }
 
   if (status === 'loading') {
@@ -769,6 +825,22 @@ export default function AnalyticsContent() {
     // Use tab from URL state (updated via useEffect)
     const currentTab = activeTabFromUrl || 'overview'
 
+    // Track analytics viewed (only once per session)
+    useEffect(() => {
+      const hasTracked = sessionStorage.getItem('analytics_viewed_tracked')
+      if (!hasTracked) {
+        trackFeatureUsage.analyticsViewed()
+        trackPageView('analytics')
+        // Check if this is first analytics computation
+        const isFirstAnalytics = !localStorage.getItem('has_viewed_analytics')
+        if (isFirstAnalytics) {
+          trackFeatureUsage.firstAnalyticsComputed()
+          localStorage.setItem('has_viewed_analytics', 'true')
+        }
+        sessionStorage.setItem('analytics_viewed_tracked', 'true')
+      }
+    }, [])
+
     return (
       <AnalyticsView
         analytics={analytics}
@@ -781,7 +853,7 @@ export default function AnalyticsContent() {
         exchangeConfig={EXCHANGES.binance}
         onDisconnect={() => router.push('/dashboard')}
         onUploadClick={() => router.push('/dashboard')}
-        onViewAllExchanges={() => router.push('/analyze')}
+        onViewAllExchanges={() => router.push('/vega')}
         onFilterExchanges={handleFilterExchanges}
         initialTab={currentTab}
         key={currentTab} // Force re-render when tab changes
