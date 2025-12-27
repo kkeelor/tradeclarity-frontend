@@ -1,9 +1,9 @@
 // app/api/snaptrade/transactions/route.js
-// Fetch transaction history (activities) from Snaptrade
+// Proxy to backend API for SnapTrade transactions (with frontend filtering for hidden brokerages)
 import { createClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
-import { getActivities } from '@/lib/snaptrade-client'
-import { decrypt } from '@/lib/encryption'
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,11 +19,6 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    console.log('📊 [Snaptrade Transactions] User authenticated:', {
-      userId: user.id,
-      email: user.email,
-    })
-
     // Get query parameters
     const { searchParams } = new URL(request.url)
     const startDate = searchParams.get('startDate')
@@ -31,45 +26,69 @@ export async function GET(request) {
     const accounts = searchParams.get('accounts')
     const type = searchParams.get('type')
 
-    console.log('📊 [Snaptrade Transactions] Query params:', {
-      startDate,
-      endDate,
-      accounts,
-      type,
-    })
-
-    // Get Snaptrade user data (including hidden brokerages)
-    const { data: snaptradeUser, error: fetchError } = await supabase
+    // Get hidden brokerages from database (frontend-specific feature)
+    const { data: snaptradeUser } = await supabase
       .from('snaptrade_users')
-      .select('snaptrade_user_id, user_secret_encrypted, hidden_brokerages')
+      .select('hidden_brokerages')
       .eq('user_id', user.id)
       .single()
 
-    if (fetchError || !snaptradeUser) {
-      console.error('❌ [Snaptrade Transactions] User not found:', {
-        error: fetchError,
-        userId: user.id,
+    // Get session token for backend authentication
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.access_token) {
+      return NextResponse.json({ error: 'No session token available' }, { status: 401 })
+    }
+
+    // Build query params for backend
+    const params = new URLSearchParams()
+    if (startDate) params.append('startDate', startDate)
+    if (endDate) params.append('endDate', endDate)
+    if (accounts) params.append('accounts', accounts)
+    if (type) params.append('type', type)
+
+    const queryString = params.toString()
+    const backendUrl = `${BACKEND_URL}/api/snaptrade/activities${queryString ? `?${queryString}` : ''}`
+
+    // Proxy request to backend
+    let backendResponse
+    let backendData
+    
+    try {
+      backendResponse = await fetch(backendUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
       })
+
+      backendData = await backendResponse.json().catch(() => {
+        // If JSON parsing fails, return error text
+        return { error: `Backend returned status ${backendResponse.status}` }
+      })
+
+      if (!backendResponse.ok) {
+        console.error('❌ [Snaptrade Transactions] Backend error:', {
+          status: backendResponse.status,
+          statusText: backendResponse.statusText,
+          data: backendData,
+        })
+        return NextResponse.json(backendData, { status: backendResponse.status })
+      }
+    } catch (fetchError) {
+      console.error('❌ [Snaptrade Transactions] Fetch error:', fetchError)
       return NextResponse.json(
         {
-          error: 'User not registered with Snaptrade. Please register first.',
+          error: 'Failed to connect to backend server',
+          details: fetchError.message,
         },
-        { status: 404 }
+        { status: 500 }
       )
     }
 
-    console.log('📊 [Snaptrade Transactions] Snaptrade user found:', {
-      snaptradeUserId: snaptradeUser.snaptrade_user_id,
-      hasSecret: !!snaptradeUser.user_secret_encrypted,
-    })
-
-    // Decrypt userSecret
-    const userSecret = decrypt(snaptradeUser.user_secret_encrypted)
-    console.log('📊 [Snaptrade Transactions] User secret decrypted, fetching activities from Snaptrade API...')
-
-    // Parse hidden brokerages
+    // Parse hidden brokerages (frontend-specific feature)
     let hiddenBrokerages = []
-    if (snaptradeUser.hidden_brokerages) {
+    if (snaptradeUser?.hidden_brokerages) {
       try {
         hiddenBrokerages = Array.isArray(snaptradeUser.hidden_brokerages)
           ? snaptradeUser.hidden_brokerages
@@ -80,17 +99,7 @@ export async function GET(request) {
       }
     }
 
-    // Fetch activities from Snaptrade
-    const allActivities = await getActivities(
-      snaptradeUser.snaptrade_user_id,
-      userSecret,
-      {
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-        accounts: accounts || undefined,
-        type: type || undefined,
-      }
-    )
+    const allActivities = backendData.activities || []
 
     // Filter out activities from hidden brokerages
     const activities = (allActivities || []).filter(activity => {

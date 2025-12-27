@@ -77,13 +77,18 @@ export async function POST(request) {
         brokerageName = parts.slice(2).join('-') // Handle brokerage names with hyphens
       }
       
-      // Look up the actual connection by user_id, exchange='snaptrade', and brokerage_name
-      const { data: actualConnections, error: lookupError } = await supabase
+      // Look up the actual connection by user_id, exchange starting with 'snaptrade', and brokerage_name
+      // SnapTrade connections use exchange='snaptrade-{brokerage}' format
+      const { data: allConnections, error: lookupError } = await supabase
         .from('exchange_connections')
         .select('id, exchange, user_id, metadata')
         .eq('user_id', user.id)
-        .eq('exchange', 'snaptrade')
         .eq('is_active', true)
+      
+      // Filter to only SnapTrade connections
+      const actualConnections = (allConnections || []).filter(conn => 
+        conn.exchange && conn.exchange.startsWith('snaptrade')
+      )
       
       if (lookupError) {
         console.error('❌ Error looking up Snaptrade connection:', lookupError)
@@ -95,9 +100,18 @@ export async function POST(request) {
       
       if (brokerageName && actualConnections) {
         // Find connection matching this brokerage
-        const matchingConn = actualConnections.find(conn => 
-          conn.metadata?.brokerage_name === brokerageName
-        )
+        const matchingConn = actualConnections.find(conn => {
+          // Match by metadata brokerage_name
+          if (conn.metadata?.brokerage_name === brokerageName) {
+            return true
+          }
+          // Match by exchange format: snaptrade-{brokerage-slug}
+          const brokerageSlug = brokerageName.toLowerCase().replace(/[^a-z0-9]/g, '-')
+          if (conn.exchange === `snaptrade-${brokerageSlug}`) {
+            return true
+          }
+          return false
+        })
         
         if (matchingConn) {
           actualConnectionId = matchingConn.id

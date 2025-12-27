@@ -1,9 +1,9 @@
 // app/api/snaptrade/accounts/route.js
-// Get all connected Snaptrade brokerage accounts
+// Proxy to backend API for SnapTrade accounts (with frontend filtering for hidden brokerages)
 import { createClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
-import { getAccounts } from '@/lib/snaptrade-client'
-import { decrypt } from '@/lib/encryption'
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,41 +12,29 @@ export async function GET(request) {
     console.log('📊 [Snaptrade Accounts] API called')
     const supabase = await createClient()
 
-    // Get current user
+    // Get current user and auth token
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
       console.error('❌ [Snaptrade Accounts] Auth error:', authError)
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    console.log('📊 [Snaptrade Accounts] User authenticated:', {
-      userId: user.id,
-      email: user.email,
-    })
+    // Get session token for backend authentication
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.access_token) {
+      return NextResponse.json({ error: 'No session token available' }, { status: 401 })
+    }
 
-    // Get Snaptrade user data (including hidden brokerages)
-    const { data: snaptradeUser, error: fetchError } = await supabase
+    // Get hidden brokerages from database (frontend-specific feature)
+    const { data: snaptradeUser } = await supabase
       .from('snaptrade_users')
-      .select('snaptrade_user_id, user_secret_encrypted, hidden_brokerages')
+      .select('hidden_brokerages')
       .eq('user_id', user.id)
       .single()
 
-    if (fetchError || !snaptradeUser) {
-      console.error('❌ [Snaptrade Accounts] User not found:', {
-        error: fetchError,
-        userId: user.id,
-      })
-      return NextResponse.json(
-        {
-          error: 'User not registered with Snaptrade. Please register first.',
-        },
-        { status: 404 }
-      )
-    }
-
     // Parse hidden brokerages
     let hiddenBrokerages = []
-    if (snaptradeUser.hidden_brokerages) {
+    if (snaptradeUser?.hidden_brokerages) {
       try {
         hiddenBrokerages = Array.isArray(snaptradeUser.hidden_brokerages)
           ? snaptradeUser.hidden_brokerages
@@ -57,39 +45,30 @@ export async function GET(request) {
       }
     }
 
-    console.log('📊 [Snaptrade Accounts] Snaptrade user found:', {
-      snaptradeUserId: snaptradeUser.snaptrade_user_id,
-      hasSecret: !!snaptradeUser.user_secret_encrypted,
+    // Proxy request to backend
+    const backendResponse = await fetch(`${BACKEND_URL}/api/snaptrade/accounts`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
     })
 
-    // Decrypt userSecret
-    const userSecret = decrypt(snaptradeUser.user_secret_encrypted)
-    console.log('📊 [Snaptrade Accounts] User secret decrypted, fetching accounts from Snaptrade API...')
+    const backendData = await backendResponse.json()
 
-    // Fetch accounts from Snaptrade
-    const allAccounts = await getAccounts(
-      snaptradeUser.snaptrade_user_id,
-      userSecret
-    )
+    if (!backendResponse.ok) {
+      return NextResponse.json(backendData, { status: backendResponse.status })
+    }
 
-    // Filter out accounts from hidden brokerages
-    const visibleAccounts = (allAccounts || []).filter(account => {
+    // Filter out accounts from hidden brokerages (frontend-specific feature)
+    const allAccounts = backendData.accounts || []
+    const visibleAccounts = allAccounts.filter(account => {
       const institutionName = account.institution_name
       const isHidden = institutionName && hiddenBrokerages.includes(institutionName)
       return !isHidden
     })
 
-    console.log(`✅ [Snaptrade Accounts] Found ${allAccounts.length} total accounts, ${visibleAccounts.length} visible (${hiddenBrokerages.length} brokerages hidden):`, {
-      totalAccounts: allAccounts.length,
-      visibleAccounts: visibleAccounts.length,
-      hiddenBrokerages: hiddenBrokerages,
-      accounts: visibleAccounts.map(a => ({
-        id: a.id,
-        name: a.name,
-        institution: a.institution_name,
-        number: a.number,
-      })),
-    })
+    console.log(`✅ [Snaptrade Accounts] Found ${allAccounts.length} total accounts, ${visibleAccounts.length} visible (${hiddenBrokerages.length} brokerages hidden)`)
 
     return NextResponse.json({
       success: true,
@@ -97,11 +76,7 @@ export async function GET(request) {
       hiddenBrokerages, // Include so UI knows which are hidden
     })
   } catch (error) {
-    console.error('❌ [Snaptrade Accounts] Error:', {
-      error: error.message,
-      stack: error.stack,
-      response: error.response?.data,
-    })
+    console.error('❌ [Snaptrade Accounts] Error:', error)
     return NextResponse.json(
       {
         error: error.message || 'Failed to fetch Snaptrade accounts',

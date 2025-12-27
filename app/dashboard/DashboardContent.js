@@ -538,6 +538,23 @@ export default function DashboardContent() {
                         }
                       }
 
+                      // Sync SnapTrade connections to exchange_connections table
+                      console.log('🔄 [Snaptrade Flow] Syncing connections...')
+                      try {
+                        const syncResponse = await fetch('/api/snaptrade/sync-connections', {
+                          method: 'POST',
+                        })
+                        if (syncResponse.ok) {
+                          const syncData = await syncResponse.json()
+                          console.log('✅ [Snaptrade Flow] Connections synced:', syncData)
+                        } else {
+                          console.warn('⚠️ [Snaptrade Flow] Sync failed, but continuing')
+                        }
+                      } catch (syncError) {
+                        console.error('❌ [Snaptrade Flow] Sync error:', syncError)
+                        // Don't block the flow if sync fails
+                      }
+
                       console.log('✅ [Snaptrade Flow] Flow complete, redirecting to Vega AI')
                       setStatus('success')
                       setProgress('')

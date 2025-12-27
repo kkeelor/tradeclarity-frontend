@@ -25,17 +25,31 @@ export async function POST(request) {
     
     if (normalizedExchange === 'snaptrade' && spotTrades && spotTrades.length > 0) {
       // Get all SnapTrade connections for this user
+      // SnapTrade connections use exchange='snaptrade-{brokerage}' format
       const supabase = await createClient()
-      const { data: snaptradeConnections } = await supabase
+      const { data: allConnections } = await supabase
         .from('exchange_connections')
-        .select('id, metadata')
+        .select('id, exchange, metadata')
         .eq('user_id', userId)
-        .eq('exchange', 'snaptrade')
         .eq('is_active', true)
+      
+      // Filter to only SnapTrade connections (exchange starts with 'snaptrade')
+      const snaptradeConnections = (allConnections || []).filter(conn => 
+        conn.exchange && conn.exchange.startsWith('snaptrade')
+      )
       
       if (snaptradeConnections) {
         snaptradeConnections.forEach(conn => {
-          const brokerageName = conn.metadata?.brokerage_name
+          // Get brokerage name from metadata or extract from exchange name
+          let brokerageName = conn.metadata?.brokerage_name
+          if (!brokerageName && conn.exchange.startsWith('snaptrade-')) {
+            // Extract from exchange format: snaptrade-{brokerage-slug}
+            const slug = conn.exchange.replace('snaptrade-', '')
+            brokerageName = slug
+              .split('-')
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(' ')
+          }
           if (brokerageName) {
             brokerageConnectionMap.set(brokerageName, conn.id)
           }

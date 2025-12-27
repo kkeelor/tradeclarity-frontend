@@ -65,20 +65,33 @@ export async function POST(request) {
         brokerageName = parts.slice(2).join('-') // Handle brokerage names with hyphens
       }
       
-      // Look up the actual connection by user_id, exchange='snaptrade', and brokerage_name
-      let query = supabase
+      // Look up the actual connection by user_id, exchange starting with 'snaptrade', and brokerage_name
+      // SnapTrade connections use exchange='snaptrade-{brokerage}' format
+      const { data: allConnections } = await supabase
         .from('exchange_connections')
         .select('id, exchange, user_id, metadata')
         .eq('user_id', user.id)
-        .eq('exchange', 'snaptrade')
         .eq('is_active', true)
+      
+      // Filter to only SnapTrade connections
+      const brokerageConnections = (allConnections || []).filter(conn => 
+        conn.exchange && conn.exchange.startsWith('snaptrade')
+      )
       
       if (brokerageName) {
         // Try to find connection with matching brokerage name
-        const { data: brokerageConnections } = await query
-        const matchingConn = brokerageConnections?.find(conn => 
-          conn.metadata?.brokerage_name === brokerageName
-        )
+        const matchingConn = brokerageConnections.find(conn => {
+          // Match by metadata brokerage_name
+          if (conn.metadata?.brokerage_name === brokerageName) {
+            return true
+          }
+          // Match by exchange format: snaptrade-{brokerage-slug}
+          const brokerageSlug = brokerageName.toLowerCase().replace(/[^a-z0-9]/g, '-')
+          if (conn.exchange === `snaptrade-${brokerageSlug}`) {
+            return true
+          }
+          return false
+        })
         
         if (matchingConn) {
           actualConnectionId = matchingConn.id
@@ -124,6 +137,7 @@ export async function POST(request) {
           }
           
           // Clean up orphaned trades for this brokerage
+          // Trades are stored with exchange='snaptrade' regardless of connection exchange format
           const { data: orphanedTrades } = await supabase
             .from('trades')
             .delete()
@@ -195,7 +209,7 @@ export async function POST(request) {
       )
     }
 
-    const isSnaptradeConnection = connection.exchange === 'snaptrade'
+    const isSnaptradeConnection = connection.exchange && connection.exchange.startsWith('snaptrade')
     const connectionBrokerageName = connection.metadata?.brokerage_name || brokerageName
     
     if (isSnaptradeConnection) {

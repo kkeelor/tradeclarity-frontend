@@ -18,10 +18,10 @@ export async function GET() {
     console.log('🔍 [List Exchanges] Fetching connections for user:', user.id)
 
     // Fetch user's exchange connections
-    // Note: metadata column doesn't exist in the database schema, so we exclude it
+    // Include metadata for SnapTrade brokerage names
     const { data: connections, error: fetchError } = await supabase
       .from('exchange_connections')
-      .select('id, exchange, is_active, created_at, updated_at, last_synced, user_id, api_key_encrypted, api_secret_encrypted')
+      .select('id, exchange, is_active, created_at, updated_at, last_synced, user_id, api_key_encrypted, api_secret_encrypted, metadata')
       .eq('user_id', user.id)
       .eq('is_active', true)
       .order('created_at', { ascending: false })
@@ -56,19 +56,25 @@ export async function GET() {
     // IMPORTANT: Always ensure we return all non-SnapTrade connections even if SnapTrade check fails
     let processedConnections = Array.isArray(connections) ? [...connections] : []
     
-    // For SnapTrade connections, we'll need to fetch brokerage info separately
-    // Since metadata column doesn't exist, we'll get brokerage names from SnapTrade API if needed
-    // For now, just return connections as-is (brokerage info will be added via sync-connections)
+    // Process SnapTrade connections - extract brokerage name from metadata or exchange name
     processedConnections = processedConnections.map(conn => {
-      if (conn && conn.exchange === 'snaptrade') {
-        // Since metadata doesn't exist, we can't extract brokerage name here
-        // Brokerage-specific connections will be created by sync-connections endpoint
-        // For now, return connection as-is
+      if (conn && conn.exchange && conn.exchange.startsWith('snaptrade')) {
+        // Extract brokerage name from metadata if available, otherwise from exchange name
+        let brokerageName = conn.metadata?.brokerage_name || null
+        if (!brokerageName && conn.exchange.startsWith('snaptrade-')) {
+          // Extract from exchange format: snaptrade-{brokerage-slug}
+          const slug = conn.exchange.replace('snaptrade-', '')
+          // Convert slug back to readable name (capitalize and replace dashes with spaces)
+          brokerageName = slug
+            .split('-')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ')
+        }
         return {
           ...conn,
-          brokerage_name: null,
-          primary_brokerage: null,
-          brokerage_names: null,
+          brokerage_name: brokerageName,
+          primary_brokerage: brokerageName,
+          brokerage_names: brokerageName ? [brokerageName] : null,
         }
       }
       return conn
@@ -78,7 +84,9 @@ export async function GET() {
     // This handles backward compatibility - sync connections if needed
     // Wrap in try-catch to ensure it doesn't block returning other connections
     try {
-      const hasSnaptradeConnections = processedConnections.some(conn => conn && conn.exchange === 'snaptrade')
+      const hasSnaptradeConnections = processedConnections.some(conn => 
+        conn && conn.exchange && conn.exchange.startsWith('snaptrade')
+      )
       
       if (!hasSnaptradeConnections) {
         const { data: snaptradeUser } = await supabase
@@ -148,8 +156,8 @@ export async function GET() {
     const finalConnections = Array.isArray(processedConnections) ? processedConnections : []
     
     console.log(`✅ [List Exchanges] Found ${finalConnections.length} connections`, {
-      snaptradeConnections: finalConnections.filter(c => c && c.exchange === 'snaptrade').length,
-      otherConnections: finalConnections.filter(c => c && c.exchange !== 'snaptrade').length,
+      snaptradeConnections: finalConnections.filter(c => c && c.exchange && c.exchange.startsWith('snaptrade')).length,
+      otherConnections: finalConnections.filter(c => c && (!c.exchange || !c.exchange.startsWith('snaptrade'))).length,
       exchanges: [...new Set(finalConnections.map(c => c?.exchange).filter(Boolean))],
     })
 
