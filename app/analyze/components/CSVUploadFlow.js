@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { UploadedFilesSkeleton } from '@/app/components/LoadingSkeletons'
 import Sidebar from './Sidebar'
+import { trackDataConnection } from '@/lib/analytics'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB per file
 
@@ -252,6 +253,11 @@ export default function CSVUploadFlow({ onBack }) {
   const processFile = async (config) => {
     const configId = config.id
 
+    // Track CSV upload initiated (only once per batch)
+    if (configId === fileConfigs[0]?.id) {
+      trackDataConnection.csvUploadInitiated()
+    }
+
     try {
       // Step 1: Parse CSV
       updateConfig(configId, {
@@ -368,6 +374,9 @@ export default function CSVUploadFlow({ onBack }) {
       if (!storeResponse.ok || !storeData.success) {
         const errorMsg = storeData.error || 'Failed to store trades'
         
+        // Track CSV upload failure
+        trackDataConnection.csvUploadFailure(storeData.error || 'unknown')
+        
         // Handle trade limit error with upgrade prompt
         if (storeResponse.status === 403 && storeData.error === 'TRADE_LIMIT_EXCEEDED') {
           const promptProps = getUpgradePromptFromApiError(storeData)
@@ -396,6 +405,17 @@ export default function CSVUploadFlow({ onBack }) {
       // Success!
       const newTrades = storeData.tradesCount || 0
       const duplicates = storeData.alreadyExisted || 0
+
+      // Track CSV upload success
+      const totalFiles = fileConfigs.length
+      trackDataConnection.csvUploadSuccess(totalFiles, newTrades)
+      
+      // Check if this is user's first CSV upload
+      const isFirstUpload = !localStorage.getItem('has_uploaded_csv')
+      if (isFirstUpload && newTrades > 0) {
+        trackDataConnection.firstCsvUploaded()
+        localStorage.setItem('has_uploaded_csv', 'true')
+      }
 
       // Step 4: Update CSV metadata with actual trade count
       updateConfig(configId, {
@@ -455,6 +475,8 @@ export default function CSVUploadFlow({ onBack }) {
 
     } catch (error) {
       console.error('Error processing file:', error)
+      // Track CSV upload failure
+      trackDataConnection.csvUploadFailure(error.message || 'processing_error')
       const errorMsg = 'Failed to process file. Please try again.'
       updateConfig(configId, {
         status: 'error',
@@ -496,7 +518,7 @@ export default function CSVUploadFlow({ onBack }) {
   const allProcessed = fileConfigs.length > 0 && fileConfigs.every(c => c.status === 'success' || c.status === 'error')
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex">
+    <div className="min-h-screen bg-black text-white flex">
       {/* Mobile-only Sidebar */}
       <div className="md:hidden">
         <Sidebar
@@ -531,10 +553,10 @@ export default function CSVUploadFlow({ onBack }) {
               {showUserMenu && (
                 <>
                   <div
-                    className="fixed inset-0 z-10"
+                    className="fixed inset-0 z-40"
                     onClick={() => setShowUserMenu(false)}
                   />
-                  <div className="absolute right-0 mt-2 w-48 bg-slate-800/95 backdrop-blur-xl border border-slate-700/50 rounded-lg shadow-2xl z-20 overflow-hidden">
+                  <div className="absolute right-0 mt-2 w-48 bg-slate-800/95 backdrop-blur-xl border border-slate-700/50 rounded-lg shadow-2xl z-50 overflow-hidden">
                     <div className="p-2.5 border-b border-slate-700/50">
                       <p className="text-[10px] text-slate-500 mb-0.5">Signed in as</p>
                       <p className="text-xs text-slate-300 truncate">{user?.email}</p>

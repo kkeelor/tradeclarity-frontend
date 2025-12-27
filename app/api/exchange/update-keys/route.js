@@ -6,7 +6,7 @@ import { encrypt } from '@/lib/encryption'
 export async function POST(request) {
   console.log('📡 [API] /api/exchange/update-keys called')
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()

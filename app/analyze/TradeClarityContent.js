@@ -750,7 +750,9 @@ export default function TradeClarityContent() {
 
   // NEW: Show auth screen if not authenticated AND not demo mode
   if (!user && !isDemoRequested) {
-    return <AuthScreen onAuthSuccess={() => {
+    return <AuthScreen onAuthSuccess={(user) => {
+      // Refresh page to reload with authenticated user
+      window.location.href = '/dashboard';
     }} />
   }
 
@@ -819,9 +821,9 @@ export default function TradeClarityContent() {
         isAuthenticated={!!user}
         exchangeConfig={currentExchange}
         onDisconnect={() => {
-          // If in demo mode without auth, redirect to auth page
+          // If in demo mode without auth, redirect to login page
           if (isDemoMode && !user) {
-            window.location.href = '/analyze'
+            window.location.href = '/login'
             return
           }
           // Reset to dashboard view
@@ -835,9 +837,9 @@ export default function TradeClarityContent() {
           setLoadingComplete(false)
         }}
         onUploadClick={() => {
-          // If in demo mode without auth, redirect to auth page
+          // If in demo mode without auth, redirect to login page
           if (isDemoMode && !user) {
-            window.location.href = '/analyze'
+            window.location.href = '/login'
             return
           }
           // Navigate to /data page for CSV upload

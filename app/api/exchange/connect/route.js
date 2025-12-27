@@ -6,7 +6,7 @@ import { TIER_LIMITS, canAddConnection } from '@/lib/featureGates'
 
 export async function POST(request) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -63,7 +63,7 @@ export async function POST(request) {
       // Check if user can add another connection
       // Use effective tier (considers cancel_at_period_end)
       const { getEffectiveTier } = await import('@/lib/featureGates')
-      const userTier = getEffectiveTier(subscription) || 'free'
+      const userTier = (getEffectiveTier(subscription) || 'free').toLowerCase()
       const limit = TIER_LIMITS[userTier]?.maxConnections || 1
       
       if (limit !== Infinity && (currentConnections || 0) >= limit) {

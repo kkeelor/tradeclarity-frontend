@@ -7,7 +7,7 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
 
 export async function POST(request) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
 
     const { connectionId, userId, exchange, apiKey, apiSecret } = await request.json()
 

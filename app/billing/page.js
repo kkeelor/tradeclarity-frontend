@@ -1,14 +1,18 @@
 // app/billing/page.js
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
-import { CreditCard, Calendar, CheckCircle, XCircle, AlertCircle, ArrowLeft, Loader2, Download, FileText } from 'lucide-react'
+import { CreditCard, Calendar, CheckCircle, XCircle, AlertCircle, Loader2, Download, FileText, HelpCircle } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { getTierDisplayName } from '@/lib/featureGates'
 import { toast } from 'sonner'
 import Footer from '../components/Footer'
-import UsageLimits from '../components/UsageLimits'
+import Header from '../analyze/components/Header'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+
+// Lazy load UsageLimits - not critical for initial render
+const UsageLimits = lazy(() => import('../components/UsageLimits'))
 import {
   AlertDialog,
   AlertDialogAction,
@@ -194,8 +198,8 @@ export default function BillingPage() {
   // Show loading while auth is checking or data is loading
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-white/70" />
       </div>
     )
   }
@@ -210,60 +214,87 @@ export default function BillingPage() {
   const isPastDue = subscription?.status === 'past_due'
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
-      {/* Header */}
-      <div className="border-b border-white/5 bg-slate-950/70 backdrop-blur-xl">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="text-sm text-slate-400 hover:text-white transition-colors flex items-center gap-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
-          </button>
-        </div>
-      </div>
+    <div className="min-h-screen bg-black text-white flex flex-col">
+      <Header
+        exchangeConfig={null}
+        currencyMetadata={null}
+        currency="USD"
+        setCurrency={() => {}}
+        onNavigateDashboard={() => router.push('/dashboard')}
+        onNavigateUpload={() => router.push('/data')}
+        onNavigateAll={() => router.push('/analyze')}
+        onNavigateVega={() => router.push('/vega')}
+        onSignOut={async () => {
+          await fetch('/api/auth/signout', { method: 'POST' })
+          router.push('/')
+        }}
+        hasDataSources={false}
+        isDemoMode={false}
+      />
 
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-12">
-        <h1 className="text-3xl font-bold mb-8">Billing & Subscription</h1>
+      <div className="flex-1 mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-12">
+        <h1 className="text-3xl font-semibold mb-8 text-white/90">Billing & Subscription</h1>
 
         {/* Current Plan */}
-        <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-6 mb-6">
+        <div className="rounded-xl border border-white/10 bg-black p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-xl font-semibold mb-2">Current Plan</h2>
+              <h2 className="text-xl font-medium mb-2 text-white/90">Current Plan</h2>
               <div className="flex items-center gap-3">
-                <span className={`text-2xl font-bold ${
-                  subscription?.tier === 'free' ? 'text-slate-300' :
-                  subscription?.tier === 'trader' ? 'text-emerald-400' :
-                  'text-cyan-400'
+                <span className={`text-2xl font-semibold ${
+                  subscription?.tier === 'free' ? 'text-white/70' :
+                  subscription?.tier === 'trader' ? 'text-white/90' :
+                  'text-white/90'
                 }`}>
                   {getTierDisplayName(subscription?.tier || 'free')}
                 </span>
                 {isActive && (
-                  <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-full text-xs font-medium flex items-center gap-1">
+                  <span className="px-3 py-1 bg-white/10 text-white/80 rounded-full text-xs font-medium flex items-center gap-1 border border-white/10">
                     <CheckCircle className="w-3 h-3" />
                     Active
                   </span>
                 )}
                 {isCanceled && (
-                  <span className="px-3 py-1 bg-slate-500/20 text-slate-400 rounded-full text-xs font-medium flex items-center gap-1">
+                  <span className="px-3 py-1 bg-white/5 text-white/50 rounded-full text-xs font-medium flex items-center gap-1 border border-white/10">
                     <XCircle className="w-3 h-3" />
                     Canceled
                   </span>
                 )}
                 {isPastDue && (
-                  <span className="px-3 py-1 bg-amber-500/20 text-amber-400 rounded-full text-xs font-medium flex items-center gap-1">
+                  <span className="px-3 py-1 bg-red-500/10 text-red-400 rounded-full text-xs font-medium flex items-center gap-1 border border-red-500/20">
                     <AlertCircle className="w-3 h-3" />
                     Payment Failed
                   </span>
                 )}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="w-4 h-4 text-white/40 hover:text-white/60 transition-colors " />
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="max-w-xs">
+                      <p className="font-medium mb-1">{getTierDisplayName(subscription?.tier || 'free')} Plan</p>
+                      {subscription?.tier === 'pro' ? (
+                        <p className="text-xs leading-relaxed">
+                          Unlimited exchange connections, unlimited trades analyzed, and 100,000 AI tokens/month. Full access to all features.
+                        </p>
+                      ) : subscription?.tier === 'trader' ? (
+                        <p className="text-xs leading-relaxed">
+                          Up to 3 exchange connections, 10,000 trades/month, and 50,000 AI tokens/month. Perfect for active traders.
+                        </p>
+                      ) : (
+                        <p className="text-xs leading-relaxed">
+                          Up to 1 exchange connection, 500 trades/month, and 10,000 AI tokens/month. Great for getting started.
+                        </p>
+                      )}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </div>
             {subscription?.tier !== 'free' && (
               <button
                 onClick={() => router.push('/pricing')}
-                className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 hover:border-emerald-500/50 rounded-xl text-sm font-semibold text-emerald-400 transition-all"
+                className="px-4 py-2 bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 rounded-lg text-sm font-medium text-white/80 transition-all"
               >
                 Change Plan
               </button>
@@ -271,7 +302,7 @@ export default function BillingPage() {
           </div>
 
           {subscription?.current_period_end && (
-            <div className="flex items-center gap-2 text-sm text-slate-400 mb-4">
+            <div className="flex items-center gap-2 text-sm text-white/60 mb-4">
               <Calendar className="w-4 h-4" />
               {isCanceled ? (
                 <span>Access ends on {new Date(subscription.current_period_end).toLocaleDateString()}</span>
@@ -282,17 +313,17 @@ export default function BillingPage() {
           )}
 
           {isPastDue && (
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 mb-4">
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-4">
               <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-amber-300 mb-1">Payment Failed</p>
-                  <p className="text-xs text-slate-400 mb-3">
+                  <p className="text-sm font-medium text-red-400 mb-1">Payment Failed</p>
+                  <p className="text-xs text-white/60 mb-3">
                     Your last payment attempt failed. Please update your payment method to continue using TradeClarity.
                   </p>
                   <button
                     onClick={handleManageBilling}
-                    className="text-xs text-amber-400 hover:text-amber-300 font-medium"
+                    className="text-xs text-red-400 hover:text-red-300 font-medium"
                   >
                     Update Payment Method ?
                   </button>
@@ -302,18 +333,18 @@ export default function BillingPage() {
           )}
 
           {subscription?.cancel_at_period_end && (
-            <div className="bg-slate-500/10 border border-slate-500/30 rounded-lg p-4">
+            <div className="bg-white/5 border border-white/10 rounded-lg p-4">
               <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-slate-400 flex-shrink-0 mt-0.5" />
+                <AlertCircle className="w-5 h-5 text-white/60 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-slate-300 mb-1">Subscription Canceled</p>
-                  <p className="text-xs text-slate-400 mb-3">
+                  <p className="text-sm font-medium text-white/80 mb-1">Subscription Canceled</p>
+                  <p className="text-xs text-white/60 mb-3">
                     Your subscription will end on {new Date(subscription.current_period_end).toLocaleDateString()}. You can reactivate it anytime before then.
                   </p>
                   <button
                     onClick={handleReactivateSubscription}
                     disabled={reactivating}
-                    className="text-xs text-emerald-400 hover:text-emerald-300 font-medium"
+                    className="text-xs text-white/70 hover:text-white/90 font-medium"
                   >
                     {reactivating ? 'Reactivating...' : 'Reactivate Subscription ?'}
                   </button>
@@ -325,24 +356,26 @@ export default function BillingPage() {
 
         {/* Usage */}
         {subscription?.tier !== 'free' && (
-          <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-6 mb-6">
-            <UsageLimits subscription={subscription} />
+          <div className="rounded-xl border border-white/10 bg-black p-6 mb-6">
+            <Suspense fallback={<div className="flex items-center justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-white/70" /></div>}>
+              <UsageLimits subscription={subscription} />
+            </Suspense>
           </div>
         )}
 
         {/* Payment Method */}
         {subscription?.tier !== 'free' && (
-          <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-6 mb-6">
+          <div className="rounded-xl border border-white/10 bg-black p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Payment Method</h2>
+              <h2 className="text-xl font-medium text-white/90">Payment Method</h2>
               <button
                 onClick={handleManageBilling}
-                className="px-4 py-2 bg-white/[0.05] hover:bg-white/[0.08] border border-white/10 hover:border-white/20 rounded-xl text-sm font-semibold text-white transition-all"
+                className="px-4 py-2 bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 rounded-lg text-sm font-medium text-white/80 transition-all"
               >
                 Manage
               </button>
             </div>
-            <div className="flex items-center gap-3 text-sm text-slate-400">
+            <div className="flex items-center gap-3 text-sm text-white/60">
               <CreditCard className="w-5 h-5" />
               <span>Manage your payment method and billing history in Razorpay</span>
             </div>
@@ -351,8 +384,8 @@ export default function BillingPage() {
 
         {/* Actions */}
         {subscription?.tier !== 'free' && (
-          <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-6">
-            <h2 className="text-xl font-semibold mb-4">Subscription Management</h2>
+          <div className="rounded-xl border border-white/10 bg-black p-6">
+            <h2 className="text-xl font-medium mb-4 text-white/90">Subscription Management</h2>
             <div className="space-y-3">
               {!subscription?.cancel_at_period_end ? (
                 <button
@@ -368,14 +401,14 @@ export default function BillingPage() {
                     setShowCancelDialog(true)
                   }}
                   disabled={canceling}
-                  className="w-full px-4 py-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 hover:border-red-500/50 rounded-xl text-sm font-semibold text-red-400 transition-all disabled:opacity-50"
+                  className="w-full px-4 py-3 bg-red-500/10 hover:bg-red-500/15 border border-red-500/20 hover:border-red-500/30 rounded-lg text-sm font-medium text-red-400 transition-all disabled:opacity-50"
                 >
                   Cancel Subscription
                 </button>
               ) : null}
               <button
                 onClick={() => router.push('/pricing')}
-                className="w-full px-4 py-3 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 hover:border-emerald-500/50 rounded-xl text-sm font-semibold text-emerald-400 transition-all"
+                className="w-full px-4 py-3 bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 rounded-lg text-sm font-medium text-white/80 transition-all"
               >
                 View Plans & Upgrade
               </button>
@@ -385,20 +418,20 @@ export default function BillingPage() {
 
         {/* Cancel Subscription Confirmation Dialog */}
         <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-          <AlertDialogContent className="bg-slate-900 border-slate-700">
+          <AlertDialogContent className="bg-black border-white/10">
             <AlertDialogHeader>
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
                   <AlertCircle className="w-5 h-5 text-red-400" />
                 </div>
-                <AlertDialogTitle className="text-xl font-semibold text-white">
+                <AlertDialogTitle className="text-xl font-semibold text-white/90">
                   Cancel {subscription?.tier === 'trader' ? 'Trader' : subscription?.tier === 'pro' ? 'Pro' : 'Premium'} Subscription?
                 </AlertDialogTitle>
               </div>
-              <AlertDialogDescription className="text-slate-300 space-y-3 pt-2">
+              <AlertDialogDescription className="text-white/70 space-y-3 pt-2">
                 <p>
                   You'll continue to have full access to all {subscription?.tier === 'trader' ? 'Trader' : subscription?.tier === 'pro' ? 'Pro' : 'Premium'} features until{' '}
-                  <span className="font-semibold text-white">
+                  <span className="font-medium text-white/90">
                     {subscription?.current_period_end
                       ? new Date(subscription.current_period_end).toLocaleDateString('en-US', {
                           year: 'numeric',
@@ -409,9 +442,9 @@ export default function BillingPage() {
                   </span>.
                 </p>
                 <p>
-                  After that, your account will be downgraded to <span className="font-semibold text-white">Free tier</span>.
+                  After that, your account will be downgraded to <span className="font-medium text-white/90">Free tier</span>.
                 </p>
-                <p className="text-emerald-400">
+                <p className="text-white/80">
                   You can reactivate your subscription anytime before your access ends.
                 </p>
               </AlertDialogDescription>
@@ -420,14 +453,14 @@ export default function BillingPage() {
               <AlertDialogCancel 
                 onClick={() => setShowCancelDialog(false)}
                 disabled={canceling}
-                className="bg-slate-800 hover:bg-slate-700 border-slate-600 text-slate-300"
+                className="bg-white/5 hover:bg-white/10 border-white/10 text-white/70"
               >
                 Keep Subscription
               </AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleCancelSubscription}
                 disabled={canceling}
-                className="bg-red-500 hover:bg-red-600 text-white focus:ring-red-500"
+                className="bg-red-500/10 hover:bg-red-500/15 border border-red-500/20 hover:border-red-500/30 text-red-400 focus:ring-red-500/20"
               >
                 {canceling ? (
                   <>
@@ -443,14 +476,14 @@ export default function BillingPage() {
         </AlertDialog>
 
         {subscription?.tier === 'free' && (
-          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-6 text-center mb-6">
-            <h2 className="text-xl font-semibold mb-2">Ready to unlock more?</h2>
-            <p className="text-sm text-slate-400 mb-4">
+          <div className="rounded-xl border border-white/10 bg-black p-6 text-center mb-6">
+            <h2 className="text-xl font-medium mb-2 text-white/90">Ready to unlock more?</h2>
+            <p className="text-sm text-white/60 mb-4">
               Upgrade to Trader or Pro to get unlimited analytics, historical tracking, and more.
             </p>
             <button
               onClick={() => router.push('/pricing')}
-              className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 rounded-xl text-sm font-semibold text-white transition-all shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30"
+              className="px-6 py-3 bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 rounded-lg text-sm font-medium text-white/90 transition-all"
             >
               View Plans
             </button>
@@ -459,14 +492,14 @@ export default function BillingPage() {
 
         {/* Payment History */}
         {(subscription?.tier !== 'free' || paymentHistory.length > 0) && (
-          <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-6">
-            <h2 className="text-xl font-semibold mb-4">Payment History</h2>
+          <div className="rounded-xl border border-white/10 bg-black p-6">
+            <h2 className="text-xl font-medium mb-4 text-white/90">Payment History</h2>
             {loadingHistory ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
+                <Loader2 className="w-6 h-6 animate-spin text-white/70" />
               </div>
             ) : paymentHistory.length === 0 ? (
-              <div className="text-center py-8 text-slate-400">
+              <div className="text-center py-8 text-white/50">
                 <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p className="text-sm">No payment history yet</p>
               </div>
@@ -475,13 +508,13 @@ export default function BillingPage() {
                 {paymentHistory.map((invoice) => (
                   <div
                     key={invoice.id}
-                    className="flex items-center justify-between p-4 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] transition-colors"
+                    className="flex items-center justify-between p-4 rounded-xl border border-white/10 bg-black hover:bg-white/5 transition-colors"
                   >
                     <div className="flex items-center gap-4 flex-1">
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center border ${
                         invoice.status === 'paid' 
-                          ? 'bg-emerald-500/20 text-emerald-400' 
-                          : 'bg-slate-500/20 text-slate-400'
+                          ? 'bg-white/5 text-white/70 border-white/10' 
+                          : 'bg-white/5 text-white/40 border-white/10'
                       }`}>
                         {invoice.status === 'paid' ? (
                           <CheckCircle className="w-5 h-5" />
@@ -491,18 +524,18 @@ export default function BillingPage() {
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <p className="font-semibold text-white">
+                          <p className="font-medium text-white/90">
                             {invoice.description || `Invoice #${invoice.invoice_number || invoice.id}`}
                           </p>
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                          <span className={`px-2 py-0.5 rounded-md text-xs font-medium border ${
                             invoice.status === 'paid'
-                              ? 'bg-emerald-500/20 text-emerald-400'
-                              : 'bg-slate-500/20 text-slate-400'
+                              ? 'bg-white/5 text-white/70 border-white/10'
+                              : 'bg-white/5 text-white/50 border-white/10'
                           }`}>
                             {invoice.status === 'paid' ? 'Paid' : 'Pending'}
                           </span>
                         </div>
-                        <p className="text-sm text-slate-400">
+                        <p className="text-sm text-white/50">
                           {invoice.billing_period ? (
                             invoice.billing_period
                           ) : (
@@ -517,21 +550,21 @@ export default function BillingPage() {
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="text-right">
-                        <p className="font-semibold text-white">
+                        <p className="font-medium text-white/90">
                           {invoice.currency || 'INR'} {((invoice.amount || 0) / 100).toFixed(2)}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleDownloadInvoice(invoice.id, 'html')}
-                          className="p-2 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                          className="p-2 rounded-lg hover:bg-white/10 text-white/50 hover:text-white/80 transition-colors"
                           title="View Invoice"
                         >
                           <FileText className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDownloadInvoice(invoice.id, 'pdf')}
-                          className="p-2 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                          className="p-2 rounded-lg hover:bg-white/10 text-white/50 hover:text-white/80 transition-colors"
                           title="Download Invoice (PDF)"
                         >
                           <Download className="w-4 h-4" />

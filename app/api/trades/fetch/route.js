@@ -73,7 +73,7 @@ function convertCurrency(amount, fromCurrency, toCurrency, rates) {
 
 export async function GET(request) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()

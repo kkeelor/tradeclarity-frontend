@@ -95,7 +95,7 @@ function ConfirmContent() {
         router.push('/dashboard')
         break
       case 'exchange':
-        router.push('/analyze')
+        router.push('/vega')
         break
       default:
         router.push('/dashboard')

@@ -27,8 +27,11 @@ import { ExchangeIcon, SeparatorText, Separator, Card as ShadcnCard, CardHeader,
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { getCurrencySymbol, formatCurrencyNumber } from '../utils/currencyFormatter'
+import { trackFeatureUsage } from '@/lib/analytics'
 import {
   AreaChart, Area, BarChart, Bar, LineChart as RechartsLineChart,
   Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart,
@@ -254,6 +257,33 @@ function HeroSection({ analytics, currSymbol, currency, metadata }) {
 
 // QuickStat now uses the reusable MetricDisplay component
 function QuickStat({ label, value, subtitle, icon, good, currency }) {
+  const getTooltipContent = () => {
+    if (label === 'Win Rate') {
+      return {
+        title: 'Win Rate',
+        description: 'Percentage of trades that were profitable. Calculated as (Winning Trades / Total Trades) × 100. A win rate above 50% is generally considered good.'
+      }
+    } else if (label === 'Profit Factor') {
+      return {
+        title: 'Profit Factor',
+        description: 'Ratio of gross profit to gross loss. Calculated as Total Profits / Total Losses. A profit factor above 1.5 is healthy, above 2.0 is excellent.'
+      }
+    } else if (label === 'Avg Win') {
+      return {
+        title: 'Average Win',
+        description: 'Average profit per winning trade. This shows how much you typically make when you win.'
+      }
+    } else if (label === 'Avg Loss') {
+      return {
+        title: 'Average Loss',
+        description: 'Average loss per losing trade. This shows how much you typically lose when you lose.'
+      }
+    }
+    return null
+  }
+
+  const tooltipInfo = getTooltipContent()
+
   return (
     <Card variant="glass" className="hover:border-slate-600/50 transition-all">
       {(icon || label) && (
@@ -261,6 +291,19 @@ function QuickStat({ label, value, subtitle, icon, good, currency }) {
           {icon && <IconBadge icon={icon} color={good === true ? 'emerald' : good === false ? 'red' : 'slate'} size="sm" />}
           {label && (
             <span className="text-xs text-slate-400 uppercase tracking-wider">{label}</span>
+          )}
+          {tooltipInfo && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="w-3.5 h-3.5 text-slate-500 hover:text-slate-400 transition-colors  ml-auto" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs">
+                  <p className="font-medium mb-1">{tooltipInfo.title}</p>
+                  <p className="text-xs leading-relaxed">{tooltipInfo.description}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
         </div>
       )}
@@ -292,8 +335,21 @@ function AccountTypeCard({ type, trades, pnl, winRate, currSymbol, currency, ico
           {isProfitable ? '+' : ''}{currSymbol}{formatNumber(pnl, 2, currency || 'USD')} <span className="text-xs text-slate-400 font-normal">{displayCurrency}</span>
         </div>
       </div>
-      <div className="flex items-center gap-4 text-sm text-slate-400">
+      <div className="flex items-center gap-2 text-sm text-slate-400">
         <span>Win Rate: <span className="text-white font-semibold">{winRate.toFixed(1)}%</span></span>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <HelpCircle className="w-3.5 h-3.5 text-slate-500 hover:text-slate-400 transition-colors " />
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs">
+              <p className="font-medium mb-1">Win Rate</p>
+              <p className="text-xs leading-relaxed">
+                Percentage of {type.toLowerCase()} trades that were profitable. Calculated as (Winning Trades / Total Trades) × 100. A win rate above 50% is generally considered good.
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     </Card>
   )
@@ -2519,15 +2575,34 @@ function OverviewTab({ analytics, currSymbol, currency = 'USD', metadata, setAct
       })()
     : null
 
-  // Check if portfolio data is available (only present on live connections)
-  const hasPortfolioData = metadata?.totalPortfolioValue !== undefined && metadata?.totalPortfolioValue !== null
+  // Calculate total portfolio value from spotHoldings if not already in metadata
+  const calculatedPortfolioValue = useMemo(() => {
+    // If totalPortfolioValue exists in metadata, use it
+    if (metadata?.totalPortfolioValue !== undefined && metadata?.totalPortfolioValue !== null) {
+      return metadata.totalPortfolioValue
+    }
+    
+    // Otherwise, calculate from spotHoldings
+    if (metadata?.spotHoldings && Array.isArray(metadata.spotHoldings) && metadata.spotHoldings.length > 0) {
+      const totalValue = metadata.spotHoldings.reduce((sum, holding) => {
+        const usdValue = parseFloat(holding.usdValue || 0)
+        return sum + usdValue
+      }, 0)
+      return totalValue > 0 ? totalValue : null
+    }
+    
+    return null
+  }, [metadata?.totalPortfolioValue, metadata?.spotHoldings])
+
+  // Check if portfolio data is available (from metadata or calculated from holdings)
+  const hasPortfolioData = calculatedPortfolioValue !== null && calculatedPortfolioValue !== undefined
 
   // Convert portfolio value to selected currency
   const convertedPortfolioValue = useMemo(() => {
-    if (!hasPortfolioData || !metadata?.totalPortfolioValue) return null
-    if (currency === 'USD') return metadata.totalPortfolioValue
-    return convertCurrencySync(metadata.totalPortfolioValue, 'USD', currency)
-  }, [hasPortfolioData, metadata?.totalPortfolioValue, currency])
+    if (!hasPortfolioData || !calculatedPortfolioValue) return null
+    if (currency === 'USD') return calculatedPortfolioValue
+    return convertCurrencySync(calculatedPortfolioValue, 'USD', currency)
+  }, [hasPortfolioData, calculatedPortfolioValue, currency])
 
   // Helper function to calculate exchange breakdowns
   const calculateExchangeBreakdown = useMemo(() => {
@@ -5537,7 +5612,7 @@ function BehavioralTab({ analytics, currSymbol, currency }) {
                             return (
                               <div
                                 key={hourIdx}
-                                className={`${bgColor} ${borderColor} border rounded p-1 min-h-[32px] flex flex-col items-center justify-center cursor-help`}
+                                className={`${bgColor} ${borderColor} border rounded p-1 min-h-[32px] flex flex-col items-center justify-center `}
                                 title={`${day} ${hourIdx.toString().padStart(2, '0')}:00 - ${winRate !== null ? `${winRate.toFixed(0)}% WR, ${trades} trades` : 'No trades'}`}
                               >
                                 {winRate !== null && (
@@ -5967,6 +6042,13 @@ export default function AnalyticsView({
     }
   }, [initialTab])
 
+  // Track tab switches
+  useEffect(() => {
+    if (activeTab && activeTab !== initialTab) {
+      trackFeatureUsage.analyticsTabSwitched(activeTab)
+    }
+  }, [activeTab, initialTab])
+
   // Filter state - Only data source filtering
   const [selectedExchanges, setSelectedExchanges] = useState([])
   const [appliedExchanges, setAppliedExchanges] = useState([]) // Track what's currently applied
@@ -6039,7 +6121,7 @@ export default function AnalyticsView({
     if (onViewAllExchanges) {
       onViewAllExchanges()
     } else {
-      router.push('/analyze')
+      router.push('/vega')
     }
   }
 
@@ -6133,32 +6215,69 @@ export default function AnalyticsView({
             </div>
 
             {/* Filter Panel */}
-            {showFilters && currencyMetadata?.exchanges && currencyMetadata.exchanges.length > 1 && (
+            {showFilters && currencyMetadata?.exchanges && currencyMetadata.exchanges.length > 0 && (
               <div className="border-b border-white/5 bg-white/[0.03] px-4 py-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  {/* Exchange Buttons */}
-                  {currencyMetadata.exchanges.map(exchange => (
-                    <button
-                      key={exchange}
-                      onClick={() => {
-                        if (selectedExchanges.includes(exchange)) {
-                          setSelectedExchanges(selectedExchanges.filter(ex => ex !== exchange))
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Exchange Dropdown */}
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-slate-400 whitespace-nowrap">Exchange:</label>
+                    <Select
+                      value={selectedExchanges.length > 0 ? selectedExchanges[0].toLowerCase() : 'all'}
+                      onValueChange={(value) => {
+                        if (value && value !== 'all') {
+                          setSelectedExchanges([value])
                         } else {
-                          setSelectedExchanges([...selectedExchanges, exchange])
+                          setSelectedExchanges([])
                         }
                       }}
-                      className={`relative flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium capitalize transition-all ${
-                        selectedExchanges.includes(exchange)
-                          ? 'border-purple-400/50 bg-purple-500/20 text-white'
-                          : 'border-white/10 bg-white/5 text-slate-200 hover:border-purple-400/40 hover:text-white'
-                      }`}
                     >
-                      {selectedExchanges.includes(exchange) && (
-                        <CheckCircle className="w-3.5 h-3.5 text-purple-200" />
-                      )}
-                      {exchange}
-                    </button>
-                  ))}
+                      <SelectTrigger className="w-[180px] bg-black border-white/10 text-white/90 hover:border-white/20">
+                        <SelectValue placeholder="All exchanges">
+                          {selectedExchanges.length > 0 
+                            ? selectedExchanges[0].charAt(0).toUpperCase() + selectedExchanges[0].slice(1)
+                            : 'All exchanges'}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent className="bg-black border-white/10">
+                        <SelectItem value="all" className="text-white/90 hover:bg-white/10 focus:bg-white/10">
+                          All exchanges
+                        </SelectItem>
+                        {(() => {
+                          // Get unique exchanges, normalize to lowercase, ensure Binance is included, and sort
+                          const existingExchanges = (currencyMetadata.exchanges || []).map(ex => String(ex).toLowerCase().trim())
+                          const allExchanges = [...new Set([
+                            'binance', // Always include Binance first
+                            ...existingExchanges
+                          ])]
+                          
+                          // Sort alphabetically but keep Binance visible
+                          const sortedExchanges = allExchanges.sort((a, b) => {
+                            if (a === 'binance') return -1
+                            if (b === 'binance') return 1
+                            return a.localeCompare(b)
+                          })
+                          
+                          return sortedExchanges.map(exchange => {
+                            const displayName = exchange === 'binance' 
+                              ? 'Binance' 
+                              : exchange === 'snaptrade'
+                              ? 'Snaptrade'
+                              : exchange.charAt(0).toUpperCase() + exchange.slice(1)
+                            
+                            return (
+                              <SelectItem 
+                                key={exchange} 
+                                value={exchange}
+                                className="text-white/90 hover:bg-white/10 focus:bg-white/10"
+                              >
+                                {displayName}
+                              </SelectItem>
+                            )
+                          })
+                        })()}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
                   {/* Apply Button */}
                   <button
@@ -6166,14 +6285,12 @@ export default function AnalyticsView({
                       setAppliedExchanges(selectedExchanges)
                       if (onFilterExchanges && selectedExchanges.length > 0) {
                         onFilterExchanges(selectedExchanges)
+                      } else if (onFilterExchanges && selectedExchanges.length === 0) {
+                        // If "All exchanges" selected, pass empty array to show all
+                        onFilterExchanges([])
                       }
                     }}
-                    disabled={selectedExchanges.length === 0}
-                    className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-all ${
-                      selectedExchanges.length > 0
-                        ? 'bg-gradient-to-r from-purple-500 to-purple-400 text-white shadow-lg shadow-purple-500/30 hover:from-purple-400 hover:to-purple-300'
-                        : 'cursor-not-allowed bg-white/5 text-slate-500'
-                    }`}
+                    className="rounded-full px-4 py-1.5 text-sm font-semibold transition-all bg-gradient-to-r from-purple-500 to-purple-400 text-white shadow-lg shadow-purple-500/30 hover:from-purple-400 hover:to-purple-300"
                   >
                     Apply
                   </button>
@@ -6184,8 +6301,11 @@ export default function AnalyticsView({
                       onClick={() => {
                         setSelectedExchanges([])
                         setAppliedExchanges([])
+                        if (onFilterExchanges) {
+                          onFilterExchanges([]) // Show all exchanges
+                        }
                       }}
-                      className="ml-auto inline-flex items-center gap-1 text-xs text-slate-400 transition-colors hover:text-purple-200"
+                      className="inline-flex items-center gap-1 text-xs text-slate-400 transition-colors hover:text-purple-200"
                     >
                       <X className="w-3 h-3" />
                       Clear

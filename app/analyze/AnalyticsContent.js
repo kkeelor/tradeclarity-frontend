@@ -13,6 +13,7 @@ import demoFuturesData from './demo-data/demo-futures-data.json'
 import demoSpotData from './demo-data/demo-spot-data.json'
 import { EXCHANGES } from './utils/exchanges'
 import { TrendingUp, BarChart3, Brain, Zap, Sparkles } from 'lucide-react'
+import { trackFeatureUsage, trackPageView } from '@/lib/analytics'
 
 // Loading screens (same as TradeClarityContent)
 function DemoLoadingScreen({ progress, onComplete }) {
@@ -745,8 +746,15 @@ export default function AnalyticsContent() {
     )
   }
 
+  // Redirect to login if not authenticated (unless in demo mode)
+  useEffect(() => {
+    if (!authLoading && !user && searchParams.get('demo') !== 'true') {
+      router.push('/login')
+    }
+  }, [user, authLoading, searchParams, router])
+
   if (!user && searchParams.get('demo') !== 'true') {
-    return <AuthScreen onAuthSuccess={() => {}} />
+    return null // Redirect is happening
   }
 
   if (status === 'loading') {
@@ -817,6 +825,22 @@ export default function AnalyticsContent() {
     // Use tab from URL state (updated via useEffect)
     const currentTab = activeTabFromUrl || 'overview'
 
+    // Track analytics viewed (only once per session)
+    useEffect(() => {
+      const hasTracked = sessionStorage.getItem('analytics_viewed_tracked')
+      if (!hasTracked) {
+        trackFeatureUsage.analyticsViewed()
+        trackPageView('analytics')
+        // Check if this is first analytics computation
+        const isFirstAnalytics = !localStorage.getItem('has_viewed_analytics')
+        if (isFirstAnalytics) {
+          trackFeatureUsage.firstAnalyticsComputed()
+          localStorage.setItem('has_viewed_analytics', 'true')
+        }
+        sessionStorage.setItem('analytics_viewed_tracked', 'true')
+      }
+    }, [])
+
     return (
       <AnalyticsView
         analytics={analytics}
@@ -829,7 +853,7 @@ export default function AnalyticsContent() {
         exchangeConfig={EXCHANGES.binance}
         onDisconnect={() => router.push('/dashboard')}
         onUploadClick={() => router.push('/dashboard')}
-        onViewAllExchanges={() => router.push('/analyze')}
+        onViewAllExchanges={() => router.push('/vega')}
         onFilterExchanges={handleFilterExchanges}
         initialTab={currentTab}
         key={currentTab} // Force re-render when tab changes

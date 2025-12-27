@@ -33,19 +33,14 @@ export default function NewsTicker() {
   const fetchHeadlines = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`${BACKEND_URL}/api/context/news/crypto?tickers=BTC,ETH&limit=10`)
+      // Fetch mixed news (stocks + crypto) - backend handles mixing and returns top 10
+      const response = await fetch(`${BACKEND_URL}/api/context/news/mixed?limit=10`)
       const data = await response.json()
       
       if (data.success && data.articles && data.articles.length > 0) {
-        const relevantHeadlines = data.articles
-          .filter(article => {
-            const hasSentiment = article.sentiment?.score !== undefined
-            const isRelevant = article.tickers?.length > 0 || article.topics?.length > 0
-            return hasSentiment || isRelevant
-          })
-          .slice(0, 10)
-        
-        setHeadlines(relevantHeadlines)
+        // Backend already filters and returns top 10 relevant articles
+        // No need for additional filtering - just use what backend returns
+        setHeadlines(data.articles)
       } else {
         setHeadlines([])
       }
