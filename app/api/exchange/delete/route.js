@@ -50,51 +50,129 @@ export async function POST(request) {
     console.log(`🗑️  Deleting exchange connection ${connectionId}...`)
     console.log(`   - Delete linked CSVs: ${deleteLinkedCSVs}`)
 
-    // Handle Snaptrade placeholder IDs (format: "snaptrade-{uuid}")
+    // Handle Snaptrade placeholder IDs (format: "snaptrade-{uuid}-{brokerage}" or "snaptrade-{uuid}")
     // These are temporary IDs created by the list endpoint when no exchange_connection exists
     let actualConnectionId = connectionId
+    let brokerageName = null
     
     if (connectionId.startsWith('snaptrade-')) {
-      console.log('⚠️ Detected Snaptrade placeholder ID, looking up actual connection')
-      // Look up the actual connection by user_id and exchange='snaptrade'
-      const { data: actualConnections, error: lookupError } = await supabase
+      console.log('⚠️ Detected Snaptrade placeholder ID, extracting brokerage info')
+      
+      // Parse placeholder ID format: "snaptrade-{uuid}-{brokerage}" or "snaptrade-{uuid}"
+      const parts = connectionId.split('-')
+      if (parts.length >= 3) {
+        // Format: "snaptrade-{uuid}-{brokerage}"
+        brokerageName = parts.slice(2).join('-') // Handle brokerage names with hyphens
+      }
+      
+      // Look up the actual connection by user_id, exchange='snaptrade', and brokerage_name
+      let query = supabase
         .from('exchange_connections')
-        .select('id, exchange, user_id')
+        .select('id, exchange, user_id, metadata')
         .eq('user_id', user.id)
         .eq('exchange', 'snaptrade')
-        .limit(1)
+        .eq('is_active', true)
       
-      if (lookupError) {
-        console.error('❌ Error looking up Snaptrade connection:', lookupError)
-        return NextResponse.json(
-          { error: 'Failed to find Snaptrade connection', details: lookupError.message },
-          { status: 500 }
+      if (brokerageName) {
+        // Try to find connection with matching brokerage name
+        const { data: brokerageConnections } = await query
+        const matchingConn = brokerageConnections?.find(conn => 
+          conn.metadata?.brokerage_name === brokerageName
         )
+        
+        if (matchingConn) {
+          actualConnectionId = matchingConn.id
+          brokerageName = matchingConn.metadata?.brokerage_name || brokerageName
+          console.log(`✅ Found actual connection ID for brokerage ${brokerageName}: ${actualConnectionId}`)
+        } else {
+          // No matching connection - this is a placeholder
+          console.log(`ℹ️ No actual Snaptrade connection found for brokerage ${brokerageName} (placeholder only)`)
+          
+          // Hide this brokerage to prevent placeholder from reappearing
+          if (brokerageName) {
+            try {
+              const { data: snaptradeUser } = await supabase
+                .from('snaptrade_users')
+                .select('hidden_brokerages')
+                .eq('user_id', user.id)
+                .maybeSingle()
+              
+              if (snaptradeUser) {
+                let hiddenBrokerages = []
+                if (snaptradeUser.hidden_brokerages) {
+                  try {
+                    hiddenBrokerages = Array.isArray(snaptradeUser.hidden_brokerages)
+                      ? snaptradeUser.hidden_brokerages
+                      : JSON.parse(snaptradeUser.hidden_brokerages)
+                  } catch (e) {
+                    hiddenBrokerages = []
+                  }
+                }
+                
+                if (!hiddenBrokerages.includes(brokerageName)) {
+                  hiddenBrokerages.push(brokerageName)
+                  await supabase
+                    .from('snaptrade_users')
+                    .update({ hidden_brokerages: hiddenBrokerages })
+                    .eq('user_id', user.id)
+                  console.log(`✅ Hidden brokerage ${brokerageName} to prevent placeholder reappearance`)
+                }
+              }
+            } catch (error) {
+              console.warn('⚠️ Failed to hide brokerage:', error.message)
+            }
+          }
+          
+          // Clean up orphaned trades for this brokerage
+          const { data: orphanedTrades } = await supabase
+            .from('trades')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('exchange', 'snaptrade')
+            .select('id')
+          
+          const orphanedTradesDeleted = orphanedTrades?.length || 0
+          if (orphanedTradesDeleted > 0) {
+            console.log(`✅ Cleaned up ${orphanedTradesDeleted} orphaned SnapTrade trades`)
+          }
+          
+          return NextResponse.json({
+            success: true,
+            message: 'Placeholder connection removed',
+            apiTradesDeleted: orphanedTradesDeleted,
+            csvFilesDeleted: 0,
+            csvFilesUnlinked: 0,
+            csvTradesDeleted: 0,
+            totalTradesDeleted: orphanedTradesDeleted
+          })
+        }
+      } else {
+        // Legacy format without brokerage - look for any SnapTrade connection
+        const { data: anyConnections } = await query.limit(1)
+        if (anyConnections && anyConnections.length > 0) {
+          actualConnectionId = anyConnections[0].id
+          brokerageName = anyConnections[0].metadata?.brokerage_name || null
+          console.log(`✅ Found actual connection ID: ${actualConnectionId}`)
+        } else {
+          // No connection found - placeholder only
+          console.log('ℹ️ No actual Snaptrade connection found (placeholder only)')
+          return NextResponse.json({
+            success: true,
+            message: 'Placeholder connection removed',
+            apiTradesDeleted: 0,
+            csvFilesDeleted: 0,
+            csvFilesUnlinked: 0,
+            csvTradesDeleted: 0,
+            totalTradesDeleted: 0
+          })
+        }
       }
-      
-      if (!actualConnections || actualConnections.length === 0) {
-        // No actual connection exists - this is just a placeholder
-        // Return success since there's nothing to delete
-        console.log('ℹ️ No actual Snaptrade connection found (placeholder only)')
-        return NextResponse.json({
-          success: true,
-          message: 'No connection to delete (placeholder only)',
-          apiTradesDeleted: 0,
-          csvFilesDeleted: 0,
-          csvFilesUnlinked: 0,
-          csvTradesDeleted: 0,
-          totalTradesDeleted: 0
-        })
-      }
-      
-      actualConnectionId = actualConnections[0].id
-      console.log(`✅ Found actual connection ID: ${actualConnectionId}`)
     }
 
-    // First, fetch the connection to check if it's a Snaptrade connection
+    // First, fetch the connection to check if it's a Snaptrade connection and get brokerage info
     const { data: connections, error: fetchConnectionError } = await supabase
       .from('exchange_connections')
-      .select('id, exchange, user_id')
+      .select('id, exchange, user_id, metadata')
       .eq('id', actualConnectionId)
       .eq('user_id', user.id)
       .limit(1)
@@ -118,29 +196,64 @@ export async function POST(request) {
     }
 
     const isSnaptradeConnection = connection.exchange === 'snaptrade'
+    const connectionBrokerageName = connection.metadata?.brokerage_name || brokerageName
     
     if (isSnaptradeConnection) {
-      console.log('📌 [Snaptrade Delete] Detected Snaptrade connection - will preserve snaptrade_users record')
+      console.log('📌 [Snaptrade Delete] Detected Snaptrade connection:', {
+        connectionId: actualConnectionId,
+        brokerageName: connectionBrokerageName,
+        willPreserveSnaptradeUsers: true,
+      })
     }
 
     // Step 1: Delete all API-imported trades for this connection
-    const { data: deletedApiTrades, error: apiTradesError } = await supabase
-      .from('trades')
-      .delete()
-      .eq('exchange_connection_id', actualConnectionId)
-      .eq('user_id', user.id)
-      .select('id')
+    // For SnapTrade, we need to filter trades by brokerage if possible
+    let apiTradesDeleted = 0
+    
+    if (isSnaptradeConnection && connectionBrokerageName) {
+      // For SnapTrade, delete trades that belong to this specific brokerage
+      // We'll need to check trades that have exchange='snaptrade' and match the brokerage
+      // Since trades don't store brokerage directly, we delete by connection_id
+      // But we should also check if there are trades without connection_id that match this brokerage
+      
+      // First, delete trades linked to this connection
+      const { data: deletedByConnection, error: connectionTradesError } = await supabase
+        .from('trades')
+        .delete()
+        .eq('exchange_connection_id', actualConnectionId)
+        .eq('user_id', user.id)
+        .select('id')
+      
+      if (connectionTradesError) {
+        console.error('Error deleting trades by connection:', connectionTradesError)
+        return NextResponse.json(
+          { error: 'Failed to delete API-imported trades' },
+          { status: 500 }
+        )
+      }
+      
+      apiTradesDeleted = deletedByConnection?.length || 0
+      console.log(`✅ Deleted ${apiTradesDeleted} API-imported trades for brokerage "${connectionBrokerageName}"`)
+    } else {
+      // For non-SnapTrade or legacy SnapTrade connections, delete by connection_id
+      const { data: deletedApiTrades, error: apiTradesError } = await supabase
+        .from('trades')
+        .delete()
+        .eq('exchange_connection_id', actualConnectionId)
+        .eq('user_id', user.id)
+        .select('id')
 
-    if (apiTradesError) {
-      console.error('Error deleting API trades:', apiTradesError)
-      return NextResponse.json(
-        { error: 'Failed to delete API-imported trades' },
-        { status: 500 }
-      )
+      if (apiTradesError) {
+        console.error('Error deleting API trades:', apiTradesError)
+        return NextResponse.json(
+          { error: 'Failed to delete API-imported trades' },
+          { status: 500 }
+        )
+      }
+
+      apiTradesDeleted = deletedApiTrades?.length || 0
+      console.log(`✅ Deleted ${apiTradesDeleted} API-imported trades`)
     }
-
-    const apiTradesDeleted = deletedApiTrades?.length || 0
-    console.log(`✅ Deleted ${apiTradesDeleted} API-imported trades`)
 
     // Step 2: Delete portfolio snapshots for this connection
     const { data: deletedSnapshots, error: snapshotsError } = await supabase
@@ -224,8 +337,54 @@ export async function POST(request) {
     
     // IMPORTANT: For Snaptrade connections, we do NOT delete the snaptrade_users record
     // The same Snaptrade user ID is used for all brokerages, so it must be preserved
-    if (isSnaptradeConnection) {
-      console.log('✅ [Snaptrade Delete] Exchange connection deleted - snaptrade_users record preserved (same ID used for all brokerages)')
+    // However, we should hide the specific brokerage so it doesn't reappear as a placeholder
+    if (isSnaptradeConnection && connectionBrokerageName) {
+      console.log('✅ [Snaptrade Delete] Exchange connection deleted - snaptrade_users record preserved')
+      
+      // Hide this specific brokerage to prevent placeholder from reappearing
+      try {
+        const { data: snaptradeUser } = await supabase
+          .from('snaptrade_users')
+          .select('hidden_brokerages')
+          .eq('user_id', user.id)
+          .maybeSingle()
+        
+        if (snaptradeUser) {
+          // Get current hidden brokerages
+          let hiddenBrokerages = []
+          if (snaptradeUser.hidden_brokerages) {
+            try {
+              hiddenBrokerages = Array.isArray(snaptradeUser.hidden_brokerages)
+                ? snaptradeUser.hidden_brokerages
+                : JSON.parse(snaptradeUser.hidden_brokerages)
+            } catch (e) {
+              hiddenBrokerages = []
+            }
+          }
+          
+          // Add this brokerage to hidden list (if not already hidden)
+          if (!hiddenBrokerages.includes(connectionBrokerageName)) {
+            hiddenBrokerages.push(connectionBrokerageName)
+            
+            // Update hidden_brokerages
+            const { error: hideError } = await supabase
+              .from('snaptrade_users')
+              .update({ hidden_brokerages: hiddenBrokerages })
+              .eq('user_id', user.id)
+            
+            if (hideError) {
+              console.warn('⚠️ [Snaptrade Delete] Failed to hide brokerage:', hideError)
+            } else {
+              console.log(`✅ [Snaptrade Delete] Hidden brokerage "${connectionBrokerageName}" to prevent placeholder reappearance`)
+            }
+          } else {
+            console.log(`ℹ️ [Snaptrade Delete] Brokerage "${connectionBrokerageName}" already hidden`)
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ [Snaptrade Delete] Error hiding brokerage after deletion:', error.message)
+        // Don't fail the delete operation if hiding fails
+      }
     }
 
     const totalTradesDeleted = apiTradesDeleted + csvTradesDeleted

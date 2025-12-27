@@ -889,15 +889,25 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
       const response = await fetch('/api/exchange/list')
       const data = await response.json()
 
-      if (data.success) {
-        const formatted = data.connections.map(conn => {
-          // For Snaptrade, use brokerage name if available, otherwise use "Snaptrade"
+      console.log('📊 [Dashboard] Exchange list response:', {
+        success: data.success,
+        connectionsCount: data.connections?.length || 0,
+        connections: data.connections?.map(c => ({ id: c.id, exchange: c.exchange })) || [],
+        error: data.error,
+      })
+
+      if (data.success && Array.isArray(data.connections)) {
+        const formatted = data.connections.filter(conn => conn != null).map(conn => {
+          // For Snaptrade, use brokerage name from metadata or brokerage_name field
           let displayName = conn.exchange.charAt(0).toUpperCase() + conn.exchange.slice(1)
-          if (conn.exchange === 'snaptrade' && conn.primary_brokerage) {
-            displayName = `Snaptrade - ${conn.primary_brokerage}`
-          } else if (conn.exchange === 'snaptrade' && conn.brokerage_names && conn.brokerage_names.length > 0) {
-            // Fallback to first brokerage if primary_brokerage not set
-            displayName = `Snaptrade - ${conn.brokerage_names[0]}`
+          if (conn.exchange === 'snaptrade') {
+            const brokerageName = conn.brokerage_name || conn.metadata?.brokerage_name || conn.primary_brokerage
+            if (brokerageName) {
+              displayName = `Snaptrade - ${brokerageName}`
+            } else if (conn.brokerage_names && conn.brokerage_names.length > 0) {
+              // Fallback to first brokerage if brokerage_name not set
+              displayName = `Snaptrade - ${conn.brokerage_names[0]}`
+            }
           }
           
           return {
@@ -906,12 +916,16 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
             exchange: conn.exchange,
             connectedAt: conn.created_at,
             lastSynced: conn.last_synced || conn.updated_at || conn.created_at,
-            primaryBrokerage: conn.primary_brokerage,
-            brokerageNames: conn.brokerage_names
+            primaryBrokerage: conn.brokerage_name || conn.metadata?.brokerage_name || conn.primary_brokerage,
+            brokerageNames: conn.brokerage_names || (conn.brokerage_name ? [conn.brokerage_name] : null),
+            brokerageName: conn.brokerage_name || conn.metadata?.brokerage_name, // Store for delete operations
           }
         })
         setConnectedExchanges(formatted)
       } else {
+        // If API returns error or no success, clear the list
+        console.warn('⚠️ [Dashboard] Exchange list API returned no success or empty connections')
+        setConnectedExchanges([])
       }
     } catch (error) {
       console.error('? [Dashboard] Error fetching exchanges:', error)
@@ -1142,11 +1156,12 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
 
       const data = await response.json()
 
-      if (response.ok) {
+      if (response.ok && data.success !== false) {
         // Show success message
+        const totalTrades = data.totalTradesDeleted || data.apiTradesDeleted || 0
         const message = deleteLinkedCSVs
-          ? `Exchange disconnected. ${data.totalTradesDeleted} trades and ${data.csvFilesDeleted} CSV files deleted.`
-          : `Exchange disconnected. ${data.apiTradesDeleted} API trades deleted. ${data.csvFilesUnlinked} CSV files kept.`
+          ? `Exchange disconnected. ${totalTrades} trades and ${data.csvFilesDeleted || 0} CSV files deleted.`
+          : `Exchange disconnected. ${totalTrades} API trades deleted. ${data.csvFilesUnlinked || 0} CSV files kept.`
 
         toast.success('Exchange Disconnected', {
           description: message,
@@ -1164,7 +1179,9 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
         // Refresh stats to update the Trading Overview section
         await fetchTradesStats()
       } else {
-        toast.error(data.error || 'Failed to delete exchange connection')
+        const errorMsg = data.error || data.message || 'Failed to delete exchange connection'
+        toast.error(errorMsg)
+        console.error('Delete exchange failed:', { response: response.status, data })
       }
     } catch (error) {
       console.error('Error deleting exchange:', error)

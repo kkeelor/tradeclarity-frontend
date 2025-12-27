@@ -24,10 +24,10 @@ export async function GET(request) {
       email: user.email,
     })
 
-    // Get Snaptrade user data
+    // Get Snaptrade user data (including hidden brokerages)
     const { data: snaptradeUser, error: fetchError } = await supabase
       .from('snaptrade_users')
-      .select('snaptrade_user_id, user_secret_encrypted')
+      .select('snaptrade_user_id, user_secret_encrypted, hidden_brokerages')
       .eq('user_id', user.id)
       .single()
 
@@ -44,6 +44,19 @@ export async function GET(request) {
       )
     }
 
+    // Parse hidden brokerages
+    let hiddenBrokerages = []
+    if (snaptradeUser.hidden_brokerages) {
+      try {
+        hiddenBrokerages = Array.isArray(snaptradeUser.hidden_brokerages)
+          ? snaptradeUser.hidden_brokerages
+          : JSON.parse(snaptradeUser.hidden_brokerages)
+      } catch (e) {
+        console.warn('⚠️ [Snaptrade Accounts] Failed to parse hidden_brokerages:', e)
+        hiddenBrokerages = []
+      }
+    }
+
     console.log('📊 [Snaptrade Accounts] Snaptrade user found:', {
       snaptradeUserId: snaptradeUser.snaptrade_user_id,
       hasSecret: !!snaptradeUser.user_secret_encrypted,
@@ -54,14 +67,23 @@ export async function GET(request) {
     console.log('📊 [Snaptrade Accounts] User secret decrypted, fetching accounts from Snaptrade API...')
 
     // Fetch accounts from Snaptrade
-    const accounts = await getAccounts(
+    const allAccounts = await getAccounts(
       snaptradeUser.snaptrade_user_id,
       userSecret
     )
 
-    console.log(`✅ [Snaptrade Accounts] Found ${accounts.length} connected accounts:`, {
-      accountCount: accounts.length,
-      accounts: accounts.map(a => ({
+    // Filter out accounts from hidden brokerages
+    const visibleAccounts = (allAccounts || []).filter(account => {
+      const institutionName = account.institution_name
+      const isHidden = institutionName && hiddenBrokerages.includes(institutionName)
+      return !isHidden
+    })
+
+    console.log(`✅ [Snaptrade Accounts] Found ${allAccounts.length} total accounts, ${visibleAccounts.length} visible (${hiddenBrokerages.length} brokerages hidden):`, {
+      totalAccounts: allAccounts.length,
+      visibleAccounts: visibleAccounts.length,
+      hiddenBrokerages: hiddenBrokerages,
+      accounts: visibleAccounts.map(a => ({
         id: a.id,
         name: a.name,
         institution: a.institution_name,
@@ -71,7 +93,8 @@ export async function GET(request) {
 
     return NextResponse.json({
       success: true,
-      accounts: accounts || [],
+      accounts: visibleAccounts,
+      hiddenBrokerages, // Include so UI knows which are hidden
     })
   } catch (error) {
     console.error('❌ [Snaptrade Accounts] Error:', {

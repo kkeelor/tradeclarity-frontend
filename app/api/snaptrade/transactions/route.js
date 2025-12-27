@@ -38,10 +38,10 @@ export async function GET(request) {
       type,
     })
 
-    // Get Snaptrade user data
+    // Get Snaptrade user data (including hidden brokerages)
     const { data: snaptradeUser, error: fetchError } = await supabase
       .from('snaptrade_users')
-      .select('snaptrade_user_id, user_secret_encrypted')
+      .select('snaptrade_user_id, user_secret_encrypted, hidden_brokerages')
       .eq('user_id', user.id)
       .single()
 
@@ -67,8 +67,21 @@ export async function GET(request) {
     const userSecret = decrypt(snaptradeUser.user_secret_encrypted)
     console.log('📊 [Snaptrade Transactions] User secret decrypted, fetching activities from Snaptrade API...')
 
+    // Parse hidden brokerages
+    let hiddenBrokerages = []
+    if (snaptradeUser.hidden_brokerages) {
+      try {
+        hiddenBrokerages = Array.isArray(snaptradeUser.hidden_brokerages)
+          ? snaptradeUser.hidden_brokerages
+          : JSON.parse(snaptradeUser.hidden_brokerages)
+      } catch (e) {
+        console.warn('⚠️ [Snaptrade Transactions] Failed to parse hidden_brokerages:', e)
+        hiddenBrokerages = []
+      }
+    }
+
     // Fetch activities from Snaptrade
-    const activities = await getActivities(
+    const allActivities = await getActivities(
       snaptradeUser.snaptrade_user_id,
       userSecret,
       {
@@ -78,6 +91,13 @@ export async function GET(request) {
         type: type || undefined,
       }
     )
+
+    // Filter out activities from hidden brokerages
+    const activities = (allActivities || []).filter(activity => {
+      const institutionName = activity.account?.institution_name || activity.institution_name
+      const isHidden = institutionName && hiddenBrokerages.includes(institutionName)
+      return !isHidden
+    })
 
     // Group activities by account for debugging
     const activitiesByAccount = {}

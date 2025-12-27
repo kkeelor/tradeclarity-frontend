@@ -1,6 +1,7 @@
 // app/api/trades/store/route.js
 // Background endpoint to store fetched trades to database
 import { createAdminClient } from '@/lib/supabase-admin'
+import { createClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 import { TIER_LIMITS, canAnalyzeTrades } from '@/lib/featureGates'
 
@@ -18,6 +19,31 @@ export async function POST(request) {
     // Normalize exchange name to lowercase
     const normalizedExchange = exchange.toLowerCase().trim()
 
+    // For SnapTrade, we need to map trades to the correct brokerage connection
+    // Since we now have one connection per brokerage, we need to find the right connection for each trade
+    let brokerageConnectionMap = new Map() // brokerage_name -> connection_id
+    
+    if (normalizedExchange === 'snaptrade' && spotTrades && spotTrades.length > 0) {
+      // Get all SnapTrade connections for this user
+      const supabase = await createClient()
+      const { data: snaptradeConnections } = await supabase
+        .from('exchange_connections')
+        .select('id, metadata')
+        .eq('user_id', userId)
+        .eq('exchange', 'snaptrade')
+        .eq('is_active', true)
+      
+      if (snaptradeConnections) {
+        snaptradeConnections.forEach(conn => {
+          const brokerageName = conn.metadata?.brokerage_name
+          if (brokerageName) {
+            brokerageConnectionMap.set(brokerageName, conn.id)
+          }
+        })
+      }
+      
+      console.log(`🔗 [Store Trades] Mapped ${brokerageConnectionMap.size} SnapTrade brokerage connections`)
+    }
 
     const tradesToInsert = []
 
@@ -30,10 +56,23 @@ export async function POST(request) {
         
         const isSnaptradeFormat = trade.trade_id !== undefined || trade.trade_time !== undefined
         
+        // For SnapTrade, find the correct connection_id based on brokerage
+        let tradeConnectionId = connectionId || null
+        if (normalizedExchange === 'snaptrade' && isSnaptradeFormat) {
+          const tradeBrokerage = trade.brokerage || trade.raw_data?.account?.institution_name || trade.raw_data?.institution
+          if (tradeBrokerage && brokerageConnectionMap.has(tradeBrokerage)) {
+            tradeConnectionId = brokerageConnectionMap.get(tradeBrokerage)
+            console.log(`🔗 [Store Trades] Linking trade to brokerage connection: ${tradeBrokerage} -> ${tradeConnectionId}`)
+          } else if (!tradeConnectionId) {
+            // If no connection found and no connectionId provided, log warning
+            console.warn(`⚠️ [Store Trades] No connection found for brokerage "${tradeBrokerage}", trade will be stored without connection_id`)
+          }
+        }
+        
         const normalizedTrade = {
           user_id: userId,
           exchange: normalizedExchange,
-          exchange_connection_id: connectionId || null,
+          exchange_connection_id: tradeConnectionId,
           csv_upload_id: csvUploadId || null,
           symbol: trade.symbol,
           side: isSnaptradeFormat 

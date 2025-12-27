@@ -251,35 +251,64 @@ export default function DashboardContent() {
     try {
       console.log('✅ [Snaptrade Flow] Popup opened, calling initiate-connection API')
       // Call initiate-connection API (handles registration check and login URL generation)
-      const response = await fetch('/api/snaptrade/initiate-connection', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customRedirect: `${window.location.origin}/snaptrade/callback?status=success`,
-        }),
-      })
+      let response
+      try {
+        response = await fetch('/api/snaptrade/initiate-connection', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customRedirect: `${window.location.origin}/snaptrade/callback?status=success`,
+          }),
+        })
+      } catch (fetchError) {
+        console.error('❌ [Snaptrade Flow] Fetch error (network/request failed):', {
+          message: fetchError?.message,
+          name: fetchError?.name,
+          stack: fetchError?.stack,
+        })
+        popup.close()
+        throw new Error(`Network error: ${fetchError?.message || 'Failed to connect to server'}`)
+      }
 
       console.log('📡 [Snaptrade Flow] API response status:', response.status, response.statusText)
-      const data = await response.json()
+      
+      let data
+      try {
+        const responseText = await response.text()
+        console.log('📡 [Snaptrade Flow] API response text:', responseText?.substring(0, 500))
+        data = responseText ? JSON.parse(responseText) : {}
+      } catch (parseError) {
+        console.error('❌ [Snaptrade Flow] Failed to parse response:', parseError)
+        data = { error: 'Invalid response from server' }
+      }
+      
       console.log('📡 [Snaptrade Flow] API response data:', {
         success: data.success,
         hasRedirectURI: !!data.redirectURI,
         hasSessionId: !!data.sessionId,
         wasRegistered: data.wasRegistered,
         error: data.error,
+        errorDetails: data.details,
+        code: data.code,
       })
 
       if (!response.ok) {
-        console.error('❌ [Snaptrade Flow] API error:', {
+        const errorDetails = {
           status: response.status,
-          data,
-        })
+          statusText: response.statusText,
+          error: data.error,
+          details: data.details,
+          code: data.code,
+          fullData: data,
+        }
+        console.error('❌ [Snaptrade Flow] API error:', JSON.stringify(errorDetails, null, 2))
         popup.close()
         // Handle duplicate user error
         if (data.code === 'DUPLICATE_USER' || response.status === 409) {
           throw new Error('Your account is already connected to Snaptrade. Please contact support if you need assistance.')
         }
-        throw new Error(data.error || 'Failed to initiate Snaptrade connection')
+        const errorMessage = data.error || data.details?.message || `Failed to initiate Snaptrade connection (${response.status})`
+        throw new Error(errorMessage)
       }
 
       console.log('✅ [Snaptrade Flow] Login URL received, updating popup location')
@@ -592,14 +621,17 @@ export default function DashboardContent() {
         }
       }, 500)
     } catch (err) {
-      console.error('❌ [Snaptrade Flow] Connection error:', {
-        error: err,
-        message: err.message,
-        stack: err.stack,
-      })
+      const errorDetails = {
+        message: err?.message || 'Unknown error',
+        name: err?.name,
+        stack: err?.stack,
+        toString: err?.toString(),
+      }
+      console.error('❌ [Snaptrade Flow] Connection error:', JSON.stringify(errorDetails, null, 2))
+      console.error('❌ [Snaptrade Flow] Raw error object:', err)
       setStatus('error')
       setProgress('')
-      setError(err.message || 'Failed to connect with Snaptrade')
+      setError(err?.message || 'Failed to connect with Snaptrade')
     }
   }
 

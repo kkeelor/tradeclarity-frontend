@@ -32,10 +32,10 @@ export async function GET(request) {
       accountId,
     })
 
-    // Get Snaptrade user data
+    // Get Snaptrade user data (including hidden brokerages)
     const { data: snaptradeUser, error: fetchError } = await supabase
       .from('snaptrade_users')
-      .select('snaptrade_user_id, user_secret_encrypted')
+      .select('snaptrade_user_id, user_secret_encrypted, hidden_brokerages')
       .eq('user_id', user.id)
       .single()
 
@@ -85,13 +85,35 @@ export async function GET(request) {
 
     // Otherwise, fetch all accounts first, then get holdings for each
     console.log('📊 [Snaptrade Holdings] Fetching all accounts first...')
-    const accounts = await getAccounts(
+    const allAccounts = await getAccounts(
       snaptradeUser.snaptrade_user_id,
       userSecret
     )
 
+    // Parse hidden brokerages and filter accounts
+    let hiddenBrokerages = []
+    if (snaptradeUser.hidden_brokerages) {
+      try {
+        hiddenBrokerages = Array.isArray(snaptradeUser.hidden_brokerages)
+          ? snaptradeUser.hidden_brokerages
+          : JSON.parse(snaptradeUser.hidden_brokerages)
+      } catch (e) {
+        console.warn('⚠️ [Snaptrade Holdings] Failed to parse hidden_brokerages:', e)
+        hiddenBrokerages = []
+      }
+    }
+
+    // Filter out accounts from hidden brokerages
+    const accounts = (allAccounts || []).filter(account => {
+      const institutionName = account.institution_name
+      const isHidden = institutionName && hiddenBrokerages.includes(institutionName)
+      return !isHidden
+    })
+
     console.log('📊 [Snaptrade Holdings] Found accounts:', {
-      accountCount: accounts.length,
+      totalAccounts: allAccounts.length,
+      visibleAccounts: accounts.length,
+      hiddenBrokerages: hiddenBrokerages.length,
       accountIds: accounts.map(a => a.id),
     })
 

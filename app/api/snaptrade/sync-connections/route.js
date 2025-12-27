@@ -61,75 +61,146 @@ export async function POST(request) {
 
     // Extract unique brokerage/institution names from accounts
     const brokerages = [...new Set(accounts.map(acc => acc.institution_name).filter(Boolean))]
-    const brokerageNames = brokerages.length > 0 ? brokerages.join(', ') : null
-    const primaryBrokerage = brokerages[0] || null
-
     console.log(`📊 [Snaptrade Sync] Brokerages found:`, brokerages)
 
-    // Check if connection already exists
-    const { data: existing } = await supabase
+    // Get hidden brokerages to exclude them
+    let hiddenBrokerages = []
+    const { data: snaptradeUserWithHidden } = await supabase
+      .from('snaptrade_users')
+      .select('hidden_brokerages')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    
+    if (snaptradeUserWithHidden?.hidden_brokerages) {
+      try {
+        hiddenBrokerages = Array.isArray(snaptradeUserWithHidden.hidden_brokerages)
+          ? snaptradeUserWithHidden.hidden_brokerages
+          : JSON.parse(snaptradeUserWithHidden.hidden_brokerages)
+      } catch (e) {
+        console.warn('⚠️ [Snaptrade Sync] Failed to parse hidden_brokerages:', e)
+      }
+    }
+
+    // Filter out hidden brokerages - only sync visible ones
+    const visibleBrokerages = brokerages.filter(b => !hiddenBrokerages.includes(b))
+    console.log(`📊 [Snaptrade Sync] Visible brokerages to sync:`, visibleBrokerages)
+
+    // Get existing SnapTrade connections for this user
+    const { data: existingConnections } = await supabase
       .from('exchange_connections')
-      .select('id')
+      .select('id, exchange, metadata')
       .eq('user_id', user.id)
       .eq('exchange', 'snaptrade')
-      .single()
+      .eq('is_active', true)
+
+    // Extract brokerage names from existing connections (stored in metadata or exchange name)
+    const existingBrokerages = new Set()
+    if (existingConnections) {
+      existingConnections.forEach(conn => {
+        // Check if brokerage is stored in metadata
+        if (conn.metadata && typeof conn.metadata === 'object' && conn.metadata.brokerage_name) {
+          existingBrokerages.add(conn.metadata.brokerage_name)
+        } else if (conn.exchange && conn.exchange.startsWith('snaptrade-')) {
+          // Legacy format: exchange='snaptrade-{brokerage}'
+          const brokerage = conn.exchange.replace('snaptrade-', '')
+          if (brokerage) existingBrokerages.add(brokerage)
+        }
+      })
+    }
 
     let connectionsCreated = 0
     let connectionsUpdated = 0
+    let connectionsDeleted = 0
 
-    if (existing) {
-      // Update existing connection with brokerage info
-      const updateData = {
-        is_active: true,
-        updated_at: new Date().toISOString(),
-        last_synced: new Date().toISOString(),
+    // Create/update connection for each visible brokerage
+    for (const brokerage of visibleBrokerages) {
+      // Find existing connection for this brokerage
+      let existingConnection = null
+      if (existingConnections) {
+        existingConnection = existingConnections.find(conn => {
+          if (conn.metadata && typeof conn.metadata === 'object' && conn.metadata.brokerage_name === brokerage) {
+            return true
+          }
+          if (conn.exchange === `snaptrade-${brokerage.toLowerCase()}`) {
+            return true
+          }
+          return false
+        })
       }
-      
-      // Store brokerage info in metadata if field exists, otherwise we'll fetch it dynamically
-      // For now, we'll store it in a way that can be retrieved later
-      // Note: This assumes there's a way to store this - if not, we'll fetch dynamically
-      
-      const { error: updateError } = await supabase
-        .from('exchange_connections')
-        .update(updateData)
-        .eq('id', existing.id)
 
-      if (!updateError) {
-        connectionsUpdated++
-        console.log('✅ [Snaptrade Sync] Updated connection:', existing.id)
+      if (existingConnection) {
+        // Update existing connection
+        const updateData = {
+          is_active: true,
+          updated_at: new Date().toISOString(),
+          last_synced: new Date().toISOString(),
+          metadata: { brokerage_name: brokerage },
+        }
+        
+        const { error: updateError } = await supabase
+          .from('exchange_connections')
+          .update(updateData)
+          .eq('id', existingConnection.id)
+
+        if (!updateError) {
+          connectionsUpdated++
+          console.log(`✅ [Snaptrade Sync] Updated connection for brokerage: ${brokerage}`)
+        } else {
+          console.error(`❌ [Snaptrade Sync] Error updating connection for ${brokerage}:`, updateError)
+        }
       } else {
-        console.error('❌ [Snaptrade Sync] Error updating connection:', updateError)
-      }
-    } else {
-      // Create new connection
-      // For SnapTrade, we don't have API keys, so we'll leave them null
-      // The connection will be identified by exchange='snaptrade'
-      // One connection represents all SnapTrade accounts for this user
-      const insertData = {
-        user_id: user.id,
-        exchange: 'snaptrade',
-        is_active: true,
-        // api_key_encrypted and api_secret_encrypted are null for SnapTrade
-        // We'll identify SnapTrade connections by exchange='snaptrade'
-      }
-      
-      const { data: newConnection, error: insertError } = await supabase
-        .from('exchange_connections')
-        .insert(insertData)
-        .select()
-        .single()
+        // Create new connection for this brokerage
+        const insertData = {
+          user_id: user.id,
+          exchange: 'snaptrade',
+          is_active: true,
+          metadata: { brokerage_name: brokerage },
+          // api_key_encrypted and api_secret_encrypted are null for SnapTrade
+        }
+        
+        const { data: newConnection, error: insertError } = await supabase
+          .from('exchange_connections')
+          .insert(insertData)
+          .select()
+          .single()
 
-      if (!insertError) {
-        connectionsCreated++
-        console.log('✅ [Snaptrade Sync] Created connection:', newConnection.id)
-      } else {
-        console.error('❌ [Snaptrade Sync] Error creating connection:', insertError)
+        if (!insertError) {
+          connectionsCreated++
+          console.log(`✅ [Snaptrade Sync] Created connection for brokerage: ${brokerage}`)
+        } else {
+          console.error(`❌ [Snaptrade Sync] Error creating connection for ${brokerage}:`, insertError)
+        }
+      }
+    }
+
+    // Deactivate connections for brokerages that no longer exist or are hidden
+    if (existingConnections && existingConnections.length > 0) {
+      for (const existingConn of existingConnections) {
+        let brokerageName = null
+        if (existingConn.metadata && typeof existingConn.metadata === 'object' && existingConn.metadata.brokerage_name) {
+          brokerageName = existingConn.metadata.brokerage_name
+        } else if (existingConn.exchange && existingConn.exchange.startsWith('snaptrade-')) {
+          brokerageName = existingConn.exchange.replace('snaptrade-', '')
+        }
+
+        // If brokerage is hidden or no longer exists, deactivate the connection
+        if (brokerageName && (hiddenBrokerages.includes(brokerageName) || !visibleBrokerages.includes(brokerageName))) {
+          const { error: deactivateError } = await supabase
+            .from('exchange_connections')
+            .update({ is_active: false, updated_at: new Date().toISOString() })
+            .eq('id', existingConn.id)
+
+          if (!deactivateError) {
+            connectionsDeleted++
+            console.log(`✅ [Snaptrade Sync] Deactivated connection for brokerage: ${brokerageName}`)
+          }
+        }
       }
     }
 
     const totalProcessed = connectionsCreated + connectionsUpdated
 
-    console.log(`✅ [Snaptrade Sync] Sync complete: ${connectionsCreated} created, ${connectionsUpdated} updated`)
+    console.log(`✅ [Snaptrade Sync] Sync complete: ${connectionsCreated} created, ${connectionsUpdated} updated, ${connectionsDeleted} deactivated`)
 
     return NextResponse.json({
       success: true,

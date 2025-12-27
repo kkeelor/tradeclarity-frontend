@@ -60,21 +60,30 @@ export async function POST(request) {
 
     console.log(`📊 Previewing deletion impact for exchange connection ${connectionId}...`)
 
-    // Handle Snaptrade placeholder IDs (format: "snaptrade-{uuid}")
+    // Handle Snaptrade placeholder IDs (format: "snaptrade-{uuid}-{brokerage}" or "snaptrade-{uuid}")
     // These are temporary IDs created by the list endpoint when no exchange_connection exists
     let actualConnectionId = connectionId
     let isPlaceholderId = false
+    let brokerageName = null
     
     if (connectionId.startsWith('snaptrade-')) {
-      console.log('⚠️ Detected Snaptrade placeholder ID, looking up actual connection')
+      console.log('⚠️ Detected Snaptrade placeholder ID, extracting brokerage info')
       isPlaceholderId = true
-      // Look up the actual connection by user_id and exchange='snaptrade'
+      
+      // Parse placeholder ID format: "snaptrade-{uuid}-{brokerage}" or "snaptrade-{uuid}"
+      const parts = connectionId.split('-')
+      if (parts.length >= 3) {
+        // Format: "snaptrade-{uuid}-{brokerage}"
+        brokerageName = parts.slice(2).join('-') // Handle brokerage names with hyphens
+      }
+      
+      // Look up the actual connection by user_id, exchange='snaptrade', and brokerage_name
       const { data: actualConnections, error: lookupError } = await supabase
         .from('exchange_connections')
-        .select('id, exchange, user_id')
+        .select('id, exchange, user_id, metadata')
         .eq('user_id', user.id)
         .eq('exchange', 'snaptrade')
-        .limit(1)
+        .eq('is_active', true)
       
       if (lookupError) {
         console.error('❌ Error looking up Snaptrade connection:', lookupError)
@@ -84,9 +93,37 @@ export async function POST(request) {
         )
       }
       
-      if (!actualConnections || actualConnections.length === 0) {
-        // No actual connection exists - this is just a placeholder
-        // Return empty stats since there's nothing to delete
+      if (brokerageName && actualConnections) {
+        // Find connection matching this brokerage
+        const matchingConn = actualConnections.find(conn => 
+          conn.metadata?.brokerage_name === brokerageName
+        )
+        
+        if (matchingConn) {
+          actualConnectionId = matchingConn.id
+          console.log(`✅ Found actual connection ID for brokerage "${brokerageName}": ${actualConnectionId}`)
+        } else {
+          // No matching connection - placeholder only
+          console.log(`ℹ️ No actual Snaptrade connection found for brokerage "${brokerageName}" (placeholder only)`)
+          return NextResponse.json({
+            success: true,
+            apiTrades: 0,
+            csvFiles: 0,
+            csvTrades: 0,
+            apiTradesCount: 0,
+            linkedCSVsCount: 0,
+            csvTradesCount: 0,
+            linkedCSVIds: [],
+            isPlaceholder: true
+          })
+        }
+      } else if (actualConnections && actualConnections.length > 0) {
+        // Legacy format without brokerage - use first connection
+        actualConnectionId = actualConnections[0].id
+        brokerageName = actualConnections[0].metadata?.brokerage_name || null
+        console.log(`✅ Found actual connection ID: ${actualConnectionId}`)
+      } else {
+        // No connection found - placeholder only
         console.log('ℹ️ No actual Snaptrade connection found (placeholder only)')
         return NextResponse.json({
           success: true,
@@ -100,16 +137,13 @@ export async function POST(request) {
           isPlaceholder: true
         })
       }
-      
-      actualConnectionId = actualConnections[0].id
-      console.log(`✅ Found actual connection ID: ${actualConnectionId}`)
     }
 
     // First, verify the connection exists and belongs to the user
     console.log(`🔍 Fetching connection ${actualConnectionId} for user ${user.id}`)
     const { data: connections, error: fetchConnectionError } = await supabase
       .from('exchange_connections')
-      .select('id, exchange, user_id')
+      .select('id, exchange, user_id, metadata')
       .eq('id', actualConnectionId)
       .eq('user_id', user.id)
       .limit(1)
@@ -142,7 +176,12 @@ export async function POST(request) {
       )
     }
 
-    console.log(`✅ Connection found:`, { id: connection.id, exchange: connection.exchange })
+    const connectionBrokerageName = connection.metadata?.brokerage_name || brokerageName
+    console.log(`✅ Connection found:`, { 
+      id: connection.id, 
+      exchange: connection.exchange,
+      brokerageName: connectionBrokerageName
+    })
 
     // Count API-imported trades (trades with this exchange_connection_id)
     console.log(`📊 Counting trades for connection ${actualConnectionId}`)

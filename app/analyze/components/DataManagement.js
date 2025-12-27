@@ -71,15 +71,25 @@ export default function DataManagement() {
       const response = await fetch('/api/exchange/list')
       const data = await response.json()
 
-      if (data.success) {
-        const formatted = data.connections.map(conn => {
-          // For Snaptrade, use brokerage name if available, otherwise use "Snaptrade"
+      console.log('📊 [DataManagement] Exchange list response:', {
+        success: data.success,
+        connectionsCount: data.connections?.length || 0,
+        connections: data.connections?.map(c => ({ id: c.id, exchange: c.exchange })) || [],
+        error: data.error,
+      })
+
+      if (data.success && Array.isArray(data.connections)) {
+        const formatted = data.connections.filter(conn => conn != null).map(conn => {
+          // For Snaptrade, use brokerage name from metadata or brokerage_name field
           let displayName = conn.exchange.charAt(0).toUpperCase() + conn.exchange.slice(1)
-          if (conn.exchange === 'snaptrade' && conn.primary_brokerage) {
-            displayName = `Snaptrade - ${conn.primary_brokerage}`
-          } else if (conn.exchange === 'snaptrade' && conn.brokerage_names && conn.brokerage_names.length > 0) {
-            // Fallback to first brokerage if primary_brokerage not set
-            displayName = `Snaptrade - ${conn.brokerage_names[0]}`
+          if (conn.exchange === 'snaptrade') {
+            const brokerageName = conn.brokerage_name || conn.metadata?.brokerage_name || conn.primary_brokerage
+            if (brokerageName) {
+              displayName = `Snaptrade - ${brokerageName}`
+            } else if (conn.brokerage_names && conn.brokerage_names.length > 0) {
+              // Fallback to first brokerage if brokerage_name not set
+              displayName = `Snaptrade - ${conn.brokerage_names[0]}`
+            }
           }
           
           return {
@@ -89,8 +99,9 @@ export default function DataManagement() {
             createdAt: conn.created_at,
             updatedAt: conn.updated_at,
             lastSynced: conn.last_synced,
-            primaryBrokerage: conn.primary_brokerage,
-            brokerageNames: conn.brokerage_names
+            primaryBrokerage: conn.brokerage_name || conn.metadata?.brokerage_name || conn.primary_brokerage,
+            brokerageNames: conn.brokerage_names || (conn.brokerage_name ? [conn.brokerage_name] : null),
+            brokerageName: conn.brokerage_name || conn.metadata?.brokerage_name, // Store for delete operations
           }
         })
         setConnectedExchanges(formatted)
@@ -190,13 +201,16 @@ export default function DataManagement() {
         // Optimistically remove from UI immediately
         setConnectedExchanges(prev => prev.filter(ex => ex.id !== deletingExchange.id))
         
-        toast.success(`Exchange deleted. ${data.totalTradesDeleted || 0} trades removed.`)
+        const tradesDeleted = data.totalTradesDeleted || data.apiTradesDeleted || 0
+        toast.success(`Exchange deleted. ${tradesDeleted} trades removed.`)
         
         // Refresh from server to ensure consistency
         await fetchConnectedExchanges()
         await fetchUploadedFiles()
       } else {
-        toast.error(data.error || 'Failed to delete exchange')
+        const errorMsg = data.error || data.message || 'Failed to delete exchange'
+        toast.error(errorMsg)
+        console.error('Delete exchange failed:', { response: response.status, data })
       }
     } catch (error) {
       console.error('Error deleting exchange:', error)
