@@ -10,6 +10,7 @@ import Header from '../analyze/components/Header'
 import { Loader2, Brain, Sparkles, Zap, TrendingUp, Shield, ArrowRight, RefreshCw } from 'lucide-react'
 import AuthModal from '../components/AuthModal'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { toast } from 'sonner'
 
 // OPTIMIZATION: Lazy load VegaSidebar - it's not critical for initial render
 const VegaSidebar = lazy(() => import('./components/VegaSidebar'))
@@ -189,11 +190,25 @@ export default function VegaContent() {
         headers: { 'Content-Type': 'application/json' }
       })
       
-      if (!response.ok) {
-        throw new Error('Failed to refresh analytics')
+      let result = null
+      try {
+        result = await response.json()
+      } catch (parseError) {
+        console.error('Failed to parse analytics response:', parseError)
+        throw new Error(`Failed to refresh analytics (${response.status}): ${response.statusText}`)
       }
       
-      const result = await response.json()
+      if (!response.ok) {
+        const errorMsg = result?.message || result?.error || `Failed to refresh analytics (${response.status})`
+        console.error('Analytics refresh error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorMsg,
+          result: result
+        })
+        // Don't throw - just log and return early
+        return
+      }
       
       if (result.success) {
         // Reload analytics cache
@@ -217,9 +232,24 @@ export default function VegaContent() {
             setTradesStats(statsData.metadata)
           }
         }
+        
+        // Show success message
+        toast.success('Analytics refreshed successfully')
+      } else {
+        console.error('Analytics computation failed:', {
+          success: result.success,
+          message: result.message,
+          error: result.error
+        })
+        // Don't show toast for errors - just log
       }
     } catch (error) {
-      console.error('Error refreshing analytics:', error)
+      console.error('Error refreshing analytics:', {
+        error: error.message,
+        stack: error.stack,
+        name: error.name
+      })
+      // Don't show toast - just log to console
     } finally {
       setRefreshingAnalytics(false)
     }
@@ -540,23 +570,27 @@ export default function VegaContent() {
             </div>
           )}
 
-          <div className="flex flex-col flex-1 min-h-0">
-            {/* Vega AI Disclaimer + Refresh Button */}
-            <div className={`px-3 sm:px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 ${isDemoMode && !user ? 'mt-12 sm:mt-16' : ''} flex items-center justify-between gap-2`}>
-              <p className="text-[10px] sm:text-xs text-amber-400/80 text-center leading-relaxed flex-1">
+          <div className="flex flex-col flex-1 min-h-0 relative">
+            {/* Vega AI Disclaimer */}
+            <div className={`px-3 sm:px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 ${isDemoMode && !user ? 'mt-12 sm:mt-16' : ''} relative`}>
+              <p className="text-[10px] sm:text-xs text-amber-400/80 text-center leading-relaxed pr-20 sm:pr-24">
                 <strong>Disclaimer:</strong> Vega AI provides AI-powered trading insights and analysis. 
                 This is not financial advice. Always conduct your own research and consult with a qualified financial advisor before making trading decisions.
               </p>
+              
+              {/* Refresh Button - Top Right */}
               {!isDemoMode && user && (
-                <button
-                  onClick={refreshAnalytics}
-                  disabled={refreshingAnalytics}
-                  className="flex items-center gap-1.5 px-2 py-1 text-[10px] sm:text-xs text-amber-400/80 hover:text-amber-400 border border-amber-500/20 hover:border-amber-500/40 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Refresh analytics data"
-                >
-                  <RefreshCw className={`w-3 h-3 ${refreshingAnalytics ? 'animate-spin' : ''}`} />
-                  <span className="hidden sm:inline">Refresh</span>
-                </button>
+                <div className="absolute top-1/2 -translate-y-1/2 right-2 sm:right-4">
+                  <button
+                    onClick={refreshAnalytics}
+                    disabled={refreshingAnalytics}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 hover:border-emerald-500/40 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                    title="Refresh analytics data"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${refreshingAnalytics ? 'animate-spin' : ''}`} />
+                    <span className="hidden sm:inline font-medium">Refresh</span>
+                  </button>
+                </div>
               )}
             </div>
             

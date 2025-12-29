@@ -134,15 +134,41 @@ export async function POST(request) {
       userId = bodyUserId
     } else {
       // Direct call - use regular client and auth session
-      supabase = createClient()
-      const { data: { user }, error: authError } = await supabase.auth.getUser()
-      if (authError || !user) {
+      try {
+        supabase = await createClient()
+        if (!supabase) {
+          console.error('[Analytics Compute] Supabase client is null or undefined')
+          return NextResponse.json(
+            { error: 'Internal server error: Supabase client initialization failed' },
+            { status: 500 }
+          )
+        }
+        if (!supabase.auth) {
+          console.error('[Analytics Compute] Supabase client missing auth property')
+          return NextResponse.json(
+            { error: 'Internal server error: Supabase auth not available' },
+            { status: 500 }
+          )
+        }
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) {
+          return NextResponse.json(
+            { error: 'Unauthorized', message: authError?.message || 'User not authenticated' },
+            { status: 401 }
+          )
+        }
+        userId = user.id
+      } catch (clientError) {
+        console.error('[Analytics Compute] Error creating Supabase client:', {
+          error: clientError.message,
+          stack: clientError.stack,
+          name: clientError.name
+        })
         return NextResponse.json(
-          { error: 'Unauthorized' },
-          { status: 401 }
+          { error: 'Internal server error', message: clientError.message },
+          { status: 500 }
         )
       }
-      userId = user.id
     }
 
     // 1. Fetch all trades for user (includes all exchanges: binance, coindcx, snaptrade, csv, etc.)
