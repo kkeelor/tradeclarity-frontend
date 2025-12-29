@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { TrendingUp, Lock, Loader2, AlertCircle, Eye, EyeOff, Mail, Shield, Sparkles, X, User, ChevronRight, Plus } from 'lucide-react';
 import { signUpWithEmail, signInWithEmail, signInWithGoogle, resetPasswordForEmail } from '@/lib/auth';
 import { toast } from 'sonner';
@@ -13,6 +14,7 @@ import { Form } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
 
 export default function AuthScreen({ onAuthSuccess }) {
+  const pathname = usePathname();
   const [mode, setMode] = useState('signin'); // 'signin', 'signup', or 'forgot-password'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -167,7 +169,9 @@ export default function AuthScreen({ onAuthSuccess }) {
     setShowGoogleEmailModal(false);
 
     try {
-      const { data, error } = await signInWithGoogle(forceAccountSelection);
+      // Pass current pathname as redirect path, or default to /dashboard
+      const redirectPath = pathname && pathname !== '/' ? pathname : '/dashboard';
+      const { data, error } = await signInWithGoogle(forceAccountSelection, redirectPath);
       if (error) throw error;
       // Google redirects automatically, so we don't need to handle success here
     } catch (err) {
