@@ -216,7 +216,8 @@ export async function GET(request) {
       }, { status: 500 })
     }
 
-    return NextResponse.json({
+    // Add HTTP caching headers for better performance
+    const response = NextResponse.json({
       success: true,
       rates: result.rates,
       source: result.source,
@@ -224,6 +225,11 @@ export async function GET(request) {
       timestamp: cacheTimestamp,
       cached: ratesCache && ratesCache.rates === result.rates
     })
+    
+    // Cache for 5 minutes on client, 15 minutes on CDN
+    response.headers.set('Cache-Control', 'public, s-maxage=900, stale-while-revalidate=300')
+    
+    return response
   } catch (error) {
     console.error('❌ Error fetching currency rates:', error.message)
     console.error('Error stack:', error.stack)

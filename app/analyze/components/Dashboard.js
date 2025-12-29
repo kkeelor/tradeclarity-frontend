@@ -1,9 +1,15 @@
 // app/analyze/components/Dashboard.js
 'use client'
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, memo, lazy, Suspense } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
-import { TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, LogOut, BarChart3, Sparkles, Database, CheckSquare, Square, Loader2, ChevronRight, Zap, Brain, Clock, DollarSign, PieChart, TrendingDown, Target, Lightbulb, LayoutDashboard, Tag, CreditCard, Crown, Infinity, MessageCircle } from 'lucide-react'
+// Optimized: Split icon imports to improve tree-shaking
+import { 
+  TrendingUp, Plus, Upload, Trash2, AlertCircle, Link as LinkIcon, FileText, Download, Play, 
+  LogOut, BarChart3, Sparkles, Database, CheckSquare, Square, Loader2, ChevronRight, Zap, 
+  Brain, Clock, DollarSign, PieChart, TrendingDown, Target, Lightbulb, LayoutDashboard, 
+  Tag, CreditCard, Crown, Infinity, MessageCircle, HelpCircle 
+} from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { toast } from 'sonner'
 import ThemeToggle from '@/app/components/ThemeToggle'
@@ -11,8 +17,9 @@ import { getMostCriticalInsight, getAllInsights, generatePerformanceAnalogies } 
 import { generateValueFirstInsights } from '../utils/insights/valueFirstInsights'
 import { prioritizeInsights, enhanceInsightForDisplay } from '../utils/insights/insightsPrioritizationEngine'
 import { generateWhatsNextActions } from '../utils/insights/whatsNextActions'
-import NewsTicker from './NewsTicker'
-import VegaDashboardWidget from '../../dashboard/components/VegaDashboardWidget'
+// Lazy load non-critical components for better initial page load
+const NewsTicker = lazy(() => import('./NewsTicker'))
+const VegaDashboardWidget = lazy(() => import('../../dashboard/components/VegaDashboardWidget'))
 import { analyzeDrawdowns } from '../utils/drawdownAnalysis'
 import { analyzeTimeBasedPerformance } from '../utils/timeBasedAnalysis'
 import { analyzeSymbols } from '../utils/symbolAnalysis'
@@ -33,7 +40,6 @@ import { Badge } from '@/components/ui/badge'
 import { DashboardStatsSkeleton, DataSourceSkeleton } from '@/app/components/LoadingSkeletons'
 import ConnectExchangeModal from './ConnectExchangeModal'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { HelpCircle } from 'lucide-react'
 import Sidebar from './Sidebar'
 import Header from './Header'
 import Footer from '../../components/Footer'
@@ -44,8 +50,9 @@ import { getUpgradeToastConfig } from '@/app/components/UpgradePrompt'
 /**
  * Plan Progress Bar Component
  * Shows progress from current tier to next tier
+ * Memoized to prevent unnecessary re-renders
  */
-function PlanProgressBar({ currentTier, actualUsage, onClick }) {
+const PlanProgressBar = memo(function PlanProgressBar({ currentTier, actualUsage, onClick }) {
   const getNextTier = (tier) => {
     if (tier === 'free') return 'trader'
     if (tier === 'trader') return 'pro'
@@ -178,7 +185,7 @@ function PlanProgressBar({ currentTier, actualUsage, onClick }) {
       )}
     </div>
   )
-}
+})
 
 /**
  * Usage Breakdown Modal Component
@@ -1395,7 +1402,9 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
           
           {/* News Ticker - Inline with greeting */}
           <div className="flex-shrink-0 w-full md:w-[calc(50%-0.75rem)] lg:w-[calc(50%-1.5rem)]">
-            <NewsTicker />
+            <Suspense fallback={<div className="h-10 w-full bg-white/5 rounded animate-pulse" />}>
+              <NewsTicker />
+            </Suspense>
           </div>
         </div>
 
@@ -1724,9 +1733,11 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
               {/* AI Chat - Replaces Market Insights */}
               <div className="flex flex-col h-[350px] self-start">
                 <div className="flex-1 overflow-hidden min-h-0">
-                  <VegaDashboardWidget 
-                    onStartChat={() => router.push('/vega')}
-                  />
+                  <Suspense fallback={<div className="h-full w-full bg-white/5 rounded animate-pulse" />}>
+                    <VegaDashboardWidget 
+                      onStartChat={() => router.push('/vega')}
+                    />
+                  </Suspense>
                 </div>
               </div>
             </div>

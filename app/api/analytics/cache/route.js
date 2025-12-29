@@ -64,7 +64,7 @@ export async function GET(request) {
       }
       
       // Cache is valid and trades exist - return it
-      return NextResponse.json({
+      const response = NextResponse.json({
         success: true,
         analytics: cached.analytics_data,
         aiContext: cached.ai_context,
@@ -74,6 +74,11 @@ export async function GET(request) {
         computedAt: cached.computed_at,
         expiresAt: cached.expires_at
       })
+      
+      // Add HTTP caching headers - cache for 1 minute, allow stale-while-revalidate
+      response.headers.set('Cache-Control', 'private, s-maxage=60, stale-while-revalidate=120')
+      
+      return response
     }
 
     // 3. Cache miss or expired - return null (trigger computation)

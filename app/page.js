@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, memo } from 'react'
 import { TrendingUp, Shield, Zap, ArrowRight, Sparkles, Lock, Eye, Brain, TrendingDown, Target, AlertCircle, LogOut, LayoutDashboard, HelpCircle, ChevronRight, MessageCircle, Link as LinkIcon, Globe, BarChart3 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -9,8 +9,8 @@ import { useAuth } from '@/lib/AuthContext'
 import Footer from './components/Footer'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 
-// Typing animation component
-function TypingAnimation({ texts, className = '' }) {
+// Typing animation component - memoized to prevent unnecessary re-renders
+const TypingAnimation = memo(function TypingAnimation({ texts, className = '' }) {
   const [displayedText, setDisplayedText] = useState('')
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isTyping, setIsTyping] = useState(false)
@@ -72,7 +72,7 @@ function TypingAnimation({ texts, className = '' }) {
       <span className={`inline-block w-0.5 h-[1em] bg-white/50 ml-1 align-middle ${isTyping || isDeleting ? 'animate-pulse' : ''}`} />
     </span>
   )
-}
+})
 
 export default function LandingPage() {
   const router = useRouter()

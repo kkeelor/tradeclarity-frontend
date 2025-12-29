@@ -11,7 +11,8 @@ const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
   variable: '--font-plus-jakarta-sans',
   display: 'swap',
-  weight: ['300', '400', '500', '600', '700', '800'],
+  weight: ['400', '500', '600', '700'], // Reduced from 6 weights to 4 - saves ~30-40KB
+  preload: true,
 })
 
 export const metadata = {
@@ -50,7 +51,10 @@ export const metadata = {
     },
   },
   icons: {
-    icon: '/logo.png',
+    icon: [
+      { url: '/logo.png', sizes: '32x32', type: 'image/png' },
+      { url: '/logo.png', sizes: '192x192', type: 'image/png' },
+    ],
     shortcut: '/logo.png',
     apple: '/logo.png',
   },
