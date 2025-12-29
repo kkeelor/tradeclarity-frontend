@@ -145,12 +145,27 @@ export async function POST(request) {
       userId = user.id
     }
 
-    // 1. Fetch all trades for user
+    // 1. Fetch all trades for user (includes all exchanges: binance, coindcx, snaptrade, csv, etc.)
     const { data: trades, error: tradesError } = await supabase
       .from('trades')
       .select('*')
       .eq('user_id', userId)
       .order('trade_time', { ascending: true })
+    
+    // Log trade breakdown by exchange for debugging (especially SnapTrade)
+    if (trades && trades.length > 0) {
+      const tradesByExchange = trades.reduce((acc, trade) => {
+        const exchange = trade.exchange || 'unknown'
+        acc[exchange] = (acc[exchange] || 0) + 1
+        return acc
+      }, {})
+      console.log(`📊 [Analytics Compute] Trade breakdown by exchange:`, tradesByExchange)
+      
+      // Specifically log SnapTrade trades if present
+      if (tradesByExchange.snaptrade) {
+        console.log(`✅ [Analytics Compute] Found ${tradesByExchange.snaptrade} SnapTrade trades - will be included in analytics`)
+      }
+    }
 
     if (tradesError) {
       console.error('Error fetching trades:', tradesError)
@@ -207,7 +222,13 @@ export async function POST(request) {
     }
 
     // 5. Hash different or expired - recompute analytics
-    console.log(`🔄 Computing analytics for user ${userId} (${trades.length} trades, trigger: ${trigger || 'unknown'})`)
+    const exchangeBreakdown = trades.reduce((acc, t) => {
+      const ex = t.exchange || 'unknown'
+      acc[ex] = (acc[ex] || 0) + 1
+      return acc
+    }, {})
+    console.log(`🔄 [Analytics Compute] Computing analytics for user ${userId} (${trades.length} total trades, trigger: ${trigger || 'unknown'})`)
+    console.log(`📊 [Analytics Compute] Exchange breakdown:`, exchangeBreakdown)
 
     // Fetch portfolio snapshot(s) for holdings data
     let portfolioData = null

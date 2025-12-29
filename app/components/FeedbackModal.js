@@ -51,7 +51,7 @@ export default function FeedbackModal({ open, onOpenChange }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-zinc-900 border-white/10 max-w-md">
+      <DialogContent className="bg-zinc-900 border-white/10 max-w-md [&>button]:text-white [&>button]:hover:text-white/80">
         <DialogHeader>
           <DialogTitle className="text-white/90">Feedback</DialogTitle>
           <DialogDescription className="text-white/60">

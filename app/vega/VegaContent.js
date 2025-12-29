@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/AuthContext'
 import AuthScreen from '../analyze/components/AuthScreen'
 import AIChat from '../analyze/components/AIChat'
 import Header from '../analyze/components/Header'
-import { Loader2, Brain, Sparkles, Zap, TrendingUp, Shield, ArrowRight } from 'lucide-react'
+import { Loader2, Brain, Sparkles, Zap, TrendingUp, Shield, ArrowRight, RefreshCw } from 'lucide-react'
 import AuthModal from '../components/AuthModal'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 
@@ -59,6 +59,7 @@ export default function VegaContent() {
   })
   const chatRef = useRef(null)
   const [currentConversationId, setCurrentConversationId] = useState(null)
+  const [refreshingAnalytics, setRefreshingAnalytics] = useState(false)
   
   // Persist coach mode preference
   useEffect(() => {
@@ -174,6 +175,55 @@ export default function VegaContent() {
     }
     checkDemo()
   }, [searchParams])
+
+  // Function to refresh analytics manually
+  const refreshAnalytics = async () => {
+    if (isDemoMode || !user) return
+    
+    try {
+      setRefreshingAnalytics(true)
+      
+      // Trigger analytics computation
+      const response = await fetch('/api/analytics/compute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to refresh analytics')
+      }
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        // Reload analytics cache
+        const cacheResponse = await fetch('/api/analytics/cache')
+        if (cacheResponse.ok) {
+          const cacheData = await cacheResponse.json()
+          if (cacheData.success && cacheData.analytics) {
+            setAnalytics(cacheData.analytics)
+            setAllTrades(cacheData.allTrades || [])
+            const metadataFromAnalytics = cacheData.analytics.metadata || null
+            setMetadata(metadataFromAnalytics)
+            setCurrencyMetadata(metadataFromAnalytics)
+          }
+        }
+        
+        // Reload stats
+        const statsResponse = await fetch('/api/trades/stats')
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json()
+          if (statsData.success && statsData.metadata) {
+            setTradesStats(statsData.metadata)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing analytics:', error)
+    } finally {
+      setRefreshingAnalytics(false)
+    }
+  }
 
   // Load analytics data on mount
   useEffect(() => {
@@ -491,12 +541,23 @@ export default function VegaContent() {
           )}
 
           <div className="flex flex-col flex-1 min-h-0">
-            {/* Vega AI Disclaimer */}
-            <div className={`px-3 sm:px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 ${isDemoMode && !user ? 'mt-12 sm:mt-16' : ''}`}>
-              <p className="text-[10px] sm:text-xs text-amber-400/80 text-center leading-relaxed">
+            {/* Vega AI Disclaimer + Refresh Button */}
+            <div className={`px-3 sm:px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 ${isDemoMode && !user ? 'mt-12 sm:mt-16' : ''} flex items-center justify-between gap-2`}>
+              <p className="text-[10px] sm:text-xs text-amber-400/80 text-center leading-relaxed flex-1">
                 <strong>Disclaimer:</strong> Vega AI provides AI-powered trading insights and analysis. 
                 This is not financial advice. Always conduct your own research and consult with a qualified financial advisor before making trading decisions.
               </p>
+              {!isDemoMode && user && (
+                <button
+                  onClick={refreshAnalytics}
+                  disabled={refreshingAnalytics}
+                  className="flex items-center gap-1.5 px-2 py-1 text-[10px] sm:text-xs text-amber-400/80 hover:text-amber-400 border border-amber-500/20 hover:border-amber-500/40 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Refresh analytics data"
+                >
+                  <RefreshCw className={`w-3 h-3 ${refreshingAnalytics ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline">Refresh</span>
+                </button>
+              )}
             </div>
             
             <div className="flex-1 min-h-0">

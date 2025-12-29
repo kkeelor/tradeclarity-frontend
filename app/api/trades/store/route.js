@@ -404,15 +404,38 @@ export async function POST(request) {
       }
     }
 
+    // Invalidate analytics cache when new trades are inserted
+    // This ensures fresh analytics computation includes new SnapTrade trades
+    if (insertedCount > 0) {
+      try {
+        // Delete existing cache to force recomputation with new trades
+        await adminClient
+          .from('user_analytics_cache')
+          .delete()
+          .eq('user_id', userId)
+        
+        console.log(`🗑️ [Store Trades] Invalidated analytics cache for user ${userId} (${insertedCount} new trades from ${normalizedExchange})`)
+      } catch (cacheError) {
+        // Non-critical - cache might not exist yet
+        console.warn(`⚠️ [Store Trades] Failed to invalidate cache (non-critical):`, cacheError.message)
+      }
+    }
+
     // Trigger background analytics computation if new trades were inserted
-    // This works for BOTH CSV uploads AND exchange connections
+    // This works for BOTH CSV uploads AND exchange connections (including SnapTrade)
     // Fire and forget - don't await (non-blocking)
     if (insertedCount > 0) {
       const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
       const host = request.headers.get('host') || 'localhost:3000'
       const baseUrl = `${protocol}://${host}`
       
-      // Trigger analytics computation in background
+      // Determine source for better logging
+      const source = csvUploadId ? 'csv' : (normalizedExchange === 'snaptrade' ? 'snaptrade' : 'exchange')
+      const trigger = csvUploadId ? 'trades_stored_csv' : (normalizedExchange === 'snaptrade' ? 'trades_stored_snaptrade' : 'trades_stored_exchange')
+      
+      console.log(`🔄 [Store Trades] Triggering analytics computation for ${insertedCount} new trades from ${source} (exchange: ${normalizedExchange})`)
+      
+      // Trigger analytics computation in background with improved error handling
       fetch(`${baseUrl}/api/analytics/compute`, {
         method: 'POST',
         headers: { 
@@ -424,12 +447,33 @@ export async function POST(request) {
         },
         body: JSON.stringify({
           userId: userId,
-          trigger: csvUploadId ? 'trades_stored_csv' : 'trades_stored_exchange',
+          trigger: trigger,
           tradeCount: insertedCount,
-          source: csvUploadId ? 'csv' : 'exchange'
+          source: source,
+          exchange: normalizedExchange // Include exchange for debugging
         })
-      }).catch(err => {
-        console.error('⚠️ Background analytics computation failed:', err)
+      })
+      .then(async (response) => {
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => 'Unknown error')
+          console.error(`⚠️ [Store Trades] Analytics computation failed (${response.status}):`, errorText)
+        } else {
+          const result = await response.json().catch(() => ({}))
+          console.log(`✅ [Store Trades] Analytics computation triggered successfully:`, {
+            success: result.success,
+            cached: result.cached,
+            totalTrades: result.totalTrades,
+            exchange: normalizedExchange
+          })
+        }
+      })
+      .catch(err => {
+        console.error(`⚠️ [Store Trades] Background analytics computation failed for ${normalizedExchange}:`, {
+          error: err.message,
+          exchange: normalizedExchange,
+          tradeCount: insertedCount,
+          source: source
+        })
         // Non-critical - analytics will be computed on next page load or cache miss
       })
     }
