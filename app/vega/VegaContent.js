@@ -38,7 +38,13 @@ export default function VegaContent() {
   const [currency, setCurrency] = useState('USD')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [isDemoMode, setIsDemoMode] = useState(false)
+  // Initialize demo mode from URL immediately (synchronously)
+  const [isDemoMode, setIsDemoMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return new URLSearchParams(window.location.search).get('demo') === 'true'
+    }
+    return false
+  })
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showTokenLimitModal, setShowTokenLimitModal] = useState(false)
   const [demoTokensUsed, setDemoTokensUsed] = useState(0)
@@ -61,8 +67,9 @@ export default function VegaContent() {
     }
   }, [coachMode])
   
-  // Check for demo mode from query params
-  const isDemoRequested = searchParams?.get('demo') === 'true'
+  // Check for demo mode from query params (also check window.location as fallback)
+  const isDemoRequested = searchParams?.get('demo') === 'true' || 
+    (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('demo') === 'true')
   
   // OPTIMIZATION: Track demo token usage via events only (removed 500ms polling)
   useEffect(() => {
@@ -155,16 +162,23 @@ export default function VegaContent() {
     ])
   }, [isDemoRequested])
 
+  // Set demo mode immediately if requested (before auth checks)
+  // Also check on mount in case searchParams wasn't ready initially
+  useEffect(() => {
+    const checkDemo = () => {
+      const urlDemo = searchParams?.get('demo') === 'true' || 
+        (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('demo') === 'true')
+      if (urlDemo) {
+        setIsDemoMode(true)
+      }
+    }
+    checkDemo()
+  }, [searchParams])
+
   // Load analytics data on mount
   useEffect(() => {
     // Wait for auth loading to complete (unless in demo mode)
     if (authLoading && !isDemoRequested) return
-
-    // If user is signed in and demo is requested, redirect to dashboard
-    if (user && isDemoRequested) {
-      router.replace('/dashboard')
-      return
-    }
 
     const loadAnalytics = async () => {
       try {
@@ -172,7 +186,6 @@ export default function VegaContent() {
         
         // Demo mode - load demo data dynamically
         if (isDemoRequested) {
-          setIsDemoMode(true)
           try {
             // OPTIMIZATION: Dynamic imports for demo data and analyzer
             const [{ spotData: demoSpotData, futuresData: demoFuturesData }, analyzeData] = await Promise.all([
@@ -462,16 +475,16 @@ export default function VegaContent() {
         <div className="flex flex-col flex-1 h-full relative min-w-0">
           {/* Demo Mode Banner (Overlay or Top Bar) */}
           {isDemoMode && !user && (
-            <div className="absolute top-4 left-4 right-4 z-20 flex justify-center pointer-events-none">
-              <div className="bg-emerald-500/10 backdrop-blur-md border border-emerald-500/20 rounded-full px-4 py-2 flex items-center gap-3 shadow-lg pointer-events-auto">
-                 <Sparkles className="w-4 h-4 text-emerald-400" />
-                 <span className="text-xs text-white/90 font-medium">Demo Mode</span>
-                 <div className="w-px h-3 bg-white/10" />
+            <div className="absolute top-2 left-2 right-2 sm:top-4 sm:left-4 sm:right-4 z-20 flex justify-center pointer-events-none">
+              <div className="bg-emerald-500/10 backdrop-blur-md border border-emerald-500/20 rounded-full px-3 py-1.5 sm:px-4 sm:py-2 flex items-center gap-2 sm:gap-3 shadow-lg pointer-events-auto max-w-full">
+                 <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 flex-shrink-0" />
+                 <span className="text-[10px] sm:text-xs text-white/90 font-medium whitespace-nowrap">Demo Mode</span>
+                 <div className="w-px h-2.5 sm:h-3 bg-white/10 flex-shrink-0" />
                  <button
                     onClick={() => setShowAuthModal(true)}
-                    className="text-xs text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1"
+                    className="text-[10px] sm:text-xs text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-0.5 sm:gap-1 whitespace-nowrap"
                   >
-                    Sign In <ArrowRight className="w-3 h-3" />
+                    Sign In <ArrowRight className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                   </button>
               </div>
             </div>
@@ -479,8 +492,8 @@ export default function VegaContent() {
 
           <div className="flex flex-col flex-1 min-h-0">
             {/* Vega AI Disclaimer */}
-            <div className="px-4 py-2 bg-amber-500/10 border-b border-amber-500/20">
-              <p className="text-xs text-amber-400/80 text-center">
+            <div className={`px-3 sm:px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 ${isDemoMode && !user ? 'mt-12 sm:mt-16' : ''}`}>
+              <p className="text-[10px] sm:text-xs text-amber-400/80 text-center leading-relaxed">
                 <strong>Disclaimer:</strong> Vega AI provides AI-powered trading insights and analysis. 
                 This is not financial advice. Always conduct your own research and consult with a qualified financial advisor before making trading decisions.
               </p>

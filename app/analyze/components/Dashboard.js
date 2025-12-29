@@ -1969,12 +1969,12 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
 
                 <button
                   onClick={onTryDemo}
-                  className="group relative overflow-hidden p-5 rounded-xl border border-white/10 bg-black hover:border-white/20 hover:bg-white/5 transition-all duration-300 text-left"
+                  className="group relative overflow-hidden p-5 rounded-xl border border-emerald-500/20 bg-black hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-all duration-300 text-left"
                 >
                   <div className="relative">
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="w-10 h-10 bg-white/5 group-hover:bg-white/10 border border-white/10 rounded-lg flex items-center justify-center transition-all duration-300">
-                        <Play className="w-5 h-5 text-white/70" />
+                      <div className="w-10 h-10 bg-emerald-500/10 group-hover:bg-emerald-500/15 border border-emerald-500/20 rounded-lg flex items-center justify-center transition-all duration-300">
+                        <Play className="w-5 h-5 text-emerald-400" />
                       </div>
                       <h3 className="text-sm font-medium text-white/90">Try Demo</h3>
                     </div>
@@ -1999,23 +1999,6 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                       Data Sources ({connectedExchanges.length + unlinkedFiles.length})
                     </h2>
                   </div>
-                  {(connectedExchanges.length > 0 || unlinkedFiles.length > 0) && (
-                    <div className="flex items-center gap-2 text-xs">
-                      <button
-                        onClick={selectAll}
-                        className="text-white/70 hover:text-white transition-colors font-medium"
-                      >
-                        Select All
-                      </button>
-                      <Separator className="text-white/10" />
-                      <button
-                        onClick={deselectAll}
-                        className="text-white/50 hover:text-white/70 transition-colors"
-                      >
-                        Clear
-                      </button>
-                    </div>
-                  )}
                 </div>
                 <button
                   onClick={() => setShowConnectModal(true)}
@@ -2100,28 +2083,15 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                       </h3>
                       <div className="space-y-2">
                         {connectedExchanges.map(exchange => {
-                          const selected = isSourceSelected('exchange', exchange.id)
                           const linkedCount = getLinkedFilesCount(exchange.id)
                           return (
                             <div
                               key={exchange.id}
-                              onClick={() => toggleSource('exchange', exchange.id)}
-                              className={`group relative overflow-hidden rounded-xl border ${
-                                selected
-                                  ? 'border-white/20 bg-white/5'
-                                  : 'border-white/10 bg-black'
-                              } p-4 transition-all duration-300 cursor-pointer hover:border-white/20 hover:bg-white/5`}
+                              className="group relative overflow-hidden rounded-xl border border-white/10 bg-black p-4 transition-all duration-300 hover:border-white/20 hover:bg-white/5"
                             >
                               <div className="relative">
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-3 flex-1">
-                                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
-                                      selected
-                                        ? 'border-white/40 bg-white/20'
-                                        : 'border-white/20 bg-transparent group-hover:border-white/30'
-                                    }`}>
-                                      {selected && <CheckSquare className="w-3 h-3 text-white/90" />}
-                                    </div>
                                     <div className="w-12 h-12 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center p-2">
                                       <ExchangeIcon exchange={exchange.exchange} size={20} className="w-full h-full" />
                                     </div>
@@ -2188,27 +2158,14 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                       <h3 className="text-xs font-medium text-white/60 mb-3 px-1 uppercase tracking-wider">Uploaded Files (Not Linked)</h3>
                       <div className="space-y-2">
                         {unlinkedFiles.map(file => {
-                          const selected = isSourceSelected('csv', file.id)
                           return (
                             <div
                               key={file.id}
-                              onClick={() => toggleSource('csv', file.id)}
-                              className={`group relative overflow-hidden rounded-xl border ${
-                                selected
-                                  ? 'border-white/20 bg-white/5'
-                                  : 'border-white/10 bg-black'
-                              } p-4 transition-all duration-300 cursor-pointer hover:border-white/20 hover:bg-white/5`}
+                              className="group relative overflow-hidden rounded-xl border border-white/10 bg-black p-4 transition-all duration-300 hover:border-white/20 hover:bg-white/5"
                             >
                               <div className="relative">
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-3 flex-1">
-                                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all duration-300 ${
-                                      selected
-                                        ? 'border-white/40 bg-white/20'
-                                        : 'border-white/20 bg-transparent group-hover:border-white/30'
-                                    }`}>
-                                      {selected && <CheckSquare className="w-3 h-3 text-white/90" />}
-                                    </div>
                                     <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center">
                                       <FileText className="w-6 h-6 text-white/70" />
                                     </div>
@@ -2242,30 +2199,6 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                     </div>
                   )}
 
-                  {/* Action Buttons */}
-                  {(connectedExchanges.length > 0 || unlinkedFiles.length > 0) && (
-                    <div className="pt-3 flex items-center gap-3">
-                      <button
-                        onClick={handleViewSelected}
-                        disabled={selectedSources.length === 0}
-                        className={`group flex-1 py-3.5 rounded-xl font-medium text-sm transition-all duration-300 inline-flex items-center justify-center gap-2 ${
-                          selectedSources.length > 0
-                            ? 'bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 text-white/90'
-                            : 'bg-white/5 text-white/40 cursor-not-allowed border border-white/10'
-                        }`}
-                      >
-                        <Sparkles className="w-4 h-4" />
-                        Analyze Selected ({selectedSources.length})
-                      </button>
-                      <button
-                        onClick={() => onViewAnalytics()}
-                        className="group flex-1 py-3.5 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl font-medium text-sm text-white/80 hover:text-white/90 transition-all duration-300 inline-flex items-center justify-center gap-2"
-                      >
-                        <BarChart3 className="w-4 h-4" />
-                        View Analytics
-                      </button>
-                    </div>
-                  )}
                 </div>
               )}
             </section>
