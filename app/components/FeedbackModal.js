@@ -17,8 +17,8 @@ export default function FeedbackModal({ open, onOpenChange }) {
       return
     }
 
-    if (feedback.length > 60) {
-      toast.error('Feedback must be 60 characters or less')
+    if (feedback.length > 150) {
+      toast.error('Feedback must be 150 characters or less')
       return
     }
 
@@ -55,7 +55,7 @@ export default function FeedbackModal({ open, onOpenChange }) {
         <DialogHeader>
           <DialogTitle className="text-white/90">Feedback</DialogTitle>
           <DialogDescription className="text-white/60">
-            Share your thoughts (max 60 characters)
+            Share your thoughts (max 150 characters)
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -63,14 +63,14 @@ export default function FeedbackModal({ open, onOpenChange }) {
             value={feedback}
             onChange={(e) => setFeedback(e.target.value)}
             placeholder="Your feedback..."
-            maxLength={60}
+            maxLength={150}
             className="bg-white/5 border-white/10 text-white placeholder:text-white/40 resize-none"
             rows={3}
             disabled={submitting}
           />
           <div className="flex items-center justify-between">
             <span className="text-xs text-white/40">
-              {feedback.length}/60
+              {feedback.length}/150
             </span>
             <div className="flex gap-2">
               <Button

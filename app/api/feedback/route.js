@@ -20,9 +20,9 @@ export async function POST(request) {
       )
     }
 
-    if (feedback.length > 60) {
+    if (feedback.length > 150) {
       return NextResponse.json(
-        { error: 'Feedback must be 60 characters or less' },
+        { error: 'Feedback must be 150 characters or less' },
         { status: 400 }
       )
     }
