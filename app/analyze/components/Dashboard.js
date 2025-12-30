@@ -1312,13 +1312,7 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
           onDashboardClick={() => {}}
           onUploadClick={() => router.push('/data')}
           onVegaClick={() => router.push('/vega')}
-          onMyPatternsClick={() => {
-            if (connectedExchanges.length > 0 || !loadingExchanges) {
-              onViewAnalytics()
-            }
-          }}
           onSignOutClick={handleSignOut}
-          isMyPatternsDisabled={connectedExchanges.length === 0 && !loadingExchanges}
           isDemoMode={false}
         />
       </div>

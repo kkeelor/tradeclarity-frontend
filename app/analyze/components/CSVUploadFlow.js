@@ -525,9 +525,7 @@ export default function CSVUploadFlow({ onBack }) {
           activePage="upload"
           onDashboardClick={onBack}
           onUploadClick={() => {}}
-          onMyPatternsClick={onBack}
           onSignOutClick={handleSignOut}
-          isMyPatternsDisabled={false}
         />
       </div>
 

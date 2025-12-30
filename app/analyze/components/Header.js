@@ -217,6 +217,17 @@ export default function Header({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showFeedbackModal, setShowFeedbackModal] = useState(false)
+
+  // Default sign out handler if onSignOut is not provided
+  const handleSignOut = async () => {
+    try {
+      await fetch('/api/auth/signout', { method: 'POST' })
+      router.push('/')
+    } catch (error) {
+      console.error('Sign out error:', error)
+      router.push('/')
+    }
+  }
   const navItems = [
     { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', onClick: onNavigateDashboard, path: '/dashboard' },
     { label: 'Your Data', icon: Database, href: '/data', onClick: onNavigateUpload, path: '/data' },
@@ -264,10 +275,10 @@ export default function Header({
             {navItems.length > 0 && pathname !== '/dashboard' && (
               <button
                 onClick={() => setIsMobileMenuOpen(true)}
-                className="md:hidden p-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
+                className="md:hidden p-2 rounded-lg bg-slate-800/90 backdrop-blur border border-white/5 hover:bg-slate-700/90 transition-all flex-shrink-0"
                 aria-label="Open navigation menu"
               >
-                <Menu className="h-5 w-5" />
+                <Menu className="h-5 w-5 text-white" />
               </button>
             )}
 
@@ -389,17 +400,17 @@ export default function Header({
           />
 
           {/* Mobile Menu Drawer */}
-          <div className="md:hidden fixed inset-y-0 left-0 w-64 bg-slate-900/95 backdrop-blur-xl border-r border-white/5 z-50 transform transition-transform duration-300 ease-in-out">
+          <div className="md:hidden fixed inset-y-0 left-0 w-64 bg-white/[0.03] backdrop-blur border-r border-white/5 z-50 transform transition-transform duration-300 ease-in-out">
             <div className="flex flex-col h-full">
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-white/5">
                 <span className="text-lg font-bold text-white">Navigation</span>
                 <button
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                  className="p-2 rounded-lg bg-slate-800/90 backdrop-blur border border-white/5 hover:bg-slate-700/90 transition-all"
                   aria-label="Close menu"
                 >
-                  <X className="h-5 w-5" />
+                  <X className="h-5 w-5 text-white" />
                 </button>
               </div>
 
@@ -445,16 +456,12 @@ export default function Header({
                         onClick={handleLinkClick}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-300 ${
                           isActive
-                            ? 'bg-white/10 text-white border-l-2 border-emerald-400'
-                            : 'text-slate-300 hover:bg-white/10 hover:text-white border-l-2 border-transparent'
+                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/10'
+                            : 'text-slate-300 hover:bg-white/[0.05] border border-transparent'
                         }`}
                       >
-                        <Icon className={`h-5 w-5 ${
-                          isActive
-                            ? 'text-emerald-300'
-                            : 'text-slate-400'
-                        }`} />
-                        <span className={isActive ? 'font-medium' : ''}>{item.label}</span>
+                        <Icon className="h-5 w-5" />
+                        <span>{item.label}</span>
                       </Link>
                     )
                   }
@@ -465,34 +472,26 @@ export default function Header({
                       onClick={() => handleNavClick(item.onClick)}
                       className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-300 ${
                         isActive
-                          ? 'bg-white/10 text-white border-l-2 border-emerald-400'
-                          : 'text-slate-300 hover:bg-white/10 hover:text-white border-l-2 border-transparent'
+                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/10'
+                          : 'text-slate-300 hover:bg-white/[0.05] border border-transparent'
                       }`}
                     >
-                      <Icon className={`h-5 w-5 ${
-                        isActive
-                          ? 'text-emerald-300'
-                          : 'text-slate-400'
-                      }`} />
-                      <span className={isActive ? 'font-medium' : ''}>{item.label}</span>
+                      <Icon className="h-5 w-5" />
+                      <span>{item.label}</span>
                     </button>
                   )
                 })}
               </nav>
 
               {/* Footer Actions */}
-              {onSignOut && (
+              {user && (
                 <div className="p-4 border-t border-white/5">
                   <button
-                    onClick={() => handleNavClick(onSignOut)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-300 ${
-                      user 
-                        ? 'text-slate-400 hover:bg-red-500/10 hover:text-red-400' 
-                        : 'text-slate-400 hover:bg-emerald-500/10 hover:text-emerald-400'
-                    }`}
+                    onClick={() => handleNavClick(onSignOut || handleSignOut)}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-300 text-slate-400 hover:bg-white/[0.05] hover:text-red-400 border border-transparent"
                   >
                     <LogOut className="h-5 w-5" />
-                    <span>{user ? 'Sign Out' : 'Sign In'}</span>
+                    <span>Sign Out</span>
                   </button>
                 </div>
               )}

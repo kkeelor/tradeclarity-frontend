@@ -1,21 +1,21 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Home, Database, Sparkles, LogOut, TrendingUp, Twitter, Linkedin, Menu, X, Brain, HelpCircle } from 'lucide-react'
+import { Home, Database, LogOut, TrendingUp, Twitter, Linkedin, Menu, X, Brain, Tag, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
 export default function Sidebar({
   activePage = 'dashboard',
   onDashboardClick,
   onUploadClick,
   onVegaClick,
-  onMyPatternsClick,
   onSignOutClick,
-  isMyPatternsDisabled = false,
   isDemoMode = false
 }) {
   const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const pathname = usePathname()
 
   // Close mobile menu on ESC key
   useEffect(() => {
@@ -106,7 +106,7 @@ export default function Sidebar({
         <button
           onClick={() => handleNavClick(onDashboardClick)}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
-            activePage === 'dashboard'
+            activePage === 'dashboard' || pathname === '/dashboard' || pathname?.startsWith('/dashboard')
               ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/10'
               : 'text-slate-300 hover:bg-white/[0.05] border border-transparent'
           }`}
@@ -118,7 +118,7 @@ export default function Sidebar({
         <button
           onClick={() => handleNavClick(onUploadClick)}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
-            activePage === 'upload'
+            activePage === 'upload' || pathname === '/data' || pathname?.startsWith('/data')
               ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/10'
               : 'text-slate-300 hover:bg-white/[0.05] border border-transparent'
           }`}
@@ -131,7 +131,7 @@ export default function Sidebar({
           <button
             onClick={() => handleNavClick(onVegaClick)}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
-              activePage === 'vega'
+              activePage === 'vega' || pathname === '/vega' || pathname?.startsWith('/vega')
                 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/10'
                 : 'text-slate-300 hover:bg-white/[0.05] border border-transparent'
             }`}
@@ -141,37 +141,31 @@ export default function Sidebar({
           </button>
         )}
 
-        <div className="relative">
-          <button
-            onClick={() => handleNavClick(onMyPatternsClick)}
-            disabled={isMyPatternsDisabled}
-            className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
-              activePage === 'patterns'
-                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/10'
-                : 'text-slate-300 hover:bg-white/[0.05] border border-transparent'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <Sparkles className="w-5 h-5" />
-              <span>My Patterns</span>
-            </div>
-          </button>
-          {!isMyPatternsDisabled && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <HelpCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 hover:text-slate-400 transition-colors  z-10" />
-                </TooltipTrigger>
-                <TooltipContent side="right" className="max-w-xs">
-                  <p className="font-medium mb-1">My Patterns</p>
-                  <p className="text-xs leading-relaxed">
-                    View comprehensive trading analytics including performance metrics, patterns, insights, and detailed breakdowns of your trading data.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-        </div>
+        <Link
+          href="/pricing"
+          onClick={() => setIsMobileOpen(false)}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
+            pathname === '/pricing'
+              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/10'
+              : 'text-slate-300 hover:bg-white/[0.05] border border-transparent'
+          }`}
+        >
+          <Tag className="w-5 h-5" />
+          <span>Pricing</span>
+        </Link>
+
+        <Link
+          href="/billing"
+          onClick={() => setIsMobileOpen(false)}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
+            pathname === '/billing'
+              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/10'
+              : 'text-slate-300 hover:bg-white/[0.05] border border-transparent'
+          }`}
+        >
+          <CreditCard className="w-5 h-5" />
+          <span>Billing</span>
+        </Link>
 
         <button
           onClick={() => handleNavClick(onSignOutClick || handleSignOut)}
