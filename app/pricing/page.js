@@ -652,72 +652,427 @@ export default function PricingPage() {
         />
 
       {/* Hero Section */}
-      <div className="flex-1 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-semibold mb-4 text-white/90">
+      <div className="flex-1 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+        <div className="text-center mb-8 sm:mb-12">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold mb-3 sm:mb-4 text-white/90">
             Choose Your Plan
           </h1>
-          <p className="text-lg text-white/60 max-w-2xl mx-auto mb-6">
+          <p className="text-base sm:text-lg text-white/60 max-w-2xl mx-auto mb-4 sm:mb-6 px-2">
             Transparent pricing for every trader. Start free, upgrade when you need more.
           </p>
           
           {/* Social Proof */}
-          <div className="flex items-center justify-center gap-4 mb-8">
-            <div className="flex items-center gap-2 text-sm text-white/70">
-              <Users className="w-4 h-4 text-emerald-400/70" />
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 mb-6 sm:mb-8">
+            <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-white/70">
+              <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400/70" />
               <span>Join <span className="text-emerald-400/90 font-medium">500+</span> active traders</span>
             </div>
-            <div className="h-4 w-px bg-white/10"></div>
-            <div className="flex items-center gap-2 text-sm text-white/70">
-              <TrendingUp className="w-4 h-4 text-cyan-400/70" />
+            <div className="hidden sm:block h-4 w-px bg-white/10"></div>
+            <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-white/70">
+              <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400/70" />
               <span><span className="text-cyan-400/90 font-medium">1M+</span> trades analyzed</span>
             </div>
           </div>
 
         </div>
 
-        {/* Unified Pricing & Feature Comparison Table */}
-        <div className="max-w-[83rem] mx-auto mb-16">
+        {/* Mobile Billing Toggle & Currency Selector */}
+        <div className="md:hidden mb-6 px-4">
+          <div className="bg-black border border-white/10 rounded-xl p-4">
+            <div className="flex flex-col items-center gap-4">
+              <div className="text-center">
+                <h3 className="text-sm font-semibold mb-2 text-white/90">Select Billing Cycle</h3>
+                <div className="flex items-center gap-3">
+                  <span className={`text-sm ${billingCycle === 'monthly' ? 'text-white/90' : 'text-white/50'}`}>
+                    Monthly
+                  </span>
+                  <button
+                    onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')}
+                    className="relative inline-flex h-6 w-11 items-center rounded-full bg-white/10 border border-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-white/20"
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        billingCycle === 'annual' ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                  <span className={`text-sm ${billingCycle === 'annual' ? 'text-white/90' : 'text-white/50'}`}>
+                    Annual
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-white/60">Currency:</span>
+                <CurrencyDropdown
+                  currencies={availableCurrencies}
+                  selectedCurrency={currency}
+                  onSelectCurrency={handleCurrencyChange}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile Card Layout */}
+        <div className="md:hidden space-y-4 mb-8 px-4">
+          {Object.entries(PRICING_PLANS).map(([key, plan]) => {
+            const Icon = plan.icon
+            const isCurrentTier = currentTier === key
+            const isPopular = plan.popular
+            
+            // Calculate prices
+            const monthlyPriceUSD = billingCycle === 'annual' ? Math.round(plan.priceAnnual / 12) : plan.price
+            const discountMultiplier = (key === 'trader' || key === 'pro') ? 0.5 : 1
+            const discountedMonthlyPriceUSD = monthlyPriceUSD * discountMultiplier
+            const convertedMonthlyPrice = currency === 'USD' ? monthlyPriceUSD : safeConvertForDisplay(monthlyPriceUSD, currency)
+            const convertedDiscountedMonthlyPrice = currency === 'USD' ? discountedMonthlyPriceUSD : safeConvertForDisplay(discountedMonthlyPriceUSD, currency)
+            
+            const formatPrice = (price) => {
+              if (price === 0) return '0'
+              const decimals = currency === 'JPY' ? 0 : 2
+              return price.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+            }
+            
+            const discountedPriceString = formatPrice(convertedDiscountedMonthlyPrice)
+            
+            // Feature list
+            const features = [
+              { label: 'Trades Analyzed/Month', value: key === 'free' ? '500' : key === 'trader' ? '1,000' : 'Unlimited' },
+              { label: 'Exchange Connections', value: key === 'free' ? '1' : key === 'trader' ? '3' : 'Unlimited' },
+              { label: 'AI Model', value: key === 'pro' ? 'Claude Sonnet 4.5' : 'Claude 3.5 Haiku' },
+              { label: 'Full Analytics', included: true },
+              { label: 'All Insights & Patterns', included: true },
+              { label: 'Psychology Scores', included: true },
+              { label: 'CSV Upload', included: true },
+              { label: 'Priority Support', included: key === 'pro' },
+              { label: 'Early Access Features', included: key === 'pro' },
+            ]
+            
+            // Determine button state
+            const shouldShowCheck = 
+              isCurrentTier || 
+              (currentTier === 'trader' && key === 'free') || 
+              (currentTier === 'pro' && key !== 'pro')
+            const isDisabled = shouldShowCheck || loading
+            
+            let buttonText = ''
+            if (shouldShowCheck) {
+              buttonText = isCurrentTier ? (key === 'free' ? '' : 'Current Plan') : ''
+            } else {
+              buttonText = `Upgrade to ${plan.name}`
+            }
+            
+            return (
+              <div
+                key={key}
+                className={`rounded-xl border ${
+                  isPopular || key === 'pro'
+                    ? 'border-emerald-500/30 bg-black'
+                    : 'border-white/10 bg-black'
+                } p-5`}
+              >
+                {/* Plan Header */}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                      <Icon className="w-5 h-5 text-white/70" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-semibold text-white/90">{plan.name}</h3>
+                        {(key === 'trader' || key === 'pro') && (
+                          <Badge variant="warning" className="inline-flex items-center gap-1 animate-pulse px-2 py-0.5 text-[10px]">
+                            <Sparkles className="w-2 h-2" />
+                            50% off
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-white/50 mt-0.5">{plan.description}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Pricing */}
+                <div className="mb-4">
+                  {billingCycle === 'monthly' ? (
+                    <>
+                      {(key === 'trader' || key === 'pro') && (
+                        <div className="text-sm text-white/40 line-through mb-1">
+                          {getCurrencySymbol(currency)}{formatPrice(convertedMonthlyPrice)}/mo
+                        </div>
+                      )}
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-2xl font-semibold tabular-nums text-white/90">
+                          {getCurrencySymbol(currency)}{discountedPriceString}
+                        </span>
+                        <span className="text-sm text-white/50">/mo</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {(key === 'trader' || key === 'pro') && (
+                        <div className="text-sm text-white/40 line-through mb-1">
+                          {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? plan.priceAnnual : safeConvertForDisplay(plan.priceAnnual, currency))}/yr
+                        </div>
+                      )}
+                      <div className="flex items-baseline gap-1 mb-1">
+                        <span className="text-2xl font-semibold tabular-nums text-white/90">
+                          {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? plan.priceAnnual * discountMultiplier : safeConvertForDisplay(plan.priceAnnual * discountMultiplier, currency))}
+                        </span>
+                        <span className="text-sm text-white/50">/yr</span>
+                      </div>
+                      {(key === 'trader' || key === 'pro') && (
+                        <div className="text-xs text-white/70">
+                          {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? Math.round(plan.priceAnnual * discountMultiplier / 12) : safeConvertForDisplay(Math.round(plan.priceAnnual * discountMultiplier / 12), currency))}/mo
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+                
+                {/* Features List */}
+                <div className="mb-4 space-y-2">
+                  {features.map((feature, idx) => (
+                    <div key={idx} className="flex items-center gap-2 text-sm">
+                      {feature.included !== undefined ? (
+                        feature.included ? (
+                          <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                        ) : (
+                          <X className="w-4 h-4 text-white/20 flex-shrink-0" />
+                        )
+                      ) : (
+                        <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      )}
+                      <span className={`${feature.included === false ? 'text-white/40' : 'text-white/70'}`}>
+                        {feature.label}
+                        {feature.value && `: ${feature.value}`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                
+                {/* CTA Button */}
+                <div className="mt-5">
+                  {shouldShowCheck ? (
+                    <div className="flex items-center justify-center py-2">
+                      <Check className="w-5 h-5 text-emerald-400" />
+                      {buttonText && <span className="text-sm text-white/60 ml-2">{buttonText}</span>}
+                    </div>
+                  ) : key === 'free' ? (
+                    <div className="flex items-center justify-center py-2">
+                      <Check className="w-5 h-5 text-white/40" />
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {/* Razorpay Button - Only for INR */}
+                      {currency === 'INR' && (
+                        <button
+                          onClick={() => handleUpgrade(key)}
+                          disabled={isDisabled}
+                          className={`w-full py-3 rounded-lg text-sm font-medium transition-all duration-300 ${
+                            loading
+                              ? 'bg-white/5 text-white/50 cursor-wait opacity-75 border border-white/10'
+                              : isPopular
+                              ? 'bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 hover:border-emerald-500/50 text-white/90'
+                              : key === 'pro'
+                              ? 'bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 hover:border-cyan-500/50 text-white/90'
+                              : 'bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 text-white/80'
+                          }`}
+                        >
+                          {loading ? 'Processing...' : 'Pay with Razorpay'}
+                        </button>
+                      )}
+                      {/* PayPal Buttons */}
+                      {currency !== 'INR' && key === 'trader' && billingCycle === 'monthly' && (
+                        <div 
+                          id={`paypal-trader-monthly-mobile-${key}`}
+                          className="w-full"
+                          dangerouslySetInnerHTML={{
+                            __html: `
+                              <style>
+                                .pp-QEZSUQ2W7286U-mobile{
+                                  text-align:center;
+                                  border:none;
+                                  border-radius:0.5rem;
+                                  width:100%;
+                                  padding:0.75rem 1rem;
+                                  height:auto;
+                                  min-height:3rem;
+                                  font-weight:500;
+                                  background-color:#FFD140;
+                                  color:#000000;
+                                  font-family:"Helvetica Neue",Arial,sans-serif;
+                                  font-size:0.875rem;
+                                  line-height:1rem;
+                                  cursor:pointer;
+                                }
+                                #paypal-trader-monthly-mobile-${key} form {
+                                  display:block;
+                                  width:100%;
+                                }
+                              </style>
+                              <form action="https://www.paypal.com/ncp/payment/QEZSUQ2W7286U" method="post" target="_blank">
+                                <input class="pp-QEZSUQ2W7286U-mobile" type="submit" value="Use PayPal" />
+                              </form>
+                            `
+                          }}
+                        />
+                      )}
+                      {currency !== 'INR' && key === 'trader' && billingCycle === 'annual' && (
+                        <div 
+                          id={`paypal-trader-annual-mobile-${key}`}
+                          className="w-full"
+                          dangerouslySetInnerHTML={{
+                            __html: `
+                              <style>
+                                .pp-DLNE2MH79RLEQ-mobile{
+                                  text-align:center;
+                                  border:none;
+                                  border-radius:0.5rem;
+                                  width:100%;
+                                  padding:0.75rem 1rem;
+                                  height:auto;
+                                  min-height:3rem;
+                                  font-weight:500;
+                                  background-color:#FFD140;
+                                  color:#000000;
+                                  font-family:"Helvetica Neue",Arial,sans-serif;
+                                  font-size:0.875rem;
+                                  line-height:1rem;
+                                  cursor:pointer;
+                                }
+                                #paypal-trader-annual-mobile-${key} form {
+                                  display:block;
+                                  width:100%;
+                                }
+                              </style>
+                              <form action="https://www.paypal.com/ncp/payment/DLNE2MH79RLEQ" method="post" target="_blank">
+                                <input class="pp-DLNE2MH79RLEQ-mobile" type="submit" value="Use PayPal" />
+                              </form>
+                            `
+                          }}
+                        />
+                      )}
+                      {currency !== 'INR' && key === 'pro' && billingCycle === 'monthly' && (
+                        <div 
+                          id={`paypal-pro-monthly-mobile-${key}`}
+                          className="w-full"
+                          dangerouslySetInnerHTML={{
+                            __html: `
+                              <style>
+                                .pp-MWGJ35NJMZ586-mobile{
+                                  text-align:center;
+                                  border:none;
+                                  border-radius:0.5rem;
+                                  width:100%;
+                                  padding:0.75rem 1rem;
+                                  height:auto;
+                                  min-height:3rem;
+                                  font-weight:500;
+                                  background-color:#FFD140;
+                                  color:#000000;
+                                  font-family:"Helvetica Neue",Arial,sans-serif;
+                                  font-size:0.875rem;
+                                  line-height:1rem;
+                                  cursor:pointer;
+                                }
+                                #paypal-pro-monthly-mobile-${key} form {
+                                  display:block;
+                                  width:100%;
+                                }
+                              </style>
+                              <form action="https://www.paypal.com/ncp/payment/MWGJ35NJMZ586" method="post" target="_blank">
+                                <input class="pp-MWGJ35NJMZ586-mobile" type="submit" value="Use PayPal" />
+                              </form>
+                            `
+                          }}
+                        />
+                      )}
+                      {currency !== 'INR' && key === 'pro' && billingCycle === 'annual' && (
+                        <div 
+                          id={`paypal-pro-annual-mobile-${key}`}
+                          className="w-full"
+                          dangerouslySetInnerHTML={{
+                            __html: `
+                              <style>
+                                .pp-PU2GB8AA5XA9E-mobile{
+                                  text-align:center;
+                                  border:none;
+                                  border-radius:0.5rem;
+                                  width:100%;
+                                  padding:0.75rem 1rem;
+                                  height:auto;
+                                  min-height:3rem;
+                                  font-weight:500;
+                                  background-color:#FFD140;
+                                  color:#000000;
+                                  font-family:"Helvetica Neue",Arial,sans-serif;
+                                  font-size:0.875rem;
+                                  line-height:1rem;
+                                  cursor:pointer;
+                                }
+                                #paypal-pro-annual-mobile-${key} form {
+                                  display:block;
+                                  width:100%;
+                                }
+                              </style>
+                              <form action="https://www.paypal.com/ncp/payment/PU2GB8AA5XA9E" method="post" target="_blank">
+                                <input class="pp-PU2GB8AA5XA9E-mobile" type="submit" value="Use PayPal" />
+                              </form>
+                            `
+                          }}
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Unified Pricing & Feature Comparison Table - Desktop Only */}
+        <div className="hidden md:block max-w-[83rem] mx-auto mb-16">
           <div className="rounded-xl border border-white/10 bg-black overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-white/10">
-                    <th className="text-left px-3 py-3 text-sm font-medium text-white/70 w-[200px]">
-                      <div className="flex flex-col items-center gap-1.5">
+                    <th className="text-left px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm font-medium text-white/70 w-[140px] sm:w-[180px] md:w-[200px]">
+                      <div className="flex flex-col items-center gap-1 sm:gap-1.5">
                         {/* Spacer to match badge height (for trader/pro) - empty div for Free plan alignment */}
-                        <div className="h-[18px]"></div>
+                        <div className="h-[14px] sm:h-[18px]"></div>
                         {/* Spacer to match icon */}
-                        <div className="w-8 h-8"></div>
+                        <div className="w-6 h-6 sm:w-8 sm:h-8"></div>
                         {/* Plan label section - matches plan name + description structure */}
                         <div className="text-center">
-                          <h3 className="text-base font-semibold mb-1 text-white/70">Plan</h3>
-                          <p className="text-[10px] text-white/50 mb-1.5 leading-tight">Select billing cycle</p>
+                          <h3 className="text-sm sm:text-base font-semibold mb-0.5 sm:mb-1 text-white/70">Plan</h3>
+                          <p className="text-[9px] sm:text-[10px] text-white/50 mb-1 sm:mb-1.5 leading-tight">Select billing cycle</p>
                           
                           {/* Billing Toggle - aligns with pricing section */}
                           <div className="flex flex-col items-center gap-0.5">
-                            <div className="flex items-center gap-2">
-                              <span className={`text-xs ${billingCycle === 'monthly' ? 'text-white/90' : 'text-white/50'}`}>
+                            <div className="flex items-center gap-1 sm:gap-2">
+                              <span className={`text-[10px] sm:text-xs ${billingCycle === 'monthly' ? 'text-white/90' : 'text-white/50'}`}>
                                 Monthly
                               </span>
                               <button
                                 onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')}
-                                className="relative inline-flex h-5 w-9 items-center rounded-full bg-white/10 border border-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-white/20"
+                                className="relative inline-flex h-4 w-8 sm:h-5 sm:w-9 items-center rounded-full bg-white/10 border border-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-white/20"
                               >
                                 <span
-                                  className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-                                    billingCycle === 'annual' ? 'translate-x-5' : 'translate-x-0.5'
+                                  className={`inline-block h-2.5 w-2.5 sm:h-3 sm:w-3 transform rounded-full bg-white transition-transform ${
+                                    billingCycle === 'annual' ? 'translate-x-4 sm:translate-x-5' : 'translate-x-0.5'
                                   }`}
                                 />
                               </button>
-                              <span className={`text-xs ${billingCycle === 'annual' ? 'text-white/90' : 'text-white/50'}`}>
+                              <span className={`text-[10px] sm:text-xs ${billingCycle === 'annual' ? 'text-white/90' : 'text-white/50'}`}>
                                 Annual
                               </span>
                             </div>
                             {/* Currency Dropdown */}
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="text-xs text-white/60">Currency:</span>
-                              <div className="scale-90 origin-center">
+                            <div className="flex items-center gap-1 sm:gap-1.5 mt-0.5">
+                              <span className="text-[9px] sm:text-xs text-white/60">Currency:</span>
+                              <div className="scale-75 sm:scale-90 origin-center">
                                 <CurrencyDropdown
                                   currencies={availableCurrencies}
                                   selectedCurrency={currency}
@@ -761,23 +1116,24 @@ export default function PricingPage() {
                       return (
                         <th 
                           key={key}
-                          className={`text-center px-2 py-3 ${isPopular ? 'bg-white/5' : key === 'pro' ? 'bg-white/5' : ''}`}
+                          className={`text-center px-1.5 sm:px-2 py-2 sm:py-3 min-w-[100px] sm:min-w-[120px] ${isPopular ? 'bg-white/5' : key === 'pro' ? 'bg-white/5' : ''}`}
                         >
-                          <div className="flex flex-col items-center gap-1.5">
+                          <div className="flex flex-col items-center gap-1 sm:gap-1.5">
                             {(key === 'trader' || key === 'pro') && (
-                              <Badge variant="warning" className="inline-flex items-center gap-1 animate-pulse px-1.5 py-0.5 text-[10px] mb-0.5">
-                                <Sparkles className="w-2 h-2" />
-                                50% off till Dec 31, 2025
+                              <Badge variant="warning" className="inline-flex items-center gap-0.5 sm:gap-1 animate-pulse px-1 sm:px-1.5 py-0.5 text-[8px] sm:text-[10px] mb-0.5 whitespace-nowrap">
+                                <Sparkles className="w-1.5 h-1.5 sm:w-2 sm:h-2" />
+                                <span className="hidden xs:inline">50% off till Dec 31, 2025</span>
+                                <span className="xs:hidden">50% off</span>
                               </Badge>
                             )}
-                            <div className={`w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center`}>
-                              <Icon className={`w-4 h-4 text-white/70`} />
+                            <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center`}>
+                              <Icon className={`w-3 h-3 sm:w-4 sm:h-4 text-white/70`} />
                             </div>
                             <div>
-                              <h3 className={`text-base font-semibold mb-1 ${isPopular ? 'text-white/90' : key === 'pro' ? 'text-white/90' : 'text-white/80'}`}>
+                              <h3 className={`text-sm sm:text-base font-semibold mb-0.5 sm:mb-1 ${isPopular ? 'text-white/90' : key === 'pro' ? 'text-white/90' : 'text-white/80'}`}>
                                 {plan.name}
                               </h3>
-                              <p className="text-[10px] text-white/50 mb-1.5 leading-tight">{plan.description}</p>
+                              <p className="text-[9px] sm:text-[10px] text-white/50 mb-1 sm:mb-1.5 leading-tight">{plan.description}</p>
                               
                               {/* Pricing */}
                               <div className="flex flex-col items-center gap-0.5">
@@ -785,33 +1141,33 @@ export default function PricingPage() {
                                   // Monthly pricing display
                                   <>
                                     {(key === 'trader' || key === 'pro') && (
-                                      <span className="text-xs text-white/40 line-through">
+                                      <span className="text-[10px] sm:text-xs text-white/40 line-through">
                                         {getCurrencySymbol(currency)}{formatPrice(convertedMonthlyPrice)}
                                       </span>
                                     )}
                                     <div className="flex items-baseline gap-0.5">
-                                      <span className={`text-lg font-semibold tabular-nums text-white/90`}>
+                                      <span className={`text-base sm:text-lg font-semibold tabular-nums text-white/90`}>
                                         {getCurrencySymbol(currency)}{discountedPriceString}
                                       </span>
-                                      <span className="text-xs text-white/50">/mo</span>
+                                      <span className="text-[10px] sm:text-xs text-white/50">/mo</span>
                                     </div>
                                   </>
                                 ) : (
                                   // Annual pricing display
                                   <>
                                     {(key === 'trader' || key === 'pro') && (
-                                      <span className="text-xs text-white/40 line-through">
+                                      <span className="text-[10px] sm:text-xs text-white/40 line-through">
                                         {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? plan.priceAnnual : safeConvertForDisplay(plan.priceAnnual, currency))}
                                       </span>
                                     )}
                                     <div className="flex items-baseline gap-0.5">
-                                      <span className={`text-lg font-semibold tabular-nums text-white/90`}>
+                                      <span className={`text-base sm:text-lg font-semibold tabular-nums text-white/90`}>
                                         {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? plan.priceAnnual * discountMultiplier : safeConvertForDisplay(plan.priceAnnual * discountMultiplier, currency))}
                                       </span>
-                                      <span className="text-xs text-white/50">/yr</span>
+                                      <span className="text-[10px] sm:text-xs text-white/50">/yr</span>
                                     </div>
                                     {(key === 'trader' || key === 'pro') && (
-                                      <span className="text-[10px] text-white/70">
+                                      <span className="text-[9px] sm:text-[10px] text-white/70">
                                         {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? Math.round(plan.priceAnnual * discountMultiplier / 12) : safeConvertForDisplay(Math.round(plan.priceAnnual * discountMultiplier / 12), currency))}/mo
                                       </span>
                                     )}
@@ -839,19 +1195,19 @@ export default function PricingPage() {
                     { feature: 'Early Access Features', free: false, trader: false, pro: true },
                   ].map((row, idx) => (
                     <tr key={idx} className="border-b border-white/10 last:border-0">
-                      <td className="px-3 py-2 text-xs text-white/70">{row.feature}</td>
+                      <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-[11px] sm:text-xs text-white/70 font-medium">{row.feature}</td>
                       {['free', 'trader', 'pro'].map((key) => {
                         const value = row[key]
                         return (
-                          <td key={key} className="px-2 py-2 text-center">
+                          <td key={key} className="px-1.5 sm:px-2 py-2 sm:py-2.5 text-center">
                             {typeof value === 'boolean' ? (
                               value ? (
-                                <Check className="w-4 h-4 text-white/70 mx-auto" />
+                                <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/70 mx-auto" />
                               ) : (
-                                <X className="w-4 h-4 text-white/20 mx-auto" />
+                                <X className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/20 mx-auto" />
                               )
                             ) : (
-                              <span className={`text-xs ${key === 'free' ? 'text-white/50' : key === 'trader' ? 'text-white/80' : 'text-white/80'}`}>
+                              <span className={`text-[11px] sm:text-xs ${key === 'free' ? 'text-white/50' : key === 'trader' ? 'text-white/80' : 'text-white/80'}`}>
                                 {value}
                               </span>
                             )}
@@ -863,13 +1219,13 @@ export default function PricingPage() {
                   
                   {/* CTA Row */}
                   <tr className="border-t-2 border-white/10">
-                    <td className="px-3 py-3">
+                    <td className="px-2 sm:px-3 py-2 sm:py-3">
                       {/* Coupon-style savings badge for annual billing */}
                       {billingCycle === 'annual' && savings > 0 && (
                         <div className="flex items-center justify-center">
-                          <div className="relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 border-dashed border-emerald-500/40 bg-emerald-500/5">
-                            <Sparkles className="w-3 h-3 text-emerald-400" />
-                            <span className="text-xs font-semibold text-emerald-400">
+                          <div className="relative inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border-2 border-dashed border-emerald-500/40 bg-emerald-500/5">
+                            <Sparkles className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-400" />
+                            <span className="text-[10px] sm:text-xs font-semibold text-emerald-400">
                               {savings}% savings applied
                             </span>
                           </div>
@@ -906,27 +1262,27 @@ export default function PricingPage() {
                       }
                       
                       return (
-                        <td key={key} className="px-2 py-3">
-                          <div className="flex flex-col gap-2">
+                        <td key={key} className="px-1.5 sm:px-2 py-2 sm:py-3">
+                          <div className="flex flex-col gap-1.5 sm:gap-2">
                             {shouldShowCheck ? (
                               <div className="flex items-center justify-center">
-                                <Check className="w-4 h-4 text-white/40" />
-                                {buttonText && <span className="text-xs text-white/40 ml-1">{buttonText}</span>}
+                                <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/40" />
+                                {buttonText && <span className="text-[10px] sm:text-xs text-white/40 ml-1">{buttonText}</span>}
                               </div>
                             ) : key === 'free' ? (
                               <div className="flex items-center justify-center">
-                                <Check className="w-4 h-4 text-white/40" />
+                                <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/40" />
                               </div>
                             ) : (
                               <>
                                 {/* Buttons Row */}
-                                <div className="flex gap-2 w-full">
+                                <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2 w-full">
                                   {/* Razorpay Button - Only for INR */}
                                   {currency === 'INR' && (
                                     <button
                                       onClick={() => handleUpgrade(key)}
                                       disabled={isDisabled}
-                                      className={`w-full py-2 rounded-lg text-xs font-medium transition-all duration-300 ${
+                                      className={`w-full py-2.5 sm:py-2 rounded-lg text-[11px] sm:text-xs font-medium transition-all duration-300 ${
                                         loading
                                           ? 'bg-white/5 text-white/50 cursor-wait opacity-75 border border-white/10'
                                           : isPopular
@@ -958,16 +1314,23 @@ export default function PricingPage() {
                                               border:none;
                                               border-radius:0.5rem;
                                               width:100%;
-                                              padding:0.5rem 1rem;
+                                              padding:0.625rem 0.75rem;
                                               height:auto;
-                                              min-height:2rem;
+                                              min-height:2.5rem;
                                               font-weight:500;
                                               background-color:#FFD140;
                                               color:#000000;
                                               font-family:"Helvetica Neue",Arial,sans-serif;
-                                              font-size:0.75rem;
+                                              font-size:0.6875rem;
                                               line-height:1rem;
                                               cursor:pointer;
+                                            }
+                                            @media (min-width: 640px) {
+                                              .pp-QEZSUQ2W7286U-inline {
+                                                padding:0.5rem 1rem;
+                                                font-size:0.75rem;
+                                                min-height:2rem;
+                                              }
                                             }
                                             #paypal-trader-monthly-inline form {
                                               display:block;
@@ -993,16 +1356,23 @@ export default function PricingPage() {
                                               border:none;
                                               border-radius:0.5rem;
                                               width:100%;
-                                              padding:0.5rem 1rem;
+                                              padding:0.625rem 0.75rem;
                                               height:auto;
-                                              min-height:2rem;
+                                              min-height:2.5rem;
                                               font-weight:500;
                                               background-color:#FFD140;
                                               color:#000000;
                                               font-family:"Helvetica Neue",Arial,sans-serif;
-                                              font-size:0.75rem;
+                                              font-size:0.6875rem;
                                               line-height:1rem;
                                               cursor:pointer;
+                                            }
+                                            @media (min-width: 640px) {
+                                              .pp-DLNE2MH79RLEQ-inline {
+                                                padding:0.5rem 1rem;
+                                                font-size:0.75rem;
+                                                min-height:2rem;
+                                              }
                                             }
                                             #paypal-trader-annual-inline form {
                                               display:block;
@@ -1028,16 +1398,23 @@ export default function PricingPage() {
                                               border:none;
                                               border-radius:0.5rem;
                                               width:100%;
-                                              padding:0.5rem 1rem;
+                                              padding:0.625rem 0.75rem;
                                               height:auto;
-                                              min-height:2rem;
+                                              min-height:2.5rem;
                                               font-weight:500;
                                               background-color:#FFD140;
                                               color:#000000;
                                               font-family:"Helvetica Neue",Arial,sans-serif;
-                                              font-size:0.75rem;
+                                              font-size:0.6875rem;
                                               line-height:1rem;
                                               cursor:pointer;
+                                            }
+                                            @media (min-width: 640px) {
+                                              .pp-MWGJ35NJMZ586-inline {
+                                                padding:0.5rem 1rem;
+                                                font-size:0.75rem;
+                                                min-height:2rem;
+                                              }
                                             }
                                             #paypal-pro-monthly-inline form {
                                               display:block;
@@ -1063,16 +1440,23 @@ export default function PricingPage() {
                                               border:none;
                                               border-radius:0.5rem;
                                               width:100%;
-                                              padding:0.5rem 1rem;
+                                              padding:0.625rem 0.75rem;
                                               height:auto;
-                                              min-height:2rem;
+                                              min-height:2.5rem;
                                               font-weight:500;
                                               background-color:#FFD140;
                                               color:#000000;
                                               font-family:"Helvetica Neue",Arial,sans-serif;
-                                              font-size:0.75rem;
+                                              font-size:0.6875rem;
                                               line-height:1rem;
                                               cursor:pointer;
+                                            }
+                                            @media (min-width: 640px) {
+                                              .pp-PU2GB8AA5XA9E-inline {
+                                                padding:0.5rem 1rem;
+                                                font-size:0.75rem;
+                                                min-height:2rem;
+                                              }
                                             }
                                             #paypal-pro-annual-inline form {
                                               display:block;
@@ -1108,8 +1492,8 @@ export default function PricingPage() {
         </div>
 
         {/* FAQ Section */}
-        <div className="max-w-3xl mx-auto mb-16">
-          <h2 className="text-2xl font-semibold mb-6 text-center text-white/90">Frequently Asked Questions</h2>
+        <div className="max-w-3xl mx-auto mb-12 sm:mb-16 px-4">
+          <h2 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6 text-center text-white/90">Frequently Asked Questions</h2>
           <Accordion type="single" collapsible className="w-full">
             {[
               {
@@ -1133,11 +1517,11 @@ export default function PricingPage() {
                 a: 'Yes, you can cancel your subscription at any time. You\'ll continue to have access until the end of your billing period.'
               }
             ].map((faq, idx) => (
-              <AccordionItem key={idx} value={`item-${idx}`} className="border-white/10 rounded-xl bg-black px-4 mb-4">
-                <AccordionTrigger className="text-left font-medium text-white/80 hover:no-underline">
+              <AccordionItem key={idx} value={`item-${idx}`} className="border-white/10 rounded-xl bg-black px-3 sm:px-4 mb-3 sm:mb-4">
+                <AccordionTrigger className="text-left font-medium text-sm sm:text-base text-white/80 hover:no-underline py-3 sm:py-4">
                   {faq.q}
                 </AccordionTrigger>
-                <AccordionContent className="text-sm text-white/60 pb-4">
+                <AccordionContent className="text-xs sm:text-sm text-white/60 pb-3 sm:pb-4">
                   {faq.a}
                 </AccordionContent>
               </AccordionItem>
@@ -1145,34 +1529,34 @@ export default function PricingPage() {
           </Accordion>
           
           {/* View All FAQs Link */}
-          <div className="text-center mt-8">
+          <div className="text-center mt-6 sm:mt-8">
             <Link href="/faq">
-              <Button variant="outline" size="lg" className="bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-white/80">
+              <Button variant="outline" size="lg" className="bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-white/80 text-sm sm:text-base px-4 sm:px-6 py-2 sm:py-3">
                 View All FAQs
-                <ArrowRight className="w-5 h-5 ml-2" />
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
               </Button>
             </Link>
           </div>
         </div>
 
         {/* Trust Signals */}
-        <div className="max-w-4xl mx-auto text-center mb-12">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-white/60">
-            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-black border border-white/10 hover:border-white/20 transition-colors">
-              <Shield className="w-6 h-6 text-white/70" />
-              <span className="text-xs font-medium">Bank-Level Security</span>
+        <div className="max-w-4xl mx-auto text-center mb-8 sm:mb-12 px-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 text-white/60">
+            <div className="flex flex-col items-center gap-1.5 sm:gap-2 p-3 sm:p-4 rounded-xl bg-black border border-white/10 hover:border-white/20 transition-colors">
+              <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-white/70" />
+              <span className="text-[10px] sm:text-xs font-medium">Bank-Level Security</span>
             </div>
-            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-black border border-white/10 hover:border-white/20 transition-colors">
-              <CreditCard className="w-6 h-6 text-white/70" />
-              <span className="text-xs font-medium">Secure Payments</span>
+            <div className="flex flex-col items-center gap-1.5 sm:gap-2 p-3 sm:p-4 rounded-xl bg-black border border-white/10 hover:border-white/20 transition-colors">
+              <CreditCard className="w-5 h-5 sm:w-6 sm:h-6 text-white/70" />
+              <span className="text-[10px] sm:text-xs font-medium">Secure Payments</span>
             </div>
-            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-black border border-white/10 hover:border-white/20 transition-colors">
-              <Clock className="w-6 h-6 text-white/70" />
-              <span className="text-xs font-medium">Cancel Anytime</span>
+            <div className="flex flex-col items-center gap-1.5 sm:gap-2 p-3 sm:p-4 rounded-xl bg-black border border-white/10 hover:border-white/20 transition-colors">
+              <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-white/70" />
+              <span className="text-[10px] sm:text-xs font-medium">Cancel Anytime</span>
             </div>
-            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-black border border-white/10 hover:border-white/20 transition-colors">
-              <Star className="w-6 h-6 text-white/70 fill-white/70" />
-              <span className="text-xs font-medium">7-Day Guarantee</span>
+            <div className="flex flex-col items-center gap-1.5 sm:gap-2 p-3 sm:p-4 rounded-xl bg-black border border-white/10 hover:border-white/20 transition-colors">
+              <Star className="w-5 h-5 sm:w-6 sm:h-6 text-white/70 fill-white/70" />
+              <span className="text-[10px] sm:text-xs font-medium">7-Day Guarantee</span>
             </div>
           </div>
         </div>
