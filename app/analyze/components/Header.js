@@ -32,7 +32,7 @@ function UserMenuButton({ user, onSignOut, showUserMenu, setShowUserMenu }) {
       <div className="relative" ref={buttonRef}>
         <button
           onClick={() => setShowUserMenu(!showUserMenu)}
-          className="w-8 h-8 rounded-lg bg-white/10 border border-white/10 flex items-center justify-center text-white/90 font-medium text-sm hover:bg-white/15 hover:border-white/20 transition-all duration-300"
+          className="w-8 h-8 rounded-lg bg-white/10 border border-white/10 flex items-center justify-center text-white/90 font-medium text-sm hover:bg-white/15 hover:border-white/20 transition-all duration-300 flex-shrink-0"
         >
           {user?.user_metadata?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
         </button>
@@ -81,10 +81,10 @@ function NavButton({ icon: Icon, label, href, onClick, isActive = false, disable
     return (
       <button
         disabled={true}
-        className="group inline-flex items-center justify-center gap-1 md:gap-2 rounded-full px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium transition-colors flex-shrink-0 whitespace-nowrap min-w-[32px] md:min-w-auto text-slate-500 cursor-not-allowed"
+        className="group inline-flex items-center justify-center gap-1.5 md:gap-2 rounded-full px-2.5 py-1.5 md:px-3 md:py-1.5 text-xs font-medium transition-colors flex-shrink-0 whitespace-nowrap min-w-[32px] md:min-w-auto text-slate-500 cursor-not-allowed"
         style={{ minHeight: '32px' }}
       >
-        <Icon className="h-3 w-3 md:h-4 md:w-4 transition-colors flex-shrink-0 text-slate-600" />
+        <Icon className="h-3.5 w-3.5 md:h-4 md:w-4 transition-colors flex-shrink-0 text-slate-600" />
         <span className="hidden sm:inline">{label}</span>
       </button>
     )
@@ -108,7 +108,7 @@ function NavButton({ icon: Icon, label, href, onClick, isActive = false, disable
       <Link
         href={href}
         onClick={handleClick}
-        className={`group inline-flex items-center justify-center gap-1 md:gap-2 rounded-full px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium transition-all duration-200 flex-shrink-0 whitespace-nowrap min-w-[32px] md:min-w-auto ${activeClasses}`}
+        className={`group inline-flex items-center justify-center gap-1.5 md:gap-2 rounded-full px-2.5 py-1.5 md:px-3 md:py-1.5 text-xs font-medium transition-all duration-200 flex-shrink-0 whitespace-nowrap min-w-[32px] md:min-w-auto ${activeClasses}`}
         style={{ 
           minHeight: '32px',
           ...(isActive && {
@@ -118,7 +118,7 @@ function NavButton({ icon: Icon, label, href, onClick, isActive = false, disable
           })
         }}
       >
-        <Icon className={`h-3 w-3 md:h-4 md:w-4 transition-colors flex-shrink-0 ${
+        <Icon className={`h-3.5 w-3.5 md:h-4 md:w-4 transition-colors flex-shrink-0 ${
           isActive
             ? 'text-emerald-300'
             : 'text-slate-500 group-hover:text-emerald-300'
@@ -133,14 +133,14 @@ function NavButton({ icon: Icon, label, href, onClick, isActive = false, disable
   return (
     <button
       onClick={onClick}
-      className={`group inline-flex items-center justify-center gap-1 md:gap-2 rounded-full px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium transition-all duration-200 flex-shrink-0 whitespace-nowrap min-w-[32px] md:min-w-auto ${
+      className={`group inline-flex items-center justify-center gap-1.5 md:gap-2 rounded-full px-2.5 py-1.5 md:px-3 md:py-1.5 text-xs font-medium transition-all duration-200 flex-shrink-0 whitespace-nowrap min-w-[32px] md:min-w-auto ${
         isActive
           ? '!text-white !bg-emerald-500/30 !border !border-emerald-400/60 shadow-lg shadow-emerald-500/20'
           : 'text-slate-300 hover:text-white hover:bg-white/5 border border-transparent'
       }`}
       style={{ minHeight: '32px' }}
     >
-      <Icon className={`h-3 w-3 md:h-4 md:w-4 transition-colors flex-shrink-0 ${
+      <Icon className={`h-3.5 w-3.5 md:h-4 md:w-4 transition-colors flex-shrink-0 ${
         isActive
           ? 'text-emerald-300'
           : 'text-slate-500 group-hover:text-emerald-300'
@@ -167,10 +167,10 @@ function CurrencyDropdown({ currencies, selectedCurrency, onSelectCurrency }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-1.5 rounded-full border border-white/5 bg-white/[0.02] px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white">
-          <span>{getCurrencySymbol(selectedCurrency)}</span>
-          <span>{selectedCurrency}</span>
-          <ChevronDown className="h-3 w-3 transition-transform" />
+        <button className="flex items-center gap-1.5 sm:gap-2 rounded-full border border-white/5 bg-white/[0.02] px-2.5 sm:px-3 h-8 text-xs font-medium text-slate-300 transition hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white flex-shrink-0">
+          <span className="flex-shrink-0">{getCurrencySymbol(selectedCurrency)}</span>
+          <span className="flex-shrink-0">{selectedCurrency}</span>
+          <ChevronDown className="h-3 w-3 sm:h-3.5 sm:w-3.5 transition-transform flex-shrink-0" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48 bg-black border-white/10">
@@ -184,9 +184,9 @@ function CurrencyDropdown({ currencies, selectedCurrency, onSelectCurrency }) {
                 : 'text-white/70 data-[highlighted]:bg-white/10 data-[highlighted]:text-white/90'
             }`}
           >
-            <span className="w-8 text-right">{getCurrencySymbol(curr)}</span>
+            <span className="w-8 text-right flex-shrink-0">{getCurrencySymbol(curr)}</span>
             <span className="flex-1">{curr}</span>
-            <span className="text-[10px] text-white/40">{currencyNames[curr] || ''}</span>
+            <span className="text-[10px] text-white/40 flex-shrink-0">{currencyNames[curr] || ''}</span>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
@@ -269,25 +269,26 @@ export default function Header({
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-white/5 bg-black/70 backdrop-blur-xl">
-        <div className={`mx-auto flex w-full max-w-[1400px] items-center justify-between gap-2 sm:gap-4 px-2 sm:px-4 py-3 sm:py-4 overflow-hidden ${mobilePaddingLeft ? 'pl-14 md:pl-4' : ''}`}>
-          <div className="flex items-center gap-1 sm:gap-2 md:gap-4 lg:gap-8 min-w-0 flex-1">
+        <div className={`mx-auto flex w-full max-w-[1400px] items-center justify-between gap-2 sm:gap-3 md:gap-4 px-3 sm:px-4 md:px-6 overflow-hidden ${mobilePaddingLeft ? 'pl-14 md:pl-4' : ''}`} style={{ minHeight: '56px' }}>
+          <div className="flex items-center gap-2 sm:gap-3 md:gap-4 lg:gap-6 min-w-0 flex-1 h-full">
             {/* Mobile Menu Button - Hidden when used in Dashboard (which has its own sidebar) */}
             {navItems.length > 0 && pathname !== '/dashboard' && (
               <button
                 onClick={() => setIsMobileMenuOpen(true)}
-                className="md:hidden p-2 rounded-lg bg-slate-800/90 backdrop-blur border border-white/5 hover:bg-slate-700/90 transition-all flex-shrink-0"
+                className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800/90 backdrop-blur border border-white/5 hover:bg-slate-700/90 transition-all flex-shrink-0"
                 aria-label="Open navigation menu"
+                style={{ minHeight: '32px' }}
               >
                 <Menu className="h-5 w-5 text-white" />
               </button>
             )}
 
-            <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0 h-full">
               <button
                 onClick={() => window.location.href = '/'}
-                className="flex items-center gap-1 sm:gap-2 rounded-full border border-white/5 bg-white/[0.03] px-2 sm:px-3 py-1 text-sm font-semibold text-white/90 transition hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white flex-shrink-0"
+                className="flex items-center gap-1.5 sm:gap-2 rounded-full border border-white/5 bg-white/[0.03] px-2.5 sm:px-3 h-8 text-sm font-semibold text-white/90 transition hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-white flex-shrink-0"
               >
-                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-300" />
+                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-300 flex-shrink-0" />
                 <span className="hidden sm:inline">TradeClarity</span>
               </button>
               {showSubscriptionBadge && subscription && (
@@ -297,16 +298,16 @@ export default function Header({
                     subscription.tier === 'pro' || subscription.tier === 'trader'
                       ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-400' 
                       : 'border-blue-400/30 bg-blue-400/10 text-blue-400'
-                  } font-semibold uppercase tracking-wider text-[9px] px-1.5 py-0.5 flex items-center gap-1 hidden sm:flex`}
+                  } font-semibold uppercase tracking-wider text-[9px] sm:text-[10px] px-1.5 sm:px-2 h-5 flex items-center gap-1 hidden sm:flex flex-shrink-0`}
                 >
-                  {subscription.tier === 'pro' && <Crown className="w-2.5 h-2.5 text-emerald-400" />}
+                  {subscription.tier === 'pro' && <Crown className="w-2.5 h-2.5 text-emerald-400 flex-shrink-0" />}
                   {subscription.tier}
                 </Badge>
               )}
             </div>
 
             {navItems.length > 0 && (
-              <nav className="hidden md:flex items-center gap-1 md:gap-2 overflow-x-auto scrollbar-hide min-w-0">
+              <nav className="hidden md:flex items-center gap-1.5 md:gap-2 overflow-x-auto scrollbar-hide min-w-0 h-full">
                 {navItems.map(item => {
                   const isActive = pathname === item.path || 
                     (item.path === '/dashboard' && pathname?.startsWith('/dashboard')) ||
@@ -330,16 +331,16 @@ export default function Header({
             )}
           </div>
 
-          <div className="flex items-center gap-1 sm:gap-2 md:gap-3 flex-shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-2.5 flex-shrink-0 h-full">
             {exchangeConfig && (
-              <span className="hidden items-center gap-1.5 sm:gap-2 rounded-full border border-white/5 bg-white/[0.02] px-2 sm:px-3 py-1 text-[10px] sm:text-xs text-slate-300/80 sm:inline-flex">
+              <span className="hidden items-center gap-1.5 sm:gap-2 rounded-full border border-white/5 bg-white/[0.02] px-2 sm:px-2.5 md:px-3 h-8 text-[10px] sm:text-xs text-slate-300/80 sm:inline-flex flex-shrink-0">
                 {exchangeConfig.icon}
                 <span className="hidden md:inline">{exchangeConfig.displayName}</span>
               </span>
             )}
 
             {currencyMetadata?.supportsCurrencySwitch && currencyMetadata.availableCurrencies.length > 1 && (
-              <div className="flex items-center gap-1 sm:gap-1.5">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 h-full">
                 <CurrencyDropdown
                   currencies={currencyMetadata.availableCurrencies}
                   selectedCurrency={currency}
@@ -348,7 +349,7 @@ export default function Header({
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <HelpCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white/40 hover:text-white/60 transition-colors" />
+                      <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/40 hover:text-white/60 transition-colors flex-shrink-0" />
                     </TooltipTrigger>
                     <TooltipContent side="bottom" className="max-w-xs">
                       <p className="font-medium mb-1">Currency Display</p>
@@ -363,26 +364,28 @@ export default function Header({
 
             <button
               onClick={() => setShowFeedbackModal(true)}
-              className="text-[10px] sm:text-xs text-white/50 hover:text-white/80 transition-colors"
+              className="text-xs text-white/50 hover:text-white/80 transition-colors whitespace-nowrap flex-shrink-0 px-1 sm:px-0 h-8 flex items-center"
             >
               Feedback
             </button>
 
             {user && (
-              <UserMenuButton 
-                user={user}
-                onSignOut={onSignOut}
-                showUserMenu={showUserMenu}
-                setShowUserMenu={setShowUserMenu}
-              />
+              <div className="h-full flex items-center">
+                <UserMenuButton 
+                  user={user}
+                  onSignOut={onSignOut}
+                  showUserMenu={showUserMenu}
+                  setShowUserMenu={setShowUserMenu}
+                />
+              </div>
             )}
 
             {!user && onSignOut && (
               <button
                 onClick={onSignOut}
-                className="hidden items-center gap-2 rounded-full border border-white/5 px-3 py-1 text-xs font-medium text-slate-500 transition hover:border-white/10 hover:bg-white/10 hover:text-white md:inline-flex"
+                className="hidden items-center gap-2 rounded-full border border-white/5 px-3 h-8 text-xs font-medium text-slate-500 transition hover:border-white/10 hover:bg-white/10 hover:text-white md:inline-flex flex-shrink-0"
               >
-                <LogOut className="h-4 w-4" />
+                <LogOut className="h-4 w-4 flex-shrink-0" />
                 <span className="hidden lg:inline">Sign in</span>
               </button>
             )}
