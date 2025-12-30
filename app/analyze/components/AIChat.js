@@ -4,7 +4,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, useMemo, useImperativeHandle, forwardRef } from 'react'
-import { Send, Loader2, Bot, User, Sparkles, X, RotateCcw, Square, Minimize2, Maximize2, Database, Link as LinkIcon, Upload, TrendingUp, DollarSign, PieChart, Target, AlertCircle, MessageCircle, Share2, Check, ChevronDown } from 'lucide-react'
+import { Send, Loader2, Bot, User, Sparkles, X, RotateCcw, Square, Minimize2, Maximize2, Database, Link as LinkIcon, Upload, TrendingUp, DollarSign, PieChart, Target, AlertCircle, MessageCircle, Share2, Check, ChevronDown, Menu } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { getDynamicSampleQuestions, getCoachModeStarters, getGreeting } from '@/lib/ai/prompts/sampleQuestions'
@@ -23,7 +23,7 @@ import { MessageActions } from '@/components/ui/MessageActions'
 import { trackFeatureUsage } from '@/lib/analytics'
 import { AI_MODELS } from '@/lib/ai/client'
 
-const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConnectExchange, onUploadCSV, isVegaPage = false, isFullPage = false, isDemoMode = false, coachMode = false, conversationId: initialConversationId = null }, ref) => {
+const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConnectExchange, onUploadCSV, isVegaPage = false, isFullPage = false, isDemoMode = false, coachMode = false, conversationId: initialConversationId = null, onOpenMobileSidebar }, ref) => {
   const { user } = useAuth()
   const [messages, setMessages] = useState([])
   const [sessionMessages, setSessionMessages] = useState([]) // In-memory messages for current session
@@ -1550,7 +1550,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
       {/* Messages - Always scrollable in maximized view */}
       <div 
         ref={messagesContainerRef} 
-        className={`relative flex-1 px-4 py-3 space-y-3 chat-scrollbar ${isMaximizedView ? 'overflow-y-auto' : messages.length > 0 ? 'overflow-y-auto' : 'overflow-hidden'}`}
+        className={`relative flex-1 px-2 sm:px-4 py-2 sm:py-3 space-y-3 chat-scrollbar ${isMaximizedView ? 'overflow-y-auto' : messages.length > 0 ? 'overflow-y-auto' : 'overflow-hidden'}`}
         style={{ 
           overscrollBehavior: 'contain', 
           minHeight: 0, 
@@ -1572,11 +1572,11 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                   Connect your exchange or upload CSV files to get started
                 </p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                 {onConnectExchange && (
                   <button
                     onClick={onConnectExchange}
-                    className="px-3 py-1.5 bg-white/10 hover:bg-white/15 text-white/90 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 border border-white/10"
+                    className="px-3 py-1.5 bg-white/10 hover:bg-white/15 text-white/90 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1.5 border border-white/10 w-full sm:w-auto"
                   >
                     <LinkIcon className="w-3.5 h-3.5" />
                     Connect Exchange
@@ -1585,7 +1585,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                 {onUploadCSV && (
                   <button
                     onClick={onUploadCSV}
-                    className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/70 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 border border-white/5"
+                    className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/70 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1.5 border border-white/5 w-full sm:w-auto"
                   >
                     <Upload className="w-3.5 h-3.5" />
                     Upload CSV
@@ -1615,21 +1615,21 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                       
                       {/* Portfolio Value & Asset Distribution - Only show if user has trades */}
                       {tradesStats.totalTrades > 0 && (portfolioData?.totalValue > 0 || tradesStats.totalTrades > 0) && (
-                        <div className="flex flex-wrap items-center justify-center gap-5 text-sm text-white/70 mb-4">
+                        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-5 text-xs sm:text-sm text-white/70 mb-4 px-2">
                           {portfolioData && portfolioData.totalValue > 0 && (
                             <>
-                              <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
-                                <DollarSign className="w-4 h-4 text-emerald-400" />
-                                <span>
+                              <div className="flex items-center gap-1.5 sm:gap-2 bg-white/5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-white/5">
+                                <DollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 flex-shrink-0" />
+                                <span className="whitespace-nowrap">
                                   Portfolio: <span className="text-white/90 font-semibold tabular-nums">
                                     ${portfolioData.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </span>
                                 </span>
                               </div>
                               {portfolioData.topHoldings.length > 0 && (
-                                <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
-                                  <PieChart className="w-4 h-4 text-emerald-400" />
-                                  <span>
+                                <div className="flex items-center gap-1.5 sm:gap-2 bg-white/5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-white/5">
+                                  <PieChart className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 flex-shrink-0" />
+                                  <span className="whitespace-nowrap">
                                     Top: {portfolioData.topHoldings.slice(0, 3).map((h, idx) => (
                                       <span key={idx} className="text-white/80">
                                         {h.asset}
@@ -1642,9 +1642,9 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                             </>
                           )}
                           {tradesStats.totalTrades > 0 && (
-                            <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
-                              <Target className="w-4 h-4 text-emerald-400" />
-                              <span>
+                            <div className="flex items-center gap-1.5 sm:gap-2 bg-white/5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-white/5">
+                              <Target className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 flex-shrink-0" />
+                              <span className="whitespace-nowrap">
                                 {tradesStats.totalTrades.toLocaleString()} trades
                               </span>
                             </div>
@@ -1654,13 +1654,13 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
 
                       {/* Insights */}
                       {insights.length > 0 && (
-                        <div className="flex flex-wrap items-center justify-center gap-3 text-xs">
+                        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-[10px] sm:text-xs px-2">
                           {insights.map((insight, idx) => {
                             const Icon = insight.icon
                             return (
                               <div
                                 key={idx}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border ${
+                                className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border ${
                                   insight.type === 'strength'
                                     ? 'bg-emerald-400/10 border-emerald-400/30 text-emerald-400'
                                     : insight.type === 'weakness'
@@ -1668,8 +1668,8 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                                     : 'bg-white/5 border-white/10 text-white/70'
                                 }`}
                               >
-                                <Icon className="w-3.5 h-3.5" />
-                                <span>{insight.text}</span>
+                                <Icon className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+                                <span className="whitespace-nowrap">{insight.text}</span>
                               </div>
                             )
                           })}
@@ -1682,11 +1682,11 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                   <div className="w-full max-w-3xl flex flex-col items-center justify-end pb-4">
                     {/* Coach Mode: Interactive starter prompts */}
                     {coachMode && coachModeStarters.length > 0 ? (
-                      <div className="space-y-3 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <p className="text-xs text-center text-white/40 mb-3 uppercase tracking-wider font-medium">
+                      <div className="space-y-3 w-full animate-in fade-in slide-in-from-bottom-4 duration-500 px-2">
+                        <p className="text-[10px] sm:text-xs text-center text-white/40 mb-3 uppercase tracking-wider font-medium">
                           Suggested Topics
                         </p>
-                        <div className="flex flex-wrap items-center justify-center gap-2">
+                        <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
                           {coachModeStarters.map((q, idx) => (
                             <button
                               key={idx}
@@ -1694,7 +1694,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                                 // Auto-send in coach mode
                                 await sendMessage(q)
                               }}
-                              className="group px-4 py-2 text-sm text-white/70 hover:text-white bg-white/5 hover:bg-emerald-500/10 border border-white/10 hover:border-emerald-500/30 rounded-xl transition-all duration-200 font-medium text-center"
+                              className="group px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm text-white/70 hover:text-white bg-white/5 hover:bg-emerald-500/10 border border-white/10 hover:border-emerald-500/30 rounded-lg sm:rounded-xl transition-all duration-200 font-medium text-center"
                             >
                               {q}
                             </button>
@@ -1795,12 +1795,12 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                         {activeTools.length > 0 && (
                           <div className="flex flex-wrap items-center gap-1.5">
                             {activeTools.map((tool, idx) => (
-                              <div 
+                              <div
                                 key={idx}
                                 className="flex items-center gap-1 px-2 py-0.5 bg-white/5 rounded border border-white/10"
                               >
-                                <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse" />
-                                <span className="text-[10px] text-white/40 font-mono">
+                                <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse flex-shrink-0" />
+                                <span className="text-[10px] sm:text-xs text-white/40 font-mono">
                                   {formatToolName(tool)}
                                 </span>
                               </div>
@@ -1829,7 +1829,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                               }}
                               analytics={effectiveAnalytics}
                               allTrades={effectiveAllTrades}
-                              height={220}
+                              height={typeof window !== 'undefined' && window.innerWidth < 640 ? 180 : 220}
                             />
                           </div>
                         )}
@@ -1841,7 +1841,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                             chartConfig={parseChartRequest(message.content)}
                             analytics={effectiveAnalytics}
                             allTrades={effectiveAllTrades}
-                            height={200}
+                            height={typeof window !== 'undefined' && window.innerWidth < 640 ? 180 : 200}
                             className="mt-3 -mx-1"
                           />
                         )}
@@ -1895,7 +1895,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
       </div>
 
       {/* Input */}
-      <div className="relative px-4 py-3 border-t border-white/5 flex-shrink-0">
+      <div className="relative px-2 sm:px-4 py-2 sm:py-3 border-t border-white/5 flex-shrink-0">
         {/* Model Selector */}
         <div className="mb-2 flex items-center justify-between">
           <div className="relative" ref={modelSelectorRef}>
@@ -1912,7 +1912,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
             </button>
             
             {showModelSelector && (
-              <div className="absolute bottom-full left-0 mb-1 bg-black/95 border border-white/10 rounded-lg shadow-lg z-50 min-w-[200px] overflow-hidden">
+              <div className="absolute bottom-full left-0 mb-1 bg-black/95 border border-white/10 rounded-lg shadow-lg z-50 w-[calc(100vw-2rem)] sm:w-auto sm:min-w-[200px] max-w-[200px] overflow-hidden">
                 <div className="p-1.5">
                   <div className="text-[10px] font-semibold text-white/40 px-2 py-1 mb-1">Provider</div>
                   <button
@@ -2044,11 +2044,11 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
         
         {/* Action buttons for users without data after first message - minimal inline */}
         {hasNoData && hasSentMessagesWithoutData && (
-          <div className="mb-2 flex gap-2 justify-center">
+          <div className="mb-2 flex flex-col sm:flex-row gap-2 justify-center">
             {onConnectExchange && (
               <button
                 onClick={onConnectExchange}
-                className="px-2.5 py-1 bg-white/10 hover:bg-white/15 text-white/80 rounded-md text-[10px] font-medium transition-colors flex items-center gap-1 border border-white/10"
+                className="px-2.5 py-1 bg-white/10 hover:bg-white/15 text-white/80 rounded-md text-[10px] font-medium transition-colors flex items-center justify-center gap-1 border border-white/10 w-full sm:w-auto"
               >
                 <LinkIcon className="w-3 h-3" />
                 Connect Exchange
@@ -2057,7 +2057,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
             {onUploadCSV && (
               <button
                 onClick={onUploadCSV}
-                className="px-2.5 py-1 bg-white/5 hover:bg-white/10 text-white/60 rounded-md text-[10px] font-medium transition-colors flex items-center gap-1 border border-white/5"
+                className="px-2.5 py-1 bg-white/5 hover:bg-white/10 text-white/60 rounded-md text-[10px] font-medium transition-colors flex items-center justify-center gap-1 border border-white/5 w-full sm:w-auto"
               >
                 <Upload className="w-3 h-3" />
                 Upload CSV
@@ -2065,43 +2065,55 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
             )}
           </div>
         )}
-        <div className="relative flex items-center">
-          <textarea
-            ref={inputRef}
-            data-ai-chat-input
-            value={input}
-            onChange={handleInputChange}
-            onFocus={handleInputFocus}
-            onBlur={handleInputBlur}
-            onClick={handleInputClick}
-            onKeyPress={handleKeyPress}
-            placeholder=""
-            className="relative w-full min-h-[40px] max-h-[120px] px-3 py-2.5 pr-10 text-sm bg-white/5 border border-white/10 rounded-lg text-white/90 resize-none focus:outline-none focus:border-white/20 transition-all placeholder:text-white/30"
-            style={{ lineHeight: '1.5' }}
-            rows={1}
-            disabled={isLoading}
-          />
-          {/* Animated placeholder overlay - typing animation */}
-          {input.length === 0 && !isInputFocused && messages.length === 0 && (
-            <div 
-              className="absolute inset-0 px-3 py-2.5 flex items-center pointer-events-none rounded-lg"
-              style={{ pointerEvents: 'none', zIndex: 20 }}
+        <div className="relative flex items-center gap-2">
+          {/* Mobile Sidebar Toggle Button - Only show on mobile and when on Vega page */}
+          {isVegaPage && onOpenMobileSidebar && (
+            <button
+              onClick={onOpenMobileSidebar}
+              className="md:hidden flex-shrink-0 p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white transition-colors z-10"
+              aria-label="Open chat history"
             >
-              <span className="text-sm text-white/40 font-normal">
-                {displayedSample}
-                <span className={`inline-block w-0.5 h-4 bg-white/40 ml-1 align-middle ${isTypingSample || isDeletingSample ? 'animate-pulse' : 'opacity-0'}`} />
-              </span>
-            </div>
+              <Menu className="w-5 h-5" />
+            </button>
           )}
+          <div className="relative flex-1">
+            <textarea
+              ref={inputRef}
+              data-ai-chat-input
+              value={input}
+              onChange={handleInputChange}
+              onFocus={handleInputFocus}
+              onBlur={handleInputBlur}
+              onClick={handleInputClick}
+              onKeyPress={handleKeyPress}
+              placeholder=""
+              className={`relative w-full min-h-[40px] max-h-[120px] py-2.5 pr-10 text-sm bg-white/5 border border-white/10 rounded-lg text-white/90 resize-none focus:outline-none focus:border-white/20 transition-all placeholder:text-white/30 ${
+                isVegaPage && onOpenMobileSidebar ? 'md:pl-3 pl-3' : 'px-3'
+              }`}
+              style={{ lineHeight: '1.5' }}
+              rows={1}
+              disabled={isLoading}
+            />
+            {/* Animated placeholder overlay - typing animation */}
+            {input.length === 0 && !isInputFocused && messages.length === 0 && (
+              <div 
+                className={`absolute inset-0 py-2.5 flex items-center pointer-events-none rounded-lg ${
+                  isVegaPage && onOpenMobileSidebar ? 'md:px-3 px-3' : 'px-3'
+                }`}
+                style={{ pointerEvents: 'none', zIndex: 20 }}
+              >
+                <span className="text-sm text-white/40 font-normal">
+                  {displayedSample}
+                  <span className={`inline-block w-0.5 h-4 bg-white/40 ml-1 align-middle ${isTypingSample || isDeletingSample ? 'animate-pulse' : 'opacity-0'}`} />
+                </span>
+              </div>
+            )}
+          </div>
           {/* Send/Stop button inside chatbox */}
           {isLoading ? (
             <button
               onClick={handleStop}
-              className="absolute right-2 text-white/60 hover:text-white/80 transition-colors z-20 flex items-center justify-center p-1.5"
-              style={{ 
-                top: '50%',
-                transform: 'translateY(-50%)'
-              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-white/60 hover:text-white/80 transition-colors z-20 flex items-center justify-center p-1.5"
               title="Stop generating"
               type="button"
             >
@@ -2111,11 +2123,8 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
             <button
               onClick={handleSend}
               disabled={!input.trim()}
-              className="absolute right-2 text-white/60 hover:text-white/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors z-20 flex items-center justify-center p-1.5"
-              style={{ 
-                top: '50%',
-                transform: 'translateY(-50%)'
-              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-white/60 hover:text-white/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors z-20 flex items-center justify-center p-1.5"
+              title="Send message"
               type="button"
             >
               <Send className="w-4 h-4" />

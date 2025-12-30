@@ -5,7 +5,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useAuth } from '@/lib/AuthContext'
 import { toast } from 'sonner'
 
-export default function VegaSidebar({ onNewChat, coachMode, setCoachMode, onSelectChat, currentConversationId }) {
+export default function VegaSidebar({ onNewChat, coachMode, setCoachMode, onSelectChat, currentConversationId, isMobile = false }) {
   const { user } = useAuth()
   const [conversations, setConversations] = useState([])
   const [loading, setLoading] = useState(true)
@@ -157,7 +157,7 @@ export default function VegaSidebar({ onNewChat, coachMode, setCoachMode, onSele
   }
 
   return (
-    <div className="w-64 hidden md:flex flex-col border-r border-white/5 bg-zinc-950/30 flex-shrink-0 h-full">
+    <div className={`w-64 ${isMobile ? 'flex' : 'hidden md:flex'} flex-col border-r border-white/5 bg-zinc-950/30 flex-shrink-0 h-full`}>
       {/* New Chat Button */}
       <div className="p-4 space-y-4">
         <button

@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/AuthContext'
 import AuthScreen from '../analyze/components/AuthScreen'
 import AIChat from '../analyze/components/AIChat'
 import Header from '../analyze/components/Header'
-import { Loader2, Brain, Sparkles, Zap, TrendingUp, Shield, ArrowRight, RefreshCw } from 'lucide-react'
+import { Loader2, Brain, Sparkles, Zap, TrendingUp, Shield, ArrowRight, RefreshCw, Menu, X } from 'lucide-react'
 import AuthModal from '../components/AuthModal'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { toast } from 'sonner'
@@ -61,6 +61,8 @@ export default function VegaContent() {
   const chatRef = useRef(null)
   const [currentConversationId, setCurrentConversationId] = useState(null)
   const [refreshingAnalytics, setRefreshingAnalytics] = useState(false)
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+  const [isDisclaimerExpanded, setIsDisclaimerExpanded] = useState(false)
   
   // Persist coach mode preference
   useEffect(() => {
@@ -451,10 +453,10 @@ export default function VegaContent() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+      <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
         <div className="text-center space-y-4">
-          <Loader2 className="w-8 h-8 animate-spin text-emerald-400 mx-auto" />
-          <p className="text-white/60">Loading Vega AI...</p>
+          <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 animate-spin text-emerald-400 mx-auto" />
+          <p className="text-sm sm:text-base text-white/60">Loading Vega AI...</p>
         </div>
       </div>
     )
@@ -467,14 +469,14 @@ export default function VegaContent() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center p-6">
+      <div className="min-h-screen bg-black text-white flex items-center justify-center p-4 sm:p-6">
         <div className="text-center space-y-4 max-w-md">
-          <Brain className="w-12 h-12 text-red-400 mx-auto" />
-          <h2 className="text-xl font-semibold">Error Loading Data</h2>
-          <p className="text-white/60">{error}</p>
+          <Brain className="w-10 h-10 sm:w-12 sm:h-12 text-red-400 mx-auto" />
+          <h2 className="text-lg sm:text-xl font-semibold">Error Loading Data</h2>
+          <p className="text-sm sm:text-base text-white/60">{error}</p>
           <button
             onClick={() => router.push('/dashboard')}
-            className="px-4 py-2 bg-emerald-400/10 hover:bg-emerald-400/15 border border-emerald-400/30 rounded-lg text-emerald-400 hover:text-emerald-300 transition-colors"
+            className="px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base bg-emerald-400/10 hover:bg-emerald-400/15 border border-emerald-400/30 rounded-lg text-emerald-400 hover:text-emerald-300 transition-colors"
           >
             Go to Dashboard
           </button>
@@ -520,7 +522,61 @@ export default function VegaContent() {
       />
       
       {/* Main Content Area - Full width flex container */}
-      <main className="flex flex-row flex-1 min-h-0 bg-black overflow-hidden">
+      <main className="flex flex-col md:flex-row flex-1 min-h-0 bg-black overflow-hidden">
+
+        {/* Mobile Sidebar Drawer */}
+        {isMobileSidebarOpen && (
+          <>
+            {/* Backdrop */}
+            <div
+              className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+              onClick={() => setIsMobileSidebarOpen(false)}
+            />
+            {/* Mobile Sidebar */}
+            <div className="md:hidden fixed inset-y-0 left-0 w-64 bg-zinc-950 border-r border-white/5 z-50 flex flex-col">
+              <div className="flex items-center justify-between p-4 border-b border-white/5">
+                <span className="text-lg font-semibold text-white">Chat History</span>
+                <button
+                  onClick={() => setIsMobileSidebarOpen(false)}
+                  className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+                  aria-label="Close sidebar"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                <Suspense fallback={
+                  <div className="p-4">
+                    <div className="w-full h-12 bg-white/5 rounded-xl animate-pulse" />
+                  </div>
+                }>
+                  <VegaSidebar 
+                    onNewChat={() => {
+                      setIsMobileSidebarOpen(false)
+                      if (chatRef.current?.isNewChat?.()) {
+                        return
+                      }
+                      setCurrentConversationId(null)
+                      chatRef.current?.clearChat()
+                    }}
+                    onSelectChat={(conversationId) => {
+                      setIsMobileSidebarOpen(false)
+                      setCurrentConversationId(conversationId)
+                      if (chatRef.current && conversationId) {
+                        chatRef.current.loadConversation(conversationId)
+                      }
+                    }}
+                    currentConversationId={currentConversationId}
+                    coachMode={coachMode}
+                    setCoachMode={setCoachMode}
+                    isMobile={true}
+                  />
+                </Suspense>
+              </div>
+            </div>
+          </>
+        )}
+
         {/* OPTIMIZATION: Lazy-loaded Sidebar with Suspense fallback */}
         <Suspense fallback={
           <div className="w-64 hidden md:flex flex-col border-r border-white/5 bg-zinc-950/30 flex-shrink-0 h-full">
@@ -548,18 +604,19 @@ export default function VegaContent() {
             currentConversationId={currentConversationId}
             coachMode={coachMode}
             setCoachMode={setCoachMode}
+            isMobile={false}
           />
         </Suspense>
 
         {/* Chat Area */}
-        <div className="flex flex-col flex-1 h-full relative min-w-0">
+        <div className="flex flex-col flex-1 h-full relative min-w-0 md:ml-0">
           {/* Demo Mode Banner (Overlay or Top Bar) */}
           {isDemoMode && !user && (
             <div className="absolute top-2 left-2 right-2 sm:top-4 sm:left-4 sm:right-4 z-20 flex justify-center pointer-events-none">
-              <div className="bg-emerald-500/10 backdrop-blur-md border border-emerald-500/20 rounded-full px-3 py-1.5 sm:px-4 sm:py-2 flex items-center gap-2 sm:gap-3 shadow-lg pointer-events-auto max-w-full">
-                 <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 flex-shrink-0" />
+              <div className="bg-emerald-500/10 backdrop-blur-md border border-emerald-500/20 rounded-full px-2.5 py-1.5 sm:px-4 sm:py-2 flex items-center gap-1.5 sm:gap-3 shadow-lg pointer-events-auto max-w-full">
+                 <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-400 flex-shrink-0" />
                  <span className="text-[10px] sm:text-xs text-white/90 font-medium whitespace-nowrap">Demo Mode</span>
-                 <div className="w-px h-2.5 sm:h-3 bg-white/10 flex-shrink-0" />
+                 <div className="w-px h-2 sm:h-3 bg-white/10 flex-shrink-0" />
                  <button
                     onClick={() => setShowAuthModal(true)}
                     className="text-[10px] sm:text-xs text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-0.5 sm:gap-1 whitespace-nowrap"
@@ -572,8 +629,33 @@ export default function VegaContent() {
 
           <div className="flex flex-col flex-1 min-h-0 relative">
             {/* Vega AI Disclaimer */}
-            <div className={`px-3 sm:px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 ${isDemoMode && !user ? 'mt-12 sm:mt-16' : ''} relative`}>
-              <p className="text-[10px] sm:text-xs text-amber-400/80 text-center leading-relaxed pr-20 sm:pr-24">
+            <div className={`px-2 sm:px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 ${isDemoMode && !user ? 'mt-12 sm:mt-16' : ''} relative`}>
+              <div className="sm:hidden">
+                {/* Mobile: Single line with read more */}
+                <p className="text-[10px] text-amber-400/80 text-center leading-relaxed pr-12">
+                  <strong>Disclaimer:</strong> Vega AI provides AI-powered trading insights.{' '}
+                  {!isDisclaimerExpanded && (
+                    <button
+                      onClick={() => setIsDisclaimerExpanded(true)}
+                      className="text-amber-300 hover:text-amber-200 underline font-medium"
+                    >
+                      Read more
+                    </button>
+                  )}
+                </p>
+                {isDisclaimerExpanded && (
+                  <p className="text-[10px] text-amber-400/80 text-center leading-relaxed pr-12 mt-1">
+                    This is not financial advice. Always conduct your own research and consult with a qualified financial advisor before making trading decisions.{' '}
+                    <button
+                      onClick={() => setIsDisclaimerExpanded(false)}
+                      className="text-amber-300 hover:text-amber-200 underline font-medium"
+                    >
+                      Show less
+                    </button>
+                  </p>
+                )}
+              </div>
+              <p className="hidden sm:block text-xs text-amber-400/80 text-center leading-relaxed pr-24">
                 <strong>Disclaimer:</strong> Vega AI provides AI-powered trading insights and analysis. 
                 This is not financial advice. Always conduct your own research and consult with a qualified financial advisor before making trading decisions.
               </p>
@@ -584,10 +666,10 @@ export default function VegaContent() {
                   <button
                     onClick={refreshAnalytics}
                     disabled={refreshingAnalytics}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 hover:border-emerald-500/40 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                    className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2.5 py-1 sm:py-1.5 text-xs text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 hover:border-emerald-500/40 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                     title="Refresh analytics data"
                   >
-                    <RefreshCw className={`w-3.5 h-3.5 ${refreshingAnalytics ? 'animate-spin' : ''}`} />
+                    <RefreshCw className={`w-3 sm:w-3.5 h-3 sm:h-3.5 ${refreshingAnalytics ? 'animate-spin' : ''}`} />
                     <span className="hidden sm:inline font-medium">Refresh</span>
                   </button>
                 </div>
@@ -620,6 +702,7 @@ export default function VegaContent() {
                 isFullPage={true}
                 isDemoMode={isDemoMode}
                 coachMode={coachMode}
+                onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
               />
             </div>
           </div>

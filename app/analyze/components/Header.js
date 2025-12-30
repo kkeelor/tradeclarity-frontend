@@ -321,14 +321,14 @@ export default function Header({
 
           <div className="flex items-center gap-1 sm:gap-2 md:gap-3 flex-shrink-0">
             {exchangeConfig && (
-              <span className="hidden items-center gap-2 rounded-full border border-white/5 bg-white/[0.02] px-3 py-1 text-xs text-slate-300/80 sm:inline-flex">
+              <span className="hidden items-center gap-1.5 sm:gap-2 rounded-full border border-white/5 bg-white/[0.02] px-2 sm:px-3 py-1 text-[10px] sm:text-xs text-slate-300/80 sm:inline-flex">
                 {exchangeConfig.icon}
                 <span className="hidden md:inline">{exchangeConfig.displayName}</span>
               </span>
             )}
 
             {currencyMetadata?.supportsCurrencySwitch && currencyMetadata.availableCurrencies.length > 1 && (
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1 sm:gap-1.5">
                 <CurrencyDropdown
                   currencies={currencyMetadata.availableCurrencies}
                   selectedCurrency={currency}
@@ -337,7 +337,7 @@ export default function Header({
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <HelpCircle className="w-3.5 h-3.5 text-white/40 hover:text-white/60 transition-colors " />
+                      <HelpCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white/40 hover:text-white/60 transition-colors" />
                     </TooltipTrigger>
                     <TooltipContent side="bottom" className="max-w-xs">
                       <p className="font-medium mb-1">Currency Display</p>
@@ -352,7 +352,7 @@ export default function Header({
 
             <button
               onClick={() => setShowFeedbackModal(true)}
-              className="text-xs text-white/50 hover:text-white/80 transition-colors"
+              className="text-[10px] sm:text-xs text-white/50 hover:text-white/80 transition-colors hidden xs:inline-block"
             >
               Feedback
             </button>
