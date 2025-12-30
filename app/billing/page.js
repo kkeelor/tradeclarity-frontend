@@ -232,16 +232,16 @@ export default function BillingPage() {
         isDemoMode={false}
       />
 
-      <div className="flex-1 mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-12">
-        <h1 className="text-3xl font-semibold mb-8 text-white/90">Billing & Subscription</h1>
+      <div className="flex-1 mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        <h1 className="text-2xl sm:text-3xl font-semibold mb-6 sm:mb-8 text-white/90">Billing & Subscription</h1>
 
         {/* Current Plan */}
-        <div className="rounded-xl border border-white/10 bg-black p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-xl font-medium mb-2 text-white/90">Current Plan</h2>
-              <div className="flex items-center gap-3">
-                <span className={`text-2xl font-semibold ${
+        <div className="rounded-xl border border-white/10 bg-black p-4 sm:p-6 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg sm:text-xl font-medium mb-2 text-white/90">Current Plan</h2>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <span className={`text-xl sm:text-2xl font-semibold ${
                   subscription?.tier === 'free' ? 'text-white/70' :
                   subscription?.tier === 'trader' ? 'text-white/90' :
                   'text-white/90'
@@ -249,19 +249,19 @@ export default function BillingPage() {
                   {getTierDisplayName(subscription?.tier || 'free')}
                 </span>
                 {isActive && (
-                  <span className="px-3 py-1 bg-white/10 text-white/80 rounded-full text-xs font-medium flex items-center gap-1 border border-white/10">
+                  <span className="px-2 sm:px-3 py-1 bg-white/10 text-white/80 rounded-full text-xs font-medium flex items-center gap-1 border border-white/10 whitespace-nowrap">
                     <CheckCircle className="w-3 h-3" />
                     Active
                   </span>
                 )}
                 {isCanceled && (
-                  <span className="px-3 py-1 bg-white/5 text-white/50 rounded-full text-xs font-medium flex items-center gap-1 border border-white/10">
+                  <span className="px-2 sm:px-3 py-1 bg-white/5 text-white/50 rounded-full text-xs font-medium flex items-center gap-1 border border-white/10 whitespace-nowrap">
                     <XCircle className="w-3 h-3" />
                     Canceled
                   </span>
                 )}
                 {isPastDue && (
-                  <span className="px-3 py-1 bg-red-500/10 text-red-400 rounded-full text-xs font-medium flex items-center gap-1 border border-red-500/20">
+                  <span className="px-2 sm:px-3 py-1 bg-red-500/10 text-red-400 rounded-full text-xs font-medium flex items-center gap-1 border border-red-500/20 whitespace-nowrap">
                     <AlertCircle className="w-3 h-3" />
                     Payment Failed
                   </span>
@@ -269,7 +269,7 @@ export default function BillingPage() {
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <HelpCircle className="w-4 h-4 text-white/40 hover:text-white/60 transition-colors " />
+                      <HelpCircle className="w-4 h-4 text-white/40 hover:text-white/60 transition-colors flex-shrink-0" />
                     </TooltipTrigger>
                     <TooltipContent side="right" className="max-w-xs">
                       <p className="font-medium mb-1">{getTierDisplayName(subscription?.tier || 'free')} Plan</p>
@@ -294,7 +294,7 @@ export default function BillingPage() {
             {subscription?.tier !== 'free' && (
               <button
                 onClick={() => router.push('/pricing')}
-                className="px-4 py-2 bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 rounded-lg text-sm font-medium text-white/80 transition-all"
+                className="px-4 py-2 bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 rounded-lg text-sm font-medium text-white/80 transition-all whitespace-nowrap flex-shrink-0"
               >
                 Change Plan
               </button>
@@ -356,7 +356,7 @@ export default function BillingPage() {
 
         {/* Usage */}
         {subscription?.tier !== 'free' && (
-          <div className="rounded-xl border border-white/10 bg-black p-6 mb-6">
+          <div className="rounded-xl border border-white/10 bg-black p-4 sm:p-6 mb-6">
             <Suspense fallback={<div className="flex items-center justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-white/70" /></div>}>
               <UsageLimits subscription={subscription} />
             </Suspense>
@@ -365,27 +365,27 @@ export default function BillingPage() {
 
         {/* Payment Method */}
         {subscription?.tier !== 'free' && (
-          <div className="rounded-xl border border-white/10 bg-black p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-medium text-white/90">Payment Method</h2>
+          <div className="rounded-xl border border-white/10 bg-black p-4 sm:p-6 mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4">
+              <h2 className="text-lg sm:text-xl font-medium text-white/90">Payment Method</h2>
               <button
                 onClick={handleManageBilling}
-                className="px-4 py-2 bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 rounded-lg text-sm font-medium text-white/80 transition-all"
+                className="px-4 py-2 bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 rounded-lg text-sm font-medium text-white/80 transition-all whitespace-nowrap flex-shrink-0 self-start sm:self-auto"
               >
                 Manage
               </button>
             </div>
-            <div className="flex items-center gap-3 text-sm text-white/60">
-              <CreditCard className="w-5 h-5" />
-              <span>Manage your payment method and billing history in Razorpay</span>
+            <div className="flex items-start sm:items-center gap-3 text-sm text-white/60">
+              <CreditCard className="w-5 h-5 flex-shrink-0 mt-0.5 sm:mt-0" />
+              <span className="break-words">Manage your payment method and billing history in Razorpay</span>
             </div>
           </div>
         )}
 
         {/* Actions */}
         {subscription?.tier !== 'free' && (
-          <div className="rounded-xl border border-white/10 bg-black p-6">
-            <h2 className="text-xl font-medium mb-4 text-white/90">Subscription Management</h2>
+          <div className="rounded-xl border border-white/10 bg-black p-4 sm:p-6">
+            <h2 className="text-lg sm:text-xl font-medium mb-4 text-white/90">Subscription Management</h2>
             <div className="space-y-3">
               {!subscription?.cancel_at_period_end ? (
                 <button
@@ -401,14 +401,14 @@ export default function BillingPage() {
                     setShowCancelDialog(true)
                   }}
                   disabled={canceling}
-                  className="w-full px-4 py-3 bg-red-500/10 hover:bg-red-500/15 border border-red-500/20 hover:border-red-500/30 rounded-lg text-sm font-medium text-red-400 transition-all disabled:opacity-50"
+                  className="w-full px-4 py-3 bg-red-500/10 hover:bg-red-500/15 border border-red-500/20 hover:border-red-500/30 rounded-lg text-sm font-medium text-red-400 transition-all disabled:opacity-50 break-words"
                 >
                   Cancel Subscription
                 </button>
               ) : null}
               <button
                 onClick={() => router.push('/pricing')}
-                className="w-full px-4 py-3 bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 rounded-lg text-sm font-medium text-white/80 transition-all"
+                className="w-full px-4 py-3 bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 rounded-lg text-sm font-medium text-white/80 transition-all break-words"
               >
                 View Plans & Upgrade
               </button>
@@ -418,18 +418,18 @@ export default function BillingPage() {
 
         {/* Cancel Subscription Confirmation Dialog */}
         <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-          <AlertDialogContent className="bg-black border-white/10">
+          <AlertDialogContent className="bg-black border-white/10 max-w-[95vw] sm:max-w-md mx-4">
             <AlertDialogHeader>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center flex-shrink-0">
                   <AlertCircle className="w-5 h-5 text-red-400" />
                 </div>
-                <AlertDialogTitle className="text-xl font-semibold text-white/90">
+                <AlertDialogTitle className="text-lg sm:text-xl font-semibold text-white/90 break-words">
                   Cancel {subscription?.tier === 'trader' ? 'Trader' : subscription?.tier === 'pro' ? 'Pro' : 'Premium'} Subscription?
                 </AlertDialogTitle>
               </div>
-              <AlertDialogDescription className="text-white/70 space-y-3 pt-2">
-                <p>
+              <AlertDialogDescription className="text-white/70 space-y-3 pt-2 text-sm sm:text-base">
+                <p className="break-words">
                   You'll continue to have full access to all {subscription?.tier === 'trader' ? 'Trader' : subscription?.tier === 'pro' ? 'Pro' : 'Premium'} features until{' '}
                   <span className="font-medium text-white/90">
                     {subscription?.current_period_end
@@ -441,26 +441,26 @@ export default function BillingPage() {
                       : 'the end of your billing period'}
                   </span>.
                 </p>
-                <p>
+                <p className="break-words">
                   After that, your account will be downgraded to <span className="font-medium text-white/90">Free tier</span>.
                 </p>
-                <p className="text-white/80">
+                <p className="text-white/80 break-words">
                   You can reactivate your subscription anytime before your access ends.
                 </p>
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter className="gap-3 sm:gap-3">
+            <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-3">
               <AlertDialogCancel 
                 onClick={() => setShowCancelDialog(false)}
                 disabled={canceling}
-                className="bg-white/5 hover:bg-white/10 border-white/10 text-white/70"
+                className="w-full sm:w-auto bg-white/5 hover:bg-white/10 border-white/10 text-white/70"
               >
                 Keep Subscription
               </AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleCancelSubscription}
                 disabled={canceling}
-                className="bg-red-500/10 hover:bg-red-500/15 border border-red-500/20 hover:border-red-500/30 text-red-400 focus:ring-red-500/20"
+                className="w-full sm:w-auto bg-red-500/10 hover:bg-red-500/15 border border-red-500/20 hover:border-red-500/30 text-red-400 focus:ring-red-500/20"
               >
                 {canceling ? (
                   <>
@@ -476,9 +476,9 @@ export default function BillingPage() {
         </AlertDialog>
 
         {subscription?.tier === 'free' && (
-          <div className="rounded-xl border border-white/10 bg-black p-6 text-center mb-6">
-            <h2 className="text-xl font-medium mb-2 text-white/90">Ready to unlock more?</h2>
-            <p className="text-sm text-white/60 mb-4">
+          <div className="rounded-xl border border-white/10 bg-black p-4 sm:p-6 text-center mb-6">
+            <h2 className="text-lg sm:text-xl font-medium mb-2 text-white/90">Ready to unlock more?</h2>
+            <p className="text-sm text-white/60 mb-4 break-words">
               Upgrade to Trader or Pro to get unlimited analytics, historical tracking, and more.
             </p>
             <button
@@ -492,8 +492,8 @@ export default function BillingPage() {
 
         {/* Payment History */}
         {(subscription?.tier !== 'free' || paymentHistory.length > 0) && (
-          <div className="rounded-xl border border-white/10 bg-black p-6">
-            <h2 className="text-xl font-medium mb-4 text-white/90">Payment History</h2>
+          <div className="rounded-xl border border-white/10 bg-black p-4 sm:p-6">
+            <h2 className="text-lg sm:text-xl font-medium mb-4 text-white/90">Payment History</h2>
             {loadingHistory ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-6 h-6 animate-spin text-white/70" />
@@ -508,10 +508,10 @@ export default function BillingPage() {
                 {paymentHistory.map((invoice) => (
                   <div
                     key={invoice.id}
-                    className="flex items-center justify-between p-4 rounded-xl border border-white/10 bg-black hover:bg-white/5 transition-colors"
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 p-4 rounded-xl border border-white/10 bg-black hover:bg-white/5 transition-colors"
                   >
-                    <div className="flex items-center gap-4 flex-1">
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center border ${
+                    <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center border flex-shrink-0 ${
                         invoice.status === 'paid' 
                           ? 'bg-white/5 text-white/70 border-white/10' 
                           : 'bg-white/5 text-white/40 border-white/10'
@@ -522,12 +522,12 @@ export default function BillingPage() {
                           <XCircle className="w-5 h-5" />
                         )}
                       </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-medium text-white/90">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <p className="font-medium text-white/90 break-words">
                             {invoice.description || `Invoice #${invoice.invoice_number || invoice.id}`}
                           </p>
-                          <span className={`px-2 py-0.5 rounded-md text-xs font-medium border ${
+                          <span className={`px-2 py-0.5 rounded-md text-xs font-medium border whitespace-nowrap flex-shrink-0 ${
                             invoice.status === 'paid'
                               ? 'bg-white/5 text-white/70 border-white/10'
                               : 'bg-white/5 text-white/50 border-white/10'
@@ -535,7 +535,7 @@ export default function BillingPage() {
                             {invoice.status === 'paid' ? 'Paid' : 'Pending'}
                           </span>
                         </div>
-                        <p className="text-sm text-white/50">
+                        <p className="text-sm text-white/50 break-words">
                           {invoice.billing_period ? (
                             invoice.billing_period
                           ) : (
@@ -548,13 +548,13 @@ export default function BillingPage() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
-                        <p className="font-medium text-white/90">
+                    <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 flex-shrink-0">
+                      <div className="text-left sm:text-right">
+                        <p className="font-medium text-white/90 whitespace-nowrap">
                           {invoice.currency || 'INR'} {((invoice.amount || 0) / 100).toFixed(2)}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         <button
                           onClick={() => handleDownloadInvoice(invoice.id, 'html')}
                           className="p-2 rounded-lg hover:bg-white/10 text-white/50 hover:text-white/80 transition-colors"

@@ -363,7 +363,7 @@ export default function Header({
 
             <button
               onClick={() => setShowFeedbackModal(true)}
-              className="text-[10px] sm:text-xs text-white/50 hover:text-white/80 transition-colors hidden xs:inline-block"
+              className="text-[10px] sm:text-xs text-white/50 hover:text-white/80 transition-colors"
             >
               Feedback
             </button>
@@ -484,8 +484,18 @@ export default function Header({
               </nav>
 
               {/* Footer Actions */}
-              {user && (
-                <div className="p-4 border-t border-white/5">
+              <div className="p-4 border-t border-white/5 space-y-2">
+                <button
+                  onClick={() => {
+                    setIsMobileMenuOpen(false)
+                    setShowFeedbackModal(true)
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-300 text-slate-300 hover:bg-white/[0.05] hover:text-emerald-400 border border-transparent"
+                >
+                  <HelpCircle className="h-5 w-5" />
+                  <span>Feedback</span>
+                </button>
+                {user && (
                   <button
                     onClick={() => handleNavClick(onSignOut || handleSignOut)}
                     className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-300 text-slate-400 hover:bg-white/[0.05] hover:text-red-400 border border-transparent"
@@ -493,8 +503,8 @@ export default function Header({
                     <LogOut className="h-5 w-5" />
                     <span>Sign Out</span>
                   </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </>
