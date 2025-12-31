@@ -232,6 +232,7 @@ function VegaChartRenderer({
             showVolume={options.showVolume || false}
             height={height}
             title={title}
+            timeRange={options.timeRange || null}
           />
         </div>
       )

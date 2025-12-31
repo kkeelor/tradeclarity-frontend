@@ -7,8 +7,9 @@
  * Data comes from MCP tools (TIME_SERIES_INTRADAY, etc.)
  */
 
-import { memo, useCallback } from 'react'
+import { memo, useCallback, useRef, useEffect, useMemo } from 'react'
 import TradingViewChart, { CHART_COLORS } from './TradingViewChart'
+import { LineSeries, CandlestickSeries, AreaSeries, HistogramSeries } from 'lightweight-charts'
 
 /**
  * Transform MCP time series data to chart format
@@ -110,10 +111,19 @@ function PriceChart({
   height = 300,
   title,
   className = '',
+  timeRange = null, // { days, startTime, endTime } from backend
 }) {
-  // Transform data
-  const chartData = transformPriceData(data)
-  const volumeData = showVolume ? transformVolumeData(data) : []
+  // Transform data - use useMemo to avoid unnecessary recalculations
+  const chartData = useMemo(() => {
+    return transformPriceData(data)
+  }, [data])
+  
+  const volumeData = useMemo(() => {
+    return showVolume ? transformVolumeData(data) : []
+  }, [data, showVolume])
+  const seriesRef = useRef(null)
+  const chartInstanceRef = useRef(null)
+
 
   // Auto-detect chart type based on data
   const effectiveChartType = chartType || (
@@ -121,61 +131,130 @@ function PriceChart({
   )
 
   const handleChartReady = useCallback((chart, { colors }) => {
-    if (chartData.length === 0) return
-
-    if (effectiveChartType === 'candlestick') {
-      // Candlestick series
-      const candlestickSeries = chart.addCandlestickSeries({
-        upColor: colors.upColor,
-        downColor: colors.downColor,
-        borderUpColor: colors.upColor,
-        borderDownColor: colors.downColor,
-        wickUpColor: colors.upColor,
-        wickDownColor: colors.downColor,
-      })
-      candlestickSeries.setData(chartData)
-    } else if (effectiveChartType === 'area') {
-      // Area series
-      const areaSeries = chart.addAreaSeries({
-        lineColor: colors.lineColor,
-        topColor: colors.areaTopColor,
-        bottomColor: colors.areaBottomColor,
-        lineWidth: 2,
-      })
-      areaSeries.setData(chartData)
-    } else {
-      // Line series (default)
-      const lineSeries = chart.addLineSeries({
-        color: colors.lineColor,
-        lineWidth: 2,
-        crosshairMarkerVisible: true,
-        crosshairMarkerRadius: 4,
-      })
-      lineSeries.setData(chartData)
+    if (!chart) {
+      console.error('[PriceChart] Chart instance is null/undefined')
+      return
+    }
+    
+    // Store chart instance
+    chartInstanceRef.current = chart
+    
+    if (chartData.length === 0) {
+      console.warn('[PriceChart] No chart data available')
+      return
     }
 
-    // Add volume if requested
-    if (showVolume && volumeData.length > 0) {
-      const volumeSeries = chart.addHistogramSeries({
-        priceFormat: {
-          type: 'volume',
-        },
-        priceScaleId: 'volume',
-      })
+    try {
+      // Remove existing series if any
+      // Only remove if we have a valid series reference and chart has removeSeries method
+      if (seriesRef.current && chart && typeof chart.removeSeries === 'function') {
+        try {
+          // Verify the series is still valid before removing
+          if (seriesRef.current && typeof seriesRef.current.setData === 'function') {
+            chart.removeSeries(seriesRef.current)
+          }
+        } catch (removeError) {
+          // Series might already be removed or invalid, ignore
+          console.warn('[PriceChart] Error removing series (non-fatal):', removeError)
+        }
+        seriesRef.current = null
+      }
+      
+      // Use addSeries with series definitions (v5 API as shown in GitHub README)
+      if (effectiveChartType === 'candlestick') {
+        const candlestickSeries = chart.addSeries(CandlestickSeries, {
+          upColor: colors.upColor,
+          downColor: colors.downColor,
+          borderUpColor: colors.upColor,
+          borderDownColor: colors.downColor,
+          wickUpColor: colors.upColor,
+          wickDownColor: colors.downColor,
+        })
+        candlestickSeries.setData(chartData)
+        seriesRef.current = candlestickSeries
+      } else if (effectiveChartType === 'area') {
+        const areaSeries = chart.addSeries(AreaSeries, {
+          lineColor: colors.lineColor,
+          topColor: colors.areaTopColor,
+          bottomColor: colors.areaBottomColor,
+          lineWidth: 2,
+        })
+        areaSeries.setData(chartData)
+        seriesRef.current = areaSeries
+      } else {
+        const lineSeries = chart.addSeries(LineSeries, {
+          color: colors.lineColor,
+          lineWidth: 2,
+          crosshairMarkerVisible: true,
+          crosshairMarkerRadius: 4,
+        })
+        lineSeries.setData(chartData)
+        seriesRef.current = lineSeries
+      }
 
-      chart.priceScale('volume').applyOptions({
-        scaleMargins: {
-          top: 0.8,
-          bottom: 0,
-        },
-      })
+      // Add volume if requested
+      if (showVolume && volumeData.length > 0) {
+        const volumeSeries = chart.addSeries(HistogramSeries, {
+          priceFormat: {
+            type: 'volume',
+          },
+          priceScaleId: 'volume',
+        })
 
-      volumeSeries.setData(volumeData)
+        chart.priceScale('volume').applyOptions({
+          scaleMargins: {
+            top: 0.8,
+            bottom: 0,
+          },
+        })
+
+        volumeSeries.setData(volumeData)
+      }
+
+      // Set visible range based on timeRange if provided
+      if (timeRange && timeRange.startTime && timeRange.endTime) {
+        // Set visible range to exactly match the requested time window
+        try {
+          chart.timeScale().setVisibleRange({
+            from: timeRange.startTime,
+            to: timeRange.endTime
+          })
+          // Log visible range for debugging
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[PriceChart] Set visible range:', {
+              from: timeRange.startTime,
+              to: timeRange.endTime,
+              days: timeRange.days,
+              fromDate: new Date(timeRange.startTime * 1000).toISOString(),
+              toDate: new Date(timeRange.endTime * 1000).toISOString()
+            })
+          }
+        } catch (rangeError) {
+          console.warn('[PriceChart] Error setting visible range, using fitContent:', rangeError)
+          chart.timeScale().fitContent()
+        }
+      } else {
+        // Fallback: fit content to show all data
+        chart.timeScale().fitContent()
+      }
+    } catch (error) {
+      console.error('[PriceChart] Error setting up chart:', error)
     }
-
-    // Fit content
-    chart.timeScale().fitContent()
   }, [chartData, volumeData, effectiveChartType, showVolume])
+
+  // Update chart data when it changes (after initial setup)
+  useEffect(() => {
+    if (!chartInstanceRef.current || !seriesRef.current || chartData.length === 0) {
+      return
+    }
+
+    try {
+      seriesRef.current.setData(chartData)
+      chartInstanceRef.current.timeScale().fitContent()
+    } catch (error) {
+      console.error('[PriceChart] Error updating chart data:', error)
+    }
+  }, [chartData])
 
   if (chartData.length === 0) {
     return (

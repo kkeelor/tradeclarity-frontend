@@ -98,12 +98,20 @@ function TradingViewChart({
   const containerRef = useRef(null)
   const chartRef = useRef(null)
   const resizeObserverRef = useRef(null)
+  const onChartReadyRef = useRef(onChartReady)
 
-  // Handle resize
+  // Keep callback ref up to date
+  useEffect(() => {
+    onChartReadyRef.current = onChartReady
+  }, [onChartReady])
+
+  // Handle resize - use ref callback to avoid dependency issues
   const handleResize = useCallback(() => {
-    if (chartRef.current && containerRef.current) {
-      const { width } = containerRef.current.getBoundingClientRect()
-      chartRef.current.applyOptions({ width })
+    const chart = chartRef.current
+    const container = containerRef.current
+    if (chart && container) {
+      const { width } = container.getBoundingClientRect()
+      chart.applyOptions({ width })
     }
   }, [])
 
@@ -128,8 +136,12 @@ function TradingViewChart({
     resizeObserverRef.current.observe(container)
 
     // Notify parent that chart is ready
-    if (onChartReady) {
-      onChartReady(chart, { colors: CHART_COLORS })
+    // lightweight-charts v5 chart is ready immediately after creation
+    // Call callback immediately with chart instance (not through ref to avoid timing issues)
+    if (onChartReadyRef.current) {
+      // Use the chart instance directly from closure, not from ref
+      // This ensures we have the correct instance with all methods
+      onChartReadyRef.current(chart, { colors: CHART_COLORS })
     }
 
     // Cleanup
@@ -142,7 +154,7 @@ function TradingViewChart({
         chartRef.current = null
       }
     }
-  }, [height, onChartReady, handleResize]) // Note: options excluded to prevent re-creation
+  }, [height]) // Only depend on height - handleResize and onChartReady are stable
 
   // Update options without recreating chart
   useEffect(() => {

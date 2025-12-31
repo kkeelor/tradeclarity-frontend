@@ -516,8 +516,71 @@ export async function POST(request) {
           }
         }
         
+        // Helper function to parse CSV data to chart format
+        // Handles formats like: "2025-12-24,187.9400,188.9100,186.5900,188.6100,1234567"
+        // Or: "date,open,high,low,close,volume\n2025-12-24,187.94,188.91,186.59,188.61,1234567"
+        const parseCSVToChartData = (csvString) => {
+          const lines = csvString.split(/\r?\n/).filter(line => line.trim())
+          if (lines.length === 0) return []
+          
+          // Detect header row (might be present)
+          const firstLine = lines[0].toLowerCase()
+          const hasHeader = firstLine.includes('timestamp') || 
+                           firstLine.includes('date') ||
+                           firstLine.includes('open') ||
+                           firstLine.includes('time')
+          
+          const dataLines = hasHeader ? lines.slice(1) : lines
+          
+          return dataLines.map((line, index) => {
+            const parts = line.split(',').map(p => p.trim())
+            if (parts.length < 4) {
+              debugWarn(`[Chart] CSV line ${index + 1} has insufficient columns: ${line}`)
+              return null
+            }
+            
+            // Try to parse date (first column)
+            let timestamp
+            try {
+              const dateStr = parts[0]
+              // Handle formats: "2025-12-24" or "2025-12-24 16:00:00" or "2025-12-24T16:00:00"
+              const date = new Date(dateStr)
+              if (isNaN(date.getTime())) {
+                debugWarn(`[Chart] Invalid date in CSV line ${index + 1}: ${dateStr}`)
+                return null
+              }
+              timestamp = Math.floor(date.getTime() / 1000)
+            } catch (e) {
+              debugWarn(`[Chart] Date parse error in CSV line ${index + 1}: ${e.message}`)
+              return null
+            }
+            
+            // Parse OHLCV
+            // Format: date,open,high,low,close[,volume]
+            const open = parseFloat(parts[1] || 0)
+            const high = parseFloat(parts[2] || 0)
+            const low = parseFloat(parts[3] || 0)
+            const close = parseFloat(parts[4] || 0)
+            const volume = parts.length > 5 ? parseFloat(parts[5] || 0) : 0
+            
+            if (isNaN(open) || isNaN(high) || isNaN(low) || isNaN(close)) {
+              debugWarn(`[Chart] Invalid numeric values in CSV line ${index + 1}: ${line}`)
+              return null
+            }
+            
+            return {
+              time: timestamp,
+              open,
+              high,
+              low,
+              close,
+              volume: isNaN(volume) ? 0 : volume
+            }
+          }).filter(Boolean)
+        }
+        
         // Helper function to send chart data to frontend
-        const sendChartData = (toolName, symbol, rawData) => {
+        const sendChartData = (toolName, symbol, rawData, toolInput = {}) => {
           // Only process time series tools
           const timeSeriesTools = ['TIME_SERIES_INTRADAY', 'TIME_SERIES_DAILY', 'TIME_SERIES_WEEKLY', 'DIGITAL_CURRENCY_DAILY']
           if (!timeSeriesTools.includes(toolName)) {
@@ -525,25 +588,127 @@ export async function POST(request) {
             return
           }
           
-            debugLog(`[Chart] Processing ${toolName} for symbol: ${symbol}`)
+          debugLog(`[Chart] Processing ${toolName} for symbol: ${symbol}`)
+          debugLog(`[Chart] Tool input:`, toolInput)
+          debugLog(`[Chart] Raw data type: ${typeof rawData}, length: ${typeof rawData === 'string' ? rawData.length : 'N/A'}`)
+          
+          // Extract requested time window from tool input
+          // Look for patterns like "last 10 days", "10 days", "days: 10", etc.
+          let requestedDays = null
+          const inputStr = JSON.stringify(toolInput).toLowerCase()
+          const daysMatch = inputStr.match(/(?:last\s+)?(\d+)\s*(?:trading\s*)?days?/i) || 
+                           inputStr.match(/days?[:\s]*(\d+)/i) ||
+                           inputStr.match(/(\d+)[:\s]*days?/i)
+          if (daysMatch) {
+            requestedDays = parseInt(daysMatch[1], 10)
+            debugLog(`[Chart] Detected requested time window: ${requestedDays} days`)
+          }
           
           try {
             // Parse the raw data if it's a string
-            let parsed = typeof rawData === 'string' ? JSON.parse(rawData) : rawData
+            // callMCPTool returns a string (JSON, Python dict converted to JSON, or CSV)
+            let parsed
+            if (typeof rawData === 'string') {
+              // Check if it's CSV format
+              const trimmedData = rawData.trim()
+              // CSV detection: contains commas, and either:
+              // 1. Starts with date/timestamp header
+              // 2. Starts with date pattern (YYYY-MM-DD)
+              // 3. Has multiple lines with date patterns
+              const hasCommas = trimmedData.includes(',')
+              const startsWithDate = /^\d{4}-\d{2}-\d{2}/.test(trimmedData)
+              const hasDatePattern = /\d{4}-\d{2}-\d{2}/.test(trimmedData)
+              const hasHeader = trimmedData.toLowerCase().includes('timestamp') || 
+                               trimmedData.toLowerCase().includes('date,') ||
+                               trimmedData.toLowerCase().startsWith('date,')
+              const isCSV = hasCommas && (startsWithDate || hasHeader || (hasDatePattern && trimmedData.split('\n').length > 1))
+              
+              debugLog(`[Chart] Data format detection:`, {
+                hasCommas,
+                startsWithDate,
+                hasDatePattern,
+                hasHeader,
+                isCSV,
+                firstLine: trimmedData.split('\n')[0].substring(0, 100)
+              })
+              
+              if (isCSV) {
+                debugLog(`[Chart] Detected CSV format, parsing...`)
+                parsed = parseCSVToChartData(trimmedData)
+                if (!parsed || parsed.length === 0) {
+                  throw new Error('CSV parsing resulted in empty data')
+                }
+                // Convert CSV array to object format for consistency
+                const timeSeries = {}
+                parsed.forEach(point => {
+                  // Use timestamp as key (format: YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)
+                  const dateKey = new Date(point.time * 1000).toISOString().split('T')[0]
+                  timeSeries[dateKey] = {
+                    '1. open': point.open.toString(),
+                    '2. high': point.high.toString(),
+                    '3. low': point.low.toString(),
+                    '4. close': point.close.toString(),
+                    '5. volume': (point.volume || 0).toString()
+                  }
+                })
+                parsed = { 'Time Series (Daily)': timeSeries }
+                debugLog(`[Chart] Converted CSV to time series format with ${Object.keys(timeSeries).length} entries`)
+              } else {
+                // Try JSON parsing
+                try {
+                  parsed = JSON.parse(rawData)
+                } catch (parseError) {
+                  debugWarn(`[Chart] JSON parse failed:`, parseError.message)
+                  throw new Error(`Failed to parse chart data as JSON: ${parseError.message}. Data preview: ${rawData.substring(0, 200)}`)
+                }
+              }
+            } else if (typeof rawData === 'object' && rawData !== null) {
+              // Already parsed (shouldn't happen from callMCPTool, but handle it)
+              parsed = rawData
+            } else {
+              throw new Error(`Unexpected data type: ${typeof rawData}. Expected string or object.`)
+            }
+            
+            if (!parsed || typeof parsed !== 'object') {
+              throw new Error(`Parsed data is not an object. Type: ${typeof parsed}`)
+            }
             
             debugLog(`[Chart] Parsed data keys:`, Object.keys(parsed || {}))
             
             // Extract time series data from various formats
+            // Alpha Vantage formats: "Time Series (Daily)", "Time Series (1min)", "Time Series (Digital Currency Daily)"
             let timeSeriesKey = Object.keys(parsed).find(k => 
               k.includes('Time Series') || 
               k.includes('Technical Analysis') ||
-              k.includes('Time Series (Digital')
+              k.includes('Time Series (Digital') ||
+              k.includes('Digital Currency')
             )
             
             if (!timeSeriesKey || !parsed[timeSeriesKey]) {
-              debugWarn('[Chart] No time series data found in response')
+              debugWarn('[Chart] No time series data found in response', {
+                availableKeys: Object.keys(parsed || {}),
+                toolName,
+                symbol
+              })
               sendBrowserLog('warn', `No chart data in ${toolName} response`, { 
-                keys: Object.keys(parsed || {}).slice(0, 5)
+                keys: Object.keys(parsed || {}).slice(0, 10),
+                toolName,
+                symbol
+              })
+              return
+            }
+            
+            // Check if time series is actually an object with data
+            if (typeof parsed[timeSeriesKey] !== 'object' || Array.isArray(parsed[timeSeriesKey])) {
+              debugWarn('[Chart] Time series key found but format is unexpected', {
+                timeSeriesKey,
+                type: typeof parsed[timeSeriesKey],
+                isArray: Array.isArray(parsed[timeSeriesKey]),
+                sample: parsed[timeSeriesKey]
+              })
+              sendBrowserLog('warn', `Time series format unexpected for ${toolName}`, {
+                timeSeriesKey,
+                type: typeof parsed[timeSeriesKey]
               })
               return
             }
@@ -555,42 +720,121 @@ export async function POST(request) {
             
             debugLog(`[Chart] Time series has ${entries.length} entries`)
             
-            // Convert to chart format - take last 50 points
+            // Calculate date range filter if requestedDays is specified
+            let startDate = null
+            if (requestedDays && requestedDays > 0) {
+              const endDate = new Date()
+              startDate = new Date(endDate)
+              // Subtract requested days (accounting for weekends/holidays - use calendar days)
+              startDate.setDate(startDate.getDate() - requestedDays)
+              debugLog(`[Chart] Filtering to date range: ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]} (${requestedDays} days)`)
+            }
+            
+            // Convert to chart format - filter by date range if specified
+            // Convert timestamp strings to Unix timestamps (seconds since epoch)
             const chartData = entries
-              .slice(0, 50)
-              .map(([timestamp, values]) => ({
-                time: timestamp,
-                open: parseFloat(values['1. open'] || values['open'] || 0),
-                high: parseFloat(values['2. high'] || values['high'] || 0),
-                low: parseFloat(values['3. low'] || values['low'] || 0),
-                close: parseFloat(values['4. close'] || values['close'] || 0),
-                volume: parseFloat(values['5. volume'] || values['volume'] || 0),
-              }))
-              .reverse() // Oldest first for chart
+              .map(([timestamp, values]) => {
+                // Parse timestamp - Alpha Vantage uses formats like "2024-12-30" or "2024-12-30 16:00:00"
+                let timeValue
+                let dateObj
+                if (typeof timestamp === 'string') {
+                  dateObj = new Date(timestamp)
+                  timeValue = Math.floor(dateObj.getTime() / 1000) // Convert to Unix timestamp (seconds)
+                } else if (typeof timestamp === 'number') {
+                  // Already a timestamp, but ensure it's in seconds (not milliseconds)
+                  timeValue = timestamp < 10000000000 ? timestamp : Math.floor(timestamp / 1000)
+                  dateObj = new Date(timeValue * 1000)
+                } else {
+                  // Fallback: use current time
+                  timeValue = Math.floor(Date.now() / 1000)
+                  dateObj = new Date()
+                }
+                
+                // Filter by date range if requestedDays is specified
+                if (startDate && dateObj < startDate) {
+                  return null // Skip this entry
+                }
+                
+                return {
+                  time: timeValue,
+                  open: parseFloat(values['1. open'] || values['open'] || 0),
+                  high: parseFloat(values['2. high'] || values['high'] || 0),
+                  low: parseFloat(values['3. low'] || values['low'] || 0),
+                  close: parseFloat(values['4. close'] || values['close'] || 0),
+                  volume: parseFloat(values['5. volume'] || values['volume'] || 0),
+                }
+              })
+              .filter(point => point !== null) // Remove filtered entries
+              .slice(0, requestedDays || 50) // Take first N points (newest first from Alpha Vantage)
+              .reverse() // Reverse to oldest first for chart display
             
             if (chartData.length > 0) {
+              // Filter out invalid data points (NaN or zero values)
+              const validChartData = chartData.filter(point => 
+                !isNaN(point.time) && 
+                point.time > 0 &&
+                !isNaN(point.close) && 
+                point.close > 0
+              )
+              
+              if (validChartData.length === 0) {
+                debugWarn('[Chart] No valid chart data points after filtering')
+                sendBrowserLog('warn', 'No valid chart data points after filtering', {
+                  originalCount: chartData.length,
+                  samplePoint: chartData[0]
+                })
+                return
+              }
+              
               const chartPayload = {
                 type: 'chart_data',
                 toolName,
-                symbol: symbol || parsed['Meta Data']?.['2. Symbol'] || 'Unknown',
+                symbol: symbol || parsed['Meta Data']?.['2. Symbol'] || parsed['Meta Data']?.['1. Information']?.split(' ')[0] || 'Unknown',
                 chartType: 'candlestick',
-                data: chartData,
-                timestamp: new Date().toISOString()
+                data: validChartData,
+                timestamp: new Date().toISOString(),
+                // Include time range info for chart display
+                timeRange: requestedDays ? {
+                  days: requestedDays,
+                  startTime: validChartData.length > 0 ? validChartData[0].time : null,
+                  endTime: validChartData.length > 0 ? validChartData[validChartData.length - 1].time : null
+                } : null
               }
               
-              debugLog(`[Chart] ✅ Sending chart data for ${chartPayload.symbol}: ${chartData.length} points`)
-              sendBrowserLog('info', `Chart data ready: ${chartPayload.symbol}`, { points: chartData.length })
+              debugLog(`[Chart] ✅ Sending chart data for ${chartPayload.symbol}: ${validChartData.length} points`)
+              sendBrowserLog('info', `Chart data ready: ${chartPayload.symbol}`, { 
+                points: validChartData.length,
+                firstPoint: validChartData[0],
+                lastPoint: validChartData[validChartData.length - 1]
+              })
               
               safeEnqueue(
                 new TextEncoder().encode(`data: ${JSON.stringify(chartPayload)}\n\n`)
               )
             } else {
               debugWarn('[Chart] No valid chart data points extracted')
-              sendBrowserLog('warn', 'No valid chart data points', {})
+              sendBrowserLog('warn', 'No valid chart data points', {
+                entriesLength: entries.length,
+                sampleEntry: entries[0]
+              })
             }
           } catch (error) {
-            debugWarn('[Chart] Failed to parse chart data:', error.message)
-            sendBrowserLog('error', 'Chart parse error', { error: error.message })
+            const errorMessage = error?.message || error?.toString() || 'Unknown error'
+            const errorStack = error?.stack ? error.stack.split('\n').slice(0, 3).join('\n') : null
+            debugWarn('[Chart] Failed to parse chart data:', {
+              error: errorMessage,
+              stack: errorStack,
+              toolName,
+              symbol,
+              dataType: typeof rawData,
+              dataPreview: typeof rawData === 'string' ? rawData.substring(0, 200) : 'Not a string'
+            })
+            sendBrowserLog('error', 'Chart parse error', { 
+              error: errorMessage,
+              toolName,
+              symbol,
+              dataType: typeof rawData
+            })
           }
         }
 
@@ -840,7 +1084,7 @@ export async function POST(request) {
                 })
                 
                 // Send chart data to frontend if this is a time series tool
-                sendChartData(toolUse.name, toolUse.input?.symbol, toolResult)
+                sendChartData(toolUse.name, toolUse.input?.symbol, toolResult, toolUse.input || {})
                 
                 // Add tool_result to messages for follow-up API call
                 claudeMessages.push({
@@ -1151,6 +1395,9 @@ export async function POST(request) {
                   try {
                     debugLog(`[Chat API] 🚀 Executing follow-up tool: ${toolUse.name}`)
                     const toolResult = await callMCPTool(toolUse.name, toolUse.input, 2)
+                    
+                    // Send chart data to frontend if this is a time series tool
+                    sendChartData(toolUse.name, toolUse.input?.symbol, toolResult, toolUse.input || {})
                     
                     // Add tool result
                     currentMessages.push({

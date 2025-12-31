@@ -1012,27 +1012,23 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                   }
                 } else if (data.type === 'chart_data') {
                   // Received chart data from MCP tool - store it for rendering
-                  console.log('[AIChat] 📊 Received chart data:', {
-                    symbol: data.symbol,
-                    points: data.data?.length,
-                    chartType: data.chartType,
-                    toolName: data.toolName,
-                    firstPoint: data.data?.[0],
-                    lastPoint: data.data?.[data.data?.length - 1]
-                  })
+                  // Validate data format
+                  if (!data.data || !Array.isArray(data.data) || data.data.length === 0) {
+                    return
+                  }
                   
                   // Update the current assistant message with chart data
                   setMessages(prev => {
                     const updated = prev.map(msg => {
                       if (msg.id === assistantMessageId) {
-                        console.log('[AIChat] 📊 Attaching chart data to message:', assistantMessageId)
                         return {
                           ...msg,
                           chartData: {
                             symbol: data.symbol,
                             chartType: data.chartType || 'candlestick',
                             data: data.data || [],
-                            toolName: data.toolName
+                            toolName: data.toolName,
+                            timeRange: data.timeRange || null // Include time range info
                           }
                         }
                       }
@@ -1817,14 +1813,15 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                         {/* Render chart from MCP tool data (auto-detected) */}
                         {message.role === 'assistant' && message.chartData && message.chartData.data?.length > 0 && (
                           <div className="mt-3 -mx-1">
-                            {console.log('[AIChat] 📊 Rendering chart for message:', message.id, message.chartData.symbol, message.chartData.data?.length, 'points')}
                             <VegaChartRenderer
                               chartConfig={{
                                 type: message.chartData.chartType || 'price',
                                 title: `${message.chartData.symbol} Price`,
                                 options: {
                                   symbol: message.chartData.symbol,
-                                  data: message.chartData.data
+                                  data: message.chartData.data,
+                                  showVolume: message.chartData.data.some(d => d.volume > 0),
+                                  timeRange: message.chartData.timeRange || null
                                 }
                               }}
                               analytics={effectiveAnalytics}
@@ -1833,8 +1830,6 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                             />
                           </div>
                         )}
-                        {/* Debug: Show if chart data exists but isn't rendering */}
-                        {message.role === 'assistant' && message.chartData && console.log('[AIChat] Message has chartData:', message.id, !!message.chartData, message.chartData?.data?.length)}
                         {/* Render chart if present in assistant message (manual) */}
                         {message.role === 'assistant' && message.content && parseChartRequest(message.content) && (
                           <VegaChartRenderer
