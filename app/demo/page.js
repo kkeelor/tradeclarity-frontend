@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useRef, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Play, Pause, Volume2, VolumeX, Maximize, Minimize } from 'lucide-react'
 import { Button } from '@/components/ui'
 import Footer from '../components/Footer'
@@ -9,12 +9,20 @@ import { useAuth } from '@/lib/AuthContext'
 
 export default function DemoPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user } = useAuth()
+  const [fromPage, setFromPage] = useState('/')
   const videoRef = useRef(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showControls, setShowControls] = useState(true)
+
+  // Get the referrer page from query params
+  useEffect(() => {
+    const from = searchParams.get('from') || '/'
+    setFromPage(from)
+  }, [searchParams])
 
   const togglePlay = () => {
     if (videoRef.current) {
@@ -47,11 +55,13 @@ export default function DemoPage() {
   }
 
   const handleGetStarted = () => {
-    if (user) {
-      router.push('/dashboard')
-    } else {
-      router.push('/dashboard')
-    }
+    // Redirect to dashboard (always go to dashboard after demo)
+    router.push('/dashboard')
+  }
+
+  const handleBack = () => {
+    // Redirect back to the page they came from
+    router.push(fromPage)
   }
 
   return (
@@ -60,11 +70,13 @@ export default function DemoPage() {
       <header className="fixed top-0 w-full z-50 bg-black/80 backdrop-blur-md border-b border-white/5">
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 flex justify-between items-center">
           <button
-            onClick={() => router.push('/')}
+            onClick={handleBack}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity group"
           >
             <ArrowLeft className="w-5 h-5 text-white/60 group-hover:text-white transition-colors" />
-            <span className="text-sm text-white/60 group-hover:text-white transition-colors">Back to Home</span>
+            <span className="text-sm text-white/60 group-hover:text-white transition-colors">
+              {fromPage === '/' ? 'Back to Home' : fromPage === '/dashboard' ? 'Back to Dashboard' : fromPage === '/vega' ? 'Back to Vega AI' : 'Back'}
+            </span>
           </button>
         </div>
       </header>

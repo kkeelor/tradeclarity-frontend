@@ -20,7 +20,8 @@ export async function GET(request) {
 
     // Get start of current month
     const now = new Date()
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    // Use UTC to ensure consistent month boundaries across timezones
+    const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
 
     // Get all conversations for this month and sum up tokens
     const { data: conversations, error } = await supabase

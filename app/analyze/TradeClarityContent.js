@@ -385,13 +385,13 @@ export default function TradeClarityContent() {
     const demo = searchParams.get('demo')
     if (demo === 'true' && status === 'idle') {
       // Redirect to demo video page instead of loading demo data
-      router.push('/demo')
+      router.push('/demo?from=/dashboard')
     }
   }, [searchParams, router])
 
   const handleTryDemo = () => {
     // Navigate to demo video page
-    router.push('/demo')
+    router.push('/demo?from=/dashboard')
   }
 
   const handleViewAnalytics = async (connectionIdOrSources = null, exchangeName = null) => {

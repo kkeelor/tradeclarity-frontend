@@ -90,8 +90,9 @@ export async function POST(request) {
       tier = subscription?.tier || 'free'
 
       // Check token limit before processing
+      // Use UTC to ensure consistent month boundaries across timezones
       const now = new Date()
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+      const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
       
       // Get current month's token usage
       const { data: conversations } = await supabase
@@ -299,7 +300,6 @@ export async function POST(request) {
     } catch (error) {
       // Cache miss or error - will fall back to contextData
       console.warn('[Chat API] Cache miss or error, falling back to contextData:', error.message)
-    }
     }
     
     // Fallback to contextData if cache miss (backward compatibility)

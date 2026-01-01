@@ -212,7 +212,7 @@ export default function DashboardContent() {
   // Redirect to login page if not authenticated
   useEffect(() => {
     if (!authLoading && !user) {
-      router.push('/login?redirect=/dashboard')
+      router.push('/login')
     }
   }, [user, authLoading, router])
 
@@ -869,7 +869,7 @@ export default function DashboardContent() {
 
   const handleTryDemo = () => {
     // Navigate to demo video page
-    router.push('/demo')
+    router.push('/demo?from=/dashboard')
   }
 
   // Check for API connection request from DataManagement page

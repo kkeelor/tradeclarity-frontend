@@ -245,7 +245,8 @@ export async function POST(request) {
 
     // Check if we need to reset monthly counter (new month)
     const now = new Date()
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    // Use UTC to ensure consistent month boundaries across timezones
+    const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
     const lastResetDate = subscription?.last_trade_reset_date 
       ? new Date(subscription.last_trade_reset_date)
       : null

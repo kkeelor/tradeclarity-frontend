@@ -232,8 +232,8 @@ export async function POST(request) {
       await supabase
         .from('user_analytics_cache')
         .update({
-          expires_at: new Date(Date.now() + 3600000), // +1 hour
-          updated_at: new Date()
+          expires_at: new Date(Date.now() + 3600000).toISOString(), // +1 hour
+          updated_at: new Date().toISOString()
         })
         .eq('user_id', userId)
 
@@ -378,9 +378,9 @@ export async function POST(request) {
       total_trades: trades.length,
       last_trade_timestamp: trades[trades.length - 1]?.trade_time,
       trades_hash: tradesHash,
-      expires_at: new Date(Date.now() + 3600000), // +1 hour
-      computed_at: new Date(),
-      updated_at: new Date()
+      expires_at: new Date(Date.now() + 3600000).toISOString(), // +1 hour
+      computed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     }
 
     const { error: upsertError } = await supabase

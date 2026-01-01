@@ -14,7 +14,7 @@ export default function DataPage() {
   useEffect(() => {
     // Only redirect if auth has finished loading and user is still null
     if (!authLoading && !user) {
-      router.push('/')
+      router.push('/login')
     }
   }, [user, authLoading, router])
 

@@ -4,7 +4,6 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/AuthContext'
-import AuthScreen from '../analyze/components/AuthScreen'
 import AIChat from '../analyze/components/AIChat'
 import Header from '../analyze/components/Header'
 import { Loader2, Brain, Sparkles, Zap, TrendingUp, Shield, ArrowRight, RefreshCw, Menu, X } from 'lucide-react'
@@ -280,6 +279,13 @@ export default function VegaContent() {
     loadAnalytics()
   }, [user, authLoading, router])
 
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login')
+    }
+  }, [user, authLoading, router])
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
@@ -291,9 +297,8 @@ export default function VegaContent() {
     )
   }
 
-  // Show auth screen if not authenticated
   if (!user) {
-    return <AuthScreen />
+    return null
   }
 
   if (error) {
@@ -498,6 +503,11 @@ export default function VegaContent() {
         }}
       />
 
+      <Dialog>
+        <DialogContent>
+          <div>
+            <div>
+              <button
                 className="w-full h-11 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 rounded-xl font-medium text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-[1.02] disabled:hover:scale-100"
               >
                 Sign Up - It's Free

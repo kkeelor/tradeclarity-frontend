@@ -40,7 +40,7 @@ const PRICING_PLANS = {
   trader: {
     name: 'Trader',
     price: 49,
-    priceAnnual: 588, // 12 months (49 * 12)
+    priceAnnual: 529, // 12 months with 10% discount: (49 * 12) * 0.9 = 529.2 ≈ 529
     description: 'Best for active traders',
     icon: TrendingUp,
     color: 'emerald',
@@ -56,7 +56,7 @@ const PRICING_PLANS = {
   pro: {
     name: 'Pro',
     price: 99,
-    priceAnnual: 1188, // 12 months (99 * 12)
+    priceAnnual: 1070, // 12 months with 10% discount: (99 * 12) * 0.9 = 1069.2 ≈ 1070
     description: 'For professional traders',
     icon: Crown,
     color: 'cyan',
@@ -88,10 +88,10 @@ function CurrencyDropdown({ currencies, selectedCurrency, onSelectCurrency }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/70 transition hover:border-white/20 hover:bg-white/10 hover:text-white/90">
-          <span>{getCurrencySymbol(selectedCurrency)}</span>
-          <span>{selectedCurrency}</span>
-          <ChevronDown className="h-3 w-3 transition-transform" />
+        <button className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-medium text-white/70 transition hover:border-white/20 hover:bg-white/10 hover:text-white/90">
+          <span className="text-sm">{getCurrencySymbol(selectedCurrency)}</span>
+          <span className="text-sm">{selectedCurrency}</span>
+          <ChevronDown className="h-4 w-4 transition-transform" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48 bg-black border-white/10">
@@ -240,7 +240,7 @@ export default function PricingPage() {
 
   const handleUpgrade = async (tier) => {
     if (!user) {
-      router.push('/auth/login?redirect=/pricing')
+      router.push('/login')
       return
     }
 
@@ -621,7 +621,7 @@ export default function PricingPage() {
     }
   }
 
-  const savings = billingCycle === 'annual' ? 17 : 0
+  const savings = billingCycle === 'annual' ? 10 : 0
 
   return (
     <>
@@ -795,11 +795,18 @@ export default function PricingPage() {
                     </>
                   ) : (
                     <>
-                      <div className="flex items-baseline gap-1 mb-1">
-                        <span className="text-2xl font-semibold tabular-nums text-white/90">
-                          {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? plan.priceAnnual : safeConvertForDisplay(plan.priceAnnual, currency))}
-                        </span>
-                        <span className="text-sm text-white/50">/yr</span>
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-2xl font-semibold tabular-nums text-white/90">
+                            {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? plan.priceAnnual : safeConvertForDisplay(plan.priceAnnual, currency))}
+                          </span>
+                          <span className="text-sm text-white/50">/yr</span>
+                        </div>
+                        {key !== 'free' && (
+                          <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-xs px-2 py-0.5">
+                            Save {savings}%
+                          </Badge>
+                        )}
                       </div>
                       <div className="text-xs text-white/70">
                         {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? Math.round(plan.priceAnnual / 12) : safeConvertForDisplay(Math.round(plan.priceAnnual / 12), currency))}/mo
@@ -1016,41 +1023,42 @@ export default function PricingPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-white/10">
-                    <th className="text-left px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm font-medium text-white/70 w-[140px] sm:w-[180px] md:w-[200px]">
-                      <div className="flex flex-col items-center gap-1 sm:gap-1.5">
+                    <th className="text-left px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm font-medium text-white/70 w-[140px] sm:w-[180px] md:w-[200px] bg-emerald-500/5 border-r border-emerald-500/20">
+                      <div className="flex flex-col items-center gap-2 sm:gap-2.5">
                         {/* Spacer to match badge height (for trader/pro) - empty div for Free plan alignment */}
                         <div className="h-[14px] sm:h-[18px]"></div>
-                        {/* Spacer to match icon */}
-                        <div className="w-6 h-6 sm:w-8 sm:h-8"></div>
+                        {/* Plan label - aligned with icon height in other columns */}
+                        <div className="w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center">
+                          <h3 className="text-base sm:text-lg font-semibold text-emerald-300/90">Plan</h3>
+                        </div>
                         {/* Plan label section - matches plan name + description structure */}
-                        <div className="text-center">
-                          <h3 className="text-sm sm:text-base font-semibold mb-0.5 sm:mb-1 text-white/70">Plan</h3>
-                          <p className="text-[9px] sm:text-[10px] text-white/50 mb-1 sm:mb-1.5 leading-tight">Select billing cycle</p>
+                        <div className="text-center w-full">
+                          <p className="text-xs sm:text-sm text-white/60 mb-2 sm:mb-2.5 leading-tight">Select billing cycle</p>
                           
                           {/* Billing Toggle - aligns with pricing section */}
-                          <div className="flex flex-col items-center gap-0.5">
-                            <div className="flex items-center gap-1 sm:gap-2">
-                              <span className={`text-[10px] sm:text-xs ${billingCycle === 'monthly' ? 'text-white/90' : 'text-white/50'}`}>
+                          <div className="flex flex-col items-center gap-1.5">
+                            <div className="flex items-center gap-2 sm:gap-2.5">
+                              <span className={`text-sm sm:text-base font-medium ${billingCycle === 'monthly' ? 'text-emerald-300/90' : 'text-white/50'}`}>
                                 Monthly
                               </span>
                               <button
                                 onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')}
-                                className="relative inline-flex h-4 w-8 sm:h-5 sm:w-9 items-center rounded-full bg-white/10 border border-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-white/20"
+                                className="relative inline-flex h-4 w-8 sm:h-5 sm:w-9 items-center rounded-full bg-emerald-500/20 border border-emerald-500/30 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
                               >
                                 <span
-                                  className={`inline-block h-2.5 w-2.5 sm:h-3 sm:w-3 transform rounded-full bg-white transition-transform ${
+                                  className={`inline-block h-2.5 w-2.5 sm:h-3 sm:w-3 transform rounded-full bg-emerald-400 transition-transform ${
                                     billingCycle === 'annual' ? 'translate-x-4 sm:translate-x-5' : 'translate-x-0.5'
                                   }`}
                                 />
                               </button>
-                              <span className={`text-[10px] sm:text-xs ${billingCycle === 'annual' ? 'text-white/90' : 'text-white/50'}`}>
+                              <span className={`text-sm sm:text-base font-medium ${billingCycle === 'annual' ? 'text-emerald-300/90' : 'text-white/50'}`}>
                                 Annual
                               </span>
                             </div>
                             {/* Currency Dropdown */}
-                            <div className="flex items-center gap-1 sm:gap-1.5 mt-0.5">
-                              <span className="text-[9px] sm:text-xs text-white/60">Currency:</span>
-                              <div className="scale-75 sm:scale-90 origin-center">
+                            <div className="flex items-center gap-2 sm:gap-2.5 mt-1">
+                              <span className="text-xs sm:text-sm text-white/60 font-medium">Currency:</span>
+                              <div className="scale-100 sm:scale-100 origin-center">
                                 <CurrencyDropdown
                                   currencies={availableCurrencies}
                                   selectedCurrency={currency}
@@ -1118,11 +1126,18 @@ export default function PricingPage() {
                                 ) : (
                                   // Annual pricing display
                                   <>
-                                    <div className="flex items-baseline gap-0.5">
-                                      <span className={`text-base sm:text-lg font-semibold tabular-nums text-white/90`}>
-                                        {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? plan.priceAnnual : safeConvertForDisplay(plan.priceAnnual, currency))}
-                                      </span>
-                                      <span className="text-[10px] sm:text-xs text-white/50">/yr</span>
+                                    <div className="flex items-center gap-1.5 justify-center">
+                                      <div className="flex items-baseline gap-0.5">
+                                        <span className={`text-base sm:text-lg font-semibold tabular-nums text-white/90`}>
+                                          {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? plan.priceAnnual : safeConvertForDisplay(plan.priceAnnual, currency))}
+                                        </span>
+                                        <span className="text-[10px] sm:text-xs text-white/50">/yr</span>
+                                      </div>
+                                      {key !== 'free' && (
+                                        <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.5">
+                                          {savings}% off
+                                        </Badge>
+                                      )}
                                     </div>
                                     <span className="text-[9px] sm:text-[10px] text-white/70">
                                       {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? Math.round(plan.priceAnnual / 12) : safeConvertForDisplay(Math.round(plan.priceAnnual / 12), currency))}/mo

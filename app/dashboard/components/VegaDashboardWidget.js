@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowRight, Brain, Sparkles, Plus } from 'lucide-react'
+import { ArrowRight, Brain, Sparkles, Plus, Play } from 'lucide-react'
 
 export default function VegaDashboardWidget({ onStartChat, className = '' }) {
   const router = useRouter()
@@ -74,14 +74,24 @@ export default function VegaDashboardWidget({ onStartChat, className = '' }) {
             </p>
           </div>
 
-          <button
-            onClick={handleNewChat}
-            className="group/btn relative inline-flex items-center justify-center gap-2 px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-xl transition-all shadow-[0_0_20px_-5px_rgba(16,185,129,0.3)] hover:shadow-[0_0_25px_-5px_rgba(16,185,129,0.5)] hover:-translate-y-0.5"
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>Start Analysis</span>
-            <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
-          </button>
+          <div className="flex flex-col items-center gap-3">
+            <button
+              onClick={handleNewChat}
+              className="group/btn relative inline-flex items-center justify-center gap-2 px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-xl transition-all shadow-[0_0_20px_-5px_rgba(16,185,129,0.3)] hover:shadow-[0_0_25px_-5px_rgba(16,185,129,0.5)] hover:-translate-y-0.5"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Start Analysis</span>
+              <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
+            </button>
+
+            <button
+              onClick={() => router.push('/demo?from=/dashboard')}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 rounded-lg text-sm font-medium transition-all border border-emerald-500/30 hover:border-emerald-500/50 hover:scale-[1.02] shadow-[0_0_10px_-3px_rgba(16,185,129,0.3)] hover:shadow-[0_0_15px_-3px_rgba(16,185,129,0.4)]"
+            >
+              <Play className="w-4 h-4" />
+              <span>View Demo</span>
+            </button>
+          </div>
         </div>
       </div>
     )

@@ -46,7 +46,7 @@ export default function BillingPage() {
       fetchPaymentHistory()
     } else {
       // Only redirect if auth is done loading and user is still null
-      router.push('/auth/login?redirect=/billing')
+      router.push('/login')
     }
   }, [user, authLoading, router])
 

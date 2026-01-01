@@ -4,7 +4,8 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, useMemo, useImperativeHandle, forwardRef } from 'react'
-import { Send, Loader2, Bot, User, Sparkles, X, RotateCcw, Square, Minimize2, Maximize2, Database, Link as LinkIcon, Upload, TrendingUp, DollarSign, PieChart, Target, AlertCircle, MessageCircle, Share2, Check, ChevronDown, Menu } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Send, Loader2, Bot, User, Sparkles, X, RotateCcw, Square, Minimize2, Maximize2, Database, Link as LinkIcon, Upload, TrendingUp, DollarSign, PieChart, Target, AlertCircle, MessageCircle, Share2, Check, ChevronDown, Menu, Play } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { getDynamicSampleQuestions, getCoachModeStarters, getGreeting } from '@/lib/ai/prompts/sampleQuestions'
@@ -25,6 +26,7 @@ import { AI_MODELS } from '@/lib/ai/client'
 
 const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConnectExchange, onUploadCSV, isVegaPage = false, isFullPage = false, coachMode = false, conversationId: initialConversationId = null, onOpenMobileSidebar }, ref) => {
   const { user } = useAuth()
+  const router = useRouter()
   const [messages, setMessages] = useState([])
   const [sessionMessages, setSessionMessages] = useState([]) // In-memory messages for current session
   
@@ -1530,6 +1532,15 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                   </button>
                 )}
               </div>
+              {isVegaPage && messages.length === 0 && !conversationId && (
+                <button
+                  onClick={() => router.push('/demo?from=/vega')}
+                  className="mt-2 px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1.5 border border-emerald-500/30 hover:border-emerald-500/50 w-full sm:w-auto hover:scale-[1.02] shadow-[0_0_10px_-3px_rgba(16,185,129,0.3)] hover:shadow-[0_0_15px_-3px_rgba(16,185,129,0.4)]"
+                >
+                  <Play className="w-3.5 h-3.5" />
+                  View Demo
+                </button>
+              )}
             </div>
           ) : (
             // Welcome state - show rich content on Vega page, simple on other pages
