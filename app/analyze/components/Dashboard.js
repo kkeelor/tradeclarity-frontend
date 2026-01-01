@@ -1981,10 +1981,10 @@ export default function Dashboard({ onConnectExchange, onTryDemo, onConnectWithC
                       <div className="w-10 h-10 bg-emerald-500/10 group-hover:bg-emerald-500/15 border border-emerald-500/20 rounded-lg flex items-center justify-center transition-all duration-300">
                         <Play className="w-5 h-5 text-emerald-400" />
                       </div>
-                      <h3 className="text-sm font-medium text-white/90">Try Demo</h3>
+                      <h3 className="text-sm font-medium text-white/90">View Demo</h3>
                     </div>
                     <p className="text-xs text-white/60 leading-relaxed">
-                      Explore sample data
+                      Watch demo video
                     </p>
                   </div>
                 </button>

@@ -23,7 +23,7 @@ import { MessageActions } from '@/components/ui/MessageActions'
 import { trackFeatureUsage } from '@/lib/analytics'
 import { AI_MODELS } from '@/lib/ai/client'
 
-const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConnectExchange, onUploadCSV, isVegaPage = false, isFullPage = false, isDemoMode = false, coachMode = false, conversationId: initialConversationId = null, onOpenMobileSidebar }, ref) => {
+const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConnectExchange, onUploadCSV, isVegaPage = false, isFullPage = false, coachMode = false, conversationId: initialConversationId = null, onOpenMobileSidebar }, ref) => {
   const { user } = useAuth()
   const [messages, setMessages] = useState([])
   const [sessionMessages, setSessionMessages] = useState([]) // In-memory messages for current session
@@ -149,7 +149,6 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
   const [isInputFocused, setIsInputFocused] = useState(false)
   const [isMaximized, setIsMaximized] = useState(false)
   const [tokenUsage, setTokenUsage] = useState({ input: 0, output: 0 })
-  const [demoTokensUsed, setDemoTokensUsed] = useState(0)
   const [shareUrl, setShareUrl] = useState(null)
   const [isSharing, setIsSharing] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
@@ -183,28 +182,6 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
     }
   }, [showModelSelector])
   
-  // Demo mode token tracking (stored in sessionStorage)
-  const getDemoTokensUsed = useCallback(() => {
-    if (!isDemoMode || typeof window === 'undefined') return 0
-    const stored = sessionStorage.getItem('vega_demo_tokens_used')
-    return stored ? parseInt(stored, 10) : 0
-  }, [isDemoMode])
-  
-  const updateDemoTokensUsed = useCallback((inputTokens, outputTokens) => {
-    if (!isDemoMode || typeof window === 'undefined') return
-    const current = getDemoTokensUsed()
-    const newTotal = current + inputTokens + outputTokens
-    sessionStorage.setItem('vega_demo_tokens_used', newTotal.toString())
-    setDemoTokensUsed(newTotal)
-  }, [isDemoMode, getDemoTokensUsed])
-  
-  // Load demo tokens on mount
-  useEffect(() => {
-    if (isDemoMode) {
-      const tokens = getDemoTokensUsed()
-      setDemoTokensUsed(tokens)
-    }
-  }, [isDemoMode, getDemoTokensUsed])
   const [isClearing, setIsClearing] = useState(false)
   
   // Analytics state - fetch if not provided via props
@@ -737,27 +714,6 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
   const sendMessage = useCallback(async (messageText) => {
     if (!messageText || !messageText.trim() || isLoading) return false
 
-    // Check demo token limit before sending
-    if (isDemoMode) {
-      const DEMO_TOKEN_LIMIT = 3000
-      const currentTokens = getDemoTokensUsed()
-      
-      if (currentTokens >= DEMO_TOKEN_LIMIT) {
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('demoTokenLimitReached'))
-        }
-        const errorMessage = {
-          id: Date.now(),
-          role: 'assistant',
-          content: `You've reached the demo token limit. Sign up to continue analyzing your trades with higher limits!`,
-          timestamp: new Date(),
-          error: true
-        }
-        setMessages(prev => [...prev, errorMessage])
-        return false
-      }
-    }
-
     const userMessage = messageText.trim()
     setIsLoading(true)
     
@@ -814,7 +770,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
     setSessionMessages(prev => [...prev, { role: 'user', content: userMessage }])
     
     // Track message sent
-    trackFeatureUsage.aiChatMessageSent(conversationId || 'new', isDemoMode)
+    trackFeatureUsage.aiChatMessageSent(conversationId || 'new', false)
     
     // Track if user has sent messages without data
     if (hasNoData && !hasSentMessagesWithoutData) {
@@ -843,8 +799,6 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
         },
         sessionMessages: sessionMessages,
         previousSummaries: previousSummaries,
-        isDemoMode: isDemoMode,
-        demoTokensUsed: isDemoMode ? getDemoTokensUsed() : 0,
         coachMode: coachMode,
         coachModeConfig: coachMode ? {
           conversationDepth: newDepth,
@@ -1097,14 +1051,6 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                       input: prev.input + data.tokens.input,
                       output: prev.output + data.tokens.output
                     }))
-                    // Update demo token tracking
-                    if (isDemoMode) {
-                      updateDemoTokensUsed(data.tokens.input, data.tokens.output)
-                      // Trigger custom event to update display in VegaContent
-                      if (typeof window !== 'undefined') {
-                        window.dispatchEvent(new CustomEvent('demoTokensUpdated'))
-                      }
-                    }
                   }
                   
                   // Final update to ensure loading state is cleared
@@ -1227,12 +1173,8 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
       
       // Provide more helpful error messages
       if (error.errorData?.error === 'TOKEN_LIMIT_REACHED') {
-        // Token limit reached - trigger modal for demo users
-        if (isDemoMode && typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('demoTokenLimitReached'))
-        }
         // Token limit reached - show specific message
-        errorMessage = error.errorData.message || `You've reached your token limit. ${isDemoMode ? 'Sign up to continue analyzing your trades!' : 'Please upgrade your plan for higher limits.'}`
+        errorMessage = error.errorData.message || 'You\'ve reached your token limit. Please upgrade your plan for higher limits.'
       } else if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
         errorMessage = 'Network error. Please check your connection and try again.'
       } else if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
@@ -1264,7 +1206,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
       
       return false
     }
-  }, [isLoading, isDemoMode, getDemoTokensUsed, coachMode, conversationDepth, currentTopic, sessionMessages, conversationId, tradesStats, effectiveAnalytics, effectiveAllTrades, previousSummaries, hasNoData, hasSentMessagesWithoutData, updateDemoTokensUsed, formatToolName, selectedProvider, selectedModel])
+  }, [isLoading, coachMode, conversationDepth, currentTopic, sessionMessages, conversationId, tradesStats, effectiveAnalytics, effectiveAllTrades, previousSummaries, hasNoData, hasSentMessagesWithoutData, formatToolName, selectedProvider, selectedModel])
 
   const handleStop = () => {
     if (abortControllerRef.current) {
@@ -1336,8 +1278,8 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
   }, [isLoading])
 
   const handleShare = async () => {
-    if (isDemoMode || isSharing) {
-      console.log('[Share] Blocked:', { isDemoMode, isSharing })
+    if (isSharing) {
+      console.log('[Share] Blocked:', { isSharing })
       return
     }
     
@@ -1477,7 +1419,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {messages.length > 0 && !isDemoMode && (
+            {messages.length > 0 && (
               <button
                 onClick={handleShare}
                 disabled={isSharing || isLoading || !conversationId}
@@ -2201,7 +2143,7 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {messages.length > 0 && !isDemoMode && (
+                {messages.length > 0 && (
                   <button
                     onClick={handleShare}
                     disabled={isSharing || isLoading || !conversationId}

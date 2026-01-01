@@ -48,8 +48,6 @@ export async function POST(request) {
       contextData: userContextData,
       sessionMessages = [], // In-memory messages from current session
       previousSummaries = [], // Summaries from previous conversations
-      isDemoMode = false, // Demo mode flag for unauthenticated users
-      demoTokensUsed = 0, // Current token usage for demo users (from sessionStorage)
       coachMode = false, // Coach mode toggle
       coachModeConfig = null, // Coach mode configuration { conversationDepth, currentTopic }
       provider = null, // Provider: 'anthropic' or 'deepseek' (defaults to anthropic for backward compatibility)
@@ -59,32 +57,12 @@ export async function POST(request) {
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
-    // Allow unauthenticated access only in demo mode
-    if (!isDemoMode && (authError || !user)) {
+    // Require authentication
+    if (authError || !user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       )
-    }
-
-    // Demo mode: Check token limit (3000 tokens)
-    if (isDemoMode) {
-      const DEMO_TOKEN_LIMIT = 3000
-      
-      // Allow 100% of tokens to be used - only block if limit is already reached
-      if (demoTokensUsed >= DEMO_TOKEN_LIMIT) {
-        return NextResponse.json(
-          { 
-            error: 'TOKEN_LIMIT_REACHED',
-            message: `You've reached the demo token limit (${demoTokensUsed.toLocaleString()}/${DEMO_TOKEN_LIMIT.toLocaleString()} tokens). Sign in to get higher limits.`,
-            current: demoTokensUsed,
-            limit: DEMO_TOKEN_LIMIT,
-            tier: 'demo',
-            upgradeTier: 'free'
-          },
-          { status: 403 }
-        )
-      }
     }
 
     if (!message || typeof message !== 'string' || message.trim().length === 0) {
@@ -94,13 +72,13 @@ export async function POST(request) {
       )
     }
 
-    // For authenticated users, get subscription and check token limits
+    // Get subscription and check token limits
     let subscription = null
     let tier = 'free'
     let tokensUsed = 0
     let conversation = null
     
-    if (!isDemoMode && user) {
+    if (user) {
       // Get user's subscription tier
       const { data: subData } = await supabase
         .from('subscriptions')
@@ -237,12 +215,11 @@ export async function POST(request) {
     }
 
     // Get conversation summary and message history
-    // Skip for demo mode - demo users don't have conversations in database
     let currentSummary = null
     let previousMessageCount = 0
     let conversationMessages = [] // Actual message history for DeepSeek
     
-    if (!isDemoMode && conversation) {
+    if (conversation) {
       const { data: convData } = await supabase
         .from('ai_conversations')
         .select('summary, message_count')
@@ -283,19 +260,11 @@ export async function POST(request) {
     }
 
     // Fetch cached analytics for AI context (optimized path)
-    // For demo mode, use contextData passed from client
     let aiContext = null
     let analytics = null
     let tradesStats = null
     
-    if (isDemoMode) {
-      // Demo mode: Use context data passed from client
-      if (userContextData) {
-        analytics = userContextData.analytics || null
-        tradesStats = userContextData.tradesStats || null
-      }
-    } else {
-      // Authenticated mode: Fetch from cache
+    // Fetch from cache
       try {
         // Check cache directly from database
         const { data: cached } = await supabase
@@ -902,7 +871,7 @@ export async function POST(request) {
             provider: selectedProvider,
             model: selectedModel,
             messageCount: normalized.messages.length,
-            conversationId: isDemoMode ? conversationId : (conversation?.id || null),
+            conversationId: conversation?.id || null,
             tier,
             inputTokens
           })
@@ -1461,8 +1430,7 @@ export async function POST(request) {
           }
 
           // Update conversation token counts and store individual messages
-          // Skip for demo mode - demo users don't have conversations in database
-          if (!isDemoMode && conversation) {
+          if (conversation) {
             const currentInputTokens = (conversation.total_input_tokens || 0) + inputTokens
             const currentOutputTokens = (conversation.total_output_tokens || 0) + outputTokens
             const newMessageCount = previousMessageCount + 2 // User message + assistant response
@@ -1526,7 +1494,7 @@ export async function POST(request) {
           }
 
           // Send final stats
-          const finalConversationId = isDemoMode ? conversationId : (conversation?.id || null)
+          const finalConversationId = conversation?.id || null
           safeEnqueue(
             new TextEncoder().encode(
               `data: ${JSON.stringify({ 

@@ -2,7 +2,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/AuthContext' // NEW: Auth context
 import AuthScreen from './components/AuthScreen' // NEW: Auth screen
 import { analyzeData } from './utils/masterAnalyzer'
@@ -11,8 +11,6 @@ import { getCurrencySymbol } from './utils/currencyFormatter'
 import LoginForm from './components/LoginForm'
 import Dashboard from './components/Dashboard'
 import AnalyticsView from './components/AnalyticsView'
-import demoFuturesData from './demo-data/demo-futures-data.json'
-import demoSpotData from './demo-data/demo-spot-data.json'
 import { TrendingUp, Sparkles, BarChart3, Brain, Zap, Lightbulb } from 'lucide-react'
 
 // Loading screen component for demo mode
@@ -327,6 +325,7 @@ function RealModeLoadingScreen({ progress, onComplete }) {
 export default function TradeClarityContent() {
   const { user, loading: authLoading } = useAuth() // NEW: Get auth state
   const searchParams = useSearchParams()
+  const router = useRouter()
   const [status, setStatus] = useState('idle')
   const [error, setError] = useState('')
   const [progress, setProgress] = useState('')
@@ -385,88 +384,14 @@ export default function TradeClarityContent() {
   useEffect(() => {
     const demo = searchParams.get('demo')
     if (demo === 'true' && status === 'idle') {
-      setStatus('loading')
-      handleTryDemo()
+      // Redirect to demo video page instead of loading demo data
+      router.push('/demo')
     }
-  }, [searchParams])
+  }, [searchParams, router])
 
   const handleTryDemo = () => {
-    setStatus('connecting')
-    setProgress('Loading demo data...')
-    setIsDemoMode(true)
-    setLoadingComplete(false)
-
-    try {
-      setTimeout(async () => {
-        const spotData = require('./demo-data/demo-spot-data.json')
-
-        const normalizedSpotTrades = spotData.map(trade => ({
-          symbol: trade.symbol,
-          qty: String(trade.qty),
-          price: String(trade.price),
-          quoteQty: String(parseFloat(trade.qty) * parseFloat(trade.price)),
-          commission: String(trade.commission || 0),
-          commissionAsset: trade.commissionAsset || 'USDT',
-          isBuyer: trade.isBuyer,
-          isMaker: false,
-          time: trade.time,
-          orderId: trade.orderId,
-          id: trade.id,
-          accountType: 'SPOT'
-        }))
-
-        const demoData = {
-          spotTrades: normalizedSpotTrades,
-          futuresIncome: demoFuturesData.income,
-          futuresPositions: demoFuturesData.positions,
-          metadata: {
-            primaryCurrency: 'USD',
-            availableCurrencies: ['USD', 'INR', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CNY', 'SGD', 'CHF'],
-            supportsCurrencySwitch: true,
-            accountType: 'MIXED',
-            hasFutures: true,
-            futuresPositions: demoFuturesData.positions.length,
-            spotTrades: normalizedSpotTrades.length,
-            futuresIncome: demoFuturesData.income.length,
-            spotHoldings: [
-              { asset: 'BTC', quantity: 0.3971906, usdValue: 18296.45, exchange: 'binance' },
-              { asset: 'USDT', quantity: 3872.19, usdValue: 3872.19, exchange: 'binance' },
-              { asset: 'DOT', quantity: 275.43, usdValue: 1960.30, exchange: 'binance' },
-              { asset: 'AVAX', quantity: 27.00, usdValue: 1003.91, exchange: 'binance' },
-              { asset: 'ARB', quantity: 620.54, usdValue: 813.91, exchange: 'binance' },
-              { asset: 'ETH', quantity: 0.185, usdValue: 444.00, exchange: 'binance' },
-              { asset: 'SOL', quantity: 2.85, usdValue: 370.50, exchange: 'binance' },
-              { asset: 'LINK', quantity: 18.75, usdValue: 300.00, exchange: 'binance' },
-              { asset: 'ADA', quantity: 2850.0, usdValue: 1710.00, exchange: 'binance' },
-              { asset: 'BNB', quantity: 0.85, usdValue: 280.50, exchange: 'binance' },
-              { asset: 'XRP', quantity: 1200.0, usdValue: 660.00, exchange: 'binance' },
-              { asset: 'MATIC', quantity: 450.0, usdValue: 382.50, exchange: 'binance' },
-              { asset: 'DOGE', quantity: 8500.0, usdValue: 1275.00, exchange: 'binance' }
-            ],
-            totalPortfolioValue: 30468.27,
-            totalSpotValue: 30468.27,
-            totalFuturesValue: 0
-          }
-        }
-
-        setProgress('Analyzing demo data...')
-        const analysis = await analyzeData(demoData)
-
-
-        setAnalytics(analysis)
-        setCurrencyMetadata(demoData.metadata)
-        // Load saved currency preference from localStorage
-        const savedCurrency = typeof window !== 'undefined' ? localStorage.getItem('tradeclarity_currency') : null
-        if (savedCurrency) {
-          setCurrency(savedCurrency)
-        }
-        // Don't set connected yet - wait for loading animation
-      }, 1000)
-    } catch (err) {
-      console.error('Demo loading error:', err)
-      setError('Failed to load demo data')
-      setStatus('error')
-    }
+    // Navigate to demo video page
+    router.push('/demo')
   }
 
   const handleViewAnalytics = async (connectionIdOrSources = null, exchangeName = null) => {

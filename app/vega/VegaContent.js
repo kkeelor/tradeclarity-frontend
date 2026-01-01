@@ -15,17 +15,6 @@ import { toast } from 'sonner'
 // OPTIMIZATION: Lazy load VegaSidebar - it's not critical for initial render
 const VegaSidebar = lazy(() => import('./components/VegaSidebar'))
 
-// OPTIMIZATION: Lazy load heavy analysis function - only needed for demo mode
-const loadAnalyzeData = () => import('../analyze/utils/masterAnalyzer').then(m => m.analyzeData)
-
-// OPTIMIZATION: Demo data loaded dynamically only when needed (saves ~50-100KB from main bundle)
-const loadDemoData = async () => {
-  const [spotData, futuresData] = await Promise.all([
-    import('../analyze/demo-data/demo-spot-data.json').then(m => m.default),
-    import('../analyze/demo-data/demo-futures-data.json').then(m => m.default)
-  ])
-  return { spotData, futuresData }
-}
 
 export default function VegaContent() {
   const router = useRouter()
@@ -39,16 +28,7 @@ export default function VegaContent() {
   const [currency, setCurrency] = useState('USD')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  // Initialize demo mode from URL immediately (synchronously)
-  const [isDemoMode, setIsDemoMode] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return new URLSearchParams(window.location.search).get('demo') === 'true'
-    }
-    return false
-  })
   const [showAuthModal, setShowAuthModal] = useState(false)
-  const [showTokenLimitModal, setShowTokenLimitModal] = useState(false)
-  const [demoTokensUsed, setDemoTokensUsed] = useState(0)
   const [coachMode, setCoachMode] = useState(() => {
     // Load from localStorage on initial render
     if (typeof window !== 'undefined') {
@@ -71,54 +51,6 @@ export default function VegaContent() {
     }
   }, [coachMode])
   
-  // Check for demo mode from query params (also check window.location as fallback)
-  const isDemoRequested = searchParams?.get('demo') === 'true' || 
-    (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('demo') === 'true')
-  
-  // OPTIMIZATION: Track demo token usage via events only (removed 500ms polling)
-  useEffect(() => {
-    if (!isDemoMode || !isDemoRequested) return
-    
-    const updateTokenDisplay = () => {
-      if (typeof window !== 'undefined') {
-        const stored = sessionStorage.getItem('vega_demo_tokens_used')
-        const tokens = stored ? parseInt(stored, 10) : 0
-        setDemoTokensUsed(tokens)
-      }
-    }
-    
-    // Initial load
-    updateTokenDisplay()
-    
-    // Listen for storage changes (when AIChat updates tokens)
-    const handleStorageChange = (e) => {
-      if (e.key === 'vega_demo_tokens_used') {
-        updateTokenDisplay()
-      }
-    }
-    
-    // Listen for custom event from AIChat (same-tab updates)
-    const handleTokensUpdated = () => {
-      updateTokenDisplay()
-    }
-    
-    // Listen for token limit reached event
-    const handleTokenLimitReached = () => {
-      updateTokenDisplay()
-      setShowTokenLimitModal(true)
-    }
-    
-    // OPTIMIZATION: Removed setInterval polling - use only event-based updates
-    window.addEventListener('storage', handleStorageChange)
-    window.addEventListener('demoTokensUpdated', handleTokensUpdated)
-    window.addEventListener('demoTokenLimitReached', handleTokenLimitReached)
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange)
-      window.removeEventListener('demoTokensUpdated', handleTokensUpdated)
-      window.removeEventListener('demoTokenLimitReached', handleTokenLimitReached)
-    }
-  }, [isDemoMode, isDemoRequested])
 
 
   // OPTIMIZATION: Store API fetch promises to start early
@@ -128,8 +60,6 @@ export default function VegaContent() {
   // OPTIMIZATION: Start API fetch as early as possible (don't wait for auth to complete)
   // This runs in parallel with auth checking
   useEffect(() => {
-    // Only start fetch for authenticated flow (not demo mode)
-    if (isDemoRequested) return
     
     // Start fetching immediately and parse JSON - we'll use results when auth completes
     apiFetchRef.current = Promise.all([
@@ -164,24 +94,11 @@ export default function VegaContent() {
         })
         .catch(() => ({ success: false, metadata: null }))
     ])
-  }, [isDemoRequested])
-
-  // Set demo mode immediately if requested (before auth checks)
-  // Also check on mount in case searchParams wasn't ready initially
-  useEffect(() => {
-    const checkDemo = () => {
-      const urlDemo = searchParams?.get('demo') === 'true' || 
-        (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('demo') === 'true')
-      if (urlDemo) {
-        setIsDemoMode(true)
-      }
-    }
-    checkDemo()
-  }, [searchParams])
+  }, [])
 
   // Function to refresh analytics manually
   const refreshAnalytics = async () => {
-    if (isDemoMode || !user) return
+    if (!user) return
     
     try {
       setRefreshingAnalytics(true)
@@ -259,102 +176,14 @@ export default function VegaContent() {
 
   // Load analytics data on mount
   useEffect(() => {
-    // Wait for auth loading to complete (unless in demo mode)
-    if (authLoading && !isDemoRequested) return
+    // Wait for auth loading to complete
+    if (authLoading) return
 
     const loadAnalytics = async () => {
       try {
         setLoading(true)
         
-        // Demo mode - load demo data dynamically
-        if (isDemoRequested) {
-          try {
-            // OPTIMIZATION: Dynamic imports for demo data and analyzer
-            const [{ spotData: demoSpotData, futuresData: demoFuturesData }, analyzeData] = await Promise.all([
-              loadDemoData(),
-              loadAnalyzeData()
-            ])
-            
-            const normalizedSpotTrades = demoSpotData.map(trade => ({
-              symbol: trade.symbol,
-              qty: String(trade.qty),
-              price: String(trade.price),
-              quoteQty: String(parseFloat(trade.qty) * parseFloat(trade.price)),
-              commission: String(trade.commission || 0),
-              commissionAsset: trade.commissionAsset || 'USDT',
-              isBuyer: trade.isBuyer,
-              isMaker: false,
-              time: trade.time,
-              orderId: trade.orderId,
-              id: trade.id,
-              accountType: 'SPOT'
-            }))
-
-            const demoData = {
-              spotTrades: normalizedSpotTrades,
-              futuresIncome: demoFuturesData.income,
-              futuresPositions: demoFuturesData.positions,
-              metadata: {
-                primaryCurrency: 'USD',
-                availableCurrencies: ['USD', 'INR', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CNY', 'SGD', 'CHF'],
-                supportsCurrencySwitch: true,
-                accountType: 'MIXED',
-                hasFutures: true,
-                futuresPositions: demoFuturesData.positions.length,
-                spotTrades: normalizedSpotTrades.length,
-                futuresIncome: demoFuturesData.income.length,
-                spotHoldings: [
-                  { asset: 'BTC', quantity: 0.3971906, usdValue: 18296.45, exchange: 'binance' },
-                  { asset: 'USDT', quantity: 3872.19, usdValue: 3872.19, exchange: 'binance' },
-                  { asset: 'DOT', quantity: 275.43, usdValue: 1960.30, exchange: 'binance' },
-                  { asset: 'AVAX', quantity: 27.00, usdValue: 1003.91, exchange: 'binance' },
-                  { asset: 'ARB', quantity: 620.54, usdValue: 813.91, exchange: 'binance' },
-                  { asset: 'ETH', quantity: 0.185, usdValue: 444.00, exchange: 'binance' },
-                  { asset: 'SOL', quantity: 2.85, usdValue: 370.50, exchange: 'binance' },
-                  { asset: 'LINK', quantity: 18.75, usdValue: 300.00, exchange: 'binance' },
-                  { asset: 'ADA', quantity: 2850.0, usdValue: 1710.00, exchange: 'binance' },
-                  { asset: 'BNB', quantity: 0.85, usdValue: 280.50, exchange: 'binance' },
-                  { asset: 'XRP', quantity: 1200.0, usdValue: 660.00, exchange: 'binance' },
-                  { asset: 'MATIC', quantity: 450.0, usdValue: 382.50, exchange: 'binance' },
-                  { asset: 'DOGE', quantity: 8500.0, usdValue: 1275.00, exchange: 'binance' }
-                ],
-                totalPortfolioValue: 30468.27,
-                totalSpotValue: 30468.27,
-                totalFuturesValue: 0
-              }
-            }
-
-            const analysis = await analyzeData(demoData)
-            setAnalytics(analysis)
-            setAllTrades(analysis.allTrades || normalizedSpotTrades)
-            setCurrencyMetadata(demoData.metadata)
-            setMetadata(demoData.metadata)
-            // Load saved currency preference from localStorage
-            const savedCurrency = typeof window !== 'undefined' ? localStorage.getItem('tradeclarity_currency') : null
-            if (savedCurrency) {
-              setCurrency(savedCurrency)
-            } else {
-              setCurrency('USD')
-            }
-            // Set demo trades stats
-            setTradesStats({
-              totalTrades: normalizedSpotTrades.length,
-              spotTrades: normalizedSpotTrades.length,
-              futuresIncome: demoFuturesData.income.length,
-              futuresPositions: demoFuturesData.positions.length,
-              primaryCurrency: 'USD'
-            })
-            setLoading(false)
-            return
-          } catch (err) {
-            console.error('Demo loading error:', err)
-            setError('Failed to load demo data')
-            setLoading(false)
-            return
-          }
-        }
-        
-        // Real mode - require authentication
+        // Require authentication
         if (!user) {
           setLoading(false)
           return
@@ -449,7 +278,7 @@ export default function VegaContent() {
     }
 
     loadAnalytics()
-  }, [user, authLoading, isDemoRequested, router])
+  }, [user, authLoading, router])
 
   if (authLoading || loading) {
     return (
@@ -462,8 +291,8 @@ export default function VegaContent() {
     )
   }
 
-  // Show auth screen only if not in demo mode and not authenticated
-  if (!user && !isDemoMode) {
+  // Show auth screen if not authenticated
+  if (!user) {
     return <AuthScreen />
   }
 
@@ -492,33 +321,16 @@ export default function VegaContent() {
         currencyMetadata={null}
         currency={currency}
         setCurrency={setCurrency}
-        onNavigateDashboard={() => {
-          if (!user && isDemoMode) {
-            router.push('/login')
-          } else {
-            router.push('/dashboard')
-          }
-        }}
-        onNavigateUpload={() => {
-          if (!user && isDemoMode) {
-            router.push('/login')
-          } else {
-            router.push('/data')
-          }
-        }}
+        onNavigateDashboard={() => router.push('/dashboard')}
+        onNavigateUpload={() => router.push('/data')}
         onNavigateAll={() => router.push('/vega')}
         onNavigateVega={() => router.push('/vega')}
         onSignOut={() => {
-          if (!user && isDemoMode) {
-            setShowAuthModal(true)
-          } else {
-            fetch('/api/auth/signout', { method: 'POST' }).then(() => {
-              router.push('/')
-            })
-          }
+          fetch('/api/auth/signout', { method: 'POST' }).then(() => {
+            router.push('/')
+          })
         }}
         hasDataSources={!!tradesStats && tradesStats.totalTrades > 0}
-        isDemoMode={isDemoMode}
       />
       
       {/* Main Content Area - Full width flex container */}
@@ -610,26 +422,9 @@ export default function VegaContent() {
 
         {/* Chat Area */}
         <div className="flex flex-col flex-1 h-full relative min-w-0 md:ml-0">
-          {/* Demo Mode Banner (Overlay or Top Bar) */}
-          {isDemoMode && !user && (
-            <div className="absolute top-2 left-2 right-2 sm:top-4 sm:left-4 sm:right-4 z-20 flex justify-center pointer-events-none">
-              <div className="bg-emerald-500/10 backdrop-blur-md border border-emerald-500/20 rounded-full px-2.5 py-1.5 sm:px-4 sm:py-2 flex items-center gap-1.5 sm:gap-3 shadow-lg pointer-events-auto max-w-full">
-                 <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-400 flex-shrink-0" />
-                 <span className="text-[10px] sm:text-xs text-white/90 font-medium whitespace-nowrap">Demo Mode</span>
-                 <div className="w-px h-2 sm:h-3 bg-white/10 flex-shrink-0" />
-                 <button
-                    onClick={() => setShowAuthModal(true)}
-                    className="text-[10px] sm:text-xs text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-0.5 sm:gap-1 whitespace-nowrap"
-                  >
-                    Sign In <ArrowRight className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                  </button>
-              </div>
-            </div>
-          )}
-
           <div className="flex flex-col flex-1 min-h-0 relative">
             {/* Vega AI Disclaimer */}
-            <div className={`px-2 sm:px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 ${isDemoMode && !user ? 'mt-12 sm:mt-16' : ''} relative`}>
+            <div className="px-2 sm:px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 relative">
               <div className="sm:hidden">
                 {/* Mobile: Single line with read more */}
                 <p className="text-[10px] text-amber-400/80 text-center leading-relaxed pr-12">
@@ -661,19 +456,17 @@ export default function VegaContent() {
               </p>
               
               {/* Refresh Button - Top Right */}
-              {!isDemoMode && user && (
-                <div className="absolute top-1/2 -translate-y-1/2 right-2 sm:right-4">
-                  <button
-                    onClick={refreshAnalytics}
-                    disabled={refreshingAnalytics}
-                    className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2.5 py-1 sm:py-1.5 text-xs text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 hover:border-emerald-500/40 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                    title="Refresh analytics data"
-                  >
-                    <RefreshCw className={`w-3 sm:w-3.5 h-3 sm:h-3.5 ${refreshingAnalytics ? 'animate-spin' : ''}`} />
-                    <span className="hidden sm:inline font-medium">Refresh</span>
-                  </button>
-                </div>
-              )}
+              <div className="absolute top-1/2 -translate-y-1/2 right-2 sm:right-4">
+                <button
+                  onClick={refreshAnalytics}
+                  disabled={refreshingAnalytics}
+                  className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2.5 py-1 sm:py-1.5 text-xs text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 hover:border-emerald-500/40 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                  title="Refresh analytics data"
+                >
+                  <RefreshCw className={`w-3 sm:w-3.5 h-3 sm:h-3.5 ${refreshingAnalytics ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline font-medium">Refresh</span>
+                </button>
+              </div>
             </div>
             
             <div className="flex-1 min-h-0">
@@ -684,23 +477,10 @@ export default function VegaContent() {
                 tradesStats={tradesStats}
                 metadata={metadata}
                 conversationId={currentConversationId}
-                onConnectExchange={() => {
-                  if (!user && isDemoMode) {
-                    router.push('/login')
-                  } else {
-                    router.push('/dashboard')
-                  }
-                }}
-                onUploadCSV={() => {
-                  if (!user && isDemoMode) {
-                    router.push('/login')
-                  } else {
-                    router.push('/data')
-                  }
-                }}
+                onConnectExchange={() => router.push('/dashboard')}
+                onUploadCSV={() => router.push('/data')}
                 isVegaPage={true}
                 isFullPage={true}
-                isDemoMode={isDemoMode}
                 coachMode={coachMode}
                 onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
               />
@@ -718,45 +498,6 @@ export default function VegaContent() {
         }}
       />
 
-      {/* Token Limit Reached Modal */}
-      <Dialog open={showTokenLimitModal} onOpenChange={setShowTokenLimitModal}>
-        <DialogContent className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-slate-700 max-w-md">
-          <DialogHeader>
-            <div className="text-center space-y-2">
-              <div className="w-12 h-12 mx-auto rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-emerald-400" />
-              </div>
-              <DialogTitle className="text-xl font-semibold text-white">
-                Demo limit reached
-              </DialogTitle>
-              <DialogDescription className="text-slate-400 text-sm">
-                You've used all {demoTokensUsed.toLocaleString()} demo tokens. Sign up to continue with your own trades.
-              </DialogDescription>
-            </div>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2">
-            <div className="space-y-2.5">
-              <div className="flex items-center gap-2.5 text-sm text-slate-300">
-                <TrendingUp className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                <span>Analyze your real trading data</span>
-              </div>
-              <div className="flex items-center gap-2.5 text-sm text-slate-300">
-                <Zap className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                <span>10,000 tokens/month on free plan</span>
-              </div>
-              <div className="flex items-center gap-2.5 text-sm text-slate-300">
-                <Shield className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                <span>Unlimited conversations</span>
-              </div>
-            </div>
-
-            <div className="pt-2">
-              <button
-                onClick={() => {
-                  setShowTokenLimitModal(false)
-                  setShowAuthModal(true)
-                }}
                 className="w-full h-11 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 rounded-xl font-medium text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-[1.02] disabled:hover:scale-100"
               >
                 Sign Up - It's Free

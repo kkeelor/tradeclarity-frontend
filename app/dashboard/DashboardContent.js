@@ -868,8 +868,8 @@ export default function DashboardContent() {
   }
 
   const handleTryDemo = () => {
-    // Navigate to Vega AI page with demo flag
-    router.push('/vega?demo=true')
+    // Navigate to demo video page
+    router.push('/demo')
   }
 
   // Check for API connection request from DataManagement page

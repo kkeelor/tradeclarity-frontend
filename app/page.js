@@ -116,7 +116,7 @@ export default function LandingPage() {
                 <Link href="/pricing" className="text-sm text-white/60 hover:text-white transition-colors">
                   Pricing
                 </Link>
-                <Link href="/vega?demo=true" className="text-sm text-white/60 hover:text-white transition-colors">
+                <Link href="/demo" className="text-sm text-white/60 hover:text-white transition-colors">
                   Demo
                 </Link>
               </>
@@ -226,11 +226,11 @@ export default function LandingPage() {
                 <Button
                   variant="primary"
                   size="xl"
-                  onClick={() => router.push('/vega?demo=true')}
+                  onClick={() => router.push('/demo')}
                   className="min-w-[200px] h-14 text-base font-semibold bg-emerald-500 text-black hover:bg-emerald-400 hover:scale-[1.02] transition-all rounded-full border-none shadow-[0_0_20px_-5px_rgba(16,185,129,0.4)]"
                 >
                   <Sparkles className="w-5 h-5 mr-2" />
-                  Try Demo
+                  View Demo
                 </Button>
 
                 <Button

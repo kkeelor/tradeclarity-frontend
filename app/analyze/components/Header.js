@@ -207,7 +207,6 @@ export default function Header({
   onSignOut,
   subscription = null, // Optional subscription object with tier property
   showSubscriptionBadge = false, // Whether to show subscription badge in header
-  isDemoMode = false,
   hasDataSources = true, // Default to true to allow access unless explicitly disabled
   mobilePaddingLeft = false // Add left padding on mobile (for Dashboard sidebar)
 }) {

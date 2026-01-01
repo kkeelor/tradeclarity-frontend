@@ -102,13 +102,7 @@ export default function AuthModal({ open, onOpenChange, onAuthSuccess }) {
               onAuthSuccess(data.user);
             }
             onOpenChange(false);
-            // If signing in from demo page, redirect to dashboard
-            const isDemoPage = typeof window !== 'undefined' && (window.location.pathname.includes('/vega') && window.location.search.includes('demo=true'));
-            if (isDemoPage) {
-              window.location.href = '/dashboard';
-            } else {
-              window.location.reload();
-            }
+            window.location.reload();
           }, 500);
         } else {
           toast.success('Account Created', {
@@ -125,13 +119,7 @@ export default function AuthModal({ open, onOpenChange, onAuthSuccess }) {
             onAuthSuccess(data.user);
           }
           onOpenChange(false);
-          // If signing in from demo page, redirect to dashboard
-          const isDemoPage = typeof window !== 'undefined' && (window.location.pathname.includes('/vega') && window.location.search.includes('demo=true'));
-          if (isDemoPage) {
-            window.location.href = '/dashboard';
-          } else {
-            window.location.reload();
-          }
+          window.location.reload();
         }
       }
     } catch (err) {
@@ -150,9 +138,7 @@ export default function AuthModal({ open, onOpenChange, onAuthSuccess }) {
       // Store current page URL so callback can redirect back here
       if (typeof window !== 'undefined') {
         const currentPath = window.location.pathname + window.location.search;
-        // If user is signing in from demo page, redirect to dashboard instead
-        const isDemoPage = currentPath.includes('demo=true') || currentPath.includes('/vega?demo');
-        const redirectPath = isDemoPage ? '/dashboard' : currentPath;
+        const redirectPath = currentPath;
         
         // Pass redirect path as query param in callback URL
         const callbackUrl = `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirectPath)}`;

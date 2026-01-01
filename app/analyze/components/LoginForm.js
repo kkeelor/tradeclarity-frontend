@@ -604,7 +604,7 @@ export default function LoginForm({
               className="text-purple-400 hover:text-purple-300 transition-colors text-xs sm:text-sm font-medium flex items-center gap-1.5"
             >
               <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 text-purple-400" />
-              Try Demo Instead
+              View Demo Instead
             </button>
           </div>
         </div>
@@ -930,7 +930,7 @@ export default function LoginForm({
               className="text-purple-400 hover:text-purple-300 transition-colors text-sm font-medium flex items-center gap-1.5"
             >
               <Sparkles className="w-4 h-4 text-purple-400" />
-              Try Demo Instead
+              View Demo Instead
             </button>
           </div>
         </div>
