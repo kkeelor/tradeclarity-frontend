@@ -52,7 +52,7 @@ export default function Footer() {
         This is not financial advice. Always conduct your own research and consult with a qualified financial advisor before making trading decisions. 
         Past performance does not guarantee future results.
       </p>
-      <p>&copy; 2025 TradeClarity. Your data stays yours. Always.</p>
+      <p>&copy; 2026 TradeClarity. Your data stays yours. Always.</p>
     </footer>
   )
 }

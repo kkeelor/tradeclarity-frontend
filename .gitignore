@@ -23,6 +23,7 @@ pnpm-debug.log*
 *.md
 *.sql
 docs/
+scripts/
 
 # MCP Test Results (contains API responses and potentially sensitive data)
 mcp-test-results/
