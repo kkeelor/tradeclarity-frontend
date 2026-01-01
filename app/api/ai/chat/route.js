@@ -907,13 +907,11 @@ export async function POST(request) {
             inputTokens
           })
           
-          // Note: MCP tools may not be supported by DeepSeek
-          // For now, only add tools for Anthropic
-          const toolsToUse = (selectedProvider === PROVIDERS.ANTHROPIC && mcpTools.length > 0) ? mcpTools : null
+          // Both Anthropic and DeepSeek support tools
+          // DeepSeek uses OpenAI-compatible format, which is normalized by provider abstraction
+          const toolsToUse = (mcpTools.length > 0) ? mcpTools : null
           if (toolsToUse) {
-            debugLog(`[Chat API] Added ${toolsToUse.length} tools to API call`)
-          } else if (mcpTools.length > 0 && selectedProvider === PROVIDERS.DEEPSEEK) {
-            debugWarn('[Chat API] MCP tools requested but DeepSeek may not support them')
+            debugLog(`[Chat API] Added ${toolsToUse.length} tools to API call (provider: ${selectedProvider})`)
           }
           
           // Create stream using provider abstraction
@@ -960,88 +958,91 @@ export async function POST(request) {
               }
             }
             
-            // Handle Anthropic-specific tool_use events (DeepSeek may not support this)
-            if (selectedProvider === PROVIDERS.ANTHROPIC) {
-              if (event.type === 'content_block_start' && event.content_block?.type === 'tool_use') {
-                const toolUse = event.content_block
-                currentToolUseId = toolUse.id
-                pendingToolUses.set(toolUse.id, {
-                  name: toolUse.name,
-                  input: toolUse.input || {},
-                  inputJson: '',
-                  id: toolUse.id
-                })
-                debugLog(`[Chat API] 🔧 Tool use requested: ${toolUse.name}`, { 
-                  id: toolUse.id, 
-                  initialInput: toolUse.input
-                })
-                sendBrowserLog('info', `Tool requested: ${toolUse.name}`, { 
-                  toolId: toolUse.id,
-                  input: toolUse.input 
-                })
-              } else if (event.type === 'content_block_delta' && event.delta?.type === 'input_json_delta') {
-                const delta = event.delta.partial_json || ''
-                if (currentToolUseId && pendingToolUses.has(currentToolUseId)) {
-                  const toolUse = pendingToolUses.get(currentToolUseId)
-                  toolUse.inputJson += delta
-                  try {
-                    toolUse.input = JSON.parse(toolUse.inputJson)
-                  } catch (e) {
-                    // JSON not complete yet
-                  }
-                }
-              } else if (event.type === 'content_block_stop' && currentToolUseId && pendingToolUses.has(currentToolUseId)) {
+            // Handle tool_use events (normalized to Anthropic format for both providers)
+            // DeepSeek tool calls are normalized by provider abstraction to match Anthropic format
+            if (event.type === 'content_block_start' && event.content_block?.type === 'tool_use') {
+              const toolUse = event.content_block
+              currentToolUseId = toolUse.id
+              pendingToolUses.set(toolUse.id, {
+                name: toolUse.name,
+                input: toolUse.input || {},
+                inputJson: '',
+                id: toolUse.id
+              })
+              debugLog(`[Chat API] 🔧 Tool use requested: ${toolUse.name}`, { 
+                id: toolUse.id, 
+                initialInput: toolUse.input
+              })
+              sendBrowserLog('info', `Tool requested: ${toolUse.name}`, { 
+                toolId: toolUse.id,
+                input: toolUse.input 
+              })
+            } else if (event.type === 'content_block_delta' && event.delta?.type === 'input_json_delta') {
+              const delta = event.delta.partial_json || ''
+              if (currentToolUseId && pendingToolUses.has(currentToolUseId)) {
                 const toolUse = pendingToolUses.get(currentToolUseId)
-                if (toolUse.inputJson) {
-                  try {
-                    toolUse.input = JSON.parse(toolUse.inputJson)
-                    debugLog(`[Chat API] ✅ Tool ${toolUse.name} input finalized`)
-                    sendBrowserLog('info', `Tool input finalized: ${toolUse.name}`, { input: toolUse.input })
-                  } catch (e) {
-                    debugWarn(`[Chat API] ⚠️ Failed to parse tool input JSON for ${toolUse.name}:`, e.message)
-                    sendBrowserLog('warn', `Failed to parse tool input: ${toolUse.name}`, { error: e.message })
-                  }
+                toolUse.inputJson += delta
+                try {
+                  toolUse.input = JSON.parse(toolUse.inputJson)
+                } catch (e) {
+                  // JSON not complete yet
                 }
-                currentToolUseId = null
-              } else if (event.type === 'message_stop') {
-                // Get accurate token counts
-                if (event.message?.usage) {
-                  finalUsage = event.message.usage
-                  inputTokens = event.message.usage.input_tokens
-                  outputTokens = event.message.usage.output_tokens
-                  
-                  // Log cache metrics for Anthropic
-                  if (event.message.usage.cache_creation_input_tokens || event.message.usage.cache_read_input_tokens) {
-                    console.log('[Chat API] Cache metrics:', {
-                      cacheCreationTokens: event.message.usage.cache_creation_input_tokens,
-                      cacheReadTokens: event.message.usage.cache_read_input_tokens,
-                      totalInputTokens: inputTokens,
-                      cacheHitRate: event.message.usage.cache_read_input_tokens 
-                        ? ((event.message.usage.cache_read_input_tokens / inputTokens) * 100).toFixed(1) + '%'
-                        : '0%'
-                    })
-                  }
-                }
-                break
-              } else if (event.type === 'error') {
-                console.error('[Chat API] Stream error event:', event.error)
-                const errorMsg = event.error?.message || 'Stream error occurred'
-                sendBrowserLog('error', 'Stream error', { error: errorMsg })
-                throw new Error(errorMsg)
               }
-            }
-            // Note: DeepSeek events are normalized to Anthropic format in provider abstraction
-            // So they're handled by the same event types above
-            
-            // Handle DeepSeek message_stop (which should come after finish_reason)
-            if (event.type === 'message_stop' && selectedProvider === PROVIDERS.DEEPSEEK) {
-              // Get accurate token counts
+            } else if (event.type === 'content_block_stop' && currentToolUseId && pendingToolUses.has(currentToolUseId)) {
+              const toolUse = pendingToolUses.get(currentToolUseId)
+              // Finalize tool input - parse accumulated JSON
+              // Works for both Anthropic (streamed JSON) and DeepSeek (normalized to same format)
+              if (toolUse.inputJson) {
+                try {
+                  toolUse.input = JSON.parse(toolUse.inputJson)
+                  debugLog(`[Chat API] ✅ Tool ${toolUse.name} input finalized (provider: ${selectedProvider})`, { 
+                    input: toolUse.input,
+                    inputJsonLength: toolUse.inputJson.length 
+                  })
+                  sendBrowserLog('info', `Tool input finalized: ${toolUse.name}`, { input: toolUse.input })
+                } catch (e) {
+                  debugWarn(`[Chat API] ⚠️ Failed to parse tool input JSON for ${toolUse.name}:`, e.message)
+                  debugWarn(`[Chat API] Input JSON preview:`, toolUse.inputJson.substring(0, 200))
+                  sendBrowserLog('warn', `Failed to parse tool input: ${toolUse.name}`, { error: e.message })
+                  // Fallback: try to use initial input if available
+                  if (!toolUse.input || Object.keys(toolUse.input).length === 0) {
+                    toolUse.input = toolUse.input || {}
+                  }
+                }
+              } else if (toolUse.input && Object.keys(toolUse.input).length > 0) {
+                // Input already set from initial tool_use event (shouldn't happen, but handle it)
+                debugLog(`[Chat API] ✅ Tool ${toolUse.name} input already set (provider: ${selectedProvider})`)
+              } else {
+                debugWarn(`[Chat API] ⚠️ Tool ${toolUse.name} has no input JSON or initial input`)
+                toolUse.input = toolUse.input || {}
+              }
+              currentToolUseId = null
+            } else if (event.type === 'message_stop') {
+              // Get accurate token counts (works for both Anthropic and DeepSeek)
+              // DeepSeek events are normalized to Anthropic format by provider abstraction
               if (event.message?.usage) {
                 finalUsage = event.message.usage
                 inputTokens = event.message.usage.input_tokens
                 outputTokens = event.message.usage.output_tokens
+                
+                // Log cache metrics for Anthropic (DeepSeek doesn't have cache metrics)
+                if (event.message.usage.cache_creation_input_tokens || event.message.usage.cache_read_input_tokens) {
+                  console.log('[Chat API] Cache metrics:', {
+                    cacheCreationTokens: event.message.usage.cache_creation_input_tokens,
+                    cacheReadTokens: event.message.usage.cache_read_input_tokens,
+                    totalInputTokens: inputTokens,
+                    cacheHitRate: event.message.usage.cache_read_input_tokens 
+                      ? ((event.message.usage.cache_read_input_tokens / inputTokens) * 100).toFixed(1) + '%'
+                      : '0%'
+                  })
+                }
               }
               break
+            } else if (event.type === 'error') {
+              console.error('[Chat API] Stream error event:', event.error)
+              const errorMsg = event.error?.message || 'Stream error occurred'
+              sendBrowserLog('error', 'Stream error', { error: errorMsg })
+              throw new Error(errorMsg)
             }
           }
           
@@ -1055,8 +1056,9 @@ export async function POST(request) {
           })
 
           // After initial stream, check if tools were requested
-          // Only execute tools for Anthropic (DeepSeek may not support them)
-          if (pendingToolUses.size > 0 && mcpTools.length > 0 && selectedProvider === PROVIDERS.ANTHROPIC) {
+          // Execute tools for both Anthropic and DeepSeek
+          // DeepSeek tool calls are normalized to Anthropic format by provider abstraction
+          if (pendingToolUses.size > 0 && mcpTools.length > 0) {
             debugLog(`[Chat API] 🔧 Processing ${pendingToolUses.size} pending tool uses`)
             sendBrowserLog('info', `Executing ${pendingToolUses.size} tool(s)`, { 
               toolCount: pendingToolUses.size,
@@ -1290,10 +1292,9 @@ export async function POST(request) {
                   }
                 }
                 
-                // Check if Claude is requesting more tools in follow-up (handle recursive tool calls)
-                // Only for Anthropic provider
-                if (selectedProvider === PROVIDERS.ANTHROPIC) {
-                  if (followUpEvent.type === 'content_block_start' && followUpEvent.content_block?.type === 'tool_use') {
+                // Handle tool calls in follow-up (normalized to Anthropic format for both providers)
+                // DeepSeek tool calls are normalized by provider abstraction to match Anthropic format
+                if (followUpEvent.type === 'content_block_start' && followUpEvent.content_block?.type === 'tool_use') {
                   const toolUse = followUpEvent.content_block
                   followUpCurrentToolUseId = toolUse.id
                   followUpPendingToolUses.set(toolUse.id, {
@@ -1302,70 +1303,61 @@ export async function POST(request) {
                     inputJson: '',
                     id: toolUse.id
                   })
-                    debugLog(`[Chat API] 🔧 Follow-up round ${followUpRound} requested tool: ${toolUse.name}`)
-                    sendBrowserLog('info', `Tool requested in follow-up: ${toolUse.name}`, { round: followUpRound })
-                  } else if (followUpEvent.type === 'content_block_delta' && followUpEvent.delta?.type === 'input_json_delta') {
-                    // Accumulate tool input JSON
-                    const delta = followUpEvent.delta.partial_json || ''
-                    if (followUpCurrentToolUseId && followUpPendingToolUses.has(followUpCurrentToolUseId)) {
-                      const toolUse = followUpPendingToolUses.get(followUpCurrentToolUseId)
-                      toolUse.inputJson += delta
-                      try {
-                        toolUse.input = JSON.parse(toolUse.inputJson)
-                      } catch (e) {
-                        // JSON not complete yet
-                      }
-                    }
-                  } else if (followUpEvent.type === 'content_block_stop' && followUpCurrentToolUseId && followUpPendingToolUses.has(followUpCurrentToolUseId)) {
+                  debugLog(`[Chat API] 🔧 Follow-up round ${followUpRound} requested tool: ${toolUse.name} (provider: ${selectedProvider})`)
+                  sendBrowserLog('info', `Tool requested in follow-up: ${toolUse.name}`, { round: followUpRound })
+                } else if (followUpEvent.type === 'content_block_delta' && followUpEvent.delta?.type === 'input_json_delta') {
+                  // Accumulate tool input JSON
+                  const delta = followUpEvent.delta.partial_json || ''
+                  if (followUpCurrentToolUseId && followUpPendingToolUses.has(followUpCurrentToolUseId)) {
                     const toolUse = followUpPendingToolUses.get(followUpCurrentToolUseId)
-                    if (toolUse.inputJson) {
-                      try {
-                        toolUse.input = JSON.parse(toolUse.inputJson)
-                        debugLog(`[Chat API] ✅ Follow-up tool ${toolUse.name} input finalized`)
-                      } catch (e) {
-                        debugWarn(`[Chat API] ⚠️ Failed to parse follow-up tool input JSON for ${toolUse.name}:`, e.message)
-                      }
+                    toolUse.inputJson += delta
+                    try {
+                      toolUse.input = JSON.parse(toolUse.inputJson)
+                    } catch (e) {
+                      // JSON not complete yet
                     }
-                    followUpCurrentToolUseId = null
-                  } else if (followUpEvent.type === 'message_stop') {
-                    // Update token counts from final message
-                    if (followUpEvent.message?.usage) {
-                      inputTokens = followUpEvent.message.usage.input_tokens
-                      outputTokens = followUpEvent.message.usage.output_tokens
-                    }
-                    const followUpTime = Date.now() - followUpStart
-                    debugLog(`[Chat API] ✅ Follow-up API call complete (${followUpTime}ms)`)
-                    sendBrowserLog('info', 'Follow-up API call complete', { 
-                      duration: followUpTime,
-                      chunksReceived: followUpChunkCount,
-                      responseLength: followUpFullResponse.length
-                    })
-                    break
-                  } else if (followUpEvent.type === 'error') {
-                    console.error('[Chat API] ❌ Follow-up stream error:', followUpEvent.error)
-                    sendBrowserLog('error', 'Follow-up stream error', { error: followUpEvent.error?.message })
-                    break
                   }
-                } else {
-                  // For non-Anthropic providers, handle message_stop and error events
-                  if (followUpEvent.type === 'message_stop') {
-                    if (followUpEvent.message?.usage) {
-                      inputTokens = followUpEvent.message.usage.input_tokens
-                      outputTokens = followUpEvent.message.usage.output_tokens
+                } else if (followUpEvent.type === 'content_block_stop' && followUpCurrentToolUseId && followUpPendingToolUses.has(followUpCurrentToolUseId)) {
+                  const toolUse = followUpPendingToolUses.get(followUpCurrentToolUseId)
+                  if (toolUse.inputJson) {
+                    try {
+                      toolUse.input = JSON.parse(toolUse.inputJson)
+                      debugLog(`[Chat API] ✅ Follow-up tool ${toolUse.name} input finalized (provider: ${selectedProvider})`)
+                    } catch (e) {
+                      debugWarn(`[Chat API] ⚠️ Failed to parse follow-up tool input JSON for ${toolUse.name}:`, e.message)
                     }
-                    const followUpTime = Date.now() - followUpStart
-                    debugLog(`[Chat API] ✅ Follow-up API call complete (${followUpTime}ms)`)
-                    sendBrowserLog('info', 'Follow-up API call complete', { 
-                      duration: followUpTime,
-                      chunksReceived: followUpChunkCount,
-                      responseLength: followUpFullResponse.length
-                    })
-                    break
-                  } else if (followUpEvent.type === 'error') {
-                    console.error('[Chat API] ❌ Follow-up stream error:', followUpEvent.error)
-                    sendBrowserLog('error', 'Follow-up stream error', { error: followUpEvent.error?.message })
-                    break
                   }
+                  followUpCurrentToolUseId = null
+                } else if (followUpEvent.type === 'message_stop') {
+                  // Update token counts from final message (works for both Anthropic and DeepSeek)
+                  if (followUpEvent.message?.usage) {
+                    inputTokens = followUpEvent.message.usage.input_tokens
+                    outputTokens = followUpEvent.message.usage.output_tokens
+                  }
+                  const followUpTime = Date.now() - followUpStart
+                  debugLog(`[Chat API] ✅ Follow-up API call complete (${followUpTime}ms, provider: ${selectedProvider})`)
+                  sendBrowserLog('info', 'Follow-up API call complete', { 
+                    duration: followUpTime,
+                    chunksReceived: followUpChunkCount,
+                    responseLength: followUpFullResponse.length
+                  })
+                  break
+                } else if (followUpEvent.type === 'error') {
+                  const errorDetails = followUpEvent.error || {}
+                  const errorMessage = errorDetails.message || errorDetails.toString() || 'Unknown stream error'
+                  console.error('[Chat API] ❌ Follow-up stream error:', {
+                    error: errorDetails,
+                    message: errorMessage,
+                    provider: selectedProvider,
+                    round: followUpRound
+                  })
+                  sendBrowserLog('error', 'Follow-up stream error', { 
+                    error: errorMessage,
+                    provider: selectedProvider,
+                    round: followUpRound,
+                    errorDetails: Object.keys(errorDetails).length > 0 ? errorDetails : undefined
+                  })
+                  break
                 }
               }
               

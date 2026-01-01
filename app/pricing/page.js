@@ -337,8 +337,7 @@ export default function PricingPage() {
       // Calculate price
       const plan = PRICING_PLANS[tier]
       const monthlyPriceUSD = billingCycle === 'annual' ? Math.round(plan.priceAnnual / 12) : plan.price
-      const discountMultiplier = 0.5 // 50% discount
-      const discountedPriceUSD = monthlyPriceUSD * discountMultiplier
+      const priceUSD = monthlyPriceUSD
       
       // Determine payment currency: INR for India, USD for everyone else
       const isIndia = currency === 'INR'
@@ -347,7 +346,7 @@ export default function PricingPage() {
       // Convert amount to payment currency
       let paymentAmount
       if (isIndia) {
-        const conversionResult = convertCurrencySync(discountedPriceUSD, 'USD', 'INR')
+        const conversionResult = convertCurrencySync(priceUSD, 'USD', 'INR')
         
         // Check if conversion failed
         if (conversionResult && typeof conversionResult === 'object' && conversionResult.success === false) {
@@ -367,7 +366,7 @@ export default function PricingPage() {
         
         paymentAmount = conversionResult
       } else {
-        paymentAmount = discountedPriceUSD
+        paymentAmount = priceUSD
       }
 
       // Validate payment amount before proceeding
@@ -722,10 +721,7 @@ export default function PricingPage() {
             
             // Calculate prices
             const monthlyPriceUSD = billingCycle === 'annual' ? Math.round(plan.priceAnnual / 12) : plan.price
-            const discountMultiplier = (key === 'trader' || key === 'pro') ? 0.5 : 1
-            const discountedMonthlyPriceUSD = monthlyPriceUSD * discountMultiplier
             const convertedMonthlyPrice = currency === 'USD' ? monthlyPriceUSD : safeConvertForDisplay(monthlyPriceUSD, currency)
-            const convertedDiscountedMonthlyPrice = currency === 'USD' ? discountedMonthlyPriceUSD : safeConvertForDisplay(discountedMonthlyPriceUSD, currency)
             
             const formatPrice = (price) => {
               if (price === 0) return '0'
@@ -733,7 +729,7 @@ export default function PricingPage() {
               return price.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
             }
             
-            const discountedPriceString = formatPrice(convertedDiscountedMonthlyPrice)
+            const priceString = formatPrice(convertedMonthlyPrice)
             
             // Feature list
             const features = [
@@ -780,12 +776,6 @@ export default function PricingPage() {
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="text-lg font-semibold text-white/90">{plan.name}</h3>
-                        {(key === 'trader' || key === 'pro') && (
-                          <Badge variant="warning" className="inline-flex items-center gap-1 animate-pulse px-2 py-0.5 text-[10px]">
-                            <Sparkles className="w-2 h-2" />
-                            50% off
-                          </Badge>
-                        )}
                       </div>
                       <p className="text-xs text-white/50 mt-0.5">{plan.description}</p>
                     </div>
@@ -796,36 +786,24 @@ export default function PricingPage() {
                 <div className="mb-4">
                   {billingCycle === 'monthly' ? (
                     <>
-                      {(key === 'trader' || key === 'pro') && (
-                        <div className="text-sm text-white/40 line-through mb-1">
-                          {getCurrencySymbol(currency)}{formatPrice(convertedMonthlyPrice)}/mo
-                        </div>
-                      )}
                       <div className="flex items-baseline gap-1">
                         <span className="text-2xl font-semibold tabular-nums text-white/90">
-                          {getCurrencySymbol(currency)}{discountedPriceString}
+                          {getCurrencySymbol(currency)}{priceString}
                         </span>
                         <span className="text-sm text-white/50">/mo</span>
                       </div>
                     </>
                   ) : (
                     <>
-                      {(key === 'trader' || key === 'pro') && (
-                        <div className="text-sm text-white/40 line-through mb-1">
-                          {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? plan.priceAnnual : safeConvertForDisplay(plan.priceAnnual, currency))}/yr
-                        </div>
-                      )}
                       <div className="flex items-baseline gap-1 mb-1">
                         <span className="text-2xl font-semibold tabular-nums text-white/90">
-                          {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? plan.priceAnnual * discountMultiplier : safeConvertForDisplay(plan.priceAnnual * discountMultiplier, currency))}
+                          {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? plan.priceAnnual : safeConvertForDisplay(plan.priceAnnual, currency))}
                         </span>
                         <span className="text-sm text-white/50">/yr</span>
                       </div>
-                      {(key === 'trader' || key === 'pro') && (
-                        <div className="text-xs text-white/70">
-                          {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? Math.round(plan.priceAnnual * discountMultiplier / 12) : safeConvertForDisplay(Math.round(plan.priceAnnual * discountMultiplier / 12), currency))}/mo
-                        </div>
-                      )}
+                      <div className="text-xs text-white/70">
+                        {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? Math.round(plan.priceAnnual / 12) : safeConvertForDisplay(Math.round(plan.priceAnnual / 12), currency))}/mo
+                      </div>
                     </>
                   )}
                 </div>
@@ -1091,10 +1069,7 @@ export default function PricingPage() {
                       
                       // Calculate prices
                       const monthlyPriceUSD = billingCycle === 'annual' ? Math.round(plan.priceAnnual / 12) : plan.price
-                      const discountMultiplier = (key === 'trader' || key === 'pro') ? 0.5 : 1
-                      const discountedMonthlyPriceUSD = monthlyPriceUSD * discountMultiplier
                       const convertedMonthlyPrice = currency === 'USD' ? monthlyPriceUSD : safeConvertForDisplay(monthlyPriceUSD, currency)
-                      const convertedDiscountedMonthlyPrice = currency === 'USD' ? discountedMonthlyPriceUSD : safeConvertForDisplay(discountedMonthlyPriceUSD, currency)
                       
                       const formatPrice = (price) => {
                         if (price === 0) return '0'
@@ -1110,8 +1085,8 @@ export default function PricingPage() {
                         return 'text-base'
                       }
                       
-                      const discountedPriceString = formatPrice(convertedDiscountedMonthlyPrice)
-                      const priceFontSize = getPriceFontSize(discountedPriceString)
+                      const priceString = formatPrice(convertedMonthlyPrice)
+                      const priceFontSize = getPriceFontSize(priceString)
                       
                       return (
                         <th 
@@ -1119,13 +1094,6 @@ export default function PricingPage() {
                           className={`text-center px-1.5 sm:px-2 py-2 sm:py-3 min-w-[100px] sm:min-w-[120px] ${isPopular ? 'bg-white/5' : key === 'pro' ? 'bg-white/5' : ''}`}
                         >
                           <div className="flex flex-col items-center gap-1 sm:gap-1.5">
-                            {(key === 'trader' || key === 'pro') && (
-                              <Badge variant="warning" className="inline-flex items-center gap-0.5 sm:gap-1 animate-pulse px-1 sm:px-1.5 py-0.5 text-[8px] sm:text-[10px] mb-0.5 whitespace-nowrap">
-                                <Sparkles className="w-1.5 h-1.5 sm:w-2 sm:h-2" />
-                                <span className="hidden xs:inline">50% off till Dec 31, 2025</span>
-                                <span className="xs:hidden">50% off</span>
-                              </Badge>
-                            )}
                             <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center`}>
                               <Icon className={`w-3 h-3 sm:w-4 sm:h-4 text-white/70`} />
                             </div>
@@ -1140,14 +1108,9 @@ export default function PricingPage() {
                                 {billingCycle === 'monthly' ? (
                                   // Monthly pricing display
                                   <>
-                                    {(key === 'trader' || key === 'pro') && (
-                                      <span className="text-[10px] sm:text-xs text-white/40 line-through">
-                                        {getCurrencySymbol(currency)}{formatPrice(convertedMonthlyPrice)}
-                                      </span>
-                                    )}
                                     <div className="flex items-baseline gap-0.5">
                                       <span className={`text-base sm:text-lg font-semibold tabular-nums text-white/90`}>
-                                        {getCurrencySymbol(currency)}{discountedPriceString}
+                                        {getCurrencySymbol(currency)}{priceString}
                                       </span>
                                       <span className="text-[10px] sm:text-xs text-white/50">/mo</span>
                                     </div>
@@ -1155,22 +1118,15 @@ export default function PricingPage() {
                                 ) : (
                                   // Annual pricing display
                                   <>
-                                    {(key === 'trader' || key === 'pro') && (
-                                      <span className="text-[10px] sm:text-xs text-white/40 line-through">
-                                        {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? plan.priceAnnual : safeConvertForDisplay(plan.priceAnnual, currency))}
-                                      </span>
-                                    )}
                                     <div className="flex items-baseline gap-0.5">
                                       <span className={`text-base sm:text-lg font-semibold tabular-nums text-white/90`}>
-                                        {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? plan.priceAnnual * discountMultiplier : safeConvertForDisplay(plan.priceAnnual * discountMultiplier, currency))}
+                                        {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? plan.priceAnnual : safeConvertForDisplay(plan.priceAnnual, currency))}
                                       </span>
                                       <span className="text-[10px] sm:text-xs text-white/50">/yr</span>
                                     </div>
-                                    {(key === 'trader' || key === 'pro') && (
-                                      <span className="text-[9px] sm:text-[10px] text-white/70">
-                                        {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? Math.round(plan.priceAnnual * discountMultiplier / 12) : safeConvertForDisplay(Math.round(plan.priceAnnual * discountMultiplier / 12), currency))}/mo
-                                      </span>
-                                    )}
+                                    <span className="text-[9px] sm:text-[10px] text-white/70">
+                                      {getCurrencySymbol(currency)}{formatPrice(currency === 'USD' ? Math.round(plan.priceAnnual / 12) : safeConvertForDisplay(Math.round(plan.priceAnnual / 12), currency))}/mo
+                                    </span>
                                   </>
                                 )}
                               </div>
