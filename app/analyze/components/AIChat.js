@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo, useImperativeHandle, forwardRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Send, Loader2, Bot, User, Sparkles, X, RotateCcw, Square, Minimize2, Maximize2, Database, Link as LinkIcon, Upload, TrendingUp, DollarSign, PieChart, Target, AlertCircle, MessageCircle, Share2, Check, ChevronDown, Menu, Play } from 'lucide-react'
+import { Send, Loader2, Bot, User, Sparkles, X, RotateCcw, Square, Minimize2, Maximize2, Database, Link as LinkIcon, Upload, TrendingUp, DollarSign, PieChart, Target, AlertCircle, MessageCircle, Share2, Check, ChevronDown, Menu, Play, Brain } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { getDynamicSampleQuestions, getCoachModeStarters, getGreeting } from '@/lib/ai/prompts/sampleQuestions'
@@ -478,41 +478,87 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
     }
   }, [conversationId, sessionMessages, tradesStats, effectiveAnalytics, effectiveAllTrades])
 
-  // Load previous conversation summaries on mount
-  useEffect(() => {
-    if (!user) return
+  // Load previous conversation summaries lazily (only when needed)
+  // Use a ref to track if summaries are being loaded to prevent duplicate requests
+  const summariesLoadingRef = useRef(false)
+  const summariesLoadedRef = useRef(false)
+  const summariesAbortControllerRef = useRef(null)
+  
+  const loadPreviousSummaries = useCallback(async () => {
+    // Skip if already loaded or currently loading
+    if (summariesLoadedRef.current || summariesLoadingRef.current || !user) {
+      return
+    }
     
-    fetch('/api/ai/chat')
-      .then(async res => {
-        if (!res.ok) {
-          // If 404 or other error, just continue without previous conversations
-          return null
-        }
-        try {
-          return await res.json()
-        } catch (e) {
-          // If response is not JSON, return null
-          return null
-        }
+    // Abort any existing request
+    if (summariesAbortControllerRef.current) {
+      summariesAbortControllerRef.current.abort()
+    }
+    
+    summariesLoadingRef.current = true
+    summariesAbortControllerRef.current = new AbortController()
+    
+    try {
+      const response = await fetch('/api/ai/chat?summariesOnly=true', {
+        signal: summariesAbortControllerRef.current.signal
       })
-      .then(data => {
-        if (data?.success && data.conversations && Array.isArray(data.conversations)) {
-          const summaries = data.conversations
-            .filter(c => c.summary)
-            .map(c => c.summary)
-          setPreviousSummaries(summaries)
-        }
-      })
-      .catch(err => {
-        // Silently handle errors - it's okay if there are no previous conversations
-        if (err.name !== 'AbortError') {
-          // Only log if it's not a network error (which is expected for new users)
-          if (!err.message?.includes('fetch')) {
-            console.warn('Could not load previous conversations (this is normal for new users):', err.message)
-          }
-        }
-      })
+      if (!response.ok) {
+        return
+      }
+      
+      const data = await response.json()
+      if (data?.success && data.conversations && Array.isArray(data.conversations)) {
+        const summaries = data.conversations
+          .filter(c => c.summary)
+          .map(c => c.summary)
+        setPreviousSummaries(summaries)
+        summariesLoadedRef.current = true
+      }
+    } catch (err) {
+      // Silently handle errors - it's okay if there are no previous conversations
+      if (err.name !== 'AbortError' && !err.message?.includes('fetch')) {
+        console.warn('Could not load previous conversations:', err.message)
+      }
+    } finally {
+      summariesLoadingRef.current = false
+      summariesAbortControllerRef.current = null
+    }
   }, [user])
+  
+  // Only load summaries when starting a new conversation (not on every mount)
+  // Load lazily after component has mounted and when user sends first message
+  useEffect(() => {
+    if (!user || messages.length > 0) return
+    
+    // Load summaries after a short delay to not block initial render
+    // This makes the new chat start faster
+    const timeoutId = setTimeout(() => {
+      loadPreviousSummaries()
+    }, 500) // Load after 500ms delay
+    
+    return () => {
+      clearTimeout(timeoutId)
+      // Abort request if component unmounts
+      if (summariesAbortControllerRef.current) {
+        summariesAbortControllerRef.current.abort()
+        summariesAbortControllerRef.current = null
+      }
+    }
+  }, [user, messages.length, loadPreviousSummaries])
+  
+  // Also load summaries when conversation is cleared (user starts new chat)
+  useEffect(() => {
+    if (messages.length === 0 && conversationId === null && user && !summariesLoadedRef.current) {
+      // Reset loaded flag when clearing conversation to allow reload
+      summariesLoadedRef.current = false
+      // Load summaries after clearing
+      const timeoutId = setTimeout(() => {
+        loadPreviousSummaries()
+      }, 100)
+      
+      return () => clearTimeout(timeoutId)
+    }
+  }, [messages.length, conversationId, user, loadPreviousSummaries])
 
   // Auto-summarize conversation when inactive after assistant response
   useEffect(() => {
@@ -957,14 +1003,25 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                     setToolStatus(`Executing ${logData.toolCount} tool${logData.toolCount > 1 ? 's' : ''}...`)
                   }
                   
-                  if (logLevel === 'error') {
-                    console.error(logMessage, logData)
-                  } else if (logLevel === 'warn') {
-                    console.warn(logMessage, logData)
-                  } else if (logLevel === 'debug') {
-                    console.debug(logMessage, logData)
-                  } else {
-                    console.log(logMessage, logData)
+                  // Safely log with proper error handling
+                  try {
+                    if (logLevel === 'error') {
+                      // Only log meaningful data, skip empty objects
+                      if (logData && typeof logData === 'object' && Object.keys(logData).length === 0) {
+                        console.error(logMessage)
+                      } else {
+                        console.error(logMessage, logData)
+                      }
+                    } else if (logLevel === 'warn') {
+                      console.warn(logMessage, logData)
+                    } else if (logLevel === 'debug') {
+                      console.debug(logMessage, logData)
+                    } else {
+                      console.log(logMessage, logData)
+                    }
+                  } catch (logError) {
+                    // Fallback if logging fails (e.g., circular reference)
+                    console.error('[Log Error]', logMessage, logError.message)
                   }
                 } else if (data.type === 'chart_data') {
                   // Received chart data from MCP tool - store it for rendering
@@ -1405,9 +1462,13 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
       {/* Header - only show in compact view or if explicitly requested */}
       {showHeader && (!isMaximizedView || isFullPage) && (
         <div className="relative flex items-center justify-between px-4 py-3 border-b border-white/5 flex-shrink-0">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-[0.3125rem]">
             <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
-              <Bot className="w-4 h-4 text-white/80" />
+              {coachMode ? (
+                <Brain className="w-4 h-4 text-white/80" />
+              ) : (
+                <Bot className="w-4 h-4 text-white/80" />
+              )}
             </div>
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-semibold text-white/90">
@@ -2138,9 +2199,13 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
           <div className="flex flex-col h-full w-full" style={{ minHeight: 0, maxHeight: '100%' }}>
             {/* Dialog Header with close button */}
             <div className="relative flex items-center justify-between px-4 py-3 border-b border-white/5 flex-shrink-0">
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-[0.3125rem]">
                 <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
-                  <Bot className="w-4 h-4 text-white/80" />
+                  {coachMode ? (
+                    <Brain className="w-4 h-4 text-white/80" />
+                  ) : (
+                    <Bot className="w-4 h-4 text-white/80" />
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-semibold text-white/90">

@@ -549,7 +549,7 @@ export async function POST(request) {
         }
         
         // Helper function to send chart data to frontend
-        const sendChartData = (toolName, symbol, rawData, toolInput = {}) => {
+        const sendChartData = (toolName, symbol, rawData, toolInput = {}, userMessage = '') => {
           // Only process time series tools
           const timeSeriesTools = ['TIME_SERIES_INTRADAY', 'TIME_SERIES_DAILY', 'TIME_SERIES_WEEKLY', 'DIGITAL_CURRENCY_DAILY']
           if (!timeSeriesTools.includes(toolName)) {
@@ -561,16 +561,70 @@ export async function POST(request) {
           debugLog(`[Chart] Tool input:`, toolInput)
           debugLog(`[Chart] Raw data type: ${typeof rawData}, length: ${typeof rawData === 'string' ? rawData.length : 'N/A'}`)
           
-          // Extract requested time window from tool input
-          // Look for patterns like "last 10 days", "10 days", "days: 10", etc.
+          // Extract requested time window from tool input and user message
+          // Look for patterns like "full year", "last 1 year", "1 year", "year", "month", "week", "10 days", etc.
           let requestedDays = null
-          const inputStr = JSON.stringify(toolInput).toLowerCase()
-          const daysMatch = inputStr.match(/(?:last\s+)?(\d+)\s*(?:trading\s*)?days?/i) || 
-                           inputStr.match(/days?[:\s]*(\d+)/i) ||
-                           inputStr.match(/(\d+)[:\s]*days?/i)
-          if (daysMatch) {
-            requestedDays = parseInt(daysMatch[1], 10)
-            debugLog(`[Chart] Detected requested time window: ${requestedDays} days`)
+          let requestedStartDate = null
+          let isFullYearRequest = false
+          // Combine toolInput and userMessage for better detection
+          const inputStr = (JSON.stringify(toolInput) + ' ' + (userMessage || '')).toLowerCase()
+          
+          // Check for "last" keyword to distinguish rolling periods from calendar periods
+          const hasLastKeyword = inputStr.includes('last') || inputStr.includes('past') || inputStr.includes('previous')
+          
+          // Check for "full year" or "1 year" requests first
+          const fullYearMatch = inputStr.match(/(?:full\s+)?year|(?:last\s+)?(\d+)\s*year|(\d+)\s*year|year\s+of/i)
+          if (fullYearMatch) {
+            const years = fullYearMatch[1] ? parseInt(fullYearMatch[1], 10) : (fullYearMatch[2] ? parseInt(fullYearMatch[2], 10) : 1)
+            const now = new Date()
+            const currentYear = now.getUTCFullYear()
+            
+            // For "full year" or "year of", use actual calendar year (Jan 1 to Dec 31)
+            // For "last 1 year" or "1 year", use rolling 365 days from today
+            isFullYearRequest = (inputStr.includes('full year') || inputStr.includes('year of')) && !hasLastKeyword
+            
+            if (isFullYearRequest && years === 1) {
+              // Full calendar year: Jan 1 to Dec 31 of current year
+              requestedStartDate = new Date(Date.UTC(currentYear, 0, 1)) // Jan 1
+              const endOfYear = new Date(Date.UTC(currentYear, 11, 31, 23, 59, 59)) // Dec 31
+              requestedDays = Math.ceil((endOfYear - requestedStartDate) / (1000 * 60 * 60 * 24)) + 1
+              debugLog(`[Chart] Detected full calendar year request: ${currentYear}`)
+            } else {
+              // Rolling year(s): last N years from today (don't set requestedStartDate, let it calculate from days)
+              requestedDays = years * 365 // Approximate days
+              // Don't set requestedStartDate for rolling periods - let it calculate from today backwards
+              debugLog(`[Chart] Detected rolling year request: ${years} year(s), ${requestedDays} days (rolling from today)`)
+            }
+          }
+          // Check for month requests
+          else {
+            const monthMatch = inputStr.match(/(?:full\s+)?month|(\d+)\s*months?/i)
+            if (monthMatch) {
+              const months = monthMatch[1] ? parseInt(monthMatch[1], 10) : 1
+              requestedDays = months * 30 // Approximate days in a month
+              const now = new Date()
+              requestedStartDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1))
+              debugLog(`[Chart] Detected month request: ${months} month(s), ${requestedDays} days`)
+            }
+            // Check for week requests
+            else {
+              const weekMatch = inputStr.match(/(?:full\s+)?week|(\d+)\s*weeks?/i)
+              if (weekMatch) {
+                const weeks = weekMatch[1] ? parseInt(weekMatch[1], 10) : 1
+                requestedDays = weeks * 7
+                debugLog(`[Chart] Detected week request: ${weeks} week(s), ${requestedDays} days`)
+              }
+              // Check for day requests
+              else {
+                const daysMatch = inputStr.match(/(?:last\s+)?(\d+)\s*(?:trading\s*)?days?/i) || 
+                                 inputStr.match(/days?[:\s]*(\d+)/i) ||
+                                 inputStr.match(/(\d+)[:\s]*days?/i)
+                if (daysMatch) {
+                  requestedDays = parseInt(daysMatch[1], 10)
+                  debugLog(`[Chart] Detected day request: ${requestedDays} days`)
+                }
+              }
+            }
           }
           
           try {
@@ -691,37 +745,171 @@ export async function POST(request) {
             
             // Calculate date range filter if requestedDays is specified
             let startDate = null
+            let endDate = null
             if (requestedDays && requestedDays > 0) {
-              const endDate = new Date()
-              startDate = new Date(endDate)
-              // Subtract requested days (accounting for weekends/holidays - use calendar days)
-              startDate.setDate(startDate.getDate() - requestedDays)
+              // Use provided start date if available (for full year/month), otherwise calculate from days
+              if (requestedStartDate) {
+                startDate = new Date(requestedStartDate)
+                // Normalize to start of day in UTC
+                startDate.setUTCHours(0, 0, 0, 0)
+                
+                // For full year requests, set end date to end of the year
+                if (isFullYearRequest && requestedStartDate.getUTCMonth() === 0 && requestedStartDate.getUTCDate() === 1) {
+                  // Full calendar year: set end to Dec 31 of that year
+                  endDate = new Date(Date.UTC(requestedStartDate.getUTCFullYear(), 11, 31, 23, 59, 59, 999))
+                } else {
+                  // Calculate end date from start date + requested days
+                  endDate = new Date(startDate)
+                  endDate.setUTCDate(endDate.getUTCDate() + requestedDays - 1)
+                  endDate.setUTCHours(23, 59, 59, 999)
+                }
+              } else {
+                // Calculate from requested days (rolling period) - go back N days from today
+                endDate = new Date()
+                endDate.setUTCHours(23, 59, 59, 999) // End of today
+                
+                // Calculate start date by subtracting days using milliseconds to avoid date arithmetic issues
+                const daysInMs = requestedDays * 24 * 60 * 60 * 1000
+                startDate = new Date(endDate.getTime() - daysInMs)
+                startDate.setUTCHours(0, 0, 0, 0) // Start of day
+              }
+              
+              const now = new Date()
+              debugLog(`[Chart] Current system date: ${now.toISOString()} (UTC)`)
+              debugLog(`[Chart] Current system date (local): ${now.toString()}`)
               debugLog(`[Chart] Filtering to date range: ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]} (${requestedDays} days)`)
+              debugLog(`[Chart] Date range details:`, {
+                startDate: startDate.toISOString(),
+                endDate: endDate.toISOString(),
+                startYear: startDate.getUTCFullYear(),
+                endYear: endDate.getUTCFullYear(),
+                requestedDays,
+                currentSystemDate: now.toISOString(),
+                currentSystemYear: now.getUTCFullYear()
+              })
             }
             
             // Convert to chart format - filter by date range if specified
             // Convert timestamp strings to Unix timestamps (seconds since epoch)
+            let dateParseCount = 0
             const chartData = entries
               .map(([timestamp, values]) => {
+                // Log first few date parses for debugging
+                if (dateParseCount < 3) {
+                  debugLog(`[Chart] Parsing date ${dateParseCount + 1}: "${timestamp}"`)
+                  dateParseCount++
+                }
                 // Parse timestamp - Alpha Vantage uses formats like "2024-12-30" or "2024-12-30 16:00:00"
                 let timeValue
                 let dateObj
                 if (typeof timestamp === 'string') {
-                  dateObj = new Date(timestamp)
+                  // Parse date string - handle both date-only and datetime formats
+                  // Ensure UTC parsing to avoid timezone issues
+                  let dateString = timestamp.trim()
+                  
+                  // If it's date-only format (YYYY-MM-DD), ensure UTC timezone
+                  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+                    // Parse as UTC date explicitly - extract year, month, day components
+                    const parts = dateString.split('-')
+                    const year = parseInt(parts[0], 10)
+                    const month = parseInt(parts[1], 10)
+                    const day = parseInt(parts[2], 10)
+                    
+                    // Validate components are reasonable
+                    if (year < 1900 || year > 2100 || month < 1 || month > 12 || day < 1 || day > 31) {
+                      debugWarn(`[Chart] Invalid date components: year=${year}, month=${month}, day=${day} from "${timestamp}"`)
+                      return null
+                    }
+                    
+                    dateObj = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0))
+                  } else if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}$/.test(dateString)) {
+                    // Datetime format: parse components and create UTC date
+                    const [datePart, timePart] = dateString.split(' ')
+                    const dateParts = datePart.split('-')
+                    const timeParts = timePart.split(':')
+                    const year = parseInt(dateParts[0], 10)
+                    const month = parseInt(dateParts[1], 10)
+                    const day = parseInt(dateParts[2], 10)
+                    const hour = parseInt(timeParts[0], 10) || 0
+                    const minute = parseInt(timeParts[1], 10) || 0
+                    const second = parseInt(timeParts[2], 10) || 0
+                    
+                    // Validate components
+                    if (year < 1900 || year > 2100 || month < 1 || month > 12 || day < 1 || day > 31) {
+                      debugWarn(`[Chart] Invalid datetime components from "${timestamp}"`)
+                      return null
+                    }
+                    
+                    dateObj = new Date(Date.UTC(year, month - 1, day, hour, minute, second, 0))
+                  } else {
+                    // Try standard parsing, but ensure UTC
+                    dateObj = new Date(dateString)
+                    // If parsing failed or resulted in invalid date, try ISO format
+                    if (isNaN(dateObj.getTime())) {
+                      dateObj = new Date(dateString + (dateString.length === 10 ? 'T00:00:00Z' : 'Z'))
+                    }
+                  }
+                  
+                  // Validate parsed date
+                  if (isNaN(dateObj.getTime())) {
+                    debugWarn(`[Chart] Invalid date format: ${timestamp}`)
+                    return null
+                  }
+                  
+                  // Validate year is reasonable (not in the future, not too far in the past)
+                  const parsedYear = dateObj.getUTCFullYear()
+                  const currentYear = new Date().getUTCFullYear()
+                  const currentDate = new Date()
+                  
+                  // Log parsed year for first few entries
+                  if (dateParseCount <= 3) {
+                    debugLog(`[Chart] Parsed date: "${timestamp}" -> year ${parsedYear}, full date: ${dateObj.toISOString().split('T')[0]}, current system year: ${currentYear}`)
+                  }
+                  
+                  // Check if date is in the future (more than a few days ahead is suspicious)
+                  const daysDiff = Math.floor((dateObj.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24))
+                  if (daysDiff > 7) {
+                    debugWarn(`[Chart] Future date detected: ${parsedYear} from timestamp "${timestamp}" is ${daysDiff} days in the future. Current date: ${currentDate.toISOString().split('T')[0]}. This may indicate a parsing error.`)
+                    // Don't skip - might be valid data, but log warning
+                  }
+                  
+                  if (parsedYear > currentYear + 1) {
+                    debugWarn(`[Chart] Suspicious future year detected: ${parsedYear} from timestamp "${timestamp}". Current year: ${currentYear}. Skipping entry.`)
+                    // Skip entries with dates too far in the future (likely parsing errors)
+                    return null
+                  }
+                  
+                  // Normalize to start of day in UTC for accurate comparison
+                  dateObj = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 0, 0, 0, 0))
                   timeValue = Math.floor(dateObj.getTime() / 1000) // Convert to Unix timestamp (seconds)
                 } else if (typeof timestamp === 'number') {
                   // Already a timestamp, but ensure it's in seconds (not milliseconds)
                   timeValue = timestamp < 10000000000 ? timestamp : Math.floor(timestamp / 1000)
                   dateObj = new Date(timeValue * 1000)
+                  // Normalize to start of day in UTC
+                  dateObj = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 0, 0, 0, 0))
+                  timeValue = Math.floor(dateObj.getTime() / 1000)
                 } else {
                   // Fallback: use current time
                   timeValue = Math.floor(Date.now() / 1000)
                   dateObj = new Date()
+                  dateObj = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 0, 0, 0, 0))
+                  timeValue = Math.floor(dateObj.getTime() / 1000)
                 }
                 
-                // Filter by date range if requestedDays is specified
-                if (startDate && dateObj < startDate) {
-                  return null // Skip this entry
+                // Filter by date range if specified
+                // Compare normalized dates (start of day) for accurate filtering
+                if (startDate) {
+                  const startDateNormalized = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate(), 0, 0, 0, 0))
+                  if (dateObj < startDateNormalized) {
+                    return null // Skip entries before start date
+                  }
+                }
+                if (endDate) {
+                  const endDateNormalized = new Date(Date.UTC(endDate.getUTCFullYear(), endDate.getUTCMonth(), endDate.getUTCDate(), 23, 59, 59, 999))
+                  if (dateObj > endDateNormalized) {
+                    return null // Skip entries after end date
+                  }
                 }
                 
                 return {
@@ -734,12 +922,20 @@ export async function POST(request) {
                 }
               })
               .filter(point => point !== null) // Remove filtered entries
-              .slice(0, requestedDays || 50) // Take first N points (newest first from Alpha Vantage)
-              .reverse() // Reverse to oldest first for chart display
+              .sort((a, b) => a.time - b.time) // Sort by time (oldest first) - Alpha Vantage may not be sorted
             
-            if (chartData.length > 0) {
+            // Only limit if we have too much data and no specific date range
+            // If we have a date range, use all data within that range
+            let finalChartData = chartData
+            if (!startDate && chartData.length > 100) {
+              // If no specific range requested and we have lots of data, take most recent 100 points
+              finalChartData = chartData.slice(-100)
+              debugLog(`[Chart] Limited to most recent 100 points (no specific range requested)`)
+            }
+            
+            if (finalChartData.length > 0) {
               // Filter out invalid data points (NaN or zero values)
-              const validChartData = chartData.filter(point => 
+              const validChartData = finalChartData.filter(point => 
                 !isNaN(point.time) && 
                 point.time > 0 &&
                 !isNaN(point.close) && 
@@ -749,11 +945,15 @@ export async function POST(request) {
               if (validChartData.length === 0) {
                 debugWarn('[Chart] No valid chart data points after filtering')
                 sendBrowserLog('warn', 'No valid chart data points after filtering', {
-                  originalCount: chartData.length,
-                  samplePoint: chartData[0]
+                  originalCount: finalChartData.length,
+                  samplePoint: finalChartData[0]
                 })
                 return
               }
+              
+              // Calculate actual date range from data
+              const actualStartTime = validChartData[0]?.time || null
+              const actualEndTime = validChartData[validChartData.length - 1]?.time || null
               
               const chartPayload = {
                 type: 'chart_data',
@@ -764,9 +964,11 @@ export async function POST(request) {
                 timestamp: new Date().toISOString(),
                 // Include time range info for chart display
                 timeRange: requestedDays ? {
-                  days: requestedDays,
-                  startTime: validChartData.length > 0 ? validChartData[0].time : null,
-                  endTime: validChartData.length > 0 ? validChartData[validChartData.length - 1].time : null
+                  requestedDays: requestedDays,
+                  startTime: actualStartTime,
+                  endTime: actualEndTime,
+                  requestedStartDate: startDate ? startDate.toISOString().split('T')[0] : null,
+                  requestedEndDate: endDate ? endDate.toISOString().split('T')[0] : null
                 } : null
               }
               
@@ -1055,7 +1257,7 @@ export async function POST(request) {
                 })
                 
                 // Send chart data to frontend if this is a time series tool
-                sendChartData(toolUse.name, toolUse.input?.symbol, toolResult, toolUse.input || {})
+                sendChartData(toolUse.name, toolUse.input?.symbol, toolResult, toolUse.input || {}, message)
                 
                 // Add tool_result to messages for follow-up API call
                 claudeMessages.push({
@@ -1313,19 +1515,52 @@ export async function POST(request) {
                   break
                 } else if (followUpEvent.type === 'error') {
                   const errorDetails = followUpEvent.error || {}
-                  const errorMessage = errorDetails.message || errorDetails.toString() || 'Unknown stream error'
+                  let errorMessage = 'Unknown stream error'
+                  
+                  // Try to extract error message from various possible formats
+                  if (typeof errorDetails === 'string') {
+                    errorMessage = errorDetails
+                  } else if (errorDetails?.message) {
+                    errorMessage = errorDetails.message
+                  } else if (errorDetails?.error) {
+                    errorMessage = typeof errorDetails.error === 'string' ? errorDetails.error : errorDetails.error?.message || 'Stream error occurred'
+                  } else if (typeof errorDetails === 'object' && Object.keys(errorDetails).length > 0) {
+                    // Try to stringify if it's a non-empty object
+                    try {
+                      errorMessage = JSON.stringify(errorDetails)
+                    } catch (e) {
+                      errorMessage = 'Stream error occurred'
+                    }
+                  }
+                  
                   console.error('[Chat API] ❌ Follow-up stream error:', {
                     error: errorDetails,
                     message: errorMessage,
                     provider: selectedProvider,
                     round: followUpRound
                   })
-                  sendBrowserLog('error', 'Follow-up stream error', { 
+                  
+                  // Only include errorDetails if it has meaningful content
+                  const logData = {
                     error: errorMessage,
                     provider: selectedProvider,
-                    round: followUpRound,
-                    errorDetails: Object.keys(errorDetails).length > 0 ? errorDetails : undefined
-                  })
+                    round: followUpRound
+                  }
+                  
+                  // Add error details only if they exist and are meaningful
+                  if (errorDetails && typeof errorDetails === 'object' && Object.keys(errorDetails).length > 0) {
+                    // Filter out empty or circular references
+                    try {
+                      const serialized = JSON.stringify(errorDetails)
+                      if (serialized !== '{}') {
+                        logData.errorDetails = JSON.parse(serialized)
+                      }
+                    } catch (e) {
+                      // Skip if can't serialize
+                    }
+                  }
+                  
+                  sendBrowserLog('error', 'Follow-up stream error', logData)
                   break
                 }
               }
@@ -1358,7 +1593,7 @@ export async function POST(request) {
                     const toolResult = await callMCPTool(toolUse.name, toolUse.input, 2)
                     
                     // Send chart data to frontend if this is a time series tool
-                    sendChartData(toolUse.name, toolUse.input?.symbol, toolResult, toolUse.input || {})
+                    sendChartData(toolUse.name, toolUse.input?.symbol, toolResult, toolUse.input || {}, message)
                     
                     // Add tool result
                     currentMessages.push({
@@ -1657,7 +1892,35 @@ export async function GET(request) {
       )
     }
 
-    // Get all user's conversations (most recent first)
+    // Check if only summaries are requested (for faster loading)
+    const { searchParams } = new URL(request.url)
+    const summariesOnly = searchParams.get('summariesOnly') === 'true'
+
+    if (summariesOnly) {
+      // Optimized query: only fetch conversations with summaries, limit fields
+      const { data: conversations, error } = await supabase
+        .from('ai_conversations')
+        .select('summary')
+        .eq('user_id', user.id)
+        .not('summary', 'is', null)
+        .order('updated_at', { ascending: false })
+        .limit(20) // Only need recent summaries for context
+
+      if (error) {
+        console.error('Error fetching conversation summaries:', error)
+        return NextResponse.json(
+          { error: 'Failed to fetch conversation summaries' },
+          { status: 500 }
+        )
+      }
+
+      return NextResponse.json({
+        success: true,
+        conversations: conversations || []
+      })
+    }
+
+    // Full query: Get all user's conversations (most recent first)
     // Include conversations without summaries (recent chats that haven't been summarized yet)
     const { data: conversations, error } = await supabase
       .from('ai_conversations')
