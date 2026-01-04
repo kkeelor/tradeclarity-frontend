@@ -206,7 +206,7 @@ export default function Header({
   onNavigateVega,
   onSignOut,
   subscription = null, // Optional subscription object with tier property
-  showSubscriptionBadge = false, // Whether to show subscription badge in header
+  showSubscriptionBadge = true, // Whether to show subscription badge in header
   hasDataSources = true, // Default to true to allow access unless explicitly disabled
   mobilePaddingLeft = false // Add left padding on mobile (for Dashboard sidebar)
 }) {

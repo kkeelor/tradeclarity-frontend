@@ -228,6 +228,7 @@ export default function BillingPage() {
           await fetch('/api/auth/signout', { method: 'POST' })
           router.push('/')
         }}
+        subscription={subscription}
         hasDataSources={false}
         isDemoMode={false}
       />

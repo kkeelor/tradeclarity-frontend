@@ -1047,6 +1047,7 @@ export default function DataManagement() {
         onNavigateUpload={() => {}}
         onNavigateAll={() => router.push('/vega')}
         onSignOut={handleSignOut}
+        subscription={subscription}
         isDemoMode={false}
         hasDataSources={connectedExchanges.length > 0 || uploadedFiles.length > 0}
       />

@@ -121,6 +121,7 @@ export default function PricingPage() {
   const [billingCycle, setBillingCycle] = useState('monthly') // 'monthly' or 'annual'
   const [loading, setLoading] = useState(false)
   const [currentTier, setCurrentTier] = useState('free')
+  const [subscription, setSubscription] = useState(null)
   const [currency, setCurrency] = useState('USD')
   const [razorpayLoaded, setRazorpayLoaded] = useState(false)
   const razorpayInstanceRef = useRef(null)
@@ -230,6 +231,7 @@ export default function PricingPage() {
       if (response.ok) {
         const data = await response.json()
         if (data.subscription) {
+          setSubscription(data.subscription)
           setCurrentTier(data.subscription.tier)
         }
       }
@@ -646,6 +648,7 @@ export default function PricingPage() {
             await fetch('/api/auth/signout', { method: 'POST' })
             router.push('/')
           } : undefined}
+          subscription={subscription}
           hasDataSources={false}
           isDemoMode={false}
         />

@@ -32,6 +32,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { getCurrencySymbol, formatCurrencyNumber } from '../utils/currencyFormatter'
 import { trackFeatureUsage } from '@/lib/analytics'
+import { useAuth } from '@/lib/AuthContext'
 import {
   AreaChart, Area, BarChart, Bar, LineChart as RechartsLineChart,
   Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart,
@@ -6032,8 +6033,10 @@ export default function AnalyticsView({
   initialTab = 'overview' // New prop to set initial tab from URL
 }) {
   const router = useRouter()
+  const { user } = useAuth()
   const [activeTab, setActiveTab] = useState(initialTab)
   const [showFilters, setShowFilters] = useState(false)
+  const [subscription, setSubscription] = useState(null)
 
   // Update activeTab when initialTab prop changes (e.g., from URL parameter)
   useEffect(() => {
@@ -6052,6 +6055,52 @@ export default function AnalyticsView({
   // Filter state - Only data source filtering
   const [selectedExchanges, setSelectedExchanges] = useState([])
   const [appliedExchanges, setAppliedExchanges] = useState([]) // Track what's currently applied
+
+  // Fetch subscription
+  useEffect(() => {
+    const fetchSubscription = async () => {
+      if (!user?.id) return
+      
+      try {
+        // Check cache first (5 minute TTL)
+        const cacheKey = `subscription_${user.id}`
+        const cached = localStorage.getItem(cacheKey)
+        if (cached) {
+          try {
+            const { data: subscriptionData, timestamp } = JSON.parse(cached)
+            const age = Date.now() - timestamp
+            const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+            
+            if (age < CACHE_TTL) {
+              setSubscription(subscriptionData)
+              return
+            }
+          } catch (e) {
+            // Invalid cache, continue to fetch
+          }
+        }
+        
+        const response = await fetch(`/api/subscriptions/current?userId=${user.id}`)
+        if (response.ok) {
+          const data = await response.json()
+          const subscriptionData = data.subscription
+          setSubscription(subscriptionData)
+          
+          // Cache the subscription data
+          if (subscriptionData) {
+            localStorage.setItem(cacheKey, JSON.stringify({
+              data: subscriptionData,
+              timestamp: Date.now()
+            }))
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching subscription:', error)
+      }
+    }
+    
+    fetchSubscription()
+  }, [user])
 
   // Ensure currency rates are cached when currency changes
   // Also update currency tracker to clear conversion cache when currency changes
@@ -6138,6 +6187,7 @@ export default function AnalyticsView({
         onNavigateUpload={handleNavigateUpload}
         onNavigateAll={handleNavigateAll}
         onSignOut={handleSignOut}
+        subscription={subscription}
         isDemoMode={isDemoMode}
         hasDataSources={true}
       />

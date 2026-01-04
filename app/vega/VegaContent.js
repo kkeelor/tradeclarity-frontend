@@ -42,6 +42,7 @@ export default function VegaContent() {
   const [refreshingAnalytics, setRefreshingAnalytics] = useState(false)
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [isDisclaimerExpanded, setIsDisclaimerExpanded] = useState(false)
+  const [subscription, setSubscription] = useState(null)
   
   // Persist coach mode preference
   useEffect(() => {
@@ -49,6 +50,52 @@ export default function VegaContent() {
       localStorage.setItem('vega_coach_mode', coachMode.toString())
     }
   }, [coachMode])
+  
+  // Fetch subscription
+  useEffect(() => {
+    const fetchSubscription = async () => {
+      if (!user?.id) return
+      
+      try {
+        // Check cache first (5 minute TTL)
+        const cacheKey = `subscription_${user.id}`
+        const cached = localStorage.getItem(cacheKey)
+        if (cached) {
+          try {
+            const { data: subscriptionData, timestamp } = JSON.parse(cached)
+            const age = Date.now() - timestamp
+            const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+            
+            if (age < CACHE_TTL) {
+              setSubscription(subscriptionData)
+              return
+            }
+          } catch (e) {
+            // Invalid cache, continue to fetch
+          }
+        }
+        
+        const response = await fetch(`/api/subscriptions/current?userId=${user.id}`)
+        if (response.ok) {
+          const data = await response.json()
+          const subscriptionData = data.subscription
+          setSubscription(subscriptionData)
+          
+          // Cache the subscription data
+          if (subscriptionData) {
+            localStorage.setItem(cacheKey, JSON.stringify({
+              data: subscriptionData,
+              timestamp: Date.now()
+            }))
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching subscription:', error)
+      }
+    }
+    
+    fetchSubscription()
+  }, [user])
   
 
 
@@ -335,6 +382,7 @@ export default function VegaContent() {
             router.push('/')
           })
         }}
+        subscription={subscription}
         hasDataSources={!!tradesStats && tradesStats.totalTrades > 0}
       />
       

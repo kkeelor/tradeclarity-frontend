@@ -194,11 +194,11 @@ export default function LandingPage() {
                  <span className="text-emerald-400 mr-3 font-mono">AI Coach &gt;</span>
                  <TypingAnimation 
                     texts={[
-                      "Where am I leaking profit?",
-                      "Show me the patterns I'm missing.",
-                      "Am I revenge trading?",
-                      "What's my win rate after 2 PM?",
-                      "Is my stop loss too tight?"
+                      "Score my portfolio out of 10 and tell me why.",
+                      "What am I doing wrong with my money?",
+                      "Am I taking too much risk without realizing it?",
+                      "Why do my profits feel so inconsistent?",
+                      "What should I focus on to improve from here?"
                     ]}
                     className="text-white/80 font-mono text-sm md:text-base"
                   />
