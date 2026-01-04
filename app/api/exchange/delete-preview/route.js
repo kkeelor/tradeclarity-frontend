@@ -199,26 +199,90 @@ export async function POST(request) {
 
     // Count API-imported trades (trades with this exchange_connection_id)
     console.log(`📊 Counting trades for connection ${actualConnectionId}`)
-    const { count: apiTradesCount, error: apiTradesError } = await supabase
-      .from('trades')
-      .select('*', { count: 'exact', head: true })
-      .eq('exchange_connection_id', actualConnectionId)
-      .eq('user_id', user.id)
+    
+    // For SnapTrade connections, we need to count trades in two ways:
+    // 1. Trades with exchange_connection_id matching this connection
+    // 2. Trades with exchange='snaptrade' and brokerage matching (for trades without connection_id)
+    const isSnaptradeConnection = connection.exchange && connection.exchange.startsWith('snaptrade')
+    
+    let apiTradesCount = 0
+    
+    if (isSnaptradeConnection && connectionBrokerageName) {
+      // First, count trades with matching exchange_connection_id
+      const { count: tradesByConnectionId, error: connectionTradesError } = await supabase
+        .from('trades')
+        .select('*', { count: 'exact', head: true })
+        .eq('exchange_connection_id', actualConnectionId)
+        .eq('user_id', user.id)
+      
+      if (connectionTradesError) {
+        console.error('❌ Error counting trades by connection_id:', connectionTradesError)
+        return NextResponse.json(
+          { error: 'Failed to count API trades', details: connectionTradesError.message },
+          { status: 500 }
+        )
+      }
+      
+      apiTradesCount = tradesByConnectionId || 0
+      console.log(`📊 Found ${apiTradesCount} trades with matching connection_id`)
+      
+      // Also count SnapTrade trades without connection_id that match this brokerage
+      // Fetch trades with exchange='snaptrade' and null connection_id, then filter by brokerage in raw_data
+      const { data: snaptradeTradesWithoutConnection, error: snaptradeTradesError } = await supabase
+        .from('trades')
+        .select('id, raw_data')
+        .eq('exchange', 'snaptrade')
+        .eq('user_id', user.id)
+        .is('exchange_connection_id', null)
+      
+      if (snaptradeTradesError) {
+        console.error('❌ Error fetching SnapTrade trades without connection_id:', snaptradeTradesError)
+        // Don't fail - just log and continue
+      } else if (snaptradeTradesWithoutConnection && snaptradeTradesWithoutConnection.length > 0) {
+        // Filter trades by brokerage name in raw_data
+        const matchingBrokerageTrades = snaptradeTradesWithoutConnection.filter(trade => {
+          const rawData = trade.raw_data
+          if (!rawData) return false
+          
+          // Check various possible fields for brokerage name
+          const brokerage = rawData.brokerage || 
+                           rawData.account?.institution_name || 
+                           rawData.account?.institution ||
+                           rawData.institution_name ||
+                           rawData.institution
+          
+          return brokerage === connectionBrokerageName
+        })
+        
+        const additionalTradesCount = matchingBrokerageTrades.length
+        apiTradesCount += additionalTradesCount
+        console.log(`📊 Found ${additionalTradesCount} additional SnapTrade trades without connection_id matching brokerage "${connectionBrokerageName}"`)
+      }
+    } else {
+      // For non-SnapTrade connections, count normally by connection_id
+      const { count: tradesCount, error: apiTradesError } = await supabase
+        .from('trades')
+        .select('*', { count: 'exact', head: true })
+        .eq('exchange_connection_id', actualConnectionId)
+        .eq('user_id', user.id)
 
-    if (apiTradesError) {
-      console.error('❌ Error counting API trades:', {
-        error: apiTradesError,
-        message: apiTradesError.message,
-        code: apiTradesError.code,
-        details: apiTradesError.details
-      })
-      return NextResponse.json(
-        { error: 'Failed to count API trades', details: apiTradesError.message },
-        { status: 500 }
-      )
+      if (apiTradesError) {
+        console.error('❌ Error counting API trades:', {
+          error: apiTradesError,
+          message: apiTradesError.message,
+          code: apiTradesError.code,
+          details: apiTradesError.details
+        })
+        return NextResponse.json(
+          { error: 'Failed to count API trades', details: apiTradesError.message },
+          { status: 500 }
+        )
+      }
+      
+      apiTradesCount = tradesCount || 0
     }
 
-    console.log(`📊 Found ${apiTradesCount || 0} API trades`)
+    console.log(`📊 Total API trades found: ${apiTradesCount}`)
 
     // Find CSV files linked to this exchange
     console.log(`📊 Fetching CSV files for connection ${actualConnectionId}`)

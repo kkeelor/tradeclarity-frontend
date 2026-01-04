@@ -3,8 +3,9 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Database, Upload, FileText, X, AlertCircle, CheckCircle, Trash2, Loader2, Check, ChevronDown, Link2, Plus, KeyRound, Clock, TrendingUp, HelpCircle } from 'lucide-react'
+import { Database, Upload, FileText, X, AlertCircle, CheckCircle, Trash2, Loader2, Check, ChevronDown, Link2, Plus, KeyRound, Clock, TrendingUp, HelpCircle, RefreshCw } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
+import { getEffectiveTier } from '@/lib/featureGates'
 import { ExchangeIcon, Separator } from '@/components/ui'
 import { toast } from 'sonner'
 import { getUpgradeToastConfig, getUpgradePromptFromApiError } from '@/app/components/UpgradePrompt'
@@ -57,12 +58,43 @@ export default function DataManagement() {
   const [isUpdatingKeys, setIsUpdatingKeys] = useState(false)
   const [showConnectModal, setShowConnectModal] = useState(false)
   const [preSelectedExchangeId, setPreSelectedExchangeId] = useState(null)
+  const [subscription, setSubscription] = useState(null)
+  const [showRefreshDialog, setShowRefreshDialog] = useState(false)
+  const [refreshPreview, setRefreshPreview] = useState(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [refreshProgress, setRefreshProgress] = useState({ current: null, total: 0, completed: 0 })
   const fileInputRef = useRef(null)
 
   useEffect(() => {
     fetchConnectedExchanges()
     fetchUploadedFiles()
   }, [])
+
+  useEffect(() => {
+    if (user) {
+      fetchSubscription()
+    }
+  }, [user])
+
+  const fetchSubscription = async () => {
+    if (!user) return
+    
+    try {
+      const response = await fetch(`/api/subscriptions/current?userId=${user.id}`)
+      const data = await response.json()
+      // The endpoint returns { subscription: {...} } directly
+      if (data.subscription) {
+        setSubscription(data.subscription)
+      } else {
+        // If no subscription, set to free tier
+        setSubscription({ tier: 'free', status: 'active' })
+      }
+    } catch (error) {
+      console.error('[DataManagement] Error fetching subscription:', error)
+      // On error, default to free tier so button doesn't show
+      setSubscription({ tier: 'free', status: 'active' })
+    }
+  }
 
   const fetchConnectedExchanges = async () => {
     const startTime = Date.now()
@@ -155,6 +187,102 @@ export default function DataManagement() {
       const remaining = Math.max(0, 350 - elapsed)
       setTimeout(() => setLoadingUploaded(false), remaining)
     }
+  }
+
+  const handleRefreshClick = async () => {
+    try {
+      // Fetch preview
+      const previewResponse = await fetch('/api/exchange/refresh-preview', {
+        method: 'POST'
+      })
+      const previewData = await previewResponse.json()
+
+      if (!previewResponse.ok) {
+        if (previewData.error === 'Refresh is only available for Trader and Pro tiers') {
+          toast.error('Refresh is only available for Trader and Pro tiers')
+          return
+        }
+        throw new Error(previewData.error || 'Failed to preview refresh')
+      }
+
+      if (previewData.exchangesReady.length === 0) {
+        if (previewData.exchangesOnCooldown.length > 0) {
+          const hoursRemaining = previewData.exchangesOnCooldown[0]?.hoursRemaining || 0
+          toast.info(`All exchanges are on cooldown. Next refresh available in ${hoursRemaining} hour(s)`)
+        } else {
+          toast.info('No exchanges ready to refresh')
+        }
+        return
+      }
+
+      setRefreshPreview(previewData)
+      setShowRefreshDialog(true)
+    } catch (error) {
+      console.error('Error previewing refresh:', error)
+      toast.error('Failed to preview refresh')
+    }
+  }
+
+  const handleRefreshConfirm = async () => {
+    setShowRefreshDialog(false)
+    setIsRefreshing(true)
+    setRefreshProgress({ current: null, total: refreshPreview.exchangesReady.length, completed: 0 })
+
+    try {
+      const response = await fetch('/api/exchange/refresh-all', {
+        method: 'POST'
+      })
+      const data = await response.json()
+
+      if (!response.ok) {
+        if (data.error === 'COOLDOWN') {
+          toast.error(data.message || 'Refresh is on cooldown')
+        } else if (data.error === 'Refresh is only available for Trader and Pro tiers') {
+          toast.error('Refresh is only available for Trader and Pro tiers')
+        } else {
+          throw new Error(data.error || 'Failed to refresh')
+        }
+        return
+      }
+
+      // Show success summary
+      if (data.refreshed && data.refreshed.length > 0) {
+        const totalNewTrades = data.totalNewTrades || 0
+        toast.success(`Refreshed ${data.refreshed.length} exchange(s), ${totalNewTrades} new trades added`)
+      }
+
+      if (data.errors && data.errors.length > 0) {
+        toast.error(`${data.errors.length} exchange(s) failed to refresh`)
+      }
+
+      // Refresh exchange list
+      await fetchConnectedExchanges()
+      await fetchSubscription()
+    } catch (error) {
+      console.error('Error refreshing exchanges:', error)
+      toast.error('Failed to refresh exchanges')
+    } finally {
+      setIsRefreshing(false)
+      setRefreshProgress({ current: null, total: 0, completed: 0 })
+    }
+  }
+
+  const getCooldownInfo = () => {
+    if (!connectedExchanges.length) return null
+    
+    const now = new Date()
+    const cooldownMs = 24 * 60 * 60 * 1000
+    const cooldowns = connectedExchanges
+      .filter(e => e.lastSynced)
+      .map(e => {
+        const lastSynced = new Date(e.lastSynced)
+        const timeSince = now - lastSynced
+        return { exchange: e.exchange, hoursRemaining: Math.ceil((cooldownMs - timeSince) / (60 * 60 * 1000)) }
+      })
+      .filter(c => c.hoursRemaining > 0)
+      .sort((a, b) => a.hoursRemaining - b.hoursRemaining)
+
+    return cooldowns.length > 0 ? cooldowns[0] : null
   }
 
   const handleDeleteExchange = async (exchange) => {
@@ -944,13 +1072,35 @@ export default function DataManagement() {
                   Exchange Connections ({connectedExchanges.length})
                 </h2>
               </div>
-              <button
-                onClick={handleConnectExchange}
-                className="group px-4 py-2 bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Connect Exchange
-              </button>
+              <div className="flex items-center gap-2">
+                {subscription && getEffectiveTier(subscription) !== 'free' && (
+                  <button
+                    onClick={handleRefreshClick}
+                    disabled={isRefreshing || connectedExchanges.length === 0}
+                    className="group px-4 py-2 bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={getCooldownInfo() ? `Next refresh in ${getCooldownInfo().hoursRemaining}h` : 'Refresh exchange data'}
+                  >
+                    {isRefreshing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Refreshing...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-4 h-4" />
+                        Refresh Data
+                      </>
+                    )}
+                  </button>
+                )}
+                <button
+                  onClick={handleConnectExchange}
+                  className="group px-4 py-2 bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Connect Exchange
+                </button>
+              </div>
             </div>
 
             {loadingExchanges ? (
@@ -1379,6 +1529,112 @@ export default function DataManagement() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+      )}
+
+      {/* Refresh Data Confirmation Dialog */}
+      <Dialog open={showRefreshDialog} onOpenChange={setShowRefreshDialog}>
+        <DialogContent className="bg-black border-white/10 max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-semibold text-white/90">Refresh Exchange Data</DialogTitle>
+            <DialogDescription className="text-white/60">
+              Fetch the latest trades from your connected exchanges
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {refreshPreview?.exchangesReady && refreshPreview.exchangesReady.length > 0 ? (
+              <>
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <p className="text-sm text-white/70 mb-3">
+                    The following {refreshPreview.exchangesReady.length} exchange(s) will be refreshed:
+                  </p>
+                  <div className="space-y-2">
+                    {refreshPreview.exchangesReady.map((ex, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-sm">
+                        <span className="text-white/90">
+                          {ex.brokerageName ? `SnapTrade - ${ex.brokerageName}` : ex.exchange.charAt(0).toUpperCase() + ex.exchange.slice(1)}
+                        </span>
+                        <span className="text-white/60">Ready</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {refreshPreview.exchangesOnCooldown && refreshPreview.exchangesOnCooldown.length > 0 && (
+                  <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4">
+                    <p className="text-sm text-yellow-400 mb-2">
+                      {refreshPreview.exchangesOnCooldown.length} exchange(s) on cooldown
+                    </p>
+                    <p className="text-xs text-yellow-400/70">
+                      Next refresh available in {refreshPreview.exchangesOnCooldown[0]?.hoursRemaining || 0} hour(s)
+                    </p>
+                  </div>
+                )}
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-blue-300">
+                      <p className="font-medium mb-1">Only new trades will be added</p>
+                      <p className="text-blue-300/70">
+                        Existing trades are automatically deduplicated. This process may take a few minutes.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4">
+                <p className="text-sm text-yellow-400">
+                  {refreshPreview?.exchangesOnCooldown?.length > 0
+                    ? `All exchanges are on cooldown. Next refresh available in ${refreshPreview.exchangesOnCooldown[0]?.hoursRemaining || 0} hour(s)`
+                    : 'No exchanges ready to refresh'}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <button
+              onClick={() => setShowRefreshDialog(false)}
+              className="px-4 py-2 text-white/60 hover:text-white/90 transition-colors"
+            >
+              Cancel
+            </button>
+            {refreshPreview?.exchangesReady && refreshPreview.exchangesReady.length > 0 && (
+              <button
+                onClick={handleRefreshConfirm}
+                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors inline-flex items-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Refresh Now
+              </button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Refresh Progress Indicator */}
+      {isRefreshing && (
+        <div className="fixed bottom-4 right-4 bg-black border border-white/10 rounded-xl p-4 shadow-lg z-50 max-w-sm">
+          <div className="flex items-center gap-3 mb-3">
+            <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-white/90">Refreshing exchanges...</p>
+              {refreshProgress.total > 0 && (
+                <p className="text-xs text-white/60">
+                  {refreshProgress.completed} of {refreshProgress.total} completed
+                </p>
+              )}
+            </div>
+          </div>
+          {refreshProgress.total > 0 && (
+            <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden">
+              <div
+                className="bg-blue-500 h-full transition-all duration-300"
+                style={{ width: `${(refreshProgress.completed / refreshProgress.total) * 100}%` }}
+              />
+            </div>
+          )}
+        </div>
       )}
 
       {/* Update API Keys Modal */}

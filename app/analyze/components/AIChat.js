@@ -7,7 +7,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, useImperativeHandle,
 import { useRouter } from 'next/navigation'
 import { Send, Loader2, Bot, User, Sparkles, X, RotateCcw, Square, Minimize2, Maximize2, Database, Link as LinkIcon, Upload, TrendingUp, DollarSign, PieChart, Target, AlertCircle, MessageCircle, Share2, Check, ChevronDown, Menu, Play, Brain } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { getDynamicSampleQuestions, getCoachModeStarters, getGreeting } from '@/lib/ai/prompts/sampleQuestions'
 import { ChatOptions, parseOptionsFromResponse, detectTopicFromMessage, isFollowUpOnTopic } from '@/components/ui/ChatOptions'
 import { toast } from 'sonner'
@@ -2208,9 +2208,9 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold text-white/90">
+                  <DialogTitle className="text-sm font-semibold text-white/90">
                     Vega AI
-                  </h3>
+                  </DialogTitle>
                   {coachMode && (
                     <span className="px-2 py-0.5 text-[10px] font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full">
                       Coach
