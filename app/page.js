@@ -177,13 +177,10 @@ export default function LandingPage() {
             {/* Headline */}
           <div className="space-y-6">
             <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold tracking-tight leading-[1.1]">
-              The most expensive patterns
-              <br />
-              <span className="text-white/40">are the ones </span>
+              <span className="text-white/40">Stop staring at charts. </span>
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 animate-pulse-subtle">
-                you can't see
+                Start talking to them.
               </span>
-              <span className="text-white/40">.</span>
             </h1>
             
             <p className="text-lg md:text-xl text-white/60 max-w-2xl mx-auto leading-relaxed font-light">
