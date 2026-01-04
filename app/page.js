@@ -183,6 +183,13 @@ export default function LandingPage() {
               </span>
             </h1>
             
+            {/* Brain Icon */}
+            <div className="flex justify-center my-6">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform duration-500 ease-out">
+                <Brain className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-emerald-400" />
+              </div>
+            </div>
+            
             <p className="text-lg md:text-xl text-white/60 max-w-2xl mx-auto leading-relaxed font-light">
               Meet <span className="text-emerald-400 font-medium">Vega</span>, your personal AI trading coach. 
               Connect your brokerage instantly and get chat-based insights into your psychology, strategy, and hidden leaks.
