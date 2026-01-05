@@ -175,7 +175,7 @@ export default function LandingPage() {
 
         <div className="max-w-4xl w-full text-center space-y-12 relative z-10">
             {/* Headline */}
-          <div className="space-y-6">
+          <div className="space-y-16">
             <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold tracking-tight leading-[1.1]">
               <span className="text-white/40">Stop staring at charts. </span>
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 animate-pulse-subtle">
@@ -183,22 +183,10 @@ export default function LandingPage() {
               </span>
             </h1>
             
-            {/* Brain Icon */}
-            <div className="flex justify-center my-6">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform duration-500 ease-out">
-                <Brain className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-emerald-400" />
-              </div>
-            </div>
-            
-            <p className="text-lg md:text-xl text-white/60 max-w-2xl mx-auto leading-relaxed font-light">
-              Meet <span className="text-emerald-400 font-medium">Vega</span>, your personal AI trading coach. 
-              Connect your brokerage instantly and get chat-based insights into your psychology, strategy, and hidden leaks.
-            </p>
-
             {/* Interactive Typing Element */}
-            <div className="h-16 flex items-center justify-center">
+            <div className="flex justify-center my-12">
               <div className="px-6 py-3 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm">
-                 <span className="text-emerald-400 mr-3 font-mono">AI Coach &gt;</span>
+                 <span className="text-emerald-400 mr-3 font-mono">Ask &gt;</span>
                  <TypingAnimation 
                     texts={[
                       "Score my portfolio out of 10 and tell me why.",
@@ -211,6 +199,11 @@ export default function LandingPage() {
                   />
               </div>
             </div>
+            
+            <p className="text-lg md:text-xl text-white/60 max-w-2xl mx-auto leading-relaxed font-light mt-12">
+              Meet <span className="text-emerald-400 font-medium">Vega</span>, your personal AI trading coach. 
+              Connect your brokerage instantly and get chat-based insights into your psychology, strategy, and hidden leaks.
+            </p>
           </div>
 
           {/* CTA Buttons */}
