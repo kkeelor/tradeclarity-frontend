@@ -179,8 +179,9 @@ export async function POST(request) {
       .order('trade_time', { ascending: true })
     
     // Log trade breakdown by exchange for debugging (especially SnapTrade)
+    let tradesByExchange = {}
     if (trades && trades.length > 0) {
-      const tradesByExchange = trades.reduce((acc, trade) => {
+      tradesByExchange = trades.reduce((acc, trade) => {
         const exchange = trade.exchange || 'unknown'
         acc[exchange] = (acc[exchange] || 0) + 1
         return acc
@@ -190,6 +191,18 @@ export async function POST(request) {
       // Specifically log SnapTrade trades if present
       if (tradesByExchange.snaptrade) {
         console.log(`✅ [Analytics Compute] Found ${tradesByExchange.snaptrade} SnapTrade trades - will be included in analytics`)
+        
+        // Also log brokerage breakdown for Snaptrade trades
+        const brokerageBreakdown = {}
+        trades.forEach(t => {
+          if (t.exchange === 'snaptrade') {
+            const brokerage = t.brokerage || t.raw_data?.account?.institution_name || t.raw_data?.institution || 'Unknown Brokerage'
+            brokerageBreakdown[brokerage] = (brokerageBreakdown[brokerage] || 0) + 1
+          }
+        })
+        if (Object.keys(brokerageBreakdown).length > 0) {
+          console.log(`📊 [Analytics Compute] Snaptrade brokerage breakdown:`, brokerageBreakdown)
+        }
       }
     }
 
@@ -248,13 +261,9 @@ export async function POST(request) {
     }
 
     // 5. Hash different or expired - recompute analytics
-    const exchangeBreakdown = trades.reduce((acc, t) => {
-      const ex = t.exchange || 'unknown'
-      acc[ex] = (acc[ex] || 0) + 1
-      return acc
-    }, {})
+    // tradesByExchange already computed above, reuse it
     console.log(`🔄 [Analytics Compute] Computing analytics for user ${userId} (${trades.length} total trades, trigger: ${trigger || 'unknown'})`)
-    console.log(`📊 [Analytics Compute] Exchange breakdown:`, exchangeBreakdown)
+    console.log(`📊 [Analytics Compute] Exchange breakdown:`, tradesByExchange)
 
     // Fetch portfolio snapshot(s) for holdings data
     let portfolioData = null

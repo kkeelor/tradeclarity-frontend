@@ -35,9 +35,9 @@ export async function GET(request) {
       )
     }
 
-    // 2. If cache valid and not expired, verify trades still exist
+    // 2. If cache valid and not expired, verify trades still exist and count matches
     if (cached && new Date(cached.expires_at) > new Date()) {
-      // Safety check: Verify trades still exist (cache might be stale if trades were deleted)
+      // Safety check: Verify trades still exist and count matches (cache might be stale if trades were added/deleted)
       const { count: tradesCount } = await supabase
         .from('trades')
         .select('*', { count: 'exact', head: true })
@@ -63,7 +63,27 @@ export async function GET(request) {
         })
       }
       
-      // Cache is valid and trades exist - return it
+      // If trade count changed (new Snaptrade trades added or trades deleted), cache is stale
+      if (tradesCount !== cached.total_trades) {
+        console.warn(`⚠️  Cache stale: trade count changed (${cached.total_trades} -> ${tradesCount}). Invalidating cache to include new Snaptrade data.`)
+        await supabase
+          .from('user_analytics_cache')
+          .delete()
+          .eq('user_id', user.id)
+          .catch(() => {}) // Ignore errors
+        
+        return NextResponse.json({
+          success: false,
+          cached: false,
+          analytics: null,
+          aiContext: null,
+          allTrades: null,
+          psychology: null,
+          message: `Analytics cache stale (trade count changed: ${cached.total_trades} -> ${tradesCount}). Recompute needed.`
+        })
+      }
+      
+      // Cache is valid and trade count matches - return it
       const response = NextResponse.json({
         success: true,
         analytics: cached.analytics_data,

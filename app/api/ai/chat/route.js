@@ -270,13 +270,13 @@ export async function POST(request) {
         // Check cache directly from database
         const { data: cached } = await supabase
           .from('user_analytics_cache')
-          .select('ai_context, analytics_data, expires_at, total_trades')
+          .select('ai_context, analytics_data, expires_at, total_trades, trades_hash')
           .eq('user_id', user.id)
           .single()
       
       // Only use cache if it exists, is not expired, and trades still exist
       if (cached && cached.ai_context && new Date(cached.expires_at) > new Date()) {
-        // Safety check: Verify trades still exist (cache might be stale if trades were deleted)
+        // Safety check: Verify trades still exist and count matches (cache might be stale if trades were added/deleted)
         const { count: tradesCount } = await supabase
           .from('trades')
           .select('*', { count: 'exact', head: true })
@@ -291,10 +291,28 @@ export async function POST(request) {
             .delete()
             .eq('user_id', user.id)
             .catch(() => {}) // Ignore errors
+        } else if (tradesCount !== cached.total_trades) {
+          // Trade count changed (new Snaptrade trades added or trades deleted) - cache is stale
+          console.warn(`[Chat API] Cache stale: trade count changed (${cached.total_trades} -> ${tradesCount}). Invalidating cache to include new Snaptrade data.`)
+          // Invalidate cache to force recomputation with new trades
+          await supabase
+            .from('user_analytics_cache')
+            .delete()
+            .eq('user_id', user.id)
+            .catch(() => {}) // Ignore errors
+          // Don't use stale cache - will fall back to contextData or trigger recomputation
         } else {
-          // Cache is valid and trades exist (or both are 0) - use it
+          // Cache is valid and trade count matches - use it
+          // Note: We don't validate trades_hash here for performance (count check is sufficient for most cases)
+          // If trades_hash validation is needed, it would require fetching all trades which is expensive
           aiContext = cached.ai_context
           analytics = cached.analytics_data
+          
+          debugLog('[Chat API] Using cached analytics:', {
+            totalTrades: cached.total_trades,
+            hasAiContext: !!aiContext,
+            hasAnalytics: !!analytics
+          })
         }
       }
     } catch (error) {

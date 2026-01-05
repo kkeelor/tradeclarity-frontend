@@ -1005,19 +1005,52 @@ const AIChat = forwardRef(({ analytics, allTrades, tradesStats, metadata, onConn
                   
                   // Safely log with proper error handling
                   try {
+                    // Helper function to check if logData is meaningful
+                    const hasMeaningfulData = (data) => {
+                      if (data === null || data === undefined) return false
+                      if (typeof data === 'string' && data.trim().length === 0) return false
+                      if (typeof data === 'object') {
+                        // Skip empty objects (but not arrays)
+                        if (!Array.isArray(data) && Object.keys(data).length === 0) return false
+                        // Skip empty arrays
+                        if (Array.isArray(data) && data.length === 0) return false
+                      }
+                      return true
+                    }
+                    
                     if (logLevel === 'error') {
-                      // Only log meaningful data, skip empty objects
-                      if (logData && typeof logData === 'object' && Object.keys(logData).length === 0) {
+                      // Suppress certain known non-critical errors
+                      const isSuppressedError = logMessage.includes('Follow-up stream error') && !hasMeaningfulData(logData)
+                      
+                      if (isSuppressedError) {
+                        // Silently skip or log at debug level only
+                        if (process.env.NODE_ENV === 'development') {
+                          console.debug('[Suppressed]', logMessage)
+                        }
+                      } else if (!hasMeaningfulData(logData)) {
+                        // Log message only if no meaningful data
                         console.error(logMessage)
                       } else {
                         console.error(logMessage, logData)
                       }
                     } else if (logLevel === 'warn') {
-                      console.warn(logMessage, logData)
+                      if (hasMeaningfulData(logData)) {
+                        console.warn(logMessage, logData)
+                      } else {
+                        console.warn(logMessage)
+                      }
                     } else if (logLevel === 'debug') {
-                      console.debug(logMessage, logData)
+                      if (hasMeaningfulData(logData)) {
+                        console.debug(logMessage, logData)
+                      } else {
+                        console.debug(logMessage)
+                      }
                     } else {
-                      console.log(logMessage, logData)
+                      if (hasMeaningfulData(logData)) {
+                        console.log(logMessage, logData)
+                      } else {
+                        console.log(logMessage)
+                      }
                     }
                   } catch (logError) {
                     // Fallback if logging fails (e.g., circular reference)
